@@ -6,8 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+confy = "0.4.0"
 banyan-shared = { git = "https://github.com/banyancomputer/banyan-shared-rs" }
 clap = { version = "3.2.20", features = ["derive"] }
+anyhow = "1.0.64"
+serde = "1.0.144"
 
 [badges]
 codecov = { repository = "banyancomputer/banyan-cli", branch = "master", service = "github" }
