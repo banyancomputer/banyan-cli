@@ -1,6 +1,8 @@
 use anyhow::{Result, Error};
 use serde::{Serialize, Deserialize};
 
+// TODO: This should all be moved to Banyan-Shared-RS
+
 /// Struct for
 ///  - Submitting new deals to Chain/Staging
 ///  - managing Application Defaults/State
