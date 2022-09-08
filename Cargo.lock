@@ -109,6 +109,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "banyan-shared",
+ "bao",
  "clap",
  "confy",
  "serde",
