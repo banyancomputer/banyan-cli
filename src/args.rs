@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 #[clap(author, version, about)]
 pub struct BanyanArgs {
     #[clap(subcommand)]
-    pub cmd_type: CommandType,
+    pub command_type: CommandType,
 }
 
 /* Our Main Command Types */
@@ -15,9 +15,9 @@ pub enum CommandType {
     #[clap(about = "Submit a deal to the Estuary network")]
     Deal(DealCommand),
 
-    // /// Configure the Banyan CLI
-    // #[clap(about = "Configure the Banyan CLI")]
-    // Config(ConfigCommand),
+    /// Configure the Banyan CLI
+    #[clap(about = "Configure the Banyan CLI")]
+    Config(ConfigCommand),
 }
 
 /* Deal Subcommands */
@@ -25,7 +25,7 @@ pub enum CommandType {
 #[derive(Debug, Args)]
 pub struct DealCommand {
     #[clap(subcommand)]
-    pub cmd: DealSubcommand,
+    pub command: DealSubcommand,
 }
 
 #[derive(Debug, Subcommand)]
@@ -50,6 +50,10 @@ pub struct SubmitDeal {
     /// The path to the file to submit a deal for
     pub file: String,
 
+    /// The Config file to use
+    #[clap(short, long, default_value = "banyan.toml")]
+    pub config: String,
+
     // #[clap(short, long, about = "The address of the executor")]
     // pub executor_address: String,
     //
@@ -72,8 +76,23 @@ pub struct SubmitDeal {
 
 /* Config Subcommands */
 
-// #[derive(Debug, Args)]
-// pub struct ConfigCommand {
-//     #[clap(subcommand)]
-//     pub cmd: ConfigSubcommand,
-// }
+#[derive(Debug, Args)]
+pub struct ConfigCommand {
+    #[clap(subcommand)]
+    pub command: ConfigSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigSubcommand {
+    /// Create a new config file
+    // #[clap(about = "Create a new config file")]
+    // New(NewConfig),
+
+    /// Show information about the current Config
+    #[clap(about = "Show information about a config file")]
+    Show,
+    //
+    // /// Update an existing config file
+    // #[clap(about = "Update an existing config file")]
+    // Update(UpdateConfig),
+}
