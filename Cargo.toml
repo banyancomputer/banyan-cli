@@ -11,6 +11,8 @@ banyan-shared = { git = "https://github.com/banyancomputer/banyan-shared-rs" }
 clap = { version = "3.2.20", features = ["derive"] }
 anyhow = "1.0.64"
 serde = "1.0.144"
+bao = "0.12.1"
+
 
 [badges]
 codecov = { repository = "banyancomputer/banyan-cli", branch = "master", service = "github" }
