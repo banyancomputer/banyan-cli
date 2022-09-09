@@ -7,7 +7,7 @@ pub struct BanyanClient {
     /// The Banyan Contract
     pub banyan_contract_address: Address,
     /// The EthProvider to use. This handles all Ethereum interactions.
-    pub eth_provider: EthProvider,
+    pub eth_client: EthClient,
     /* Estuary Stuff */
     /// The Estuary API Hostname
     pub estuary_api_hostname: String,
@@ -25,6 +25,10 @@ pub struct BanyanClientBuilder {
     /* Eth Stuff */
     /// The Banyan Contract Address
     pub banyan_contract_address: Address,
+    /// The Eth API URL
+    pub eth_api_url: String,
+    /// The Eth API Key
+    pub eth_api_key: String,
     /// The Private key to initialize the Eth Provider with
     pub eth_private_key: String,
     /* Estuary Stuff */
@@ -38,7 +42,9 @@ impl Default for BanyanClientBuilder {
     fn default() -> Self {
         BanyanClientBuilder {
             banyan_contract_address: Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            eth_private_key: String::from(""),
+            eth_api_url: String::from("https://mainnet.infura.io/v3/"),
+            eth_api_key: String::from(env::var("ETH_API_KEY").unwrap_or("".to_string())),
+            eth_private_key: String::from(env::var("ETH_PRIVATE_KEY").unwrap_or("".to_string())),
             estuary_api_hostname: String::from("http://localhost:3004"),
             estuary_api_key: String::from(""),
         }
@@ -46,15 +52,19 @@ impl Default for BanyanClientBuilder {
 }
 
 impl BanyanClientBuilder {
-    // TODO: Custimize this to allow for more options
+    /// new - Create a new BanyanClientBuilder
     pub fn new() -> Self {
         BanyanClientBuilder::default()
     }
-
     pub fn build(self) -> Result<BanyanClient, Error> {
         Ok(BanyanClient {
             banyan_contract_address: self.banyan_contract_address,
-            // eth_provider: EthProvider::new()
+            eth_client: EthClient::new(
+                self.eth_api_url,
+                Some(self.eth_api_key),
+                Some(self.eth_private_key),
+                Some(10),
+            )?,
             estuary_api_hostname: self.estuary_api_hostname,
             estuary_api_key: self.estuary_api_key,
         })
