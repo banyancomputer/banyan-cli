@@ -9,8 +9,10 @@ erc_token_denomination: 0x0000000000000000000000000000000000000000
 # Endpoints Configuration
 estuary_api_hostname: http://localhost:3004  # The hostname of the Estuary API when running locally
 banyan_contract_address: 0x0000000000000000000000000000000000000000  # The address of the Banyan contract on the Ethereum network
-infura_api_url: https://goerli.infura.io/v3/
-infura_api_key: <INFURA_KEY> # The Infura key for the Ethereum network
+eth_api_url: https://goerli.infura.io/v3/
+eth_api_key: <INFURA_KEY> # The Infura key for the Ethereum network
+eth_private_key: <PRIVATE_KEY> # The private key of the Ethereum account that will be used to sign transactions
+eth_api_timeout: 10
 
 # API Keys and Secrets
 estuary_api_key: 00000000-0000-0000-0000-000000000000  # The API key for the Estuary API

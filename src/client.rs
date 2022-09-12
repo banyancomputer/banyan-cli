@@ -31,6 +31,7 @@ pub struct BanyanClientBuilder {
     pub eth_api_key: String,
     /// The Private key to initialize the Eth Provider with
     pub eth_private_key: String,
+
     /* Estuary Stuff */
     /// The Estuary API Hostname
     pub estuary_api_hostname: String,
@@ -53,8 +54,19 @@ impl Default for BanyanClientBuilder {
 
 impl BanyanClientBuilder {
     /// new - Create a new BanyanClientBuilder
-    pub fn new() -> Self {
-        BanyanClientBuilder::default()
+    /// # Arguments
+    /// * `banyan_contract_address` - The address of the Banyan Contract
+    /// * `eth_api_url` - The URL of the Ethereum API to use
+    /// * `eth_api_key` - The API Key to use for the Ethereum API
+    /// * `eth_private_key` - The private key to use for signing transactions
+    /// * `estuary_api_hostname` - The hostname of the Estuary API
+    /// * `estuary_api_key` - The API Key to use for the Estuary API
+    pub fn new(
+
+    ) -> Self {
+     Self {
+
+     }
     }
     pub fn build(self) -> Result<BanyanClient, Error> {
         Ok(BanyanClient {
