@@ -1,12 +1,14 @@
 use banyan_shared::eth::*;
 use banyan_shared::types::*;
+use anyhow::{Result, Error};
+use std::env::var;
+use ethers::types::Address;
+use blake3::Hasher;
 
 /// BanyanClient - A one stop struct for interacting with our Backend
 pub struct BanyanClient {
     /* Eth Stuff */
-    /// The Banyan Contract
-    pub banyan_contract_address: Address,
-    /// The EthProvider to use. This handles all Ethereum interactions.
+    /// Our Eth Client for Banyan
     pub eth_client: EthClient,
     /* Estuary Stuff */
     /// The Estuary API Hostname
@@ -15,70 +17,71 @@ pub struct BanyanClient {
     pub estuary_api_key: String,
 }
 
-impl BanyanClient {
-    pub fn builder() -> BanyanClientBuilder {
-        BanyanClientBuilder::default()
-    }
-}
-
-pub struct BanyanClientBuilder {
-    /* Eth Stuff */
-    /// The Banyan Contract Address
-    pub banyan_contract_address: Address,
-    /// The Eth API URL
-    pub eth_api_url: String,
-    /// The Eth API Key
-    pub eth_api_key: String,
-    /// The Private key to initialize the Eth Provider with
-    pub eth_private_key: String,
-
-    /* Estuary Stuff */
-    /// The Estuary API Hostname
-    pub estuary_api_hostname: String,
-    /// The Estuary API Key
-    pub estuary_api_key: String,
-}
-
-impl Default for BanyanClientBuilder {
+impl Default for BanyanClient {
+    /// Create a new BanyanClient from the Environment
     fn default() -> Self {
-        BanyanClientBuilder {
-            banyan_contract_address: Address::from_str("0x0000000000000000000000000000000000000000").unwrap(),
-            eth_api_url: String::from("https://mainnet.infura.io/v3/"),
-            eth_api_key: String::from(env::var("ETH_API_KEY").unwrap_or("".to_string())),
-            eth_private_key: String::from(env::var("ETH_PRIVATE_KEY").unwrap_or("".to_string())),
-            estuary_api_hostname: String::from("http://localhost:3004"),
-            estuary_api_key: String::from(""),
+        BanyanClient {
+            // Initialize our Eth Client from the environment
+            eth_client: EthClient::default(),
+            estuary_api_hostname: var("ESTUARY_API_HOSTNAME")
+                .unwrap_or("http://localhost:3004".to_string()),
+            estuary_api_key: var("ESTUARY_API_KEY")
+                .unwrap_or("".to_string()),
         }
     }
 }
 
-impl BanyanClientBuilder {
-    /// new - Create a new BanyanClientBuilder
+impl BanyanClient {
+    /// Create a new BanyanClient using custom values
     /// # Arguments
-    /// * `banyan_contract_address` - The address of the Banyan Contract
-    /// * `eth_api_url` - The URL of the Ethereum API to use
-    /// * `eth_api_key` - The API Key to use for the Ethereum API
-    /// * `eth_private_key` - The private key to use for signing transactions
-    /// * `estuary_api_hostname` - The hostname of the Estuary API
-    /// * `estuary_api_key` - The API Key to use for the Estuary API
+    /// * `eth_api_url` - The URL of the Ethereum API to use. This is required.
+    /// * `eth_api_key` - The API Key to use for the Ethereum API. This is required.
+    /// * `eth_chain_id` - The Chain ID of the Ethereum Network to use. This is required.
+    /// * `eth_private_key` - The Private Key to use for the Ethereum Wallet. This is required.
+    /// * `eth_contract_address` - The Address of the Banyan Contract. This is required.
+    /// * `estuary_api_hostname` - The Hostname of the Estuary API to use.
+    /// * `estuary_api_key` - The API Key to use for the Estuary API.
     pub fn new(
-
-    ) -> Self {
-     Self {
-
-     }
-    }
-    pub fn build(self) -> Result<BanyanClient, Error> {
-        Ok(BanyanClient {
-            banyan_contract_address: self.banyan_contract_address,
+        eth_api_url: String,
+        eth_api_key: String,
+        eth_chain_id: u64,
+        eth_private_key: String,
+        eth_contract_address: Address,
+        estuary_api_hostname: String,
+        estuary_api_key: String,
+    ) -> BanyanClient {
+        BanyanClient {
+            // Initialize our Eth Client from the environment
             eth_client: EthClient::new(
-                self.eth_api_url,
-                Some(self.eth_api_key),
-                Some(self.eth_private_key),
-                Some(10),
-            )?,
-            estuary_api_hostname: self.estuary_api_hostname,
-            estuary_api_key: self.estuary_api_key,
-        })
+                eth_api_url,
+                eth_api_key,
+                Some(eth_chain_id),
+                Some(eth_private_key),
+                Some(eth_contract_address),
+            ),
+            estuary_api_hostname: estuary_api_hostname.unwrap_or("http://localhost:3004".to_string()),
+            estuary_api_key: estuary_api_key.unwrap_or("".to_string()),
+        }
+    }
+
+    /// Submit a Deal Proposal to the Banyan Contract and Update the Estuary API
+    /// # Arguments
+    /// * `deal_proposal` - The DealProposal to submit
+    /// # Returns
+    /// * `Result<DealId, Error>` - The DealProposal that was submitted
+    /// # Errors
+    /// * `Error` - If there was an error submitting the DealProposal
+    /// * `Error` - If there was an error updating the Estuary API
+    pub async fn submit_deal_proposal(&self, deal_proposal: DealProposal) -> Result<DealId, Error> {
+
+        // Submit the Deal Proposal to the Banyan Contract
+        // let deal_id: DealID = self.eth_client.propose_deal(deal_proposal).await?;
+        let deal_id = DealId(0);
+
+
+        // Update the Estuary API
+        self.update_estuary_api(deal_id).await?;
+        // Return the Deal ID
+        Ok(deal_id)
     }
 }
