@@ -37,7 +37,6 @@ pub enum DealSubcommand {
     /// Show information about a deal
     #[clap(about = "Show information about a deal")]
     Show,
-
     // /// Update an existing deal
     // #[clap(about = "Update an existing deal")]
     // Update(UpdateCommand),
@@ -53,7 +52,6 @@ pub struct SubmitDeal {
     /// The Config file to use
     #[clap(short, long, default_value = "banyan.toml")]
     pub config: String,
-
     // #[clap(short, long, about = "The address of the executor")]
     // pub executor_address: String,
     //
@@ -72,7 +70,6 @@ pub struct SubmitDeal {
     // #[clap(short, long, about = "The ERC20 token to use for collateral/bounty")]
     // pub erc20_token_denomination: String,
 }
-
 
 /* Config Subcommands */
 
