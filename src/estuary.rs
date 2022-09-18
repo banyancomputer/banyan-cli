@@ -233,8 +233,7 @@ mod test {
 
     #[tokio::test]
     /// Try to get content from Estuary
-    async fn get_content() {
-
+    async fn get_contents() {
         let client = EstuaryClient::default();
         let content: Vec<Content> = client.get_content().await.unwrap();
         dbg!(content);
