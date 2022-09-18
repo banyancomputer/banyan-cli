@@ -1,9 +1,7 @@
-use banyan_shared::eth::*;
-use banyan_shared::types::*;
-use anyhow::{Result, Error};
-use std::env::var;
+use anyhow::{Error, Result};
+use banyan_shared::{deals::*, eth::*, types::*};
 use ethers::types::Address;
-use blake3::Hasher;
+use std::env::var;
 
 /// BanyanClient - A one stop struct for interacting with our Backend
 pub struct BanyanClient {
@@ -25,8 +23,7 @@ impl Default for BanyanClient {
             eth_client: EthClient::default(),
             estuary_api_hostname: var("ESTUARY_API_HOSTNAME")
                 .unwrap_or("http://localhost:3004".to_string()),
-            estuary_api_key: var("ESTUARY_API_KEY")
-                .unwrap_or("".to_string()),
+            estuary_api_key: var("ESTUARY_API_KEY").unwrap_or("".to_string()),
         }
     }
 }
@@ -57,31 +54,45 @@ impl BanyanClient {
                 eth_api_key,
                 Some(eth_chain_id),
                 Some(eth_private_key),
-                Some(eth_contract_address),
-            ),
-            estuary_api_hostname: estuary_api_hostname.unwrap_or("http://localhost:3004".to_string()),
-            estuary_api_key: estuary_api_key.unwrap_or("".to_string()),
+                eth_contract_address,
+            )
+            .unwrap(),
+            estuary_api_hostname,
+            estuary_api_key,
         }
     }
 
-    /// Submit a Deal Proposal to the Banyan Contract and Update the Estuary API
+    /// Process a File into a DealProposal and Web Request
     /// # Arguments
-    /// * `deal_proposal` - The DealProposal to submit
+    /// * `file_path` - The path to the file to process
+    /// * `dp_builder` - The (optional) DealProposalBuilder to use. If None, we will use the default.
     /// # Returns
-    /// * `Result<DealId, Error>` - The DealProposal that was submitted
+    /// * `Result<DealProposal, Error>` - The DealProposal
     /// # Errors
-    /// * `Error` - If there was an error submitting the DealProposal
-    /// * `Error` - If there was an error updating the Estuary API
-    pub async fn submit_deal_proposal(&self, deal_proposal: DealProposal) -> Result<DealId, Error> {
+    /// * `Error` - If there is an error processing the file
+    pub fn prepare_deal(
+        &self,
+        file_path: &str,
+        dp_builder: Option<DealProposalBuilder>,
+    ) -> Result<DealProposal, Error> {
+        // In order to create a deal, we need to read the file into a std::fs::File
+        let file = std::fs::File::open(file_path)?;
+        let dp = match dp_builder {
+            Some(dp_builder) => dp_builder.build(&file).unwrap(),
+            None => DealProposalBuilder::default().build(&file).unwrap(),
+        };
+        Ok(dp)
+    }
+}
 
-        // Submit the Deal Proposal to the Banyan Contract
-        // let deal_id: DealID = self.eth_client.propose_deal(deal_proposal).await?;
-        let deal_id = DealId(0);
+#[cfg(test)]
+mod test {
+    use super::*;
 
-
-        // Update the Estuary API
-        self.update_estuary_api(deal_id).await?;
-        // Return the Deal ID
-        Ok(deal_id)
+    #[test]
+    /// Test that we can create a BanyanClient from the Environment
+    fn default_client() {
+        let client = BanyanClient::default();
+        return;
     }
 }
