@@ -5,13 +5,10 @@ mod banyan;
 
 use args::BanyanArgs;
 use banyan::BanyanClient;
-use banyan_shared::{
-    deals::*,
-    types::*,
-};
+use banyan_shared::{deals::*, types::*};
 use clap::Parser;
-use spinners::{Spinner, Spinners};
 use cli_table::{format::Justify, print_stdout, Cell, Style, Table};
+use spinners::{Spinner, Spinners};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,9 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     panic!("Could not open file: {}", &submit_deal.file);
                 });
                 // TODO: Get initial builder from config / From CLI
-                let deal_proposal = DealProposalBuilder::default()
-                    .with_file(file)
-                    .build()?;
+                let deal_proposal = DealProposalBuilder::default().with_file(file).build()?;
                 // Save the b3hash for later
                 let b3_hash_str = &deal_proposal.blake3_checksum.to_hex();
                 // Display the deal proposal and ask for confirmation
@@ -43,26 +38,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Submit the deal
                     let mut sp = Spinner::new(Spinners::Dots9, "Submitting Deal...".into());
                     // TODO - Configurable Gas Price
-                    let deal_id = client.propose_deal(
-                        deal_proposal, None, None
-                    ).await?;
+                    let deal_id = client.propose_deal(deal_proposal, None, None).await?;
                     sp.stop();
                     println!("Deal Submitted: {}", deal_id);
                     // If we should stage the file, do so
                     if submit_deal.stage {
                         let mut sp = Spinner::new(Spinners::Dots9, "Staging File...".into());
-                        client.stage_file(
-                            submit_deal.file,
-                            Some(deal_id.id().to_string()),
-                            Some(b3_hash_str.to_string()),
-                        ).await?;
+                        client
+                            .stage_file(
+                                submit_deal.file,
+                                Some(deal_id.id().to_string()),
+                                Some(b3_hash_str.to_string()),
+                            )
+                            .await?;
                         sp.stop();
                         println!("File Staged");
                     } else {
                         println!("File not staged. To stage the file, run:");
                         println!(
                             "banyan-cli content stage {} -d {} -b {}",
-                            submit_deal.file, deal_id.id(), b3_hash_str
+                            submit_deal.file,
+                            deal_id.id(),
+                            b3_hash_str
                         );
                     }
                 } else {
@@ -81,11 +78,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args::CommandType::Content(content_command) => match content_command.command {
             args::ContentSubcommand::Stage(stage_content) => {
                 let mut sp = Spinner::new(Spinners::Dots9, "Staging File...".into());
-                client.stage_file(
-                    stage_content.file,
-                    stage_content.deal_id,
-                    stage_content.b3hash,
-                ).await?;
+                client
+                    .stage_file(
+                        stage_content.file,
+                        stage_content.deal_id,
+                        stage_content.b3hash,
+                    )
+                    .await?;
                 sp.stop();
                 println!("File Staged");
             }
@@ -109,7 +108,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         c.deal_id.to_string().cell().justify(Justify::Right),
                     ]);
                 }
-                let table = rows.table()
+                let table = rows
+                    .table()
                     .title(vec![
                         "Estuary ID".cell().bold(true),
                         "IPFS CID".cell().bold(true),

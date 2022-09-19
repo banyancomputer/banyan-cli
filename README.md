@@ -1,5 +1,4 @@
-## Banyan CLI
-
+# Banyan CLI
 
 ## codecov graph
 

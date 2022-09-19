@@ -18,7 +18,6 @@ pub enum CommandType {
     /// Stage or check content on Estuary
     #[clap(about = "Stage or check content on Estuary")]
     Content(ContentCommand),
-
     // /// Configure the Banyan CLI
     // #[clap(about = "Configure the Banyan CLI")]
     // Config(ConfigCommand),
@@ -78,7 +77,6 @@ pub struct SubmitDeal {
     /// Optional: File gets staged on Estuary if present as a flag
     #[clap(short, long, action)]
     pub stage: bool,
-
     // /// The Config file to use
     // #[clap(short, long, default_value = "banyan.toml")]
     // pub config: String,
@@ -89,7 +87,6 @@ pub struct SubmitDeal {
 pub struct ShowDeal {
     /// The ID of the deal to show
     pub deal_id: String,
-
     // /// The Config file to use
     // #[clap(short, long, default_value = "banyan.toml")]
     // pub config: String,
@@ -127,7 +124,6 @@ pub struct StageContent {
     /// The optional Blake3 Hash to stage the file with
     #[clap(short = 'b', long)]
     pub b3hash: Option<String>,
-
     // /// The Config file to use
     // #[clap(short, long, default_value = "banyan.toml")]
     // pub config: String,

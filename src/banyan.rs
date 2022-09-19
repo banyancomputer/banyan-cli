@@ -1,8 +1,8 @@
 use anyhow::{Error, Result};
 use banyan_shared::{
+    estuary::{Content, EstuaryClient},
     eth::*,
     types::*,
-    estuary::{EstuaryClient, Content},
 };
 use ethers::types::Address;
 
@@ -57,10 +57,7 @@ impl BanyanClient {
             )
             .unwrap(),
             // Initialize our Estuary Client
-            estuary_client: EstuaryClient::new(
-                estuary_api_hostname,
-                Some(estuary_api_key)
-            ),
+            estuary_client: EstuaryClient::new(estuary_api_hostname, Some(estuary_api_key)),
         }
     }
 
@@ -78,9 +75,10 @@ impl BanyanClient {
         gas_price: Option<u64>,
     ) -> Result<DealID, Error> {
         // Configurable Gas
-        let deal_id = self.eth_client.propose_deal(
-            dp, gas_limit, gas_price
-        ).await?;
+        let deal_id = self
+            .eth_client
+            .propose_deal(dp, gas_limit, gas_price)
+            .await?;
         // Return the Deal ID
         Ok(deal_id)
     }
@@ -90,10 +88,7 @@ impl BanyanClient {
     /// * `deal_id` - The ID of the Deal to get
     /// # Returns
     /// * `onChainDeal` - The on-chain Deal info for the Deal
-    pub async fn get_deal(
-        &self,
-        deal_id: DealID,
-    ) -> Result<OnChainDealInfo, Error> {
+    pub async fn get_deal(&self, deal_id: DealID) -> Result<OnChainDealInfo, Error> {
         // Get the Deal
         let deal = self.eth_client.get_deal(deal_id).await?;
         // Return the Deal
@@ -113,20 +108,17 @@ impl BanyanClient {
         deal_id_str: Option<String>,
         b3_hash_str: Option<String>,
     ) -> Result<(), Error> {
-        self.estuary_client.stage_file(
-            file_path,
-            deal_id_str,
-            b3_hash_str,
-        ).await.unwrap();
+        self.estuary_client
+            .stage_file(file_path, deal_id_str, b3_hash_str)
+            .await
+            .unwrap();
         Ok(())
     }
 
     /// Get all Content stored on Estuary for this Client
     /// # Returns
     /// * `Vec<Content>` - A list of Content stored on Estuary
-    pub async fn get_content(
-        &self,
-    ) -> Result<Vec<Content>, Error> {
+    pub async fn get_content(&self) -> Result<Vec<Content>, Error> {
         let content = self.estuary_client.get_content().await.unwrap();
         Ok(content)
     }
@@ -134,9 +126,9 @@ impl BanyanClient {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use banyan_shared::deals::DealProposalBuilder;
     use tokio::fs::File;
-    use super::*;
 
     #[test]
     /// Test that we can create a BanyanClient from the Environment
