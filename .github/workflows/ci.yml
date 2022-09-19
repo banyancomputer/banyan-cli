@@ -11,7 +11,7 @@ jobs:
   call_codecov_workflow:
     uses: banyancomputer/.github/.github/workflows/rust-codecov.yml@master
     with:
-      name_of_stuff_to_test_in_target: 'banyan-cli'
+      name_of_stuff_to_test_in_target: 'banyan_cli'
   run_linters:
     uses: banyancomputer/.github/.github/workflows/rust_linters_formatters.yml@master
   run_tests:
