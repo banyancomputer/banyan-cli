@@ -15,9 +15,13 @@ pub enum CommandType {
     #[clap(about = "Submit a deal to the Estuary network")]
     Deal(DealCommand),
 
-    /// Configure the Banyan CLI
-    #[clap(about = "Configure the Banyan CLI")]
-    Config(ConfigCommand),
+    /// Stage or check content on Estuary
+    #[clap(about = "Stage or check content on Estuary")]
+    Content(ContentCommand),
+
+    // /// Configure the Banyan CLI
+    // #[clap(about = "Configure the Banyan CLI")]
+    // Config(ConfigCommand),
 }
 
 /* Deal Subcommands */
@@ -36,10 +40,7 @@ pub enum DealSubcommand {
 
     /// Show information about a deal
     #[clap(about = "Show information about a deal")]
-    Show,
-    // /// Update an existing deal
-    // #[clap(about = "Update an existing deal")]
-    // Update(UpdateCommand),
+    Show(ShowDeal),
 }
 
 /* Submit Deal Command */
@@ -47,49 +48,110 @@ pub enum DealSubcommand {
 #[derive(Debug, Args)]
 pub struct SubmitDeal {
     /// The path to the file to submit a deal for
+    #[clap(short, long)]
     pub file: String,
 
-    /// The Config file to use
-    #[clap(short, long, default_value = "banyan.toml")]
-    pub config: String,
-    // #[clap(short, long, about = "The address of the executor")]
-    // pub executor_address: String,
-    //
-    // #[clap(short, long, about = "How long the deal should last")]
-    // pub deal_length_in_blocks: u32,
-    //
-    // #[clap(short, long, about = "How often the executor should submit proofs")]
-    // pub proof_frequency_in_blocks: u32,
-    //
-    // #[clap(short, long, about = "How much to pay the executor per TiB")]
-    // pub bounty_per_tib: f64,
-    //
-    // #[clap(short, long, about = "How much collateral to put up per TiB")]
-    // pub collateral_per_tib: f64,
-    //
-    // #[clap(short, long, about = "The ERC20 token to use for collateral/bounty")]
-    // pub erc20_token_denomination: String,
+    /// The Executor to use for the Deal
+    #[clap(short, long)]
+    pub executor: Option<String>,
+
+    /// The Deal Duration in Blocks
+    #[clap(short, long)]
+    pub length: Option<u64>,
+
+    /// The Proof Frequency in Blocks to use for the Deal
+    #[clap(short, long)]
+    pub proof_frequency: Option<u64>,
+
+    /// The bounty per TiB to use for the Deal
+    #[clap(short, long)]
+    pub bounty: Option<f64>,
+
+    /// The Collateral per TiB to use for the Deal
+    #[clap(short, long)]
+    pub collateral: Option<f64>,
+
+    /// The ERC20 Token Denomination to use for the Deal
+    #[clap(short = 't', long = "token")]
+    pub erc20_token_denomination: Option<String>,
+
+    /// Optional: File gets staged on Estuary if present as a flag
+    #[clap(short, long, action)]
+    pub stage: bool,
+
+    // /// The Config file to use
+    // #[clap(short, long, default_value = "banyan.toml")]
+    // pub config: String,
 }
 
-/* Config Subcommands */
+/* Show Deal Command */
+#[derive(Debug, Args)]
+pub struct ShowDeal {
+    /// The ID of the deal to show
+    pub deal_id: String,
+
+    // /// The Config file to use
+    // #[clap(short, long, default_value = "banyan.toml")]
+    // pub config: String,
+}
+
+/* Content Subcommands */
 
 #[derive(Debug, Args)]
-pub struct ConfigCommand {
+pub struct ContentCommand {
     #[clap(subcommand)]
-    pub command: ConfigSubcommand,
+    pub command: ContentSubcommand,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum ConfigSubcommand {
-    /// Create a new config file
-    // #[clap(about = "Create a new config file")]
-    // New(NewConfig),
+pub enum ContentSubcommand {
+    /// Stage a file to Estuary
+    #[clap(about = "Stage a file to Estuary")]
+    Stage(StageContent),
 
-    /// Show information about the current Config
-    #[clap(about = "Show information about a config file")]
-    Show,
-    //
-    // /// Update an existing config file
-    // #[clap(about = "Update an existing config file")]
-    // Update(UpdateConfig),
+    /// Get all content you've staged on Estuary
+    #[clap(about = "Get all Content Stored on Estuary")]
+    Ls,
 }
+
+/* Stage Content Command */
+#[derive(Debug, Args)]
+pub struct StageContent {
+    /// The path to the file to stage
+    pub file: String,
+
+    /// The optional Deal ID to stage the file for
+    #[clap(short, long)]
+    pub deal_id: Option<String>,
+
+    /// The optional Blake3 Hash to stage the file with
+    #[clap(short = 'b', long)]
+    pub b3hash: Option<String>,
+
+    // /// The Config file to use
+    // #[clap(short, long, default_value = "banyan.toml")]
+    // pub config: String,
+}
+
+/* TODO: Config Subcommands */
+
+// #[derive(Debug, Args)]
+// pub struct ConfigCommand {
+//     #[clap(subcommand)]
+//     pub command: ConfigSubcommand,
+// }
+
+// #[derive(Debug, Subcommand)]
+// pub enum ConfigSubcommand {
+//     /// Create a new config file
+//     #[clap(about = "Create a new config file")]
+//     New(NewConfig),
+//
+//     /// Show information about the current Config
+//     #[clap(about = "Show information about a config file")]
+//     Show,
+//
+//     /// Update an existing config file
+//     #[clap(about = "Update an existing config file")]
+//     Update(UpdateConfig),
+// }
