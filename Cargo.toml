@@ -14,5 +14,7 @@ iroh-unixfs = "0.2.0"
 futures = "0.3.0"
 async-stream = "0.3.3"
 anyhow = { version = "1", features = ["backtrace"] }
-tokio = "1"
+tokio = { version = "1", features = ["fs"]}
 async-recursion = "1"
+tokio-stream = { version = "0.1.11", features = ["fs"]}
+futures-util = "0.3.0"

@@ -1,5 +1,9 @@
+mod fs_iterator;
+
 // import clap
 use clap::Parser;
+use futures::stream::BoxStream;
+use futures::StreamExt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -8,8 +12,6 @@ use iroh_unixfs::builder::Config;
 use iroh_unixfs::chunker::ChunkerConfig;
 
 use anyhow::{anyhow, Result};
-
-use futures::{stream::BoxStream, StreamExt};
 
 fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     if !path.exists() {
@@ -29,10 +31,12 @@ fn ensure_path_exists_and_is_empty_dir(path: &Path) -> Result<()> {
     Ok(())
 }
 
-// TODO don't copy around pathbufs you trainwreck
+// TODO don't copy around pathbufs you utter trainwreck
+// TODO make a nice generalized function. make an iterable trait i guess.
 async fn copy_to_scratch_space<'a>(
     paths: Vec<PathBuf>,
     scratch_root: PathBuf,
+    follow_symlinks: bool,
 ) -> BoxStream<'a, Result<PathBuf>> {
     async_stream::try_stream! {
         let mut todo_paths_with_roots: Vec<(PathBuf, PathBuf)> =
@@ -49,6 +53,9 @@ async fn copy_to_scratch_space<'a>(
                 }
                 todo_paths_with_roots.extend(new_paths);
             } else {
+                if path.is_symlink() && !follow_symlinks {
+                    continue;
+                }
                 tokio::fs::copy(path, &new_target).await?;
             };
             yield new_target;
@@ -137,7 +144,8 @@ async fn main() {
     std::fs::create_dir(&scratch_dir).expect("could not create scratch directory");
     // copy from inputs to scratch dir
     let args_input_clone = args.input.clone();
-    let _copystream = copy_to_scratch_space(args_input_clone, scratch_dir).await;
+    let _copystream =
+        copy_to_scratch_space(args_input_clone, scratch_dir, args.follow_symlinks).await;
 
     //do_car_sort(in_files, args.target_chunk_size);
 
