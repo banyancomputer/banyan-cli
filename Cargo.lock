@@ -858,11 +858,13 @@ dependencies = [
  "async-stream",
  "clap",
  "futures",
+ "futures-util",
  "glob",
  "iroh-car",
  "iroh-unixfs",
  "log",
  "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
