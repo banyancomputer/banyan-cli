@@ -1,35 +1,18 @@
 mod fs_iterator;
+mod args;
+mod fsutil;
 
-// import clap
 use clap::Parser;
 use futures::stream::BoxStream;
 use futures::StreamExt;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::path::{PathBuf};
 
 //use iroh_car::{CarWriter};
-use iroh_unixfs::builder::Config;
-use iroh_unixfs::chunker::ChunkerConfig;
+//use iroh_unixfs::builder::Config;
+//use iroh_unixfs::chunker::ChunkerConfig;
 
-use anyhow::{anyhow, Result};
-
-fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
-    if !path.exists() {
-        return Err(anyhow!("Path does not exist: {}", path.display()));
-    }
-    if !path.is_dir() {
-        return Err(anyhow!("Path is not a directory: {}", path.display()));
-    }
-    Ok(())
-}
-
-fn ensure_path_exists_and_is_empty_dir(path: &Path) -> Result<()> {
-    ensure_path_exists_and_is_dir(path)?;
-    if path.read_dir().unwrap().count() > 0 {
-        return Err(anyhow!("Path is not empty: {}", path.display()));
-    }
-    Ok(())
-}
+use anyhow::{Result};
+use crate::fs_iterator::do_singlethreaded_test;
 
 // TODO don't copy around pathbufs you utter trainwreck
 // TODO make a nice generalized function. make an iterable trait i guess.
@@ -61,101 +44,26 @@ async fn copy_to_scratch_space<'a>(
             yield new_target;
         }
     }.boxed()
+    //     let args_input_clone = args.input.clone();
+    //     let _copystream =
+    //         copy_to_scratch_space(args_input_clone, scratch_dir, args.follow_symlinks).await;
 }
 
-// // TODO: optimize this
-// /// this is an EXCEEDINGLY stupid way to do this and could be optimized. especially silly if the files are very differing in size.
-// fn do_car_sort(in_files: Vec<PathBuf>, max_chunk_size: u64) -> Vec<(Vec<(PathBuf, u64)>, u64)> {
-//     // get a list of (file, size) tuples
-//     let file_sizes: Vec<(PathBuf, u64)> = in_files
-//         .iter()
-//         .map(|f| (f.clone(), f.metadata().unwrap().len()))
-//         .collect();
-//
-//     // group by what's gonna go into each sector
-//     let mut groups: Vec<(Vec<(PathBuf, u64)>, u64)> = Vec::new();
-//     let mut current_group: Vec<(PathBuf, u64)> = Vec::new();
-//     let mut current_group_size: u64 = 0;
-//     for (file, size) in file_sizes {
-//         if current_group_size + size > max_chunk_size {
-//             groups.push((current_group, current_group_size));
-//             current_group = Vec::new();
-//             current_group_size = 0;
-//         }
-//         current_group.push((file, size));
-//         current_group_size += size;
-//     }
-//     groups.push((current_group, current_group_size));
-//
-//     groups
-// }
-
-// fn make_unixfs(input_paths: Vec<PathBuf>, out_directory: PathBuf) -> Result<(), String> {
-//     for car in cars {
-//         let header = CarHeader::new_v1();
-//         for file in car {
-//
-//         }
-//     }
-// }
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// input files as a glob
-    #[arg(short, long, help = "input directories and files")]
-    input: Vec<PathBuf>,
-
-    /// output directory- must either not exist, or be an empty directory
-    #[arg(short, long, help = "output directory")]
-    output_dir: PathBuf,
-
-    /// key directory - must either not exist, or be an empty directory
-    #[arg(short, long, help = "key directory")]
-    keys_dir: PathBuf,
-
-    /// target size for each chunk
-    #[arg(
-        short,
-        long,
-        help = "target chunk size",
-        default_value = "32_000_000_000"
-    )]
-    target_chunk_size: u64,
-
-    /// should we follow symlinks?
-    #[arg(short, long, help = "follow symlinks")]
-    follow_symlinks: bool,
-}
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
+    let args = args::Args::parse();
 
     // get output directory
-    ensure_path_exists_and_is_empty_dir(&args.output_dir)
+    fsutil::ensure_path_exists_and_is_empty_dir(&args.output_dir)
         .expect("output directory must exist and be empty");
 
     // get keys directory
-    ensure_path_exists_and_is_empty_dir(&args.keys_dir)
-        .expect("keys directory must exist and be empty");
+    //fsutil::ensure_path_exists_and_is_empty_dir(&args.keys_dir)
+    //    .expect("keys directory must exist and be empty");
 
     // copy all the files over to an encrypted scratch directory
     let scratch_dir = args.output_dir.join("scratch");
     std::fs::create_dir(&scratch_dir).expect("could not create scratch directory");
     // copy from inputs to scratch dir
-    let args_input_clone = args.input.clone();
-    let _copystream =
-        copy_to_scratch_space(args_input_clone, scratch_dir, args.follow_symlinks).await;
-
-    //do_car_sort(in_files, args.target_chunk_size);
-
-    let chunker = ChunkerConfig::from_str(&format!("fixed-{}", args.target_chunk_size)).unwrap();
-    let _config = Config {
-        wrap: true,
-        chunker: Some(chunker),
-    };
-
-    for input_path in args.input {
-        if input_path.is_symlink() && args.follow_symlinks {}
-    }
+    do_singlethreaded_test(scratch_dir).await;
 }
