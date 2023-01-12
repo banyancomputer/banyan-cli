@@ -150,6 +150,11 @@ mod test {
             count += 1;
         }
         println!("count: {count}");
+        let mut theoretical_count_value: usize = 0;
+        for i in 0..=6 {
+            theoretical_count_value += 5_usize.pow(i)
+        }
+        assert_eq!(theoretical_count_value, 19531);
         assert_eq!(count, 19531);
     }
 
