@@ -2,6 +2,7 @@ use crate::fs_iterator::FilesystemIterator;
 use anyhow::{anyhow, Result};
 use tokio_stream::{Stream, StreamExt, StreamMap};
 
+
 use std::path::{Path, PathBuf};
 
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
@@ -33,20 +34,23 @@ async fn copy_file_or_dir(from: PathBuf, to_root: PathBuf) -> Result<PathBuf> {
     Ok(new_path)
 }
 
-// TODO don't copy around pathbufs you utter trainwreck
 // TODO make a nice generalized function. make an iterable trait i guess.
-async fn copy_paths_recursively<'a>(
+async fn copy_paths_recursively(
     paths: Vec<PathBuf>,
     scratch_root: PathBuf,
     follow_symlinks: bool,
-) -> impl Stream<Item = (Option<&'a str>, Result<PathBuf>)> + Unpin {
+) -> impl Stream<Item = (String, Result<PathBuf>)> + Unpin {
     // TODO do the multiplexing correctly
     let mut map = StreamMap::new();
     for path in paths {
-        let fsi = FilesystemIterator::new(path, follow_symlinks).await;
-            map.insert(path.to_str(), fsi.then(|res| async move {
-                copy_file_or_dir(res, scratch_root.clone()).await
-            }));
-    };
-    Box::pin(map)
+        let fsi = FilesystemIterator::new(path.clone(), follow_symlinks).await;
+        let scratch_root = scratch_root.clone();
+        let copy_file = Box::pin(fsi.then(move |res| copy_file_or_dir(res, scratch_root.clone())));
+        let path_string = path.to_string_lossy().to_string();
+        map.insert(
+            path_string,
+            copy_file
+        );
+    }
+    map
 }
