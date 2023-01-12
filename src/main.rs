@@ -12,7 +12,7 @@ use std::path::{PathBuf};
 //use iroh_unixfs::chunker::ChunkerConfig;
 
 use anyhow::{Result};
-use crate::fs_iterator::do_singlethreaded_test;
+//use crate::fs_iterator::do_singlethreaded_test;
 
 // TODO don't copy around pathbufs you utter trainwreck
 // TODO make a nice generalized function. make an iterable trait i guess.
@@ -65,5 +65,4 @@ async fn main() {
     let scratch_dir = args.output_dir.join("scratch");
     std::fs::create_dir(&scratch_dir).expect("could not create scratch directory");
     // copy from inputs to scratch dir
-    do_singlethreaded_test(scratch_dir).await;
 }
