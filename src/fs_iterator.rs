@@ -98,28 +98,9 @@ impl Stream for FilesystemIterator {
 #[cfg(test)]
 mod test {
     use crate::fs_iterator::FilesystemIterator;
+    use crate::fsutil::make_big_filesystem_clusterfuck;
     use std::path::PathBuf;
     use tokio_stream::StreamExt;
-
-    // this comment lies in memoriam of the time i set these both to 10. if you estimate the disk
-    // space used by a directory as only 512 bits, this would have filled 5 terabytes of disk space.
-    // i'm not sure what i was thinking.
-    fn make_big_filesystem_clusterfuck(depth_to_go: usize, width: usize, cwd: PathBuf) {
-        if depth_to_go == 0 {
-            for i in 0..width {
-                let mut path = cwd.clone();
-                path.push(format!("file{i}"));
-                std::fs::File::create(path).unwrap();
-            }
-        } else {
-            for i in 0..width {
-                let mut path = cwd.clone();
-                path.push(format!("dir{i}"));
-                std::fs::create_dir(path.clone()).unwrap();
-                make_big_filesystem_clusterfuck(depth_to_go - 1, width, path);
-            }
-        }
-    }
 
     #[tokio::test]
     async fn run_basic_test_singlethreaded() {
