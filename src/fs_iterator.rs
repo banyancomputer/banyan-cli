@@ -6,19 +6,31 @@ use std::task::{Context, Poll};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::{wrappers::ReadDirStream, Stream};
 
+#[derive(Debug)]
+struct SendingToHell(Sender<(PathBuf, Option<Box<SendingToHell>>)>);
+#[derive(Debug)]
+struct ReceivingFromHell(Receiver<(PathBuf, Option<Box<SendingToHell>>)>);
+
 struct FilesystemIterator {
     root_path: PathBuf,
-    stack: (Sender<PathBuf>, Receiver<PathBuf>),
+    stack: ReceivingFromHell,
     follow_symlinks: bool,
 }
 
 impl FilesystemIterator {
-    fn new(root_path: PathBuf, follow_symlinks: bool) -> Self {
-        let (tx, rx) = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
-        tx.blocking_send(root_path.clone()).unwrap();
+    async fn new(root_path: PathBuf, follow_symlinks: bool) -> Self {
+        let (tx, rx)  = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
+        let (txh, rxh) = (SendingToHell(tx), ReceivingFromHell(rx));
+        println!("creating new FilesystemIterator");
+        if root_path.is_dir() {
+            txh.0.send((root_path.clone(), Some(Box::new(SendingToHell(txh.0.clone()))))).await.unwrap();
+        } else {
+            txh.0.send((root_path.clone(), None)).await.unwrap();
+        }
+        println!("wtf man");
         FilesystemIterator {
             root_path,
-            stack: (tx, rx),
+            stack: rxh,
             follow_symlinks,
         }
     }
@@ -30,10 +42,13 @@ impl Stream for FilesystemIterator {
         let this = self.get_mut();
         //let new_self = Pin::<&mut FilesystemIterator>::into_inner(self);
         // what's the next thing in the stack?
-        this.stack.1.poll_recv(cx).map(|maybe_path| {
-            maybe_path.map(|path| {
+        println!("in next");
+        this.stack.0.poll_recv(cx).map(|maybe_path| {
+            maybe_path.map(|(path, maybe_sender)| {
                 if path.is_dir() {
-                    let sender = this.stack.0.clone();
+                    assert!(maybe_sender.is_some());
+                    let mut sender = maybe_sender.unwrap();
+                    println!("is dir");
                     let path = path.clone();
                     let follow_symlinks = this.follow_symlinks;
                     // spawn a task to read the dir into the stack
@@ -41,18 +56,114 @@ impl Stream for FilesystemIterator {
                         // TODO: unwrapping a lot here because, like, whatever, if you can't read a dir you're probably in trouble and should start over
                         let read_dir_stream =
                             ReadDirStream::new(tokio::fs::read_dir(path).await.unwrap());
+                        println!("created read_dir_stream");
                         pin_mut!(read_dir_stream);
-                        let _ = read_dir_stream.map(|entry| {
-                            let entry = entry.unwrap();
-                            let child_path = entry.path();
-                            if follow_symlinks || !child_path.is_symlink() {
-                                sender.blocking_send(child_path).unwrap();
+                        while let Some(Ok(entry)) = read_dir_stream.next().await {
+                            println!("got entry: {:?}", entry);
+                            let path = entry.path();
+                            if follow_symlinks || !path.is_symlink() {
+                                println!("sending path: {:?}", path);
+                                if entry.file_type().await.unwrap().is_dir() {
+                                    sender.0.send((path, Some(Box::new(SendingToHell(sender.0.clone()))))).await.unwrap();
+                                } else {
+                                    sender.0.send((path, None)).await.unwrap();
+                                }
                             }
-                        });
+                        };
+                        println!("done with while loop!");
+                        // implicitly: sender.0.drop()
                     });
+                } else {
+                    println!("is file or symlink");
                 }
                 path
             })
         })
+    }
+}
+
+pub fn make_big_filesystem_clusterfuck(depth_to_go: usize, width: usize, cwd: PathBuf) {
+    if depth_to_go == 0 {
+        for i in 0..width {
+            let mut path = cwd.clone();
+            path.push(format!("file{i}"));
+            std::fs::File::create(path).unwrap();
+        }
+    } else {
+        for i in 0..width {
+            let mut path = cwd.clone();
+            path.push(format!("dir{i}"));
+            std::fs::create_dir(path.clone()).unwrap();
+            make_big_filesystem_clusterfuck(depth_to_go - 1, width, path);
+        }
+    }
+}
+
+pub async fn do_singlethreaded_test(dir: PathBuf) {
+    make_big_filesystem_clusterfuck(1, 2, dir.as_path().to_path_buf());
+    let mut iter = FilesystemIterator::new(dir.as_path().to_path_buf(), false).await;
+    let mut count = 0;
+    while let Some(file) = iter.next().await {
+        println!("file: {:?}", file);
+        count += 1;
+    }
+    println!("count: {count}");
+    assert_eq!(count, 81);
+}
+
+#[cfg(test)]
+mod test {
+    use std::path::PathBuf;
+    use tokio_stream::StreamExt;
+
+    // this comment lies in memoriam of the time i set these both to 10. if you estimate the disk
+    // space used by a directory as only 512 bits, this would have filled 5 terabytes of disk space.
+    // i'm not sure what i was thinking.
+    fn make_big_filesystem_clusterfuck(depth_to_go: usize, width: usize, cwd: PathBuf) {
+        if depth_to_go == 0 {
+            for i in 0..width {
+                let mut path = cwd.clone();
+                path.push(format!("file{i}"));
+                std::fs::File::create(path).unwrap();
+            }
+        } else {
+            for i in 0..width {
+                let mut path = cwd.clone();
+                path.push(format!("dir{i}"));
+                std::fs::create_dir(path.clone()).unwrap();
+                make_big_filesystem_clusterfuck(depth_to_go - 1, width, path);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn run_basic_test_singlethreaded() {
+        let dir = tempfile::tempdir().unwrap();
+        println!("dir: {:?}", dir);
+        make_big_filesystem_clusterfuck(3, 3, dir.path().to_path_buf());
+        let mut iter = super::FilesystemIterator::new(dir.path().to_path_buf(), false).await;
+        let mut count = 0;
+        while let Some(file) = iter.next().await {
+            println!("file: {:?}", file);
+            count += 1;
+        }
+        println!("count: {count}");
+        assert_eq!(count, 81);
+        assert!(false);
+    }
+
+    #[tokio::test]
+    async fn it_follows_symlinks_when_told() {
+        assert!(false)
+    }
+
+    #[tokio::test]
+    async fn it_leaves_symlinks_when_told() {
+        assert!(false)
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 5)]
+    async fn run_basic_test_multithreaded() {
+        assert!(false);
     }
 }
