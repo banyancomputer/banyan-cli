@@ -1,6 +1,6 @@
-use std::future::Future;
 use futures::pin_mut;
 use futures_util::StreamExt;
+
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -41,7 +41,7 @@ impl FilesystemIterator {
     }
     pub(crate) async fn empty() -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
-        let (txh, rxh) = (SendingToHell(tx), ReceivingFromHell(rx));
+        let (_txh, rxh) = (SendingToHell(tx), ReceivingFromHell(rx));
         FilesystemIterator {
             root_path: PathBuf::new(),
             stack: rxh,
