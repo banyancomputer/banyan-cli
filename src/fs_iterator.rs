@@ -1,3 +1,4 @@
+use std::future::Future;
 use futures::pin_mut;
 use futures_util::StreamExt;
 use std::path::PathBuf;
@@ -11,18 +12,24 @@ struct SendingToHell(Sender<(PathBuf, Option<Box<SendingToHell>>)>);
 #[derive(Debug)]
 struct ReceivingFromHell(Receiver<(PathBuf, Option<Box<SendingToHell>>)>);
 
-struct FilesystemIterator {
+pub(crate) struct FilesystemIterator {
     root_path: PathBuf,
     stack: ReceivingFromHell,
     follow_symlinks: bool,
 }
 
 impl FilesystemIterator {
-    async fn new(root_path: PathBuf, follow_symlinks: bool) -> Self {
-        let (tx, rx)  = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
+    pub(crate) async fn new(root_path: PathBuf, follow_symlinks: bool) -> Self {
+        let (tx, rx) = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
         let (txh, rxh) = (SendingToHell(tx), ReceivingFromHell(rx));
         if root_path.is_dir() {
-            txh.0.send((root_path.clone(), Some(Box::new(SendingToHell(txh.0.clone()))))).await.unwrap();
+            txh.0
+                .send((
+                    root_path.clone(),
+                    Some(Box::new(SendingToHell(txh.0.clone()))),
+                ))
+                .await
+                .unwrap();
         } else {
             txh.0.send((root_path.clone(), None)).await.unwrap();
         }
@@ -30,6 +37,15 @@ impl FilesystemIterator {
             root_path,
             stack: rxh,
             follow_symlinks,
+        }
+    }
+    pub(crate) async fn empty() -> Self {
+        let (tx, rx) = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
+        let (txh, rxh) = (SendingToHell(tx), ReceivingFromHell(rx));
+        FilesystemIterator {
+            root_path: PathBuf::new(),
+            stack: rxh,
+            follow_symlinks: false,
         }
     }
 }
@@ -57,12 +73,19 @@ impl Stream for FilesystemIterator {
                             let path = entry.path();
                             if follow_symlinks || !path.is_symlink() {
                                 if entry.file_type().await.unwrap().is_dir() {
-                                    sender.0.send((path, Some(Box::new(SendingToHell(sender.0.clone()))))).await.unwrap();
+                                    sender
+                                        .0
+                                        .send((
+                                            path,
+                                            Some(Box::new(SendingToHell(sender.0.clone()))),
+                                        ))
+                                        .await
+                                        .unwrap();
                                 } else {
                                     sender.0.send((path, None)).await.unwrap();
                                 }
                             }
-                        };
+                        }
                         // implicitly: sender.0.drop()
                     });
                 }
@@ -74,9 +97,9 @@ impl Stream for FilesystemIterator {
 
 #[cfg(test)]
 mod test {
+    use crate::fs_iterator::FilesystemIterator;
     use std::path::PathBuf;
     use tokio_stream::StreamExt;
-    use crate::fs_iterator::FilesystemIterator;
 
     // this comment lies in memoriam of the time i set these both to 10. if you estimate the disk
     // space used by a directory as only 512 bits, this would have filled 5 terabytes of disk space.
@@ -131,10 +154,8 @@ mod test {
         let mut iter = FilesystemIterator::new(dir.path().to_path_buf(), false).await;
         let mut count = 0;
         while let Some(file) = iter.next().await {
-            println!("file: {file:?}");
             count += 1;
         }
-        println!("count: {count}");
         assert_eq!(count, 7);
     }
 
@@ -146,10 +167,8 @@ mod test {
         let mut iter = FilesystemIterator::new(dir.path().to_path_buf(), false).await;
         let mut count = 0;
         while let Some(file) = iter.next().await {
-            println!("file: {file:?}");
             count += 1;
         }
-        println!("count: {count}");
         let mut theoretical_count_value: usize = 0;
         for i in 0..=6 {
             theoretical_count_value += 5_usize.pow(i)
@@ -157,6 +176,4 @@ mod test {
         assert_eq!(theoretical_count_value, 19531);
         assert_eq!(count, 19531);
     }
-
-
 }
