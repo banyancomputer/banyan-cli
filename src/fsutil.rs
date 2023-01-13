@@ -43,15 +43,14 @@ pub(crate) async fn copy_paths_recursively(
     paths: Vec<PathBuf>,
     scratch_root: PathBuf,
     follow_symlinks: bool,
-) -> impl Stream<Item = (String, Result<PathBuf>)> + Unpin {
+) -> impl Stream<Item = (PathBuf, Result<PathBuf>)> + Unpin {
     let mut map = StreamMap::new();
     for path in paths {
         let fsi = FilesystemIterator::new(path.clone(), follow_symlinks).await;
         // TODO sucks why are you cloning twice
         let scratch_root = scratch_root.clone();
         let copy_file = Box::pin(fsi.then(move |res| copy_file_or_dir(res, scratch_root.clone())));
-        let path_string = path.to_string_lossy().to_string();
-        map.insert(path_string, copy_file);
+        map.insert(path, copy_file);
     }
     map
 }
