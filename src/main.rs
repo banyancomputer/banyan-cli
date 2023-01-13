@@ -1,11 +1,13 @@
 mod args;
+mod fs_copy;
+mod fs_encryption;
 mod fs_iterator;
-mod fsencryption;
+mod fs_partition;
 mod fsutil;
 
 use clap::Parser;
 use futures::FutureExt;
-use tokio_stream::{StreamExt};
+use tokio_stream::StreamExt;
 
 //use iroh_car::{CarWriter};
 //use iroh_unixfs::builder::Config;
@@ -31,13 +33,14 @@ async fn main() {
 
     // copy from inputs to scratch dir
     let copy_stream =
-        fsutil::copy_paths_recursively(args.input, scratch_dir.clone(), args.follow_symlinks).await;
+        fs_copy::copy_paths_recursively(args.input, scratch_dir.clone(), args.follow_symlinks)
+            .await;
 
-    let partition_stream = copy_stream
-        .then(|(_, file)| {
-            let file = file.unwrap();
-            fsencryption::partition_file(file).map(|res| res.unwrap())
-        });
+    let partition_stream = copy_stream.then(|copy_metadata| {
+        let copy_metadata = copy_metadata.expect("copy failed");
+        fs_partition::partition_file(copy_metadata).map(|res| res.unwrap())
+    });
 
-    let _encryption_metadata = partition_stream.then(|file_data| fsencryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
+    let encryption_metadata = partition_stream
+        .then(|file_data| fs_encryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
 }
