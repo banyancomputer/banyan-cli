@@ -33,15 +33,11 @@ async fn main() {
     let copy_stream =
         fsutil::copy_paths_recursively(args.input, scratch_dir.clone(), args.follow_symlinks).await;
 
-    copy_stream
+    let partition_stream = copy_stream
         .then(|(_, file)| {
             let file = file.unwrap();
-            fsencryption::partition_file(file).map(|x| (file, x))
-        })
-        .fold(StreamMap::new(), |mut acc, (file, stream)| {
-            acc.insert(file, stream);
-            acc
-        }).await
-        .then(|(_, file)| fsencryption::encrypt_file_in_place(file.unwrap()))
-        .await;
+            fsencryption::partition_file(file).map(|res| res.unwrap())
+        });
+
+    let encryption_metadata = partition_stream.then(|file_data| fsencryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
 }
