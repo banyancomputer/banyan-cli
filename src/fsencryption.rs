@@ -16,12 +16,12 @@ pub struct EncryptionMetadata {
 const MAX_FILE_SIZE: usize = 4 * 1024 * 1024 * 1024; // 4GB
 const BUF_SIZE: usize = 1024 * 1024; // 1MB
 
+// TODO TEST TEST TEST TEST @xiangan @thea
 async fn do_chop(large_file: PathBuf, part: u32) -> Result<(PathBuf, Option<u32>)> {
     let mut file = tokio::fs::File::open(&large_file).await?;
     let mut buf = vec![0; BUF_SIZE];
     let part_file_path = large_file.with_extension(format!(
-        "part-{}",
-        part
+        "part-{part}"
     ));
     let mut part_file = tokio::fs::File::create(part_file_path.clone()).await?;
     let mut bytes_read = 0;
@@ -37,6 +37,7 @@ async fn do_chop(large_file: PathBuf, part: u32) -> Result<(PathBuf, Option<u32>
 }
 
 // TODO what if the file has another buddy next to it named .part2 or something?
+// TODO TEST TEST TEST TEST @xiangan @thea
 pub(crate) async fn partition_file(large_file: PathBuf) -> Result<Vec<(PathBuf, Option<u32>)>> {
     let file_size = fs::metadata(&large_file)?.len();
     if file_size <= MAX_FILE_SIZE.try_into()? {
@@ -54,6 +55,6 @@ pub(crate) async fn partition_file(large_file: PathBuf) -> Result<Vec<(PathBuf, 
 }
 
 // TODO add support for more cipher modes
-pub(crate) async fn encrypt_file_in_place(file_data: Vec<(PathBuf, Option<u32>)>) -> Result<EncryptionMetadata> {
+pub(crate) async fn encrypt_file_in_place(_file_data: Vec<(PathBuf, Option<u32>)>) -> Result<EncryptionMetadata> {
     Err(anyhow!("unimplemented"))
 }

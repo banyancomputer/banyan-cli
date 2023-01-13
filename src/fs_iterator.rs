@@ -39,7 +39,7 @@ impl FilesystemIterator {
             follow_symlinks,
         }
     }
-    pub(crate) async fn empty() -> Self {
+    pub(crate) async fn _empty() -> Self {
         let (tx, rx) = tokio::sync::mpsc::channel(100); // TODO tweak 'em cowboy
         let (_txh, rxh) = (SendingToHell(tx), ReceivingFromHell(rx));
         FilesystemIterator {

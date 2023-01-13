@@ -5,7 +5,7 @@ mod fsutil;
 
 use clap::Parser;
 use futures::FutureExt;
-use tokio_stream::{StreamExt, StreamMap};
+use tokio_stream::{StreamExt};
 
 //use iroh_car::{CarWriter};
 //use iroh_unixfs::builder::Config;
@@ -39,5 +39,5 @@ async fn main() {
             fsencryption::partition_file(file).map(|res| res.unwrap())
         });
 
-    let encryption_metadata = partition_stream.then(|file_data| fsencryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
+    let _encryption_metadata = partition_stream.then(|file_data| fsencryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
 }
