@@ -19,3 +19,5 @@ async-recursion = "1"
 tokio-stream = { version = "0.1.11", features = ["fs"]}
 futures-util = "0.3.0"
 tempfile = "3.2.0"
+aead = { version = "0.5.1", features = ["stream", "alloc"] }
+aes-gcm = "0.10.0"
