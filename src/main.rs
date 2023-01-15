@@ -99,4 +99,10 @@ async fn main() {
 
     let _encrypted = partitioned
         .then(|file_data| fs_encryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
+
+    // TODO. next you will need to encrypt filenames and other metadata (how are you hiding directory structure?)
+    // TODO then you will need to write the car file
+    // TODO then you will need to write the index file
+    // TODO then you will need to write "filesystem rehydration"
+
 }
