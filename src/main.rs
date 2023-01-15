@@ -97,6 +97,8 @@ async fn main() {
         fs_partition::partition_file(copy_metadata).map(|res| res.unwrap())
     });
 
+    // TODO find appropriate compression that doesn't suck
+
     let _encrypted = partitioned
         .then(|file_data| fs_encryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
 
