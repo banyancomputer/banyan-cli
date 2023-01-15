@@ -14,6 +14,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use futures::FutureExt;
 use tokio_stream::{StreamExt, StreamMap};
 
 //use iroh_car::{CarWriter};
@@ -83,7 +84,7 @@ async fn main() {
     }
 
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
-    let _copied =
+    let copied =
         map.then(|((path_root, new_root), dir_entry)| {
             let local_seen_hashes = seen_hashes.clone();
             async move {
@@ -91,11 +92,11 @@ async fn main() {
             }
         });
 
-    // let partition_stream = copy_stream.then(|copy_metadata| {
-    //     let copy_metadata = copy_metadata.expect("copy failed");
-    //     fs_partition::partition_file(copy_metadata).map(|res| res.unwrap())
-    // });
-    //
-    // let encryption_metadata = partition_stream
-    //     .then(|file_data| fs_encryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
+    let partitioned = copied.then(|copy_metadata| {
+        let copy_metadata = copy_metadata.expect("copy failed");
+        fs_partition::partition_file(copy_metadata).map(|res| res.unwrap())
+    });
+
+    let _encrypted = partitioned
+        .then(|file_data| fs_encryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
 }
