@@ -21,6 +21,7 @@ pub struct Args {
     pub target_chunk_size: u64,
 
     /// should we follow symlinks?
-    #[arg(short, long, help = "follow symlinks")]
-    pub follow_symlinks: bool,
+    /// fed into: https://docs.rs/jwalk/latest/jwalk/struct.WalkDirGeneric.html#method.follow_links
+    #[arg(short, long, help = "follow symlinks", default_value = "true")]
+    pub follow_links: bool,
 }

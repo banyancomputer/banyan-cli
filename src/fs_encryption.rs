@@ -13,13 +13,23 @@ use aead::{rand_core::RngCore, stream::NewStream, OsRng};
 //use aes_gcm::aead::generic_array::GenericArray;
 use aes_gcm::{Aes256Gcm, KeyInit};
 
+pub struct EncryptionPart {
+    pub old_file_path: PathBuf,
+    pub encrypted_file_path: PathBuf,
+    pub key: [u8; 32],
+}
+
 pub struct EncryptionMetadata {
-    original_file: PathBuf,
-    encrypted_parts_and_keys: Vec<(u32, PathBuf, [u8; 32])>,
+    partition_metadata: PartitionMetadata,
+    /// ordered the same as the parts array
+    encrypted_keys: Vec<EncryptionPart>,
     cipher_info: String,
 }
 
-// TODO ownership of keys is probably wrong and bad? check on that and make sure they're zeroed from memory
+// TODO @xh @thea idk how to test this hmm maybe wait until decryption working
+// TODO @xh @thea you should go through the entire repo and attempt to get rid of unwraps
+// TODO ownership of keys is probably wrong and bad? check on that and make sure they're zeroed from memory.
+// TODO what do we think about literally encrypting the file in place with one file handle. why don't we do that. ya goofin
 async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], PathBuf)> {
     // key
     let mut key = [0u8; 32];
@@ -64,7 +74,7 @@ async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], Pat
                 .map_err(|_| anyhow!("encryption error"))?;
         };
 
-        // TODO this sucks and is *probably* wrong with the AEAD tag. wait until this PR lands:
+        // TODO this sucks and is *probably* wrong with the AEAD tag. wait until this PR lands to fix it:
         // TODO https://github.com/RustCrypto/traits/pull/1189
 
         // look back and zero out the file, flush it
@@ -90,26 +100,34 @@ async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], Pat
 pub(crate) async fn encrypt_file_in_place(
     partition_metadata: PartitionMetadata,
 ) -> Result<EncryptionMetadata> {
-    let encrypted_parts_and_keys = match partition_metadata.parts {
+    let encrypted_parts_and_keys = match partition_metadata.parts.clone() {
         Partitioned(parts) => {
             tokio_stream::iter(parts)
-                .then(|(part_num, path)| {
-                    encrypt_one_part(path).map(move |res| {
+                .then(|(_part_num, path)| {
+                    encrypt_one_part(path.clone()).map(move |res| {
                         let (key, encrypted_part) = res.unwrap();
-                        (part_num, encrypted_part, key)
+                        EncryptionPart {
+                            old_file_path: path,
+                            encrypted_file_path: encrypted_part,
+                            key,
+                        }
                     })
                 })
                 .collect::<Vec<_>>()
                 .await
         }
         Unpartitioned(path) => {
-            let (key, encrypted_file_path) = encrypt_one_part(path).await?;
-            vec![(0, encrypted_file_path, key)]
+            let (key, encrypted_file_path) = encrypt_one_part(path.clone()).await?;
+            vec![EncryptionPart {
+                old_file_path: path.clone(),
+                encrypted_file_path,
+                key,
+            }]
         }
     };
     Ok(EncryptionMetadata {
-        original_file: partition_metadata.original_file,
-        encrypted_parts_and_keys,
+        partition_metadata,
+        encrypted_keys: encrypted_parts_and_keys,
         cipher_info: "AES256GCM".to_string(),
     })
 }
