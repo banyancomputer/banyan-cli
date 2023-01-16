@@ -1,6 +1,7 @@
 use anyhow::Result;
-use blake2::{Blake2s256, Digest};
 use std::path::PathBuf;
+
+use blake2::{Blake2s256, Digest};
 use tokio::io::AsyncReadExt;
 
 pub async fn hash_file(path: &PathBuf) -> Result<String> {

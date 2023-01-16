@@ -7,15 +7,17 @@ mod fs_copy;
 mod fs_partition;
 mod fsutil;
 mod hasher;
+mod encryption_writer;
 
 use crate::fs_copy::copy_file_or_dir;
 use clap::Parser;
 use futures::FutureExt;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+
 use tokio::sync::RwLock;
 use tokio_stream::{StreamExt, StreamMap};
+use std::sync::Arc;
 
 //use iroh_car::{CarWriter};
 //use iroh_unixfs::builder::Config;

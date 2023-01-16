@@ -1,73 +1,20 @@
 use anyhow::Result;
-use futures::FutureExt;
 use std::path::PathBuf;
+use std::io::Write;
+
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio_stream::StreamExt;
+use futures::FutureExt;
 
 use flate2::write::GzEncoder;
-
 use flate2::Compression;
-use std::io::prelude::*;
 
 use crate::fs_partition::PartitionMetadata;
-
 use crate::fs_partition::MaybePartitioned::{Partitioned, Unpartitioned};
-// use aead::consts::U32;
-use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
-use aead::{rand_core::RngCore, stream::NewStream, OsRng};
-//use aes_gcm::aead::generic_array::GenericArray;
-use aes_gcm::{Aes256Gcm, KeyInit};
 
-pub struct EncryptionWriter<W: Write> {
-    buf: Vec<u8>,
-    writer: W,
-    encryptor: Encryptor<Aes256Gcm, StreamBE32<Aes256Gcm>>,
-    bytes_written: usize,
-}
-
-impl<W: Write> EncryptionWriter<W> {
-    pub fn new(writer: W, key: &[u8]) -> Self {
-        let mut nonce = [0u8; 12];
-        OsRng.fill_bytes(&mut nonce);
-        let cipher = Aes256Gcm::new(key.as_ref().into());
-        let encryptor = StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor();
-        Self {
-            buf: Vec::new(),
-            writer,
-            encryptor,
-            bytes_written: 0,
-        }
-    }
-
-    fn finish(mut self) -> Result<usize> {
-        self.flush()?;
-        self.encryptor
-            .encrypt_last_in_place(b"".as_ref(), &mut self.buf)
-            .unwrap();
-        self.writer.write_all(&self.buf)?;
-        self.bytes_written += self.buf.len();
-        Ok(self.bytes_written)
-    }
-}
-
-impl<W: Write> Write for EncryptionWriter<W> {
-    // TODO better buffering? bufwriter?
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.buf.extend_from_slice(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.encryptor
-            .encrypt_next_in_place(b"", &mut self.buf)
-            .unwrap();
-        self.writer.write_all(&self.buf)?;
-        self.writer.flush()?;
-        self.bytes_written += self.buf.len();
-        self.buf.clear();
-        Ok(())
-    }
-}
+use aead::OsRng;
+use rand::RngCore;
+use crate::encryption_writer::EncryptionWriter;
 
 pub struct EncryptionPart {
     pub old_file_path: PathBuf,
@@ -141,8 +88,6 @@ async fn compress_and_encrypt_one_part(
         bytes_read += n;
     }
 
-    // TODO this sucks and is *probably* wrong with the AEAD tag. wait until this PR lands to fix it:
-    // TODO https://github.com/RustCrypto/traits/pull/1189
     let encryptor = gzencoder.finish()?;
     let bytes_written = encryptor.finish()?;
 

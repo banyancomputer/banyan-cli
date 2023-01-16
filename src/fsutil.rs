@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-
 use std::path::{Path, PathBuf};
 
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
