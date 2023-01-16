@@ -3,7 +3,7 @@
 mod args;
 mod fs_carfiler;
 mod fs_copy;
-mod fs_encryption;
+mod fs_compression_encryption;
 mod fs_partition;
 mod fsutil;
 mod hasher;
@@ -97,12 +97,11 @@ async fn main() {
         fs_partition::partition_file(copy_metadata).map(|res| res.unwrap())
     });
 
-    // TODO find appropriate compression that doesn't suck
+    // TODO for now we are doing compression in place, per-file. we could get things smaller.
+    let compressed_and_encrypted = partitioned
+        .then(|file_data| fs_compression_encryption::compress_and_encrypt_file_in_place(file_data).map(|res| res.unwrap()));
 
-    let _encrypted = partitioned
-        .then(|file_data| fs_encryption::encrypt_file_in_place(file_data).map(|res| res.unwrap()));
-
-    // TODO. next you will need to encrypt filenames and other metadata (how are you hiding directory structure?)
+    // TODO next you will need to encrypt filenames and other metadata (how are you hiding directory structure?)
     // TODO then you will need to write the car file
     // TODO then you will need to write the index file
     // TODO then you will need to write "filesystem rehydration"

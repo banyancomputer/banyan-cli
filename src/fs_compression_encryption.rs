@@ -1,8 +1,14 @@
+use std::io::BufWriter;
 use anyhow::{anyhow, Result};
-use futures::FutureExt;
 use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio_stream::StreamExt;
+use futures::FutureExt;
+
+use flate2::write::GzEncoder;
+
+use std::io::prelude::*;
+use flate2::Compression;
 
 use crate::fs_partition::PartitionMetadata;
 
@@ -30,7 +36,7 @@ pub struct EncryptionMetadata {
 // TODO @xh @thea you should go through the entire repo and attempt to get rid of unwraps
 // TODO ownership of keys is probably wrong and bad? check on that and make sure they're zeroed from memory.
 // TODO what do we think about literally encrypting the file in place with one file handle. why don't we do that. ya goofin
-async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], PathBuf)> {
+async fn compress_and_encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], PathBuf)> {
     // key
     let mut key = [0u8; 32];
     OsRng.fill_bytes(&mut key);
@@ -49,8 +55,14 @@ async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], Pat
     assert!(file_length <= 4 * 1024 * 1024 * 1024); // GCM safe limit, 2**32
 
     // open output
-    let encrypted_file_path = to_encrypt_in_place.with_extension("enc");
-    let mut encrypted_file = tokio::fs::File::create(encrypted_file_path.clone()).await?;
+    let compressed_encrypted_file_path = to_encrypt_in_place.with_extension("gzip.enc");
+    let mut compressed_encrypted_file = std::fs::File::create(compressed_encrypted_file_path.clone())?;
+
+    // compress
+    // TODO add async- currently you're using non-async file ops.
+    // TODO compression per part is not great compression- we could get a lot better. but it's a start.
+    let writer = BufWriter::new(&mut compressed_encrypted_file);
+    let mut gzencoder = GzEncoder::new(writer, Compression::default());
 
     let mut buf = vec![0; 1024 * 1024];
     let nice_clean_zero_buf = vec![0; 1024 * 1024];
@@ -68,10 +80,11 @@ async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], Pat
         if bytes_read + n < file_length {
             Encryptor::encrypt_next_in_place(&mut stream_encryptor, associated_data, &mut buf)
                 .map_err(|_| anyhow!("encryption error"))?;
-            encrypted_file.write_all(&buf[..n]).await?;
+            gzencoder.write_all(&buf[..n])?;
         } else {
             Encryptor::encrypt_next_in_place(&mut stream_encryptor, associated_data, &mut buf)
                 .map_err(|_| anyhow!("encryption error"))?;
+            gzencoder.write_all(&buf[..n])?;
         };
 
         // TODO this sucks and is *probably* wrong with the AEAD tag. wait until this PR lands to fix it:
@@ -91,20 +104,21 @@ async fn encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], Pat
 
     file.flush().await?;
 
+    // TODO remove this once you do things in place- replace with "wipe the rest of the file"
     tokio::fs::remove_file(to_encrypt_in_place).await?;
 
-    Ok((key, encrypted_file_path))
+    Ok((key, compressed_encrypted_file_path))
 }
 
 // TODO add support for more cipher modes
-pub(crate) async fn encrypt_file_in_place(
+pub(crate) async fn compress_and_encrypt_file_in_place(
     partition_metadata: PartitionMetadata,
 ) -> Result<EncryptionMetadata> {
     let encrypted_parts_and_keys = match partition_metadata.parts.clone() {
         Partitioned(parts) => {
             tokio_stream::iter(parts)
                 .then(|(_part_num, path)| {
-                    encrypt_one_part(path.clone()).map(move |res| {
+                    compress_and_encrypt_one_part(path.clone()).map(move |res| {
                         let (key, encrypted_part) = res.unwrap();
                         EncryptionPart {
                             old_file_path: path,
@@ -117,7 +131,7 @@ pub(crate) async fn encrypt_file_in_place(
                 .await
         }
         Unpartitioned(path) => {
-            let (key, encrypted_file_path) = encrypt_one_part(path.clone()).await?;
+            let (key, encrypted_file_path) = compress_and_encrypt_one_part(path.clone()).await?;
             vec![EncryptionPart {
                 old_file_path: path.clone(),
                 encrypted_file_path,
