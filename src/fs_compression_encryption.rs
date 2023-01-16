@@ -1,14 +1,13 @@
-use std::io::BufWriter;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
+use futures::FutureExt;
 use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio_stream::StreamExt;
-use futures::FutureExt;
 
 use flate2::write::GzEncoder;
 
-use std::io::prelude::*;
 use flate2::Compression;
+use std::io::prelude::*;
 
 use crate::fs_partition::PartitionMetadata;
 
@@ -19,10 +18,62 @@ use aead::{rand_core::RngCore, stream::NewStream, OsRng};
 //use aes_gcm::aead::generic_array::GenericArray;
 use aes_gcm::{Aes256Gcm, KeyInit};
 
+pub struct EncryptionWriter<W: Write> {
+    buf: Vec<u8>,
+    writer: W,
+    encryptor: Encryptor<Aes256Gcm, StreamBE32<Aes256Gcm>>,
+    bytes_written: usize,
+}
+
+impl<W: Write> EncryptionWriter<W> {
+    pub fn new(writer: W, key: &[u8]) -> Self {
+        let mut nonce = [0u8; 12];
+        OsRng.fill_bytes(&mut nonce);
+        let cipher = Aes256Gcm::new(key.as_ref().into());
+        let encryptor = StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor();
+        Self {
+            buf: Vec::new(),
+            writer,
+            encryptor,
+            bytes_written: 0,
+        }
+    }
+
+    fn finish(mut self) -> Result<usize> {
+        self.flush()?;
+        self.encryptor
+            .encrypt_last_in_place(b"".as_ref(), &mut self.buf)
+            .unwrap();
+        self.writer.write_all(&self.buf)?;
+        self.bytes_written += self.buf.len();
+        Ok(self.bytes_written)
+    }
+}
+
+impl<W: Write> Write for EncryptionWriter<W> {
+    // TODO better buffering? bufwriter?
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.buf.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.encryptor
+            .encrypt_next_in_place(b"", &mut self.buf)
+            .unwrap();
+        self.writer.write_all(&self.buf)?;
+        self.writer.flush()?;
+        self.bytes_written += self.buf.len();
+        self.buf.clear();
+        Ok(())
+    }
+}
+
 pub struct EncryptionPart {
     pub old_file_path: PathBuf,
     pub encrypted_file_path: PathBuf,
     pub key: [u8; 32],
+    pub size_after: u64,
 }
 
 pub struct EncryptionMetadata {
@@ -30,24 +81,22 @@ pub struct EncryptionMetadata {
     /// ordered the same as the parts array
     encrypted_keys: Vec<EncryptionPart>,
     cipher_info: String,
+    compression_info: String,
 }
 
 // TODO @xh @thea idk how to test this hmm maybe wait until decryption working
 // TODO @xh @thea you should go through the entire repo and attempt to get rid of unwraps
 // TODO ownership of keys is probably wrong and bad? check on that and make sure they're zeroed from memory.
 // TODO what do we think about literally encrypting the file in place with one file handle. why don't we do that. ya goofin
-async fn compress_and_encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<([u8; 32], PathBuf)> {
+async fn compress_and_encrypt_one_part(
+    to_encrypt_in_place: PathBuf,
+) -> Result<([u8; 32], PathBuf, usize)> {
     // key
     let mut key = [0u8; 32];
     OsRng.fill_bytes(&mut key);
     // nonce
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);
-    // aad
-    let associated_data = b"";
-    // cipher
-    let cipher = Aes256Gcm::new(key.as_ref().into());
-    let mut stream_encryptor = StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor();
 
     // open file
     let mut file = tokio::fs::File::open(&to_encrypt_in_place).await?;
@@ -55,40 +104,30 @@ async fn compress_and_encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<(
     assert!(file_length <= 4 * 1024 * 1024 * 1024); // GCM safe limit, 2**32
 
     // open output
+    // TODO fix async io up... and/or buffering...
     let compressed_encrypted_file_path = to_encrypt_in_place.with_extension("gzip.enc");
-    let mut compressed_encrypted_file = std::fs::File::create(compressed_encrypted_file_path.clone())?;
+    let mut compressed_encrypted_file =
+        std::fs::File::create(compressed_encrypted_file_path.clone())?;
+    let encrypted_writer = EncryptionWriter::new(&mut compressed_encrypted_file, &key);
+
+    let mut buf_for_input = vec![0_u8; 1024 * 1024];
+    let nice_clean_zero_buf = vec![0_u8; 1024 * 1024];
+    let mut bytes_read = 0_usize;
 
     // compress
-    // TODO add async- currently you're using non-async file ops.
     // TODO compression per part is not great compression- we could get a lot better. but it's a start.
-    let writer = BufWriter::new(&mut compressed_encrypted_file);
-    let mut gzencoder = GzEncoder::new(writer, Compression::default());
-
-    let mut buf = vec![0; 1024 * 1024];
-    let nice_clean_zero_buf = vec![0; 1024 * 1024];
-    let mut bytes_read = 0_usize;
+    let mut gzencoder = GzEncoder::new(encrypted_writer, Compression::default());
 
     while bytes_read < file_length {
         // read in 1MB- there is a bunch of space in the end for the auth tag
-        let n = file.read(&mut buf[0..(1024 * 1024)]).await?;
+        let n = file.read(&mut buf_for_input[0..(1024 * 1024)]).await?;
 
         if n == 0 {
             break;
         }
 
-        // are we at the end of the file?
-        if bytes_read + n < file_length {
-            Encryptor::encrypt_next_in_place(&mut stream_encryptor, associated_data, &mut buf)
-                .map_err(|_| anyhow!("encryption error"))?;
-            gzencoder.write_all(&buf[..n])?;
-        } else {
-            Encryptor::encrypt_next_in_place(&mut stream_encryptor, associated_data, &mut buf)
-                .map_err(|_| anyhow!("encryption error"))?;
-            gzencoder.write_all(&buf[..n])?;
-        };
-
-        // TODO this sucks and is *probably* wrong with the AEAD tag. wait until this PR lands to fix it:
-        // TODO https://github.com/RustCrypto/traits/pull/1189
+        gzencoder.write_all(&buf_for_input[..n])?;
+        gzencoder.flush()?;
 
         // look back and zero out the file, flush it
         file.seek(std::io::SeekFrom::Start(bytes_read as u64))
@@ -102,12 +141,17 @@ async fn compress_and_encrypt_one_part(to_encrypt_in_place: PathBuf) -> Result<(
         bytes_read += n;
     }
 
+    // TODO this sucks and is *probably* wrong with the AEAD tag. wait until this PR lands to fix it:
+    // TODO https://github.com/RustCrypto/traits/pull/1189
+    let encryptor = gzencoder.finish()?;
+    let bytes_written = encryptor.finish()?;
+
     file.flush().await?;
 
     // TODO remove this once you do things in place- replace with "wipe the rest of the file"
     tokio::fs::remove_file(to_encrypt_in_place).await?;
 
-    Ok((key, compressed_encrypted_file_path))
+    Ok((key, compressed_encrypted_file_path, bytes_written))
 }
 
 // TODO add support for more cipher modes
@@ -119,23 +163,25 @@ pub(crate) async fn compress_and_encrypt_file_in_place(
             tokio_stream::iter(parts)
                 .then(|(_part_num, path)| {
                     compress_and_encrypt_one_part(path.clone()).map(move |res| {
-                        let (key, encrypted_part) = res.unwrap();
+                        let (key, encrypted_part, length) = res.unwrap();
                         EncryptionPart {
                             old_file_path: path,
                             encrypted_file_path: encrypted_part,
                             key,
+                            size_after: length as u64,
                         }
                     })
                 })
                 .collect::<Vec<_>>()
                 .await
-        }
+        },
         Unpartitioned(path) => {
-            let (key, encrypted_file_path) = compress_and_encrypt_one_part(path.clone()).await?;
+            let (key, encrypted_file_path, bytes_written) = compress_and_encrypt_one_part(path.clone()).await?;
             vec![EncryptionPart {
                 old_file_path: path.clone(),
                 encrypted_file_path,
                 key,
+                size_after: bytes_written as u64,
             }]
         }
     };
@@ -143,5 +189,6 @@ pub(crate) async fn compress_and_encrypt_file_in_place(
         partition_metadata,
         encrypted_keys: encrypted_parts_and_keys,
         cipher_info: "AES256GCM".to_string(),
+        compression_info: "GZIP".to_string(),
     })
 }
