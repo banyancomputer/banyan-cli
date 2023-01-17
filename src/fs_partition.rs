@@ -16,7 +16,6 @@ pub enum MaybePartitioned {
 pub struct PartitionMetadata {
     pub(crate) copy_metadata: CopyMetadata,
     pub(crate) parts: MaybePartitioned,
-    file_size: Option<u64>,
 }
 
 // TODO realistically this should be slightly under 32 gigs (however much can fit into a car)
@@ -55,7 +54,6 @@ pub(crate) async fn partition_file(copy_metadata: CopyMetadata) -> Result<Partit
         return Ok(PartitionMetadata {
             copy_metadata,
             parts: MaybePartitioned::Unpartitioned(new_location),
-            file_size: None,
         });
     };
     let file_size = copy_metadata.original_metadata.len();
@@ -75,6 +73,5 @@ pub(crate) async fn partition_file(copy_metadata: CopyMetadata) -> Result<Partit
     Ok(PartitionMetadata {
         copy_metadata,
         parts,
-        file_size: Some(file_size),
     })
 }
