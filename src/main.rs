@@ -1,23 +1,24 @@
 #![deny(unused_crate_dependencies)]
 
 mod args;
+mod encryption_writer;
 mod fs_carfiler;
 mod fs_compression_encryption;
 mod fs_copy;
 mod fs_partition;
 mod fsutil;
 mod hasher;
-mod encryption_writer;
 
 use crate::fs_copy::copy_file_or_dir;
 use clap::Parser;
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use tokio::sync::RwLock;
-use tokio_stream::{StreamExt, StreamMap};
 use std::sync::Arc;
+use tokio::sync::RwLock;
+use tokio_stream::StreamMap;
 
 //use iroh_car::{CarWriter};
 //use iroh_unixfs::builder::Config;
@@ -80,10 +81,20 @@ async fn main() {
                         dir_entry.client_state = Some(file_size);
                     }
                 };
+                // sort 'em
+                children.sort_by(|a, b| match (a, b) {
+                    (Ok(a), Ok(b)) => a.file_name.cmp(&b.file_name),
+                    (Ok(_), Err(_)) => Ordering::Less,
+                    (Err(_), Ok(_)) => Ordering::Greater,
+                    (Err(_), Err(_)) => Ordering::Equal,
+                });
             });
+        // TODO make sure handoff from jwalk to tokio is efficient
         let directory_stream = tokio_stream::iter(walk_dir);
         map.insert((path_root, new_root), directory_stream);
     }
+    // here, you should collect the directory streams really fast just so you can get it out of the way before the heavier work starts.
+    // want this ready before car file creation :)
 
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
     let copied =
@@ -105,8 +116,11 @@ async fn main() {
             .map(|res| res.unwrap())
     });
 
+    // TODO you can do this in one read of the file. entire pipeline. i think
     // TODO next you will need to encrypt filenames and other metadata (how are you hiding directory structure?)
+
     // TODO then you will need to write the car file
+
     // TODO then you will need to write the index file
     // TODO then you will need to write "filesystem rehydration"
 }

@@ -4,7 +4,7 @@ use jwalk::DirEntry;
 use std::fs::Metadata;
 use std::path::PathBuf;
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio_stream::StreamExt;
 
 #[derive(Clone)]
@@ -14,13 +14,8 @@ pub enum MaybePartitioned {
 }
 
 pub struct PartitionMetadata {
-    pub(crate) original_root: PathBuf,
-    pub(crate) original_location: DirEntry<(u64, Option<u64>)>,
-    pub(crate) original_metadata: Metadata,
-    duplicate_or_original: DuplicateOrOriginal,
-    location_in_new_fs_before_partition: PathBuf,
+    pub(crate) copy_metadata: CopyMetadata,
     pub(crate) parts: MaybePartitioned,
-    blake2_file_hash: Option<String>,
     file_size: Option<u64>,
 }
 
@@ -38,6 +33,10 @@ async fn do_chop(large_file: &PathBuf, part: u32) -> Result<(u32, PathBuf)> {
     let mut buf = vec![0; BUF_SIZE];
 
     let mut bytes_read = 0;
+    file.seek(tokio::io::SeekFrom::Start(
+        part as u64 * MAX_FILE_SIZE as u64,
+    ))
+    .await?;
     while bytes_read < MAX_FILE_SIZE {
         let n = file.read(&mut buf).await?;
         if n == 0 {
@@ -52,14 +51,10 @@ async fn do_chop(large_file: &PathBuf, part: u32) -> Result<(u32, PathBuf)> {
 // TODO TEST TEST TEST TEST @xiangan @thea
 pub(crate) async fn partition_file(copy_metadata: CopyMetadata) -> Result<PartitionMetadata> {
     if copy_metadata.original_metadata.is_dir() || copy_metadata.original_metadata.is_symlink() {
+        let new_location = copy_metadata.new_location.clone();
         return Ok(PartitionMetadata {
-            original_root: copy_metadata.original_root,
-            original_location: copy_metadata.original_location,
-            original_metadata: copy_metadata.original_metadata,
-            duplicate_or_original: copy_metadata.duplicate_or_original,
-            location_in_new_fs_before_partition: copy_metadata.new_location.clone(),
-            parts: MaybePartitioned::Unpartitioned(copy_metadata.new_location),
-            blake2_file_hash: copy_metadata.blake2_file_hash,
+            copy_metadata,
+            parts: MaybePartitioned::Unpartitioned(new_location),
             file_size: None,
         });
     };
@@ -78,13 +73,8 @@ pub(crate) async fn partition_file(copy_metadata: CopyMetadata) -> Result<Partit
         MaybePartitioned::Partitioned(ret)
     };
     Ok(PartitionMetadata {
-        original_root: copy_metadata.original_root,
-        original_location: copy_metadata.original_location,
-        location_in_new_fs_before_partition: copy_metadata.new_location,
+        copy_metadata,
         parts,
-        blake2_file_hash: copy_metadata.blake2_file_hash,
         file_size: Some(file_size),
-        duplicate_or_original: DuplicateOrOriginal::Original,
-        original_metadata: copy_metadata.original_metadata,
     })
 }
