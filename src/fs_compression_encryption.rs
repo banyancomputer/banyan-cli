@@ -1,20 +1,20 @@
 use anyhow::Result;
-use std::path::PathBuf;
 use std::io::Write;
+use std::path::PathBuf;
 
+use futures::FutureExt;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio_stream::StreamExt;
-use futures::FutureExt;
 
 use flate2::write::GzEncoder;
 use flate2::Compression;
 
-use crate::fs_partition::PartitionMetadata;
 use crate::fs_partition::MaybePartitioned::{Partitioned, Unpartitioned};
+use crate::fs_partition::PartitionMetadata;
 
+use crate::encryption_writer::EncryptionWriter;
 use aead::OsRng;
 use rand::RngCore;
-use crate::encryption_writer::EncryptionWriter;
 
 pub struct EncryptionPart {
     pub old_file_path: PathBuf,
@@ -91,8 +91,6 @@ async fn compress_and_encrypt_one_part(
     let encryptor = gzencoder.finish()?;
     let bytes_written = encryptor.finish()?;
 
-    file.flush().await?;
-
     // TODO remove this once you do things in place- replace with "wipe the rest of the file"
     tokio::fs::remove_file(to_encrypt_in_place).await?;
 
@@ -119,9 +117,11 @@ pub(crate) async fn compress_and_encrypt_file_in_place(
                 })
                 .collect::<Vec<_>>()
                 .await
-        },
+        }
+        // TODO implement map for partitioned and unpartitioned
         Unpartitioned(path) => {
-            let (key, encrypted_file_path, bytes_written) = compress_and_encrypt_one_part(path.clone()).await?;
+            let (key, encrypted_file_path, bytes_written) =
+                compress_and_encrypt_one_part(path.clone()).await?;
             vec![EncryptionPart {
                 old_file_path: path.clone(),
                 encrypted_file_path,
