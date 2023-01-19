@@ -16,8 +16,8 @@ pub struct Args {
     // /// key directory - must either not exist, or be an empty directory
     // #[arg(short, long, help = "key directory")]
     // pub keys_dir: PathBuf,
-    /// target size for each chunk
-    #[arg(short, long, help = "target chunk size", default_value = "32000000000")]
+    /// target size for each chunk (default is one gig)
+    #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
     pub target_chunk_size: u64,
 
     /// should we follow symlinks?

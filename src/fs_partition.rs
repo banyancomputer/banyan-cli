@@ -42,10 +42,8 @@ async fn do_chop(large_file: &PathBuf, part: u32, target_size: u64) -> Result<(u
     let mut buf = vec![0; BUF_SIZE];
 
     let mut bytes_read = 0;
-    file.seek(tokio::io::SeekFrom::Start(
-        part as u64 * target_size,
-    ))
-    .await?;
+    file.seek(tokio::io::SeekFrom::Start(part as u64 * target_size))
+        .await?;
     while bytes_read < target_size {
         let n = file.read(&mut buf).await?;
         if n == 0 {
@@ -64,7 +62,10 @@ async fn do_chop(large_file: &PathBuf, part: u32, target_size: u64) -> Result<(u
 /// copy_metadata: Metadata about the copied file to partition
 /// # Returns
 /// The metadata of the partitioned file
-pub(crate) async fn partition_file(copy_metadata: CopyMetadata, target_file_size: u64) -> Result<PartitionMetadata> {
+pub(crate) async fn partition_file(
+    copy_metadata: CopyMetadata,
+    target_file_size: u64,
+) -> Result<PartitionMetadata> {
     // If this is a directory, we don't need to partition it
     // TODO (laudiacay): Handle symlinks. They are not handled earlier in the copy process.
     if copy_metadata.original_metadata.is_dir() {
@@ -91,7 +92,8 @@ pub(crate) async fn partition_file(copy_metadata: CopyMetadata, target_file_size
         // Open streams to handle creating the subfiles
         let subfiles = tokio_stream::iter(0..num_subfiles);
         // Iterate over each stream, creating the subfiles
-        let files_and_parts = subfiles.then(|i| do_chop(&copy_metadata.new_location, i, target_file_size));
+        let files_and_parts =
+            subfiles.then(|i| do_chop(&copy_metadata.new_location, i, target_file_size));
         // Collect the results into a vector
         let ret: Vec<(u32, PathBuf)> = files_and_parts
             .collect::<Result<Vec<(u32, PathBuf)>>>()
