@@ -21,9 +21,7 @@ pub struct PartitionMetadata {
     pub(crate) parts: MaybePartitioned,
 }
 
-// Note (amiller68): Not necessarily worried about CAR files for now, just make sure to use `targer-chunk-size` for determining the size of chunks
-// How large to chunk files: realistically this should be slightly under 32 gigs (however much can fit into a car)
-const MAX_FILE_SIZE: usize = 4 * 1024 * 1024 * 1024; // 4GB
+// Note (amiller68): Not necessarily worried about CAR files for now,
 const BUF_SIZE: usize = 1024 * 1024; // 1MB
 
 // TODO (laudiacay): Make use of `target-chunk-size` for determining the size of chunks
@@ -35,7 +33,7 @@ const BUF_SIZE: usize = 1024 * 1024; // 1MB
 /// target_chunk_size: The size of the chunks to partition the file into
 /// # Returns
 /// The part index and path of the resulting partition
-async fn do_chop(large_file: &PathBuf, part: u32) -> Result<(u32, PathBuf)> {
+async fn do_chop(large_file: &PathBuf, part: u32, target_size: u64) -> Result<(u32, PathBuf)> {
     let mut file = tokio::fs::File::open(&large_file).await?;
     // TODO (laudiacay): Handle the case where this path already exists
     let part_file_path = large_file.with_extension(format!("part-{part}"));
@@ -45,16 +43,16 @@ async fn do_chop(large_file: &PathBuf, part: u32) -> Result<(u32, PathBuf)> {
 
     let mut bytes_read = 0;
     file.seek(tokio::io::SeekFrom::Start(
-        part as u64 * MAX_FILE_SIZE as u64,
+        part as u64 * target_size,
     ))
     .await?;
-    while bytes_read < MAX_FILE_SIZE {
+    while bytes_read < target_size {
         let n = file.read(&mut buf).await?;
         if n == 0 {
             break;
         }
         part_file.write_all(&buf[..n]).await?;
-        bytes_read += n;
+        bytes_read += n as u64;
     }
     Ok((part, part_file_path))
 }
@@ -66,7 +64,7 @@ async fn do_chop(large_file: &PathBuf, part: u32) -> Result<(u32, PathBuf)> {
 /// copy_metadata: Metadata about the copied file to partition
 /// # Returns
 /// The metadata of the partitioned file
-pub(crate) async fn partition_file(copy_metadata: CopyMetadata) -> Result<PartitionMetadata> {
+pub(crate) async fn partition_file(copy_metadata: CopyMetadata, target_file_size: u64) -> Result<PartitionMetadata> {
     // If this is a directory, we don't need to partition it
     // TODO (laudiacay): Handle symlinks. They are not handled earlier in the copy process.
     if copy_metadata.original_metadata.is_dir() {
@@ -82,23 +80,24 @@ pub(crate) async fn partition_file(copy_metadata: CopyMetadata) -> Result<Partit
     // Read the file size
     let file_size = copy_metadata.original_metadata.len();
     // If the file is smaller than the max file size,
-    let parts = if file_size <= MAX_FILE_SIZE.try_into()? {
+    let parts = if file_size <= target_file_size {
         // We don't need to partition it. Label as unpartitioned.
         MaybePartitioned::Unpartitioned(copy_metadata.new_location.clone())
     }
     // Otherwise we need to break this up
     else {
         // Determine how many parts we need to chop this file into
-        let num_subfiles = (file_size as f64 / MAX_FILE_SIZE as f64).ceil() as u32;
+        let num_subfiles = (file_size as f64 / target_file_size as f64).ceil() as u32;
         // Open streams to handle creating the subfiles
         let subfiles = tokio_stream::iter(0..num_subfiles);
         // Iterate over each stream, creating the subfiles
-        let files_and_parts = subfiles.then(|i| do_chop(&copy_metadata.new_location, i));
+        let files_and_parts = subfiles.then(|i| do_chop(&copy_metadata.new_location, i, target_file_size));
         // Collect the results into a vector
         let ret: Vec<(u32, PathBuf)> = files_and_parts
             .collect::<Result<Vec<(u32, PathBuf)>>>()
             .await?;
         // Remove the original file
+        // TODO (laudiacay): We should zero this out if we aren't doing the copy-it-in-one trick
         tokio::fs::remove_file(&copy_metadata.new_location).await?;
         // Return the partition metadata
         MaybePartitioned::Partitioned(ret)
