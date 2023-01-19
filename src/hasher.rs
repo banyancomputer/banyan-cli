@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use blake2::{Blake2s256, Digest};
 use tokio::io::AsyncReadExt;
 
+/// Hash a file using blake2s256
 pub async fn hash_file(path: &PathBuf) -> Result<String> {
     let mut hasher = Blake2s256::new();
     let mut file = tokio::fs::File::open(path).await?;
