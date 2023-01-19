@@ -14,9 +14,8 @@ use tokio_stream::StreamExt;
 
 // How large a buffer to use for operating on files
 const BUF_SIZE: usize = 1024 * 1024; // 1MB
-                                     // TODO (laudiacay): Make use of `target-chunk-size` for determining MAX_FILE_SIZE
                                      // How large a file can safely be in order to encrypt it.
-const MAX_FILE_SIZE: usize = 4 * 1024 * 1024 * 1024; // 4GB. This should be slightly under 32 gigs, the GCM safe limit
+const MAX_SAFE_ENCRYPTION_SIZE: usize = 34_359_738_368; // 32 gigs, the GCM safe limit
 
 // TODO (laudiacay): Do we need to keep track of nonces?
 #[derive(Debug)]
@@ -60,7 +59,7 @@ async fn compress_and_encrypt_file(path: PathBuf) -> Result<([u8; 32], PathBuf, 
     let mut file = tokio::fs::File::open(&path).await?;
     // Determine whether or not the file is small enough to be used with our EncryptionWriter
     let file_length = file.metadata().await?.len() as usize;
-    assert!(file_length <= MAX_FILE_SIZE);
+    assert!(file_length <= MAX_SAFE_ENCRYPTION_SIZE);
     // Open a new file to write the compressed and encrypted data to
     // TODO (laudiacay): fix async io up... and/or buffering...
     let compressed_encrypted_file_path = path.with_extension("gzip.enc");
@@ -108,6 +107,7 @@ async fn compress_and_encrypt_file(path: PathBuf) -> Result<([u8; 32], PathBuf, 
     let bytes_written = encryptor.finish()?;
 
     // TODO (laudiacay): When we figure out how operate on files in place, replace with "wipe the rest of the file"
+    // TODO (laudiacay): Wipe pre-partition file properly
     // Remove the original file
     tokio::fs::remove_file(path).await?;
 
@@ -133,6 +133,7 @@ pub(crate) async fn compress_and_encrypt_partitioned_file(
                 // Map the parts to a future that will encrypt and compress the part
                 .then(|(_part_num, path)| {
                     // Note (amiller68):  Does `move` stop the underlying return value from being returned?
+                    // TODO have this return encryptionpart
                     compress_and_encrypt_file(path.clone()).map(move |res| {
                         let (key, encrypted_part, length) = res.unwrap();
                         EncryptionPart {
