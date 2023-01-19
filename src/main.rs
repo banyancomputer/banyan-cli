@@ -12,7 +12,7 @@ mod hasher;
 use crate::fs_copy::copy_file_or_dir;
 use clap::Parser;
 use futures::{FutureExt, StreamExt};
-use jwalk::{WalkDirGeneric};
+use jwalk::WalkDirGeneric;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::future;
@@ -141,15 +141,16 @@ async fn main() {
     // Initialize a struct to memoize the hashes of files
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
     // Iterate over all the futures in the stream map.
-    let copied =
-        map.then(|((path_root, new_root), dir_entry)| {
-            // Clone the references to the seen_hashes map
-            let local_seen_hashes = seen_hashes.clone();
-            // Move the dir_entry into the future and copy the file.
-            async move {
-                copy_file_or_dir(path_root, dir_entry.unwrap(), new_root, local_seen_hashes).await.expect("copy failed")
-            }
-        });
+    let copied = map.then(|((path_root, new_root), dir_entry)| {
+        // Clone the references to the seen_hashes map
+        let local_seen_hashes = seen_hashes.clone();
+        // Move the dir_entry into the future and copy the file.
+        async move {
+            copy_file_or_dir(path_root, dir_entry.unwrap(), new_root, local_seen_hashes)
+                .await
+                .expect("copy failed")
+        }
+    });
 
     println!("Partitioning files into chunks...");
 
