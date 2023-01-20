@@ -1,12 +1,18 @@
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
 use aead::{rand_core::RngCore, stream::NewStream, OsRng};
 use aes_gcm::{Aes256Gcm, KeyInit};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::io::prelude::Write;
+use std::io::Error;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
+
+const MAX_SAFE_ENCRYPTION_SIZE: usize = 34_359_738_368; // 32 gigs, the GCM safe limit
 
 /// A wrapper around a writer that encrypts the data as it is written.
 /// Should not be used on files larger than 32 GB.
-pub struct EncryptionWriter<W: Write> {
+pub struct EncryptionWriter<W: AsyncWrite> {
     /// Internal buffer, holds data to be encrypted in place
     buf: Vec<u8>,
     /// Writer to another file
@@ -18,7 +24,7 @@ pub struct EncryptionWriter<W: Write> {
 }
 
 /// A wrapper around a writer that encrypts the data as it is written.
-impl<W: Write> EncryptionWriter<W> {
+impl<W: AsyncWrite> EncryptionWriter<W> {
     /// Create a new EncryptionWriter.
     ///
     /// # Arguments
@@ -40,35 +46,44 @@ impl<W: Write> EncryptionWriter<W> {
     }
 
     /// Encrypt the data in the buffer and write it to the writer.
-    pub fn finish(mut self) -> Result<usize> {
+    pub async fn finish(mut self) -> Result<usize> {
         self.flush()?;
         // TODO (laudiacay): check this logic better, especially once your PR is merged on rustcrypto
         self.encryptor
             .encrypt_last_in_place(b"".as_ref(), &mut self.buf)
             .unwrap();
-        self.writer.write_all(&self.buf)?;
+        Box::pin(self.writer).write_all(&self.buf)?;
         self.bytes_written += self.buf.len();
         Ok(self.bytes_written)
+    }
+
+    pub fn cipher_info(self) -> String {
+        "AES-256-GCM".to_string()
     }
 }
 
 /// Implement the Write trait for EncryptionWriter.
-impl<W: Write> Write for EncryptionWriter<W> {
+impl<W: AsyncWrite> Write for EncryptionWriter<W> {
     // TODO (laudiacay): Can we implement buffering better with bufwriter? not sure how this scales?
     /// Write data to the buffer
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.buf.extend_from_slice(buf);
         Ok(buf.len())
     }
+
     /// Clear the buffer and encrypt the data in place.
     fn flush(&mut self) -> std::io::Result<()> {
-        // TODO (laudiacay): check this logic better, especially once your PR is merged on rustcrypto
-        self.encryptor
+        let self_pin = Pin::new(&mut **self);
+        self_pin
+            .encryptor
             .encrypt_next_in_place(b"", &mut self.buf)
             .unwrap();
-        self.writer.write_all(&self.buf)?;
-        self.writer.flush()?;
-        self.bytes_written += self.buf.len();
+        self_pin.writer.write_all(&self.buf)?;
+        self_pin.writer.flush()?;
+        self_pin.bytes_written += self.buf.len();
+        if self.bytes_written >= MAX_SAFE_ENCRYPTION_SIZE {
+            return Err(std::io::Error::new(std::io::ErrorKind::FileTooLarge, "File too large to encrypt"))
+        };
         self.buf.clear();
         Ok(())
     }

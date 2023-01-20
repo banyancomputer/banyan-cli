@@ -1,3 +1,4 @@
+#![feature(io_error_more)]
 #![deny(unused_crate_dependencies)]
 
 mod args;
@@ -5,17 +6,17 @@ mod encryption_writer;
 mod fs_carfiler;
 mod fs_compression_encryption;
 mod fs_copy;
-mod fs_partition;
 mod fsutil;
 mod hasher;
+mod partition_reader;
 
-use crate::fs_copy::copy_file_or_dir;
+use crate::fs_copy::prep_for_copy;
 use clap::Parser;
-use futures::{FutureExt, StreamExt};
+//use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use jwalk::WalkDirGeneric;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::future;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -136,7 +137,7 @@ async fn main() {
 
     /* Perform deduplication and partitioning on the files */
 
-    println!("De-duplicating and copying files...");
+    println!("De-duplicating and proposing partitions for files...");
 
     // Initialize a struct to memoize the hashes of files
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
@@ -146,34 +147,40 @@ async fn main() {
         let local_seen_hashes = seen_hashes.clone();
         // Move the dir_entry into the future and copy the file.
         async move {
-            copy_file_or_dir(path_root, dir_entry.unwrap(), new_root, local_seen_hashes)
-                .await
-                .expect("copy failed")
+            prep_for_copy(
+                path_root,
+                dir_entry.unwrap(),
+                new_root,
+                local_seen_hashes,
+                args.target_chunk_size,
+            )
+            .await
+            .expect("copy failed")
         }
     });
 
     println!("Partitioning files into chunks...");
 
     // Partition the files into chunks of size `target-chunk-size`
-    let partitioned = copied.then(|copy_metadata| {
-        fs_partition::partition_file(copy_metadata, args.target_chunk_size).map(|res| res.unwrap())
-    });
+    //let partitioned = copied.then(|copy_metadata| {
+    //fs_partition::partition_file(copy_metadata, args.target_chunk_size).map(|res| res.unwrap())
+    //});
 
     println!("Compressing files and encrypting chunks...");
 
     // Compress and encrypt each chunk in place. These chunks should be randomly named.
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let compressed_and_encrypted = partitioned.then(|file_data| {
-        fs_compression_encryption::compress_and_encrypt_partitioned_file(file_data)
-            .map(|res| res.unwrap())
-    });
+    //let compressed_and_encrypted = partitioned.then(|file_data| {
+    //     fs_compression_encryption::compress_and_encrypt_partitioned_file(file_data)
+    //         .map(|res| res.unwrap())
+    // });
 
     println!("Writing metadata...");
 
     // TODO (laudiacay): Write out a manifest file that maps: all the things needed to reconstruct the directory
     // For now just write out the content of compressed_and_encrypted to stdout
-    let _manifest = compressed_and_encrypted.for_each(|file_data| {
-        println!("{file_data:?}");
-        future::ready(())
-    });
+    //let _manifest = compressed_and_encrypted.for_each(|file_data| {
+    //    println!("{file_data:?}");
+    //    future::ready(())
+    //});
 }
