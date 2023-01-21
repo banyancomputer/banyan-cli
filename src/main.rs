@@ -2,6 +2,7 @@
 #![deny(unused_crate_dependencies)]
 
 mod args;
+mod compression_writer;
 mod encryption_writer;
 mod fs_carfiler;
 mod fs_compression_encryption;

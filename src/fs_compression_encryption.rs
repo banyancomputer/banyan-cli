@@ -1,21 +1,13 @@
 use crate::encryption_writer::EncryptionWriter;
 use crate::fs_copy::CopyMetadata;
-use crate::fsutil;
-use crate::fsutil::{DuplicateOrOriginal, PartitionGuidelines};
 use crate::partition_reader::PartitionReader;
 use aead::OsRng;
 use anyhow::Result;
 use flate2::write::GzEncoder;
-use flate2::Compression;
-use futures::FutureExt;
-use jwalk::DirEntry;
 use rand::RngCore;
-use std::fs::Metadata;
-use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 // How large a buffer to use for operating on files
 const BUF_SIZE: usize = 1024 * 1024; // 1MB
@@ -56,12 +48,13 @@ async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u32) -> Result<Encryptio
     // to get to this point it needs to be an original file and have some partition guidelines- just check one more time!
     assert!(copy_metadata.duplicate_or_original.is_original());
     assert!(copy_metadata.partition_guidelines.is_some());
-    let (segment, new_path) = copy_metadata
-        .partition_guidelines
-        .unwrap()
-        .0
-        .get(part.into())
-        .unwrap();
+    let (segment, new_path) = copy_metadata.as_ref()
+        .partition_guidelines.as_ref()
+        .map(|pg| {
+            pg.0.get(&part.into()).unwrap()
+        }).unwrap();
+
+
     let mut old_file_reader = PartitionReader::new_from_path(
         segment,
         copy_metadata
@@ -69,21 +62,23 @@ async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u32) -> Result<Encryptio
             .join(copy_metadata.original_location.file_name.clone()),
     )
     .await?;
-    let mut new_file_writer = File::open(new_path).await?;
+    let mut new_file_writer = File::open(new_path.clone()).await?;
     let mut key = [0u8; 32];
     OsRng.fill_bytes(&mut key);
-    let new_file_encryptor = EncryptionWriter::new(&mut new_file_writer, copy_metadata.key);
+    let new_file_encryptor = EncryptionWriter::new(&mut new_file_writer, &key);
+    let cipher_info = new_file_encryptor.cipher_info().clone();
     let mut new_file_compressor =
         GzEncoder::new(new_file_encryptor, flate2::Compression::default());
-    tokio::copy(&mut old_file_reader, &mut new_file_compressor).await?;
-    let encryptor = new_file_compressor.finish()?;
-    let bytes_written = encryptor.finish().await?;
+    // TODO (laudiacay): look at whether you want to use asyncread and asyncwrite all throughout...? definitely should to throughputmaxx, but not for now.
+    std::io::copy(&mut old_file_reader, &mut new_file_compressor)?;
+    // finish the gzip compression and write it to the encryptor, finish the encryptor and write it to the file, done
+    let bytes_written = new_file_compressor.finish()?.finish().await?;
     Ok(EncryptionPart {
         segment: *segment,
         encrypted_file_path: (*new_path.clone()).to_owned(),
         key,
         size_after: bytes_written as u64,
-        cipher_info: encryptor.cipher_info(),
+        cipher_info,
         compression_info: "GZIP".to_string(),
     })
 }

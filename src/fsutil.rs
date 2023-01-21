@@ -1,13 +1,5 @@
-use crate::encryption_writer::EncryptionWriter;
-use crate::fs_compression_encryption::{EncryptionMetadata, EncryptionPart};
-use crate::fs_copy::CopyMetadata;
-use crate::partition_reader::PartitionReader;
-use aead::rand_core::RngCore;
-use aead::OsRng;
 use anyhow::{anyhow, Result};
-use flate2::read::GzEncoder;
 use std::collections::HashMap;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 
 /// Check if a path is an existing directory

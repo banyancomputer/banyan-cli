@@ -1,6 +1,6 @@
 use anyhow::Result;
 use futures::executor;
-use std::io::SeekFrom;
+use std::io::{Read, SeekFrom};
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -8,7 +8,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf, Take};
 
 /// reads a file partition from a file (and nothing more)
-pub struct PartitionReader<R: AsyncRead> {
+pub struct PartitionReader<R: AsyncRead + Unpin> {
     /// the partition segment
     segment: (u64, u64),
     /// the file to read from
@@ -25,7 +25,10 @@ impl PartitionReader<Take<BufReader<File>>> {
         // and don't past the end of the segment
         let reader = BufReader::take(reader, segment.1 - segment.0);
         // and awayyy we gooo
-        Ok(Self { segment, reader })
+        Ok(Self {
+            segment: *segment,
+            reader,
+        })
     }
 }
 
@@ -37,5 +40,11 @@ impl<R: AsyncRead + Unpin> AsyncRead for PartitionReader<R> {
     ) -> Poll<std::io::Result<()>> {
         let this = self.get_mut();
         Pin::new(&mut this.reader).poll_read(cx, buf)
+    }
+}
+
+impl<R: AsyncRead + Unpin> Read for PartitionReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        executor::block_on(self.reader.read(buf))
     }
 }
