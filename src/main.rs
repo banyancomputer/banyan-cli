@@ -1,22 +1,25 @@
+#![feature(io_error_more)]
 #![deny(unused_crate_dependencies)]
 
 mod args;
+mod compression_writer;
 mod encryption_writer;
 mod fs_carfiler;
 mod fs_compression_encryption;
 mod fs_copy;
-mod fs_partition;
 mod fsutil;
 mod hasher;
+mod partition_reader;
 
-use crate::fs_copy::copy_file_or_dir;
+use crate::fs_copy::prep_for_copy;
 use clap::Parser;
-use futures::{FutureExt, StreamExt};
-use jwalk::{WalkDirGeneric};
+//use futures::{FutureExt, StreamExt};
+use jwalk::WalkDirGeneric;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::future;
 
+use futures::FutureExt;
+use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_stream::StreamMap;
@@ -28,10 +31,9 @@ use tokio_stream::StreamMap;
 // }
 
 /* General Project Chores */
-// TODO (xBalbinus & thea-exe): Handle panics appropriately
+// TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
 // TODO (xBalbinus & thea-exe): get rid of all the clones and stop copying around pathbufs
-// TODO (xBalbinus & thea-exe): get rid of all the unwraps
-// TODO (xBalbinus & thea-exe): get rid of #derive(Debug) on all structs and instead implement a way to write results out. Reliant on having a solution for writing manifest files out.
+// TODO (xBalbinus & thea-exe): generally clean up imports and naming. the fs_yadayadayada stuff is particularly bad.
 
 /* Hardcore project TODOs before mvp */
 // TODO (laudiacay): We can implement the pipeline with a single FS read maybe. Look into this. Be sure to tally up the reads before attempting this.
@@ -136,43 +138,41 @@ async fn main() {
 
     /* Perform deduplication and partitioning on the files */
 
-    println!("De-duplicating and copying files...");
+    println!("De-duplicating and proposing partitions for files...");
 
     // Initialize a struct to memoize the hashes of files
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
     // Iterate over all the futures in the stream map.
-    let copied =
-        map.then(|((path_root, new_root), dir_entry)| {
-            // Clone the references to the seen_hashes map
-            let local_seen_hashes = seen_hashes.clone();
-            // Move the dir_entry into the future and copy the file.
-            async move {
-                copy_file_or_dir(path_root, dir_entry.unwrap(), new_root, local_seen_hashes).await.expect("copy failed")
-            }
-        });
-
-    println!("Partitioning files into chunks...");
-
-    // Partition the files into chunks of size `target-chunk-size`
-    let partitioned = copied.then(|copy_metadata| {
-        fs_partition::partition_file(copy_metadata, args.target_chunk_size).map(|res| res.unwrap())
+    let copy_plan = map.then(|((path_root, new_root), dir_entry)| {
+        // Clone the references to the seen_hashes map
+        let local_seen_hashes = seen_hashes.clone();
+        // Move the dir_entry into the future and copy the file.
+        async move {
+            prep_for_copy(
+                path_root,
+                dir_entry.unwrap(),
+                new_root,
+                local_seen_hashes,
+                args.target_chunk_size,
+            )
+            .await
+            .expect("copy failed")
+        }
     });
 
-    println!("Compressing files and encrypting chunks...");
+    println!("Copying, compressing, encrypting, and writing to new FS...");
 
-    // Compress and encrypt each chunk in place. These chunks should be randomly named.
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let compressed_and_encrypted = partitioned.then(|file_data| {
-        fs_compression_encryption::compress_and_encrypt_partitioned_file(file_data)
-            .map(|res| res.unwrap())
+    let _copied = copy_plan.then(|copy_plan| {
+        fs_compression_encryption::process_copy_metadata(copy_plan).map(|e| e.unwrap())
     });
 
     println!("Writing metadata...");
 
     // TODO (laudiacay): Write out a manifest file that maps: all the things needed to reconstruct the directory
     // For now just write out the content of compressed_and_encrypted to stdout
-    let _manifest = compressed_and_encrypted.for_each(|file_data| {
-        println!("{file_data:?}");
-        future::ready(())
-    });
+    //let _manifest = compressed_and_encrypted.for_each(|file_data| {
+    //    println!("{file_data:?}");
+    //    future::ready(())
+    //});
 }

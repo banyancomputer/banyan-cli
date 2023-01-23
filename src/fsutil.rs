@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Check if a path is an existing directory
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
@@ -20,6 +21,57 @@ pub fn ensure_path_exists_and_is_empty_dir(path: &Path) -> Result<()> {
         return Err(anyhow!("Path is not empty: {}", path.display()));
     }
     Ok(())
+}
+
+#[derive(Debug)]
+/// Enum that describes whether this file is a duplicate or not
+pub enum DuplicateOrOriginal {
+    /// This file is a duplicate of another file, here is the hash and location of the other file
+    Duplicate(String, PathBuf),
+    /// this file is an original file, here's its hash
+    Original(String),
+}
+
+/// Implements test for DuplicateOrOriginal
+impl DuplicateOrOriginal {
+    /// Returns true if this is a duplicate
+    pub(crate) fn is_original(&self) -> bool {
+        match self {
+            DuplicateOrOriginal::Duplicate(..) => false,
+            DuplicateOrOriginal::Original(..) => true,
+        }
+    }
+}
+
+#[derive(Debug)]
+/// information for how to chunk a file up
+/// map the part number to which bytes need to be copied and where that part is going to end up.
+pub struct PartitionGuidelines(pub(crate) HashMap<u64, ((u64, u64), PathBuf)>);
+
+pub fn make_partition(
+    file_len: u64,
+    target_file_size: u64,
+    file_path: PathBuf,
+) -> Option<PartitionGuidelines> {
+    if file_len <= target_file_size {
+        return None;
+    }
+    let n_parts = (file_len as f64 / target_file_size as f64).ceil() as u64;
+    let map = (0..n_parts)
+        .map(
+            // compute the boundaries of each segment
+            |i| {
+                let start = i * target_file_size;
+                let end = if i == n_parts - 1 {
+                    file_len
+                } else {
+                    (i + 1) * target_file_size
+                };
+                (i, ((start, end), file_path.join(format!("part_{i}"))))
+            },
+        )
+        .collect::<HashMap<u64, ((u64, u64), PathBuf)>>();
+    Some(PartitionGuidelines(map))
 }
 
 // Note (amiller68): The following is not used.
