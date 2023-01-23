@@ -2,7 +2,6 @@
 #![deny(unused_crate_dependencies)]
 
 mod args;
-mod compression_writer;
 mod crypto_tools;
 mod fs_carfiler;
 mod fs_compression_encryption;
@@ -10,6 +9,7 @@ mod fs_copy;
 mod fsutil;
 mod hasher;
 mod partition_reader;
+mod compression_tools;
 
 use crate::fs_copy::prep_for_copy;
 use clap::Parser;
