@@ -9,10 +9,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use tokio::fs::File;
 
-// How large a buffer to use for operating on files
-const BUF_SIZE: usize = 1024 * 1024; // 1MB
-                                     // How large a file can safely be in order to encrypt it.
-
 // TODO (laudiacay): Do we need to keep track of nonces?
 #[derive(Debug)]
 /// Metadata generated when a part of a file is encrypted and compressed
@@ -44,16 +40,16 @@ pub struct EncryptionMetadata {
     compression_info: String,
 }
 
-async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u32) -> Result<EncryptionPart> {
+async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u64) -> Result<EncryptionPart> {
     // to get to this point it needs to be an original file and have some partition guidelines- just check one more time!
     assert!(copy_metadata.duplicate_or_original.is_original());
     assert!(copy_metadata.partition_guidelines.is_some());
-    let (segment, new_path) = copy_metadata.as_ref()
-        .partition_guidelines.as_ref()
-        .map(|pg| {
-            pg.0.get(&part.into()).unwrap()
-        }).unwrap();
-
+    let (segment, new_path) = copy_metadata
+        .as_ref()
+        .partition_guidelines
+        .as_ref()
+        .map(|pg| pg.0.get(&part).unwrap())
+        .unwrap();
 
     let mut old_file_reader = PartitionReader::new_from_path(
         segment,
@@ -79,6 +75,42 @@ async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u32) -> Result<Encryptio
         key,
         size_after: bytes_written as u64,
         cipher_info,
+        compression_info: "GZIP".to_string(),
+    })
+}
+
+pub async fn process_copy_metadata(copy_metadata: CopyMetadata) -> Result<EncryptionMetadata> {
+    let mut encrypted_pieces = Vec::new();
+    // cases where you shouldn't copy: it's a duplicate, it's a directory, or it's a symlink. These will be annotated in the metadata, but not backed up.
+    if !copy_metadata.duplicate_or_original.is_original()
+        || copy_metadata.original_metadata.is_dir()
+        || copy_metadata.original_metadata.is_symlink()
+    {
+        return Ok(EncryptionMetadata {
+            copy_metadata: Rc::new(copy_metadata),
+            encrypted_pieces: None,
+            cipher_info: "".to_string(),
+            compression_info: "".to_string(),
+        });
+    }
+    // TODO add better types to make it so that only non-duplicate files get here :)
+    // assert that we have partition guidelines
+    assert!(copy_metadata.partition_guidelines.is_some());
+    // TODO (laudiacay): make this a parallel for loop or stream
+    let copy_metadata = Rc::new(copy_metadata);
+    for part in copy_metadata
+        .partition_guidelines
+        .as_ref()
+        .unwrap()
+        .0
+        .keys()
+    {
+        encrypted_pieces.push(do_copy(copy_metadata.clone(), *part).await?);
+    }
+    Ok(EncryptionMetadata {
+        copy_metadata,
+        encrypted_pieces: Some(encrypted_pieces),
+        cipher_info: "AES-256-GCM".to_string(),
         compression_info: "GZIP".to_string(),
     })
 }
