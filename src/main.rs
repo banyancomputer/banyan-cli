@@ -14,11 +14,12 @@ mod partition_reader;
 use crate::fs_copy::prep_for_copy;
 use clap::Parser;
 //use futures::{FutureExt, StreamExt};
-use futures::StreamExt;
 use jwalk::WalkDirGeneric;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
+use futures::FutureExt;
+use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_stream::StreamMap;
@@ -30,10 +31,9 @@ use tokio_stream::StreamMap;
 // }
 
 /* General Project Chores */
-// TODO (xBalbinus & thea-exe): Handle panics appropriately
+// TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
 // TODO (xBalbinus & thea-exe): get rid of all the clones and stop copying around pathbufs
-// TODO (xBalbinus & thea-exe): get rid of all the unwraps
-// TODO (xBalbinus & thea-exe): get rid of #derive(Debug) on all structs and instead implement a way to write results out. Reliant on having a solution for writing manifest files out.
+// TODO (xBalbinus & thea-exe): generally clean up imports and naming. the fs_yadayadayada stuff is particularly bad.
 
 /* Hardcore project TODOs before mvp */
 // TODO (laudiacay): We can implement the pipeline with a single FS read maybe. Look into this. Be sure to tally up the reads before attempting this.
@@ -143,7 +143,7 @@ async fn main() {
     // Initialize a struct to memoize the hashes of files
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
     // Iterate over all the futures in the stream map.
-    let copied = map.then(|((path_root, new_root), dir_entry)| {
+    let copy_plan = map.then(|((path_root, new_root), dir_entry)| {
         // Clone the references to the seen_hashes map
         let local_seen_hashes = seen_hashes.clone();
         // Move the dir_entry into the future and copy the file.
@@ -160,21 +160,12 @@ async fn main() {
         }
     });
 
-    println!("Partitioning files into chunks...");
+    println!("Copying, compressing, encrypting, and writing to new FS...");
 
-    // Partition the files into chunks of size `target-chunk-size`
-    //let partitioned = copied.then(|copy_metadata| {
-    //fs_partition::partition_file(copy_metadata, args.target_chunk_size).map(|res| res.unwrap())
-    //});
-
-    println!("Compressing files and encrypting chunks...");
-
-    // Compress and encrypt each chunk in place. These chunks should be randomly named.
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    //let compressed_and_encrypted = partitioned.then(|file_data| {
-    //     fs_compression_encryption::compress_and_encrypt_partitioned_file(file_data)
-    //         .map(|res| res.unwrap())
-    // });
+    let _copied = copy_plan.then(|copy_plan| {
+        fs_compression_encryption::process_copy_metadata(copy_plan).map(|e| e.unwrap())
+    });
 
     println!("Writing metadata...");
 

@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader, ReadBuf, Take}
 /// reads a file partition from a file (and nothing more)
 pub struct PartitionReader<R: AsyncRead + Unpin> {
     /// the partition segment
-    segment: (u64, u64),
+    _segment: (u64, u64),
     /// the file to read from
     reader: R,
 }
@@ -26,7 +26,7 @@ impl PartitionReader<Take<BufReader<File>>> {
         let reader = BufReader::take(reader, segment.1 - segment.0);
         // and awayyy we gooo
         Ok(Self {
-            segment: *segment,
+            _segment: *segment,
             reader,
         })
     }

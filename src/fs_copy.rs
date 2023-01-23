@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 
 use crate::{fsutil, hasher};
 
+// TODO (laudiacay): clean up some info from this type
 #[derive(Debug)]
 /// MetaData that is emitted on successful copy
 pub struct CopyMetadata {
