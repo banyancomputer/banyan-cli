@@ -4,18 +4,14 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// input files as a glob
+    /// input file root to spider
     #[arg(short, long, help = "input directories and files")]
-    pub input_dirs: Vec<PathBuf>,
+    pub input_dir: PathBuf,
 
     /// output directory- must either not exist, or be an empty directory
     #[arg(short, long, help = "output directory")]
     pub output_dir: PathBuf,
 
-    // Note (amiller68): We don't necessarily need to create the keys dir, removing for now.
-    // /// key directory - must either not exist, or be an empty directory
-    // #[arg(short, long, help = "key directory")]
-    // pub keys_dir: PathBuf,
     /// target size for each chunk (default is one gig)
     #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
     pub target_chunk_size: u64,
