@@ -1,6 +1,4 @@
-// TODO (laudiacay): do you see how rustcrypto uses macros for this? you should too.
-pub mod decryption_writer;
+pub mod decryption_writer; // TODO laudiacay decryption_writer should probably be a reader
 pub mod encryption_writer;
 
-// TODO (laudiacay): better naming
 pub mod hasher;
