@@ -8,10 +8,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::crypto_tools::hasher;
-use crate::types::{
-    CompressionPlan, DataProcessDirective, DataProcessPlan, EncryptionPlan, PartitionPlan,
-    PipelinePlan, SpiderMetadata, WriteoutPlan,
+use crate::types::plan::{
+    CompressionPlan, DataProcessPlan, EncryptionPlan, PartitionPlan, PipelinePlan, WriteoutPlan,
 };
+use crate::types::shared::DataProcessDirective;
+use crate::types::spider::SpiderMetadata;
 
 /// Copy a file or directory from one location to another. If the file is a duplicate, it will not be copied.
 ///

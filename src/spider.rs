@@ -1,4 +1,4 @@
-use crate::types::SpiderMetadata;
+use crate::types::spider::SpiderMetadata;
 use anyhow::Result;
 use futures::stream::BoxStream;
 use futures::StreamExt;

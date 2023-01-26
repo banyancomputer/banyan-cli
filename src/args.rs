@@ -12,6 +12,10 @@ pub struct Args {
     #[arg(short, long, help = "output directory")]
     pub output_dir: PathBuf,
 
+    /// where to put the manifest file
+    #[arg(short, long, help = "manifest file location")]
+    pub manifest_file: PathBuf,
+
     /// target size for each chunk (default is one gig)
     #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
     pub target_chunk_size: u64,

@@ -3,7 +3,6 @@
 #![deny(unused_crate_dependencies)]
 
 mod args;
-mod compression_tools;
 mod crypto_tools;
 mod fs_carfiler;
 mod fsutil;
@@ -18,6 +17,7 @@ use futures::FutureExt;
 use std::collections::HashMap;
 use tokio_stream::StreamExt;
 
+use crate::types::pipeline::PipelineToDisk;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -100,15 +100,25 @@ async fn main() {
     println!("Copying, compressing, encrypting, and writing to new FS...");
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let _copied =
+    let copied =
         copy_plan.then(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan).map(|e| e.unwrap()));
 
     println!("Writing metadata...");
 
-    // TODO (laudiacay): Write out a manifest file that maps: all the things needed to reconstruct the directory
-    // For now just write out the content of compressed_and_encrypted to stdout
-    //let _manifest = compressed_and_encrypted.for_each(|file_data| {
-    //    println!("{file_data:?}");
-    //    future::ready(())
-    //});
+    // For now just write out the content of compressed_and_encrypted to a file.
+    // make sure the manifest file doesn't exist
+    let manifest_writer = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(args.manifest_file)
+        .unwrap();
+    serde_json::to_writer(
+        manifest_writer,
+        &copied
+            .map(|pipeline| pipeline.try_into())
+            .collect::<Result<Vec<PipelineToDisk>, anyhow::Error>>()
+            .await
+            .unwrap(),
+    )
+    .unwrap();
 }
