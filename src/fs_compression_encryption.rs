@@ -1,4 +1,4 @@
-use crate::encryption_writer::EncryptionWriter;
+use crate::crypto_tools::encryption_writer::EncryptionWriter;
 use crate::fs_copy::CopyMetadata;
 use crate::partition_reader::PartitionReader;
 use aead::OsRng;
@@ -19,6 +19,8 @@ pub struct EncryptionPart {
     pub encrypted_file_path: PathBuf,
     /// The key used to encrypt the part or file
     pub key: [u8; 32],
+    /// The nonce used to encrypt the part or file
+    pub nonce: [u8; 12],
     /// The size after compression and encryption
     pub size_after: u64,
     /// The cipher used to encrypt the file
@@ -61,7 +63,7 @@ async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u64) -> Result<Encryptio
     let mut new_file_writer = File::open(new_path.clone()).await?;
     let mut key = [0u8; 32];
     OsRng.fill_bytes(&mut key);
-    let new_file_encryptor = EncryptionWriter::new(&mut new_file_writer, &key);
+    let (new_file_encryptor, nonce) = EncryptionWriter::new(&mut new_file_writer, &key);
     let cipher_info = new_file_encryptor.cipher_info().clone();
     let mut new_file_compressor =
         GzEncoder::new(new_file_encryptor, flate2::Compression::default());
@@ -73,6 +75,7 @@ async fn do_copy(copy_metadata: Rc<CopyMetadata>, part: u64) -> Result<Encryptio
         segment: *segment,
         encrypted_file_path: (*new_path.clone()).to_owned(),
         key,
+        nonce: <[u8; 12]>::try_from(nonce.to_owned()).unwrap(),
         size_after: bytes_written as u64,
         cipher_info,
         compression_info: "GZIP".to_string(),

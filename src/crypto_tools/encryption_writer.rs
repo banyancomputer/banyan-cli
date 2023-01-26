@@ -30,7 +30,7 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
     /// # Arguments
     /// writer: The writer to write encrypted data to.
     /// key: The key to use for encryption.
-    pub fn new(writer: W, key: &[u8]) -> Self {
+    pub fn new(writer: W, key: &[u8]) -> (Self, Vec<u8>) {
         // Generate a random nonce.
         let mut nonce = [0u8; 12];
         OsRng.fill_bytes(&mut nonce);
@@ -38,12 +38,15 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
         let cipher = Aes256Gcm::new(key.as_ref().into());
         let encryptor =
             RefCell::new(StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor());
-        Self {
-            buf: RefCell::new(Vec::new()),
-            writer: writer.into(),
-            encryptor,
-            bytes_written: RefCell::new(0),
-        }
+        (
+            Self {
+                buf: RefCell::new(Vec::new()),
+                writer: writer.into(),
+                encryptor,
+                bytes_written: RefCell::new(0),
+            },
+            nonce.to_vec(),
+        )
     }
 
     /// Encrypt the data in the buffer and write it to the writer.

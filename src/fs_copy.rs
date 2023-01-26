@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::{fsutil, hasher};
+use crate::{crypto_tools::hasher, fsutil};
 
 // TODO (laudiacay): clean up some info from this type
 #[derive(Debug)]
