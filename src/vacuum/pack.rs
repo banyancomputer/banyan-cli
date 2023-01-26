@@ -5,12 +5,13 @@ use flate2::bufread::GzEncoder;
 use rand::{Rng, RngCore};
 use tokio::fs::File;
 
-use std::io::{BufRead, Read};
-
-use crate::types::{
-    CompressionMetadata, DataProcess, DataProcessDirective, DataProcessPlan, EncryptionMetadata,
-    EncryptionPart, Pipeline, PipelinePlan, WriteoutMetadata,
+use crate::types::pipeline::{
+    CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
+    WriteoutMetadata,
 };
+use crate::types::plan::{DataProcessPlan, PipelinePlan};
+use crate::types::shared::DataProcessDirective;
+use std::io::{BufRead, Read};
 
 pub(crate) async fn do_file_pipeline(
     PipelinePlan {
@@ -20,7 +21,7 @@ pub(crate) async fn do_file_pipeline(
 ) -> Result<Pipeline> {
     match data_processing {
         DataProcessDirective::File(DataProcessPlan {
-            compression: _,
+            compression,
             partition,
             encryption,
             writeout,
@@ -31,6 +32,7 @@ pub(crate) async fn do_file_pipeline(
             let old_file_reader =
                 std::io::BufReader::new(std::fs::File::open(&origin_data.canonicalized_path)?);
             // put a gzip encoder on it then buffer it
+            assert_eq!(compression.compression_info, "GZIP");
             let mut old_file_reader = std::io::BufReader::new(GzEncoder::new(
                 old_file_reader,
                 flate2::Compression::default(),
@@ -52,14 +54,17 @@ pub(crate) async fn do_file_pipeline(
                 let full_filename = writeout.output_dir.join(filename).clone();
                 let mut new_file_writer = File::create(&full_filename).await?;
 
-                // TODO put into a utility function
                 // make the encryptor
+                // TODO put key/nonce gen into a utility function
                 let mut key = [0u8; 32];
                 OsRng.fill_bytes(&mut key);
                 let mut nonce = [0u8; 12];
                 OsRng.fill_bytes(&mut nonce);
                 let mut new_file_encryptor =
                     EncryptionWriter::new(&mut new_file_writer, &key, &nonce);
+                // TODO turn these checks into actual encryption switches
+                assert_eq!(new_file_encryptor.cipher_info(), encryption.cipher_info);
+                assert_eq!(encryption.cipher_info, "AES-256-GCM");
 
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
@@ -83,7 +88,7 @@ pub(crate) async fn do_file_pipeline(
                 cipher_info: encryption.cipher_info,
             };
             let compression = CompressionMetadata {
-                compression_info: "GZip".to_string(),
+                compression_info: "GZIP".to_string(),
                 size_after: 0, // TODO (laudiacay) figure out how to get this
             };
             let partition = partition.0;
