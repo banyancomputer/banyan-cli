@@ -27,6 +27,8 @@ pub struct CompressionMetadata {
 pub struct PartitionMetadata {
     /// The size of the chunks
     pub(crate) chunk_size: u64,
+    /// number of chunks
+    pub(crate) num_chunks: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

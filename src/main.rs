@@ -2,24 +2,19 @@
 #![feature(buf_read_has_data_left)]
 #![deny(unused_crate_dependencies)]
 
-mod args;
+use crate::pipeline::pack_pipeline::pack_pipeline;
+use crate::pipeline::unpack_pipeline::unpack_pipeline;
+use clap::Parser;
+
+mod cli;
 mod crypto_tools;
 mod fs_carfiler;
 mod fsutil;
+mod pipeline;
 mod plan_copy;
 mod spider;
 mod types;
 mod vacuum;
-
-use crate::plan_copy::plan_copy;
-use clap::Parser;
-use futures::FutureExt;
-use std::collections::HashMap;
-use tokio_stream::StreamExt;
-
-use crate::types::pipeline::PipelineToDisk;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /* General Project Chores */
 // TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
@@ -49,76 +44,28 @@ use tokio::sync::RwLock;
 #[tokio::main]
 async fn main() {
     // Parse command line arguments. see args.rs
-    let args = args::Args::parse();
+    let cli = cli::Args::parse();
 
-    // Get the output DIR from the command line arguments
-    let output_dir = args.output_dir.canonicalize().unwrap();
-    fsutil::ensure_path_exists_and_is_empty_dir(&output_dir)
-        .expect("output directory must exist and be empty");
-
-    // Note (amiller68): We don't necessarily need to create the keys dir, removing for now.
-    // // Get the key output DIR from the command line arguments
-    // let keys_dir = args.keys_dir.canonicalize().unwrap();
-    // fsutil::ensure_path_exists_and_is_empty_dir(&keys_dir)
-    //     .expect("keys directory must exist and be empty");
-
-    // TODO: We need to change how we are finalizing the output of the program. For now keep this struct.
-    // let mut final_output = FinalMetadata {
-    //     original_prefix_to_final_prefix: Vec::new(),
-    // };
-
-    /* Copy all the files over to a scratch directory */
-
-    println!("Walking input directories...");
-    let spidered = spider::spider(args.input_dir, args.follow_links).unwrap();
-
-    /* Perform deduplication and partitioning on the files */
-
-    println!("De-duplicating and proposing partitions for files...");
-
-    // Initialize a struct to memoize the hashes of files
-    let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
-    // Iterate over all the futures in the stream map.
-    let copy_plan = spidered.then(|origin_data| {
-        let origin_data = origin_data.unwrap();
-        let output_dir = output_dir.clone();
-        // Clone the references to the seen_hashes map
-        let local_seen_hashes = seen_hashes.clone();
-        // Move the dir_entry into the future and copy the file.
-        async move {
-            plan_copy(
-                origin_data,
+    match cli.command {
+        cli::Commands::Pack {
+            input_dir,
+            output_dir,
+            manifest_file,
+            target_chunk_size,
+            follow_links,
+        } => {
+            pack_pipeline(
+                input_dir,
                 output_dir,
-                local_seen_hashes,
-                args.target_chunk_size,
+                manifest_file,
+                target_chunk_size,
+                follow_links,
             )
             .await
-            .expect("copy failed")
+            .unwrap();
         }
-    });
-
-    println!("Copying, compressing, encrypting, and writing to new FS...");
-
-    // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let copied =
-        copy_plan.then(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan).map(|e| e.unwrap()));
-
-    println!("Writing metadata...");
-
-    // For now just write out the content of compressed_and_encrypted to a file.
-    // make sure the manifest file doesn't exist
-    let manifest_writer = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(args.manifest_file)
-        .unwrap();
-    serde_json::to_writer(
-        manifest_writer,
-        &copied
-            .map(|pipeline| pipeline.try_into())
-            .collect::<Result<Vec<PipelineToDisk>, anyhow::Error>>()
-            .await
-            .unwrap(),
-    )
-    .unwrap();
+        cli::Commands::Unpack { input_dir, manifest_file, output_dir } => {
+            unpack_pipeline(input_dir, manifest_file, output_dir).await.unwrap();
+        }
+    }
 }

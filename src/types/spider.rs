@@ -50,6 +50,7 @@ pub struct MetadataToDisk {
 /// for getting the metadata you want in the manifest from the Metadata object onto disk.
 pub struct SpiderMetadataToDisk {
     pub(crate) original_root: PathBuf,
+    /// this is the path relative to the root of the backup
     pub(crate) original_location: PathBuf,
     pub(crate) canonicalized_path: PathBuf,
     pub(crate) original_metadata: MetadataToDisk,
