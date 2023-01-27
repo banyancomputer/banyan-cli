@@ -20,8 +20,8 @@ impl CompressionPlan {
 pub struct PartitionPlan(pub(crate) PartitionMetadata);
 
 impl PartitionPlan {
-    pub fn new_from_chunk_size(chunk_size: u64) -> Self {
-        PartitionPlan(PartitionMetadata { chunk_size })
+    pub fn new(chunk_size: u64, num_chunks: u64) -> Self {
+        PartitionPlan(PartitionMetadata { chunk_size , num_chunks})
     }
 }
 
