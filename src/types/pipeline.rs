@@ -36,8 +36,6 @@ pub struct PartitionMetadata {
 pub struct EncryptionPart {
     /// The key used to encrypt the part or file
     pub key: [u8; 32],
-    /// The nonce used to encrypt the part or file
-    pub nonce: [u8; 12],
     /// The size after encryption
     pub size_after: u64,
 }

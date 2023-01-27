@@ -64,8 +64,14 @@ async fn main() {
             .await
             .unwrap();
         }
-        cli::Commands::Unpack { input_dir, manifest_file, output_dir } => {
-            unpack_pipeline(input_dir, manifest_file, output_dir).await.unwrap();
+        cli::Commands::Unpack {
+            input_dir,
+            manifest_file,
+            output_dir,
+        } => {
+            unpack_pipeline(input_dir, manifest_file, output_dir)
+                .await
+                .unwrap();
         }
     }
 }

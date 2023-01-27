@@ -4,7 +4,7 @@ use crate::{fsutil, spider, vacuum};
 use anyhow::Result;
 use futures::FutureExt;
 use std::collections::HashMap;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
