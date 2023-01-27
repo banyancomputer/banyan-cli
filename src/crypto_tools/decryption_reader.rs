@@ -1,12 +1,9 @@
 use aead::stream::NewStream;
 use aead::stream::{Decryptor, StreamBE32, StreamPrimitive};
 use aes_gcm::{Aes256Gcm, KeyInit};
-use anyhow::Result;
-use futures::{AsyncRead, AsyncReadExt, executor};
+use futures::{AsyncRead, AsyncReadExt};
 use std::cell::RefCell;
 use std::io::Read;
-use std::pin::Pin;
-use tokio::io::{AsyncWrite};
 
 const BUF_SIZE: usize = 1024 * 1024; // 1 MB
 
@@ -39,7 +36,7 @@ impl<R: AsyncRead + Unpin> DecryptionReader<R> {
         // Create the decryptor.
         let cipher = Aes256Gcm::new(key.as_ref().into());
         let decryptor =
-            RefCell::new(StreamBE32::from_aead(cipher, nonce.as_ref().into()).decryptor());
+            RefCell::new(StreamBE32::from_aead(cipher, nonce_buf.as_ref().into()).decryptor());
 
         Self {
             buf: RefCell::new(Vec::new()),
@@ -50,19 +47,17 @@ impl<R: AsyncRead + Unpin> DecryptionReader<R> {
         }
     }
 
-    /// decrypt and output whatever's in the buffer, check the tag, go home
-    // TODO definitely wrong?
-    pub async fn finish(mut self) -> Result<usize> {
-        self.flush()?;
-        // TODO (laudiacay): check this logic better, especially once your PR is merged on rust crypto
-        self.decryptor
-            .into_inner()
-            .decrypt_last_in_place(b"".as_ref(), &mut *self.buf.borrow_mut())
-            .unwrap();
-        executor::block_on(self..borrow_mut().write_all(&self.buf.borrow_mut()))?;
-        *self.bytes_written.borrow_mut() += self.buf.borrow().len();
-        Ok(*self.bytes_written.borrow())
-    }
+    // /// decrypt and output whatever's in the buffer, check the tag, go home
+    // // TODO definitely wrong?
+    // pub async fn finish(mut self) -> Result<usize> {
+    //     // TODO check that you've read the reader all the way thru
+    //     // TODO (laudiacay): check this logic better, especially once your PR is merged on rust crypto
+    //     self.decryptor
+    //         .into_inner()
+    //         .decrypt_last_in_place(b"".as_ref(), &mut *self.buf.borrow_mut())?;
+    //     *self.bytes_read.borrow_mut() += self.buf.borrow().len();
+    //     Ok(*self.read.borrow())
+    // }
 
     pub fn cipher_info(&self) -> String {
         "AES-256-GCM".to_string()

@@ -21,7 +21,10 @@ pub struct PartitionPlan(pub(crate) PartitionMetadata);
 
 impl PartitionPlan {
     pub fn new(chunk_size: u64, num_chunks: u64) -> Self {
-        PartitionPlan(PartitionMetadata { chunk_size , num_chunks})
+        PartitionPlan(PartitionMetadata {
+            chunk_size,
+            num_chunks,
+        })
     }
 }
 

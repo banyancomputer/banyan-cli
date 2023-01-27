@@ -64,6 +64,7 @@ pub async fn plan_copy(
                 data_processing: DataProcessDirective::Duplicate(Rc::clone(&duplicate_path)),
             })
         } else {
+            // make a random filename to put this in
             let random_filename = Uuid::new_v4();
             let _new_path = to_root.join(random_filename.to_string());
             let od = Rc::new(origin_data);
@@ -74,14 +75,17 @@ pub async fn plan_copy(
                 seen_hashes.insert(file_hash.clone(), od.clone());
             } // drop the write lock
 
-            // make a random filename to put this in
+            // how long is the file?
+            let file_size = od.original_metadata.len();
+            // how many chunks will we need to make?
+            let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
 
             // Return the CopyMetadata struct
             Ok(PipelinePlan {
                 origin_data: od,
                 data_processing: DataProcessDirective::File(DataProcessPlan {
                     compression: CompressionPlan::new_gzip(),
-                    partition: PartitionPlan::new_from_chunk_size(target_chunk_size),
+                    partition: PartitionPlan::new(target_chunk_size, num_chunks),
                     encryption: EncryptionPlan::new_aes_256_gcm(),
                     writeout: WriteoutPlan {
                         output_dir: to_root.join(random_filename.to_string()),
