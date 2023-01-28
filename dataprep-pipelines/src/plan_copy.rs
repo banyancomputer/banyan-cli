@@ -64,9 +64,7 @@ pub async fn plan_copy(
                 data_processing: DataProcessDirective::Duplicate(Rc::clone(&duplicate_path)),
             })
         } else {
-            // make a random filename to put this in
-            let random_filename = Uuid::new_v4();
-            let _new_path = to_root.join(random_filename.to_string());
+            // make random filenames to put this thing's chunks in
             let od = Rc::new(origin_data);
 
             {
@@ -79,6 +77,10 @@ pub async fn plan_copy(
             let file_size = od.original_metadata.len();
             // how many chunks will we need to make?
             let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
+            let random_filenames = (0..num_chunks)
+                .map(|_| Uuid::new_v4())
+                .map(|f| to_root.join(f.to_string()))
+                .collect();
 
             // Return the CopyMetadata struct
             Ok(PipelinePlan {
@@ -88,7 +90,7 @@ pub async fn plan_copy(
                     partition: PartitionPlan::new(target_chunk_size, num_chunks),
                     encryption: EncryptionPlan::new_aes_256_gcm(),
                     writeout: WriteoutPlan {
-                        output_dir: to_root.join(random_filename.to_string()),
+                        output_paths: random_filenames,
                     },
                 }),
             })

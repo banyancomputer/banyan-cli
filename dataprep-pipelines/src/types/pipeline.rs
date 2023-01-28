@@ -18,17 +18,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionMetadata {
     /// string describing compression algorithm
-    pub(crate) compression_info: String,
+    pub compression_info: String,
     /// size after compression
-    pub(crate) size_after: u64,
+    pub size_after: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PartitionMetadata {
     /// The size of the chunks
-    pub(crate) chunk_size: u64,
+    pub chunk_size: u64,
     /// number of chunks
-    pub(crate) num_chunks: u64,
+    pub num_chunks: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,16 +44,16 @@ pub struct EncryptionPart {
 /// Metadata generated when a file is compressed and encrypted
 pub struct EncryptionMetadata {
     /// The parts of the file that were encrypted and associated metadata
-    pub(crate) encrypted_pieces: Vec<EncryptionPart>,
+    pub encrypted_pieces: Vec<EncryptionPart>,
     /// The cipher used to encrypt the file
-    pub(crate) cipher_info: String,
+    pub cipher_info: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata that is emitted on successful write into new filesystem
 pub struct WriteoutMetadata {
     /// mapping from compressed and encrypted chunks to their new locations
-    pub(crate) chunk_locations: Vec<PathBuf>,
+    pub chunk_locations: Vec<PathBuf>,
 }
 
 // /// this struct is used to build up the data processing steps for a file
@@ -72,14 +72,14 @@ pub struct WriteoutMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataProcess {
     /// describes how we compressed the entire file
-    pub(crate) compression: CompressionMetadata,
+    pub compression: CompressionMetadata,
     /// describes how we partitioned the file into chunks (each slice is encrypted and written out
     /// separately- should be ENCRYPTION_TAG_SIZE bytes less than target_chunk_size!)
-    pub(crate) partition: PartitionMetadata,
+    pub partition: PartitionMetadata,
     /// describes how we encrypted the file
-    pub(crate) encryption: EncryptionMetadata,
+    pub encryption: EncryptionMetadata,
     /// describes how/where we wrote the file out on the new filesystem
-    pub(crate) writeout: WriteoutMetadata,
+    pub writeout: WriteoutMetadata,
 }
 
 // all these are no-ops except for the File case
@@ -102,9 +102,9 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
 #[derive(Debug, Clone)]
 pub struct Pipeline {
     /// describes where a file came from on the original filesystem
-    pub(crate) origin_data: Rc<SpiderMetadata>,
+    pub origin_data: Rc<SpiderMetadata>,
     /// describes data processing, if any is needed
-    pub(crate) data_processing: DataProcessDirective<DataProcess>,
+    pub data_processing: DataProcessDirective<DataProcess>,
 }
 
 impl TryFrom<PipelinePlan> for Pipeline {
@@ -123,9 +123,9 @@ impl TryFrom<PipelinePlan> for Pipeline {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineToDisk {
     /// describes where a file came from on the original filesystem
-    pub(crate) origin_data: SpiderMetadataToDisk,
+    pub origin_data: SpiderMetadataToDisk,
     /// describes data processing, if any is needed
-    pub(crate) data_processing: DataProcessDirectiveToDisk<DataProcess>,
+    pub data_processing: DataProcessDirectiveToDisk<DataProcess>,
 }
 
 impl TryFrom<Pipeline> for PipelineToDisk {
