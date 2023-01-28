@@ -1,7 +1,6 @@
 use aead::stream::NewStream;
 use aead::stream::{Decryptor, StreamBE32, StreamPrimitive};
 use aes_gcm::{Aes256Gcm, KeyInit};
-use futures::{AsyncRead, AsyncReadExt};
 use std::cell::RefCell;
 use std::io::Read;
 
@@ -33,7 +32,7 @@ impl<R: Read + Unpin> DecryptionReader<R> {
     pub async fn new(mut reader: R, key: &[u8]) -> Self {
         let mut nonce_buf = [0u8; 12];
         let _ = reader.read(&mut nonce_buf).unwrap(); // ignore this pretend it's zero
-        // Create the decryptor.
+                                                      // Create the decryptor.
         let cipher = Aes256Gcm::new(key.as_ref().into());
         let decryptor =
             RefCell::new(StreamBE32::from_aead(cipher, nonce_buf.as_ref().into()).decryptor());
@@ -131,7 +130,7 @@ impl<R: Read + Unpin> Read for DecryptionReader<R> {
     //     Ok(())
     // }
 
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
         todo!()
     }
 }
