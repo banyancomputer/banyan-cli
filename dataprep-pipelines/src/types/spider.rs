@@ -5,10 +5,10 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct SpiderMetadata {
-    pub(crate) original_root: PathBuf,
-    pub(crate) original_location: DirEntry<((), ())>,
-    pub(crate) canonicalized_path: PathBuf,
-    pub(crate) original_metadata: Metadata,
+    pub original_root: PathBuf,
+    pub original_location: DirEntry<((), ())>,
+    pub canonicalized_path: PathBuf,
+    pub original_metadata: Metadata,
 }
 
 impl From<DirEntry<((), ())>> for SpiderMetadata {
@@ -49,11 +49,11 @@ pub struct MetadataToDisk {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// for getting the metadata you want in the manifest from the Metadata object onto disk.
 pub struct SpiderMetadataToDisk {
-    pub(crate) original_root: PathBuf,
+    pub original_root: PathBuf,
     /// this is the path relative to the root of the backup
-    pub(crate) original_location: PathBuf,
-    pub(crate) canonicalized_path: PathBuf,
-    pub(crate) original_metadata: MetadataToDisk,
+    pub original_location: PathBuf,
+    pub canonicalized_path: PathBuf,
+    pub original_metadata: MetadataToDisk,
 }
 
 impl From<&SpiderMetadata> for SpiderMetadataToDisk {

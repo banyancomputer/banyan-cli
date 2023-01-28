@@ -1,8 +1,8 @@
 use crate::crypto_tools::encryption_writer::EncryptionWriter;
 use aead::OsRng;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
-use rand::{Rng, RngCore};
+use rand::RngCore;
 use tokio::fs::File;
 
 use crate::types::pipeline::{
@@ -13,7 +13,7 @@ use crate::types::plan::{DataProcessPlan, PipelinePlan};
 use crate::types::shared::DataProcessDirective;
 use std::io::{BufRead, Read};
 
-pub(crate) async fn do_file_pipeline(
+pub async fn do_file_pipeline(
     PipelinePlan {
         origin_data,
         data_processing,
@@ -30,7 +30,9 @@ pub(crate) async fn do_file_pipeline(
 
             // open a reader to the original file
             let old_file_reader =
-                std::io::BufReader::new(std::fs::File::open(&origin_data.canonicalized_path)?);
+                std::io::BufReader::new(std::fs::File::open(&origin_data.canonicalized_path).map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}",e))
+                    ?);
+
             // put a gzip encoder on it then buffer it
             assert_eq!(compression.compression_info, "GZIP");
             let mut old_file_reader = std::io::BufReader::new(GzEncoder::new(
@@ -40,8 +42,7 @@ pub(crate) async fn do_file_pipeline(
 
             // output
             let mut encrypted_pieces = Vec::new();
-            let mut chunk_locations = Vec::new();
-
+            let mut i = 0;
             // iterate over the file, partitioning it and encrypting it
             while old_file_reader.has_data_left()? {
                 // read a chunk of the file
@@ -49,10 +50,15 @@ pub(crate) async fn do_file_pipeline(
                 let mut old_file_take =
                     old_file_reader.take(partition.0.chunk_size - encryption.tag_size);
                 // open the output file for writing
-                // make it a random file in the output area
-                let filename = format!("{}", rand::thread_rng().gen::<u64>());
-                let full_filename = writeout.output_dir.join(filename).clone();
-                let mut new_file_writer = File::create(&full_filename).await?;
+                let mut new_file_writer = File::create(&writeout.output_paths[i])
+                    .await
+                    .map_err(|e| {
+                        anyhow!(
+                            "could not create new file writer! {} at {:?}",
+                            e,
+                            &writeout.output_paths[i]
+                        )
+                    })?;
 
                 // make the encryptor
                 // TODO put key/nonce gen into a utility function
@@ -68,19 +74,23 @@ pub(crate) async fn do_file_pipeline(
 
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
-                std::io::copy(&mut old_file_take, &mut new_file_encryptor)?;
+                std::io::copy(&mut old_file_take, &mut new_file_encryptor)
+                    .map_err(|e| anyhow!("could not copy data from old file to new file! {}", e))?;
 
                 old_file_reader = old_file_take.into_inner();
 
                 // finish the encryption (write out the tag and anything in the buffer)
-                let encryptor_bytes_written = new_file_encryptor.finish().await?;
+                let encryptor_bytes_written = new_file_encryptor
+                    .finish()
+                    .await
+                    .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
 
                 // write out the metadata
                 encrypted_pieces.push(EncryptionPart {
                     key,
                     size_after: encryptor_bytes_written as u64,
                 });
-                chunk_locations.push(full_filename);
+                i += 1;
             }
             let encryption = EncryptionMetadata {
                 encrypted_pieces,
@@ -91,7 +101,9 @@ pub(crate) async fn do_file_pipeline(
                 size_after: 0, // TODO (laudiacay) figure out how to get this
             };
             let partition = partition.0;
-            let writeout = WriteoutMetadata { chunk_locations };
+            let writeout = WriteoutMetadata {
+                chunk_locations: writeout.output_paths,
+            };
             let data_processing = DataProcessDirective::File(DataProcess {
                 encryption,
                 compression,

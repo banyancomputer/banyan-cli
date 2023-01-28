@@ -280,11 +280,19 @@ dependencies = [
 name = "dataprep"
 version = "0.1.0"
 dependencies = [
+ "clap",
+ "dataprep-pipelines",
+ "tokio",
+]
+
+[[package]]
+name = "dataprep-pipelines"
+version = "0.1.0"
+dependencies = [
  "aead",
  "aes-gcm",
  "anyhow",
  "blake2",
- "clap",
  "flate2",
  "futures",
  "jwalk",
