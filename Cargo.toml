@@ -11,15 +11,16 @@ clap = { version = "4.0.32", features = ["derive"] }
 #iroh-car = "0.2.0"
 #iroh-unixfs = "0.2.0"
 futures = "0.3.0"
-#async-stream = "0.3.3"
 anyhow = { version = "1", features = ["backtrace"] }
-tokio = { version = "1.24", features = ["full", "io-util"]}
-# async-recursion = "1"
+tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
 tokio-stream = { version = "0.1.11", features = ["fs"]}
-# tempfile = "3.2.0"
 aead = { version = "0.5.1", features = ["stream", "alloc"] }
 aes-gcm = "0.10.0"
 jwalk = "0.8.1"
 rand = "0.8.4"
 blake2 = "0.10.6"
 flate2 = "1.0.25"
+uuid = { version = "1.2.2", features = ["v4"]}
+serde ={version= "1.0.152", features = ["derive"]}
+serde_json = "1.0.72"
+# TODO (laudiacay) eventually you want to use CBOR but debug with JSON
