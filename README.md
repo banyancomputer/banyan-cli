@@ -33,6 +33,11 @@ cargo clippy # lint code
 
 ## Test
 
+for unit tests
 ```bash
 cargo test
+```
+for integration tests
+```bash
+cargo test --test integration
 ```
