@@ -9,7 +9,7 @@ const BUF_SIZE: usize = 1024 * 1024; // 1 MB
 
 /// A wrapper around a writer that encrypts the data as it is written.
 /// Should not be used on files larger than 32 GB.
-pub struct DecryptionReader<R: AsyncRead + Unpin> {
+pub struct DecryptionReader<R: Read + Unpin> {
     /// Internal buffer, holds data to be encrypted in place
     buf: RefCell<Vec<u8>>,
     /// Writer to another file
@@ -23,7 +23,7 @@ pub struct DecryptionReader<R: AsyncRead + Unpin> {
 }
 
 /// A wrapper around a writer that decrypts the data as it is written.
-impl<R: AsyncRead + Unpin> DecryptionReader<R> {
+impl<R: Read + Unpin> DecryptionReader<R> {
     /// Create a new DecryptionReader.
     ///
     /// # Arguments
@@ -32,7 +32,7 @@ impl<R: AsyncRead + Unpin> DecryptionReader<R> {
 
     pub async fn new(mut reader: R, key: &[u8]) -> Self {
         let mut nonce_buf = [0u8; 12];
-        reader.read(&mut nonce_buf).await.unwrap();
+        let _ = reader.read(&mut nonce_buf).unwrap(); // ignore this pretend it's zero
         // Create the decryptor.
         let cipher = Aes256Gcm::new(key.as_ref().into());
         let decryptor =
@@ -65,7 +65,7 @@ impl<R: AsyncRead + Unpin> DecryptionReader<R> {
 }
 
 /// Implement the Read trait for DecryptionReader.
-impl<R: AsyncRead + Unpin> Read for DecryptionReader<R> {
+impl<R: Read + Unpin> Read for DecryptionReader<R> {
     // /// Write data to the buffer
     // fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
     //     let mut self_pin = Pin::new(&mut *self);

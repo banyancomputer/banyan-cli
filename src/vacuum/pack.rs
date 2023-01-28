@@ -78,7 +78,6 @@ pub(crate) async fn do_file_pipeline(
                 // write out the metadata
                 encrypted_pieces.push(EncryptionPart {
                     key,
-                    nonce,
                     size_after: encryptor_bytes_written as u64,
                 });
                 chunk_locations.push(full_filename);
