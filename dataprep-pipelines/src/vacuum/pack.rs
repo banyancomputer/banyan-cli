@@ -50,9 +50,8 @@ pub async fn do_file_pipeline(
                 let mut old_file_take =
                     old_file_reader.take(partition.0.chunk_size - encryption.tag_size);
                 // open the output file for writing
-                let mut new_file_writer = File::create(&writeout.output_paths[i])
-                    .await
-                    .map_err(|e| {
+                let mut new_file_writer =
+                    File::create(&writeout.output_paths[i]).await.map_err(|e| {
                         anyhow!(
                             "could not create new file writer! {} at {:?}",
                             e,
