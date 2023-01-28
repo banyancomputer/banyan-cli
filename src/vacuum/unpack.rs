@@ -25,18 +25,19 @@ pub(crate) async fn do_file_pipeline(
             // TODO (laudiacay) async these reads. also is this buf setup right
 
             let mut new_file_writer =
-                std::fs::File::create(output_root.join(origin_data.original_location)).await?;
+                std::fs::File::create(output_root.join(origin_data.original_location))?;
 
-            for chunk in 0..partition.0.num_chunks {
+            for chunk in 0..partition.num_chunks {
                 // open a reader to the original file
-                let old_file_reader = tokio::io::BufReader::new(tokio::fs::File::open(
-                    &writeout.chunk_locations.get(chunk),
+                let old_file_reader = std::io::BufReader::new(std::fs::File::open(
+                    &writeout.chunk_locations.get(chunk as usize).unwrap(),
                 )?);
                 // put a gzip encoder on it then buffer it
                 assert_eq!(compression.compression_info, "GZIP");
-                let mut old_file_reader = std::io::BufReader::new(GzDecoder::new(old_file_reader));
+                let mut old_file_reader = GzDecoder::new(old_file_reader);
+                let key = encryption.encrypted_pieces.get(chunk as usize).unwrap().key;
                 let mut old_file_reader =
-                    DecryptionReader::new(old_file_reader, encryption.encrypted_pieces.get(i).key).await;
+                    DecryptionReader::new(old_file_reader, &key).await;
 
                 std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
                 // TODO check the encryption tag at the end of the file
