@@ -1,5 +1,5 @@
+use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
-use aead::{rand_core::RngCore, stream::NewStream, OsRng};
 use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::Result;
 use futures::executor;
@@ -9,6 +9,7 @@ use std::pin::Pin;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 const MAX_SAFE_ENCRYPTION_SIZE: usize = 34_359_738_368; // 32 gigs, the GCM safe limit
+const BUF_SIZE: usize = 1024 * 1024; // 1 MB
 
 /// A wrapper around a writer that encrypts the data as it is written.
 /// Should not be used on files larger than 32 GB.
@@ -21,6 +22,8 @@ pub struct EncryptionWriter<W: AsyncWrite + Unpin> {
     encryptor: RefCell<Encryptor<Aes256Gcm, StreamBE32<Aes256Gcm>>>,
     /// Counter of bytes written
     bytes_written: RefCell<usize>,
+    /// size limit for buffer
+    size_limit: usize,
 }
 
 /// A wrapper around a writer that encrypts the data as it is written.
@@ -30,29 +33,31 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
     /// # Arguments
     /// writer: The writer to write encrypted data to.
     /// key: The key to use for encryption.
-    pub fn new(writer: W, key: &[u8]) -> (Self, Vec<u8>) {
-        // Generate a random nonce.
-        let mut nonce = [0u8; 12];
-        OsRng.fill_bytes(&mut nonce);
+
+    pub fn new(mut writer: W, key: &[u8], nonce: &[u8]) -> Self {
         // Create the encryptor.
         let cipher = Aes256Gcm::new(key.as_ref().into());
         let encryptor =
             RefCell::new(StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor());
-        (
-            Self {
-                buf: RefCell::new(Vec::new()),
-                writer: writer.into(),
-                encryptor,
-                bytes_written: RefCell::new(0),
-            },
-            nonce.to_vec(),
-        )
+
+        // kick things off with a cute little nonce write:
+        assert_eq!(
+            executor::block_on(writer.write(nonce)).unwrap(),
+            nonce.len()
+        );
+        Self {
+            buf: RefCell::new(Vec::new()),
+            writer: writer.into(),
+            encryptor,
+            size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
+            bytes_written: RefCell::new(0),
+        }
     }
 
     /// Encrypt the data in the buffer and write it to the writer.
     pub async fn finish(mut self) -> Result<usize> {
         self.flush()?;
-        // TODO (laudiacay): check this logic better, especially once your PR is merged on rustcrypto
+        // TODO (laudiacay): check this logic better, especially once your PR is merged on rust crypto
         self.encryptor
             .into_inner()
             .encrypt_last_in_place(b"".as_ref(), &mut *self.buf.borrow_mut())
@@ -69,29 +74,58 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
 
 /// Implement the Write trait for EncryptionWriter.
 impl<W: AsyncWrite + Unpin> Write for EncryptionWriter<W> {
-    // TODO (laudiacay): Can we implement buffering better with bufwriter? not sure how this scales?
     /// Write data to the buffer
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.buf.borrow_mut().extend_from_slice(buf);
+        let mut self_pin = Pin::new(&mut *self);
+        // how long is buf?
+        // if it's too long, we need to split it up so we're not encrypting more than the buffer size at a time
+        let mut buf = buf;
+        while !buf.is_empty() {
+            // figure out how much space is left
+            let remaining_space = self_pin.size_limit - self_pin.buf.borrow().len();
+
+            // grab what we can fit in the buffer
+            let (buf1, buf2) = buf.split_at(remaining_space);
+
+            // stick it in there
+            self_pin.buf.borrow_mut().extend_from_slice(buf1);
+
+            // flush if we're full
+            if self_pin.buf.borrow().len() >= self_pin.size_limit {
+                self_pin.flush()?;
+            };
+
+            // advance the buffer
+            buf = buf2;
+        }
         Ok(buf.len())
     }
 
     /// Clear the buffer and encrypt the data in place.
     fn flush(&mut self) -> std::io::Result<()> {
         let self_pin = Pin::new(&mut *self);
+
+        // do the encryption
         self_pin
             .encryptor
             .borrow_mut()
             .encrypt_next_in_place(b"", &mut *self_pin.buf.borrow_mut())
             .unwrap();
+
         // TODO (laudiacay): YIKES! is this what we want? block_on???
+        // write encrypted data to underlying writer
         executor::block_on(
             self_pin
                 .writer
                 .borrow_mut()
                 .write_all(&self_pin.buf.borrow()),
         )?;
+
+        // TODO (laudiacay) is this right to put here? probably... but make sure :)
+        // flush underlying writer to wherever it's going i guess
         executor::block_on(self_pin.writer.borrow_mut().flush())?;
+
+        // update counter for how many bytes you wrote, check for safe GCM usage limits
         *self_pin.bytes_written.borrow_mut() += self_pin.buf.borrow().len();
         if *self.bytes_written.borrow() >= MAX_SAFE_ENCRYPTION_SIZE {
             return Err(std::io::Error::new(
@@ -99,6 +133,8 @@ impl<W: AsyncWrite + Unpin> Write for EncryptionWriter<W> {
                 "File too large to encrypt",
             ));
         };
+
+        // clear out the buffer
         self.buf.borrow_mut().clear();
         Ok(())
     }

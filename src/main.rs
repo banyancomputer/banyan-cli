@@ -1,30 +1,20 @@
 #![feature(io_error_more)]
+#![feature(buf_read_has_data_left)]
 #![deny(unused_crate_dependencies)]
 
-mod args;
-mod compression_tools;
+use crate::pipeline::pack_pipeline::pack_pipeline;
+use crate::pipeline::unpack_pipeline::unpack_pipeline;
+use clap::Parser;
+
+mod cli;
 mod crypto_tools;
 mod fs_carfiler;
-mod fs_compression_encryption;
-mod fs_copy;
 mod fsutil;
-mod partition_reader;
+mod pipeline;
+mod plan_copy;
 mod spider;
-
-use crate::fs_copy::prep_for_copy;
-use clap::Parser;
-use std::collections::HashMap;
-
-use futures::FutureExt;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tokio_stream::StreamExt;
-
-// Final output of the program
-// TODO: Removed this for now, but keeping the code around
-// struct FinalMetadata {
-//     pub(crate) original_prefix_to_final_prefix: Vec<(PathBuf, PathBuf)>,
-// }
+mod types;
+mod vacuum;
 
 /* General Project Chores */
 // TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
@@ -54,70 +44,34 @@ use tokio_stream::StreamExt;
 #[tokio::main]
 async fn main() {
     // Parse command line arguments. see args.rs
-    let args = args::Args::parse();
+    let cli = cli::Args::parse();
 
-    // Get the output DIR from the command line arguments
-    let output_dir = args.output_dir.canonicalize().unwrap();
-    fsutil::ensure_path_exists_and_is_empty_dir(&output_dir)
-        .expect("output directory must exist and be empty");
-
-    // Note (amiller68): We don't necessarily need to create the keys dir, removing for now.
-    // // Get the key output DIR from the command line arguments
-    // let keys_dir = args.keys_dir.canonicalize().unwrap();
-    // fsutil::ensure_path_exists_and_is_empty_dir(&keys_dir)
-    //     .expect("keys directory must exist and be empty");
-
-    // Copy all the files over to a scratch directory
-    let scratch_dir = output_dir.join("scratch");
-    std::fs::create_dir(&scratch_dir).expect("could not create scratch directory");
-
-    // TODO: We need to change how we are finalizing the output of the program. For now keep this struct.
-    // let mut final_output = FinalMetadata {
-    //     original_prefix_to_final_prefix: Vec::new(),
-    // };
-
-    /* Copy all the files over to a scratch directory */
-
-    println!("Walking input directories...");
-    let spidered = spider::spider(args.input_dirs, args.follow_links, scratch_dir).unwrap();
-
-    /* Perform deduplication and partitioning on the files */
-
-    println!("De-duplicating and proposing partitions for files...");
-
-    // Initialize a struct to memoize the hashes of files
-    let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
-    // Iterate over all the futures in the stream map.
-    let copy_plan = spidered.then(|((path_root, new_root), dir_entry)| {
-        // Clone the references to the seen_hashes map
-        let local_seen_hashes = seen_hashes.clone();
-        // Move the dir_entry into the future and copy the file.
-        async move {
-            prep_for_copy(
-                path_root,
-                dir_entry.unwrap(),
-                new_root,
-                local_seen_hashes,
-                args.target_chunk_size,
+    match cli.command {
+        cli::Commands::Pack {
+            input_dir,
+            output_dir,
+            manifest_file,
+            target_chunk_size,
+            follow_links,
+        } => {
+            pack_pipeline(
+                input_dir,
+                output_dir,
+                manifest_file,
+                target_chunk_size,
+                follow_links,
             )
             .await
-            .expect("copy failed")
+            .unwrap();
         }
-    });
-
-    println!("Copying, compressing, encrypting, and writing to new FS...");
-
-    // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let _copied = copy_plan.then(|copy_plan| {
-        fs_compression_encryption::process_copy_metadata(copy_plan).map(|e| e.unwrap())
-    });
-
-    println!("Writing metadata...");
-
-    // TODO (laudiacay): Write out a manifest file that maps: all the things needed to reconstruct the directory
-    // For now just write out the content of compressed_and_encrypted to stdout
-    //let _manifest = compressed_and_encrypted.for_each(|file_data| {
-    //    println!("{file_data:?}");
-    //    future::ready(())
-    //});
+        cli::Commands::Unpack {
+            input_dir,
+            manifest_file,
+            output_dir,
+        } => {
+            unpack_pipeline(input_dir, manifest_file, output_dir)
+                .await
+                .unwrap();
+        }
+    }
 }
