@@ -1,4 +1,5 @@
-use crate::crypto_tools::encryption_writer::{EncryptionWriter, KeyAndNonceToDisk};
+use crate::crypto_tools::encryption_writer::EncryptionWriter;
+
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
 use tokio::fs::File;
@@ -58,7 +59,7 @@ pub async fn do_file_pipeline(
                     })?;
 
                 // make the encryptor
-                let (mut new_file_encryptor, KeyAndNonceToDisk { key, nonce }) =
+                let (mut new_file_encryptor, key_and_nonce) =
                     EncryptionWriter::new(&mut new_file_writer);
                 // TODO turn these checks into actual encryption switches
                 assert_eq!(new_file_encryptor.cipher_info(), encryption.cipher_info);
@@ -79,8 +80,7 @@ pub async fn do_file_pipeline(
 
                 // write out the metadata
                 encrypted_pieces.push(EncryptionPart {
-                    key,
-                    nonce,
+                    key_and_nonce,
                     size_after: encryptor_bytes_written as u64,
                 });
                 i += 1;

@@ -8,6 +8,7 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use crate::crypto_tools::key_and_nonce_types::KeyAndNonceToDisk;
 use crate::types::shared::DataProcessDirectiveToDisk;
 use crate::types::spider::SpiderMetadataToDisk;
 use serde::{Deserialize, Serialize};
@@ -34,10 +35,8 @@ pub struct PartitionMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata generated when a part of a file is encrypted and compressed
 pub struct EncryptionPart {
-    /// The key used to encrypt the part or file
-    pub key: Vec<u8>,
-    /// The nonce used to encrypt the part or file
-    pub nonce: Vec<u8>,
+    /// The key and nonce used to encrypt the part or file
+    pub key_and_nonce: KeyAndNonceToDisk,
     /// The size after encryption
     pub size_after: u64,
 }
