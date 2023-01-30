@@ -1,10 +1,11 @@
-use crate::crypto_tools::encryption_writer::EncryptionWriter;
+use crate::crypto_tools::encryption_writer::{EncryptionWriter, KeyAndNonceToDisk};
 use aead::OsRng;
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
 use rand::RngCore;
 use tokio::fs::File;
 
+use crate::crypto_tools::encryption_writer;
 use crate::types::pipeline::{
     CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
     WriteoutMetadata,
@@ -60,13 +61,8 @@ pub async fn do_file_pipeline(
                     })?;
 
                 // make the encryptor
-                // TODO put key/nonce gen into a utility function
-                let mut key = [0u8; 32];
-                OsRng.fill_bytes(&mut key);
-                let mut nonce = [0u8; 12];
-                OsRng.fill_bytes(&mut nonce);
-                let mut new_file_encryptor =
-                    EncryptionWriter::new(&mut new_file_writer, &key, &nonce);
+                let (mut new_file_encryptor, KeyAndNonceToDisk { key, nonce }) =
+                    EncryptionWriter::new(&mut new_file_writer);
                 // TODO turn these checks into actual encryption switches
                 assert_eq!(new_file_encryptor.cipher_info(), encryption.cipher_info);
                 assert_eq!(encryption.cipher_info, "AES-256-GCM");
