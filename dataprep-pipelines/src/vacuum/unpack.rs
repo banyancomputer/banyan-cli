@@ -34,8 +34,8 @@ pub async fn do_file_pipeline(
                 // put a gzip encoder on it then buffer it
                 assert_eq!(compression.compression_info, "GZIP");
                 let old_file_reader = GzDecoder::new(old_file_reader);
-                let key = encryption.encrypted_pieces.get(chunk as usize).unwrap().key;
-                let mut old_file_reader = DecryptionReader::new(old_file_reader, &key).await;
+                let key = &encryption.encrypted_pieces.get(chunk as usize).unwrap().key;
+                let mut old_file_reader = DecryptionReader::new(old_file_reader, key).await;
 
                 std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
                 // TODO check the encryption tag at the end of the file

@@ -35,7 +35,9 @@ pub struct PartitionMetadata {
 /// Metadata generated when a part of a file is encrypted and compressed
 pub struct EncryptionPart {
     /// The key used to encrypt the part or file
-    pub key: [u8; 32],
+    pub key: Vec<u8>,
+    /// The nonce used to encrypt the part or file
+    pub nonce: Vec<u8>,
     /// The size after encryption
     pub size_after: u64,
 }

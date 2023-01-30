@@ -1,11 +1,8 @@
 use crate::crypto_tools::encryption_writer::{EncryptionWriter, KeyAndNonceToDisk};
-use aead::OsRng;
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
-use rand::RngCore;
 use tokio::fs::File;
 
-use crate::crypto_tools::encryption_writer;
 use crate::types::pipeline::{
     CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
     WriteoutMetadata,
@@ -83,6 +80,7 @@ pub async fn do_file_pipeline(
                 // write out the metadata
                 encrypted_pieces.push(EncryptionPart {
                     key,
+                    nonce,
                     size_after: encryptor_bytes_written as u64,
                 });
                 i += 1;
