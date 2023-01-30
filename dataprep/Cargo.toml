@@ -1,0 +1,12 @@
+[package]
+name = "dataprep"
+description = "Command line interface for preparing data"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+clap.workspace = true
+dataprep-pipelines.workspace = true
+tokio.workspace = true

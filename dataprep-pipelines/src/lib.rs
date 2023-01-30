@@ -2,20 +2,6 @@
 #![feature(buf_read_has_data_left)]
 #![deny(unused_crate_dependencies)]
 
-use crate::pipeline::pack_pipeline::pack_pipeline;
-use crate::pipeline::unpack_pipeline::unpack_pipeline;
-use clap::Parser;
-
-mod cli;
-mod crypto_tools;
-mod fs_carfiler;
-mod fsutil;
-mod pipeline;
-mod plan_copy;
-mod spider;
-mod types;
-mod vacuum;
-
 /* General Project Chores */
 // TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
 // TODO (xBalbinus & thea-exe): get rid of all the clones and stop copying around pathbufs
@@ -34,44 +20,20 @@ mod vacuum;
  * 1. Copy files to scratch space from `input` directories to 'output-dir' directory
  * 2. Partition files into chunks of max size `target-chunk-size`
  * 3. Compress and encrypt each chunk in place. These chunks should be randomly named.
- * 4. TODO (laudiacay) : Write out a manifest file that maps:
+ * 4. Write out a manifest file that maps:
  *      - original file path to random chunk name / path
  *      - random chunk paths point to the key-path used to encrypt the chunk.
  *      - keys stored in csv file
  * 5. TODO (laudiacay): Encyprpt the manifest file in place with some master key.
- * 6. TODO (amiller68 & laudiacay): Use manifest file to repopulate the original directory structure
+ * 6. Use manifest file to repopulate the original directory structure
+ * 7. TODO (laudiacay): Make car file with it.
  */
-#[tokio::main]
-async fn main() {
-    // Parse command line arguments. see args.rs
-    let cli = cli::Args::parse();
 
-    match cli.command {
-        cli::Commands::Pack {
-            input_dir,
-            output_dir,
-            manifest_file,
-            target_chunk_size,
-            follow_links,
-        } => {
-            pack_pipeline(
-                input_dir,
-                output_dir,
-                manifest_file,
-                target_chunk_size,
-                follow_links,
-            )
-            .await
-            .unwrap();
-        }
-        cli::Commands::Unpack {
-            input_dir,
-            manifest_file,
-            output_dir,
-        } => {
-            unpack_pipeline(input_dir, manifest_file, output_dir)
-                .await
-                .unwrap();
-        }
-    }
-}
+pub mod crypto_tools;
+pub mod fs_carfiler;
+pub mod fsutil;
+pub mod pipeline;
+pub mod plan_copy;
+pub mod spider;
+pub mod types;
+pub mod vacuum;

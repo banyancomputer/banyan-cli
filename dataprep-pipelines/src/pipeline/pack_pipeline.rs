@@ -34,12 +34,9 @@ pub async fn pack_pipeline(
 
     /* Copy all the files over to a scratch directory */
 
-    println!("Walking input directories...");
     let spidered = spider::spider(input_dir, follow_links)?;
 
     /* Perform deduplication and partitioning on the files */
-
-    println!("De-duplicating and proposing partitions for files...");
 
     // Initialize a struct to memoize the hashes of files
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
@@ -62,13 +59,9 @@ pub async fn pack_pipeline(
         }
     });
 
-    println!("Copying, compressing, encrypting, and writing to new FS...");
-
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
     let copied =
         copy_plan.then(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan).map(|e| e.unwrap()));
-
-    println!("Writing metadata...");
 
     // For now just write out the content of compressed_and_encrypted to a file.
     // make sure the manifest file doesn't exist

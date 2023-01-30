@@ -6,7 +6,7 @@ use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::read::GzDecoder;
 use std::path::PathBuf;
 
-pub(crate) async fn do_file_pipeline(
+pub async fn do_file_pipeline(
     PipelineToDisk {
         origin_data,
         data_processing,
