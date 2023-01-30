@@ -1,6 +1,8 @@
+use crate::crypto_tools::key_and_nonce_types::{KeyAndNonce, KeyAndNonceToDisk};
 use aead::stream::NewStream;
 use aead::stream::{Decryptor, StreamBE32, StreamPrimitive};
 use aes_gcm::{Aes256Gcm, KeyInit};
+use anyhow::Result;
 use std::cell::RefCell;
 use std::io::Read;
 
@@ -29,21 +31,18 @@ impl<R: Read + Unpin> DecryptionReader<R> {
     /// reader: The reader to read encrypted data from. should start with the nonce.
     /// key: The key to use for decryption.
 
-    pub async fn new(mut reader: R, key: &[u8]) -> Self {
-        let mut nonce_buf = [0u8; 12];
-        let _ = reader.read(&mut nonce_buf).unwrap(); // ignore this pretend it's zero
-                                                      // Create the decryptor.
-        let cipher = Aes256Gcm::new(key.as_ref().into());
-        let decryptor =
-            RefCell::new(StreamBE32::from_aead(cipher, nonce_buf.as_ref().into()).decryptor());
+    pub async fn new(reader: R, key_and_nonce: KeyAndNonceToDisk) -> Result<Self> {
+        let KeyAndNonce { key, nonce } = *key_and_nonce.consume_and_prep_from_disk()?;
+        let cipher = Aes256Gcm::new(&key);
+        let decryptor = RefCell::new(StreamBE32::from_aead(cipher, &nonce).decryptor());
 
-        Self {
+        Ok(Self {
             buf: RefCell::new(Vec::new()),
             reader: reader.into(),
             decryptor,
             size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
             bytes_read: RefCell::new(0),
-        }
+        })
     }
 
     // /// decrypt and output whatever's in the buffer, check the tag, go home

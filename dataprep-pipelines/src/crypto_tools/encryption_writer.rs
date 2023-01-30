@@ -1,14 +1,15 @@
+use crate::crypto_tools::key_and_nonce_types::{keygen, KeyAndNonce, KeyAndNonceToDisk};
 use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
-use aead::OsRng;
-use aes_gcm::aes::cipher::crypto_common::rand_core::RngCore;
-use aes_gcm::aes::cipher::typenum::U7;
-use aes_gcm::Key;
+
+
+
+
 use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::Result;
-use blake2::digest::generic_array::GenericArray;
+
 use futures::executor;
-use serde::{Deserialize, Serialize};
+
 use std::cell::RefCell;
 use std::io::prelude::Write;
 use std::pin::Pin;
@@ -30,50 +31,6 @@ pub struct EncryptionWriter<W: AsyncWrite + Unpin> {
     bytes_written: RefCell<usize>,
     /// size limit for buffer
     size_limit: usize,
-}
-
-pub fn keygen() -> KeyAndNonce {
-    let key = Aes256Gcm::generate_key(&mut OsRng);
-    let mut nonce = [0u8; 7];
-    OsRng.fill_bytes(&mut nonce);
-    let nonce = *GenericArray::from_slice(&nonce);
-
-    KeyAndNonce { key, nonce }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct KeyAndNonceToDisk {
-    pub(crate) key: Vec<u8>,
-    pub(crate) nonce: Vec<u8>,
-}
-// stream wants some nonce overhead room
-pub type MyNonce = GenericArray<u8, U7>;
-pub type MyKey = Key<Aes256Gcm>;
-
-// TODO do types better round these parts
-// TODO add zeroize here
-pub struct KeyAndNonce {
-    key: MyKey,
-    nonce: MyNonce,
-}
-
-impl KeyAndNonceToDisk {
-    fn consume_and_prep_from_disk(self) -> Result<Box<KeyAndNonce>, anyhow::Error> {
-        let KeyAndNonceToDisk { key, nonce } = self;
-        let key: MyKey = *MyKey::from_slice(&key);
-        let nonce: MyNonce = *MyNonce::from_slice(&nonce);
-        Ok(Box::new(KeyAndNonce { key, nonce }))
-    }
-}
-
-impl KeyAndNonce {
-    fn consume_and_prep_to_disk(self) -> KeyAndNonceToDisk {
-        let KeyAndNonce { key, nonce } = self;
-        KeyAndNonceToDisk {
-            key: key.as_slice().to_vec(),
-            nonce: nonce.as_slice().to_vec(),
-        }
-    }
 }
 
 /// A wrapper around a writer that encrypts the data as it is written.
@@ -134,6 +91,13 @@ impl<W: AsyncWrite + Unpin> Write for EncryptionWriter<W> {
         while !buf.is_empty() {
             // figure out how much space is left
             let remaining_space = self_pin.size_limit - self_pin.buf.borrow().len();
+
+            if remaining_space > buf.len() {
+                // if we can fit it all in the buffer, do that
+                self_pin.buf.borrow_mut().extend_from_slice(buf);
+                break;
+                // TODO make sure you test this logic with a big chunkin file
+            }
 
             // grab what we can fit in the buffer
             let (buf1, buf2) = buf.split_at(remaining_space);
