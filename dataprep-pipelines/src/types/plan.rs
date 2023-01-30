@@ -4,12 +4,14 @@ use crate::types::spider::SpiderMetadata;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+// TODO (laudiacay) continue making types better...
+
 #[derive(Debug, Clone)]
 pub struct CompressionPlan {
-    pub(crate) compression_info: String,
+    pub compression_info: String,
 }
 impl CompressionPlan {
-    pub(crate) fn new_gzip() -> Self {
+    pub fn new_gzip() -> Self {
         CompressionPlan {
             compression_info: "GZIP".to_string(),
         }
@@ -17,7 +19,7 @@ impl CompressionPlan {
 }
 
 #[derive(Debug, Clone)]
-pub struct PartitionPlan(pub(crate) PartitionMetadata);
+pub struct PartitionPlan(pub PartitionMetadata);
 
 impl PartitionPlan {
     pub fn new(chunk_size: u64, num_chunks: u64) -> Self {
@@ -30,9 +32,9 @@ impl PartitionPlan {
 
 #[derive(Debug, Clone)]
 pub struct EncryptionPlan {
-    pub(crate) cipher_info: String,
+    pub cipher_info: String,
     // TODO yikes
-    pub(crate) tag_size: u64,
+    pub tag_size: u64,
 }
 
 impl EncryptionPlan {
@@ -46,25 +48,25 @@ impl EncryptionPlan {
 
 #[derive(Debug, Clone)]
 pub struct WriteoutPlan {
-    pub(crate) output_dir: PathBuf,
+    pub output_paths: Vec<PathBuf>,
 }
 
 /// this struct is used to build up the data processing steps for a file
 #[derive(Debug, Clone)]
 pub struct DataProcessPlan {
     /// describes how we will compress the file
-    pub(crate) compression: CompressionPlan,
+    pub compression: CompressionPlan,
     /// describes how we will partition the file
-    pub(crate) partition: PartitionPlan,
+    pub partition: PartitionPlan,
     /// describes how we will encrypt the file
-    pub(crate) encryption: EncryptionPlan,
+    pub encryption: EncryptionPlan,
     /// describes how we will write the file out on the new filesystem
-    pub(crate) writeout: WriteoutPlan,
+    pub writeout: WriteoutPlan,
 }
 
 pub struct PipelinePlan {
     /// describes where a file came from on the original filesystem
-    pub(crate) origin_data: Rc<SpiderMetadata>,
+    pub origin_data: Rc<SpiderMetadata>,
     /// describes data processing, if any is needed
-    pub(crate) data_processing: DataProcessDirective<DataProcessPlan>,
+    pub data_processing: DataProcessDirective<DataProcessPlan>,
 }

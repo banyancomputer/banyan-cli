@@ -1,11 +1,15 @@
-[package]
-name = "filecoin-encrypted-uploader"
+[workspace]
+members = [
+    "dataprep",
+    "dataprep-pipelines"
+]
+[workspace.package]
 version = "0.1.0"
+license = "MIT"
 edition = "2021"
+repository = "https://github.com/banyancomputer/dataprep"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+[workspace.dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
 #log = "0.4.0"
 #iroh-car = "0.2.0"
@@ -23,4 +27,5 @@ flate2 = "1.0.25"
 uuid = { version = "1.2.2", features = ["v4"]}
 serde ={version= "1.0.152", features = ["derive"]}
 serde_json = "1.0.72"
+dataprep-pipelines = { version = "0.1.0", path = "./dataprep-pipelines" }
 # TODO (laudiacay) eventually you want to use CBOR but debug with JSON

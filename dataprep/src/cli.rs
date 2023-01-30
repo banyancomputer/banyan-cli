@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Subcommand, Clone)]
-pub(crate) enum Commands {
+pub enum Commands {
     Pack {
         /// input file root to spider
         #[arg(short, long, help = "input directories and files")]
@@ -44,5 +44,5 @@ pub(crate) enum Commands {
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     #[command(subcommand)]
-    pub(crate) command: Commands,
+    pub command: Commands,
 }

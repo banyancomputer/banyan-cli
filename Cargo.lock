@@ -277,6 +277,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "dataprep"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "dataprep-pipelines",
+ "tokio",
+]
+
+[[package]]
+name = "dataprep-pipelines"
+version = "0.1.0"
+dependencies = [
+ "aead",
+ "aes-gcm",
+ "anyhow",
+ "blake2",
+ "flate2",
+ "futures",
+ "jwalk",
+ "rand",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -312,26 +340,6 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
-]
-
-[[package]]
-name = "filecoin-encrypted-uploader"
-version = "0.1.0"
-dependencies = [
- "aead",
- "aes-gcm",
- "anyhow",
- "blake2",
- "clap",
- "flate2",
- "futures",
- "jwalk",
- "rand",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "uuid",
 ]
 
 [[package]]
