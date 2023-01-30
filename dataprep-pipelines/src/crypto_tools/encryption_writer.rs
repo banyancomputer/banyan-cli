@@ -1,13 +1,12 @@
 use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
-use aead::{AeadCore, OsRng};
-use aes_gcm::aes::cipher::consts::{B0, B1};
-use aes_gcm::aes::cipher::typenum::{UInt, UTerm};
-use aes_gcm::aes::Aes256;
+use aead::OsRng;
+use aes_gcm::aes::cipher::crypto_common::rand_core::RngCore;
+use aes_gcm::aes::cipher::typenum::U7;
 use aes_gcm::Key;
-use aes_gcm::Nonce;
-use aes_gcm::{Aes256Gcm, AesGcm, KeyInit};
-use anyhow::{anyhow, Result};
+use aes_gcm::{Aes256Gcm, KeyInit};
+use anyhow::Result;
+use blake2::digest::generic_array::GenericArray;
 use futures::executor;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -35,7 +34,10 @@ pub struct EncryptionWriter<W: AsyncWrite + Unpin> {
 
 pub fn keygen() -> KeyAndNonce {
     let key = Aes256Gcm::generate_key(&mut OsRng);
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let mut nonce = [0u8; 7];
+    OsRng.fill_bytes(&mut nonce);
+    let nonce = *GenericArray::from_slice(&nonce);
+
     KeyAndNonce { key, nonce }
 }
 
@@ -44,29 +46,32 @@ pub struct KeyAndNonceToDisk {
     pub(crate) key: Vec<u8>,
     pub(crate) nonce: Vec<u8>,
 }
-// TODO this is fucked up
-struct KeyAndNonce {
-    key: <AesGcm<Aes256, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>> as Trait>::Key,
-    nonce: <AesGcm<Aes256, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>> as Trait>::Nonce,
+// stream wants some nonce overhead room
+pub type MyNonce = GenericArray<u8, U7>;
+pub type MyKey = Key<Aes256Gcm>;
+
+// TODO do types better round these parts
+// TODO add zeroize here
+pub struct KeyAndNonce {
+    key: MyKey,
+    nonce: MyNonce,
 }
 
-impl TryInto<KeyAndNonce> for KeyAndNonceToDisk {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<KeyAndNonce, Self::Error> {
+impl KeyAndNonceToDisk {
+    fn consume_and_prep_from_disk(self) -> Result<Box<KeyAndNonce>, anyhow::Error> {
         let KeyAndNonceToDisk { key, nonce } = self;
-        let key = Aes256Gcm::Key::from_slice(&key).ok_or_else(|| anyhow!("Invalid key"))?;
-        let nonce = Aes256Gcm::Nonce::from_slice(&nonce).ok_or_else(|| anyhow!("Invalid nonce"))?;
-        Ok(KeyAndNonce { key, nonce })
+        let key: MyKey = *MyKey::from_slice(&key);
+        let nonce: MyNonce = *MyNonce::from_slice(&nonce);
+        Ok(Box::new(KeyAndNonce { key, nonce }))
     }
 }
 
-impl Into<KeyAndNonceToDisk> for KeyAndNonce {
-    fn into(self) -> KeyAndNonceToDisk {
+impl KeyAndNonce {
+    fn consume_and_prep_to_disk(self) -> KeyAndNonceToDisk {
         let KeyAndNonce { key, nonce } = self;
         KeyAndNonceToDisk {
-            key: key.into(),
-            nonce: nonce.into(),
+            key: key.as_slice().to_vec(),
+            nonce: nonce.as_slice().to_vec(),
         }
     }
 }
@@ -79,19 +84,15 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
     /// writer: The writer to write encrypted data to.
     /// key: The key to use for encryption.
 
-    pub fn new(mut writer: W) -> (Self, KeyAndNonceToDisk) {
+    pub fn new(writer: W) -> (Self, KeyAndNonceToDisk) {
         // keygen
         let keygen @ KeyAndNonce { key, nonce } = keygen();
 
         // Create the encryptor.
-        let cipher = Aes256Gcm::new(key.as_ref().into());
-        let encryptor = RefCell::new(StreamBE32::from_aead(cipher, nonce).encryptor());
+        let cipher = Aes256Gcm::new(&key);
+        let encryptor = RefCell::new(StreamBE32::from_aead(cipher, &nonce).encryptor());
 
         // kick things off with a cute little nonce write
-        assert_eq!(
-            executor::block_on(writer.write(&nonce)).unwrap(),
-            nonce.len()
-        );
         (
             Self {
                 buf: RefCell::new(Vec::new()),
@@ -100,7 +101,7 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
                 size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
                 bytes_written: RefCell::new(0),
             },
-            keygen.into(),
+            keygen.consume_and_prep_to_disk(),
         )
     }
 
