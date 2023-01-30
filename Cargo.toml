@@ -19,7 +19,7 @@ anyhow = { version = "1", features = ["backtrace"] }
 tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
 tokio-stream = { version = "0.1.11", features = ["fs"]}
 aead = { version = "0.5.1", features = ["stream", "alloc"] }
-aes-gcm = "0.10.0"
+aes-gcm = {version = "0.10.0", features = ["aes"]}
 jwalk = "0.8.1"
 rand = "0.8.4"
 blake2 = "0.10.6"

@@ -1,8 +1,15 @@
 use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
-use aes_gcm::{Aes256Gcm, KeyInit};
-use anyhow::Result;
+use aead::{AeadCore, OsRng};
+use aes_gcm::aes::cipher::consts::{B0, B1};
+use aes_gcm::aes::cipher::typenum::{UInt, UTerm};
+use aes_gcm::aes::Aes256;
+use aes_gcm::Key;
+use aes_gcm::Nonce;
+use aes_gcm::{Aes256Gcm, AesGcm, KeyInit};
+use anyhow::{anyhow, Result};
 use futures::executor;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::io::prelude::Write;
 use std::pin::Pin;
@@ -26,6 +33,44 @@ pub struct EncryptionWriter<W: AsyncWrite + Unpin> {
     size_limit: usize,
 }
 
+pub fn keygen() -> KeyAndNonce {
+    let key = Aes256Gcm::generate_key(&mut OsRng);
+    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    KeyAndNonce { key, nonce }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KeyAndNonceToDisk {
+    pub(crate) key: Vec<u8>,
+    pub(crate) nonce: Vec<u8>,
+}
+// TODO this is fucked up
+struct KeyAndNonce {
+    key: <AesGcm<Aes256, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>> as Trait>::Key,
+    nonce: <AesGcm<Aes256, UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>> as Trait>::Nonce,
+}
+
+impl TryInto<KeyAndNonce> for KeyAndNonceToDisk {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<KeyAndNonce, Self::Error> {
+        let KeyAndNonceToDisk { key, nonce } = self;
+        let key = Aes256Gcm::Key::from_slice(&key).ok_or_else(|| anyhow!("Invalid key"))?;
+        let nonce = Aes256Gcm::Nonce::from_slice(&nonce).ok_or_else(|| anyhow!("Invalid nonce"))?;
+        Ok(KeyAndNonce { key, nonce })
+    }
+}
+
+impl Into<KeyAndNonceToDisk> for KeyAndNonce {
+    fn into(self) -> KeyAndNonceToDisk {
+        let KeyAndNonce { key, nonce } = self;
+        KeyAndNonceToDisk {
+            key: key.into(),
+            nonce: nonce.into(),
+        }
+    }
+}
+
 /// A wrapper around a writer that encrypts the data as it is written.
 impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
     /// Create a new EncryptionWriter.
@@ -34,24 +79,29 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
     /// writer: The writer to write encrypted data to.
     /// key: The key to use for encryption.
 
-    pub fn new(mut writer: W, key: &[u8], nonce: &[u8]) -> Self {
+    pub fn new(mut writer: W) -> (Self, KeyAndNonceToDisk) {
+        // keygen
+        let keygen @ KeyAndNonce { key, nonce } = keygen();
+
         // Create the encryptor.
         let cipher = Aes256Gcm::new(key.as_ref().into());
-        let encryptor =
-            RefCell::new(StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor());
+        let encryptor = RefCell::new(StreamBE32::from_aead(cipher, nonce).encryptor());
 
-        // kick things off with a cute little nonce write:
+        // kick things off with a cute little nonce write
         assert_eq!(
-            executor::block_on(writer.write(nonce)).unwrap(),
+            executor::block_on(writer.write(&nonce)).unwrap(),
             nonce.len()
         );
-        Self {
-            buf: RefCell::new(Vec::new()),
-            writer: writer.into(),
-            encryptor,
-            size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
-            bytes_written: RefCell::new(0),
-        }
+        (
+            Self {
+                buf: RefCell::new(Vec::new()),
+                writer: writer.into(),
+                encryptor,
+                size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
+                bytes_written: RefCell::new(0),
+            },
+            keygen.into(),
+        )
     }
 
     /// Encrypt the data in the buffer and write it to the writer.
