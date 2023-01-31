@@ -29,6 +29,8 @@
  * 7. TODO (laudiacay): Make car file with it.
  */
 
+use dir_assert as _;
+
 extern crate core;
 
 pub mod crypto_tools;
