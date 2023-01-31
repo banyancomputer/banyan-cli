@@ -11,10 +11,11 @@ repository = "https://github.com/banyancomputer/dataprep"
 
 [workspace.dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
-dir-assert = "0.2.0"
 #log = "0.4.0"
+
 #iroh-car = "0.2.0"
 #iroh-unixfs = "0.2.0"
+dir-assert = "0.2.0"
 futures = "0.3.0"
 anyhow = { version = "1", features = ["backtrace"] }
 tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
@@ -30,3 +31,4 @@ serde ={version= "1.0.152", features = ["derive"]}
 serde_json = { version = "1.0.72", features = ["std"]}
 dataprep-pipelines = { version = "0.1.0", path = "./dataprep-pipelines" }
 # TODO (laudiacay) eventually you want to use CBOR but debug with JSON
+

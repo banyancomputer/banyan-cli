@@ -13,7 +13,6 @@ env:
 
 # Queue up our Rust jobs (these all use +nightly):
 jobs:
-
   # Run Codecov:
   call_codecov_workflow:
     uses: banyancomputer/.github/.github/workflows/rust-codecov.yml@master

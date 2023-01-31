@@ -7,7 +7,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-dir-assert.workspace = true
 futures.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
@@ -21,3 +20,6 @@ flate2.workspace = true
 uuid.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+dir-assert.workspace = true
