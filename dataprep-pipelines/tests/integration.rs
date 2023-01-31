@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 use tokio::fs;
-
-use dataprep_pipelines;
+use dir_assert::assert_paths;
 
 
 #[tokio::test]
