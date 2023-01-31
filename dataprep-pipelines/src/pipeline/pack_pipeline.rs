@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
+use dir_assert as _;
 
 pub async fn pack_pipeline(
     input_dir: PathBuf,
