@@ -12,8 +12,10 @@ repository = "https://github.com/banyancomputer/dataprep"
 [workspace.dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
 #log = "0.4.0"
+
 #iroh-car = "0.2.0"
 #iroh-unixfs = "0.2.0"
+dir-assert = "0.2.0"
 futures = "0.3.0"
 anyhow = { version = "1", features = ["backtrace"] }
 tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
