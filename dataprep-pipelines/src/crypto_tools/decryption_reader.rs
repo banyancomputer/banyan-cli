@@ -66,10 +66,11 @@ impl<R: Read + Unpin> DecryptionReader<R> {
         let mut bytes_in_buffer = self.bytes_in_buffer.borrow_mut();
         let mut eof = self.eof.borrow_mut();
         // ensure we're out of data!
-        assert!(*buf_ptr == *bytes_in_buffer);
+        assert_eq!(*buf_ptr, *bytes_in_buffer);
         // clear the buffer
         buf.clear();
         // fill it up
+        buf.resize(BUF_SIZE, 0);
         let new_bytes_read = reader.read(&mut buf)?;
         // are we at the end of the file?
         if new_bytes_read == 0 {
@@ -107,71 +108,6 @@ impl<R: Read + Unpin> DecryptionReader<R> {
 
 /// Implement the Read trait for DecryptionReader.
 impl<R: Read + Unpin> Read for DecryptionReader<R> {
-    // /// Write data to the buffer
-    // fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-    //     let mut self_pin = Pin::new(&mut *self);
-    //     // how long is buf?
-    //     // if it's too long, we need to split it up so we're not encrypting more than the buffer size at a time
-    //     let mut buf = buf;
-    //     while !buf.is_empty() {
-    //         // figure out how much space is left
-    //         let remaining_space = self_pin.size_limit - self_pin.buf.borrow().len();
-    //
-    //         // grab what we can fit in the buffer
-    //         let (buf1, buf2) = buf.split_at(remaining_space);
-    //
-    //         // stick it in there
-    //         self_pin.buf.borrow_mut().extend_from_slice(buf1);
-    //
-    //         // flush if we're full
-    //         if self_pin.buf.borrow().len() >= self_pin.size_limit {
-    //             self_pin.flush()?;
-    //         };
-    //
-    //         // advance the buffer
-    //         buf = buf2;
-    //     }
-    //     Ok(buf.len())
-    // }
-    //
-    // /// Clear the buffer and encrypt the data in place.
-    // fn flush(&mut self) -> std::io::Result<()> {
-    //     let self_pin = Pin::new(&mut *self);
-    //
-    //     // do the encryption
-    //     self_pin
-    //         .encryptor
-    //         .borrow_mut()
-    //         .encrypt_next_in_place(b"", &mut *self_pin.buf.borrow_mut())
-    //         .unwrap();
-    //
-    //     // TODO (laudiacay): YIKES! is this what we want? block_on???
-    //     // write encrypted data to underlying writer
-    //     executor::block_on(
-    //         self_pin
-    //             .writer
-    //             .borrow_mut()
-    //             .write_all(&self_pin.buf.borrow()),
-    //     )?;
-    //
-    //     // TODO (laudiacay) is this right to put here? probably... but make sure :)
-    //     // flush underlying writer to wherever it's going i guess
-    //     executor::block_on(self_pin.writer.borrow_mut().flush())?;
-    //
-    //     // update counter for how many bytes you wrote, check for safe GCM usage limits
-    //     *self_pin.bytes_written.borrow_mut() += self_pin.buf.borrow().len();
-    //     if *self.bytes_written.borrow() >= MAX_SAFE_ENCRYPTION_SIZE {
-    //         return Err(std::io::Error::new(
-    //             std::io::ErrorKind::FileTooLarge,
-    //             "File too large to encrypt",
-    //         ));
-    //     };
-    //
-    //     // clear out the buffer
-    //     self.buf.borrow_mut().clear();
-    //     Ok(())
-    // }
-
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let mut bytes_to_read = buf.len();
         // put a cursor on the buffer
