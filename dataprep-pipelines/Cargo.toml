@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-dir-assert = "0.2.0"
+dir-assert.workspace = true
 futures.workspace = true
 anyhow.workspace = true
 tokio.workspace = true

@@ -52,10 +52,12 @@ async fn it_works_for_one_file() {
     .await
     .unwrap();
 
-    let final_out_contents = fs::read(final_out).await.unwrap();
-    println!(
-        "final_out_contents: {:?}",
-        String::from_utf8(final_out_contents.clone())
-    );
-    assert_eq!(final_out_contents, b"test");
+    // let final_out_contents = fs::read(final_out).await.unwrap();
+    // println!(
+    //     "final_out_contents: {:?}",
+    //     String::from_utf8(final_out_contents.clone())
+    // );
+    // assert_eq!(final_out_contents, b"test");
+    assert_paths(input_dir, unpacked_dir).unwrap();
+
 }
