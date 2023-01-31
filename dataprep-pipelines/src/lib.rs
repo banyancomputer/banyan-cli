@@ -29,6 +29,8 @@
  * 7. TODO (laudiacay): Make car file with it.
  */
 
+extern crate core;
+
 pub mod crypto_tools;
 pub mod fs_carfiler;
 pub mod fsutil;

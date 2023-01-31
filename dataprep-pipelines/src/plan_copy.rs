@@ -38,7 +38,8 @@ pub async fn plan_copy(
             origin_data: Rc::new(origin_data),
             data_processing: DataProcessDirective::Directory,
         })
-    } else if origin_data.original_metadata.is_symlink() {
+    }
+    else if origin_data.original_metadata.is_symlink() {
         // return
         Ok(PipelinePlan {
             origin_data: Rc::new(origin_data),
