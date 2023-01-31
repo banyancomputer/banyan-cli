@@ -155,8 +155,26 @@ impl<W: AsyncWrite + Unpin> Write for EncryptionWriter<W> {
 // TODO (xBalbinus & thea-exe): Our inline tests
 #[cfg(test)]
 mod test {
-    #[test]
-    fn test() {
-        todo!()
+    #[tokio::test]
+    /// Test that we can encrypt write some data to a cursor without panicking.
+    async fn test() {
+        use super::EncryptionWriter;
+        use aes_gcm::aes::cipher::crypto_common::rand_core::{OsRng, RngCore};
+        use std::io::{Cursor, Write};
+
+        // generate a random piece of data in a 1kb buffer
+        let mut data = vec![0u8; 1024];
+        OsRng.fill_bytes(&mut data);
+        // Declare a new cursor to write to
+        let mut cursor = Cursor::new(Vec::<u8>::new());
+
+        // Create a new EncryptionWriter
+        let (mut encryptor, key_and_nonce) = EncryptionWriter::new(&mut cursor);
+        // Try Encrypting the data to the cursor
+        encryptor.write(&data).unwrap();
+        // Finish the encryption
+        encryptor.finish().await.unwrap();
+        // If we got here, we didn't panic, so we're good
+        return;
     }
 }

@@ -152,8 +152,37 @@ impl<R: Read + Unpin> Read for DecryptionReader<R> {
 // TODO (xBalbinus & thea-exe): Our inline tests
 #[cfg(test)]
 mod test {
-    #[test]
-    fn test() {
-        todo!()
+    #[tokio::test]
+    /// Test that we can decrypt-read some random piece of data with a random key and nonce without
+    /// panicking
+    async fn test() {
+        use crate::crypto_tools::key_and_nonce_types::{keygen, KeyAndNonceToDisk};
+        use super::DecryptionReader;
+        use aes_gcm::aes::cipher::crypto_common::rand_core::{OsRng, RngCore};
+        use std::io::{Cursor, Read};
+
+        // generate a random key and nonce
+        let keygen = keygen();
+        // Consume the keygen to get the key and nonce to disk
+        let KeyAndNonceToDisk { key, nonce } = keygen.consume_and_prep_to_disk();
+
+        // generate a random piece of data in a 1kb buffer and wrap it in a cursor
+        let mut data = vec![0u8; 1024];
+        OsRng.fill_bytes(&mut data);
+        let mut data_cursor = Cursor::new(data);
+
+        // Initialize the Decryption Reader
+        let mut decryption_reader =
+            DecryptionReader::new(data_cursor, KeyAndNonceToDisk { key, nonce })
+                .await
+                .unwrap();
+
+        // Try and decrypt the data
+        let mut decrypted_data = vec![0u8; 1024];
+        decryption_reader.read(&mut decrypted_data).unwrap();
+        decryption_reader.finish().await.unwrap();
+
+        // If we got here, we didn't panic, so we're good
+        return;
     }
 }
