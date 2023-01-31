@@ -64,3 +64,15 @@ async fn it_works_for_one_file_in_one_directory() {
     fs::write("test/input/test_dir/test.txt", b"test").await.unwrap();
     transform_and_check();
 }
+
+#[tokio::test]
+async fn it_works_for_one_duplicated_file_in_one_directory() {
+    setup_structure();
+    // create a directory in the input directory
+    fs::create_dir("test/input/test_dir").await.unwrap();
+    // create a file in the input directory
+    fs::write("test/input/test_dir/test.txt", b"test").await.unwrap();
+    // create a duplicate file
+    fs::write("test/input/test_dir/test2.txt", b"test").await.unwrap();
+    transform_and_check();
+}

@@ -25,10 +25,11 @@ pub fn ensure_path_exists_and_is_empty_dir(path: &Path) -> Result<()> {
 // Note (amiller68): The following is not used.
 /*
    // TODO (laudiacay): Use proper function names
+   // TODO (thea-exe) look at this for tips
    // this comment lies in memoriam of the time i set these both to 10. if you estimate the disk
    // space used by a directory as only 512 bits, this would have filled 5 terabytes of disk space.
    // i'm not sure what i was thinking.
-   pub fn make_big_filesystem_clusterfuck(depth_to_go: usize, width: usize, cwd: PathBuf) {
+   pub fn make_big_filesystem_clusterfuck(depth_todepth_to_go: usize, width: usize, cwd: PathBuf_go: usize, width: usize, cwd: PathBuf) {
        if depth_to_go == 0 {
            for i in 0..width {
                let mut path = cwd.clone();
