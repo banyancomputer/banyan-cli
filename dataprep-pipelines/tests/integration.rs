@@ -11,12 +11,12 @@ fn it_adds_two() {
 
 #[test]
 fn test_macro() {
-    assert_paths!("dataprep/dataprep-pipelines/src/pipeline/mod.rs", "dataprep/dataprep-pipelines/src/pipeline/mod.rs");
+    assert_paths!(input_dir, unpacked_dir);
 }
 
 #[test]
 fn test_fn() {
-    assert_paths("dataprep/dataprep-pipelines/src/pipeline/mod.rs", "dataprep/dataprep-pipelines/src/pipeline/mod.rs").unwrap();
+    assert_paths(input_dir, unpacked_dir).unwrap();
 }
 
 #[tokio::test]
