@@ -1,8 +1,9 @@
 # Dataprep
-
+[![codecov](https://codecov.io/gh/banyancomputer/dataprep/branch/master/graph/badge.svg?token=LQL6MA4KSI)](https://codecov.io/gh/banyancomputer/dataprep)
 ## Dependencies
 - cargo
 - rustup
+- rust +nightly
 
 ## Build the binary!
 ```bash
