@@ -1,8 +1,12 @@
+use crate::crypto_tools::key_and_nonce_types::{keygen, KeyAndNonce, KeyAndNonceToDisk};
 use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
+
 use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::Result;
+
 use futures::executor;
+
 use std::cell::RefCell;
 use std::io::prelude::Write;
 use std::pin::Pin;
@@ -34,24 +38,25 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
     /// writer: The writer to write encrypted data to.
     /// key: The key to use for encryption.
 
-    pub fn new(mut writer: W, key: &[u8], nonce: &[u8]) -> Self {
-        // Create the encryptor.
-        let cipher = Aes256Gcm::new(key.as_ref().into());
-        let encryptor =
-            RefCell::new(StreamBE32::from_aead(cipher, nonce.as_ref().into()).encryptor());
+    pub fn new(writer: W) -> (Self, KeyAndNonceToDisk) {
+        // keygen
+        let keygen @ KeyAndNonce { key, nonce } = keygen();
 
-        // kick things off with a cute little nonce write:
-        assert_eq!(
-            executor::block_on(writer.write(nonce)).unwrap(),
-            nonce.len()
-        );
-        Self {
-            buf: RefCell::new(Vec::new()),
-            writer: writer.into(),
-            encryptor,
-            size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
-            bytes_written: RefCell::new(0),
-        }
+        // Create the encryptor.
+        let cipher = Aes256Gcm::new(&key);
+        let encryptor = RefCell::new(StreamBE32::from_aead(cipher, &nonce).encryptor());
+
+        // kick things off with a cute little nonce write
+        (
+            Self {
+                buf: RefCell::new(Vec::new()),
+                writer: writer.into(),
+                encryptor,
+                size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
+                bytes_written: RefCell::new(0),
+            },
+            keygen.consume_and_prep_to_disk(),
+        )
     }
 
     /// Encrypt the data in the buffer and write it to the writer.
@@ -83,6 +88,13 @@ impl<W: AsyncWrite + Unpin> Write for EncryptionWriter<W> {
         while !buf.is_empty() {
             // figure out how much space is left
             let remaining_space = self_pin.size_limit - self_pin.buf.borrow().len();
+
+            if remaining_space > buf.len() {
+                // if we can fit it all in the buffer, do that
+                self_pin.buf.borrow_mut().extend_from_slice(buf);
+                break;
+                // TODO make sure you test this logic with a big chunkin file
+            }
 
             // grab what we can fit in the buffer
             let (buf1, buf2) = buf.split_at(remaining_space);
