@@ -5,6 +5,7 @@ use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::write::GzDecoder;
 use std::path::PathBuf;
+use printio as _;
 
 pub async fn do_file_pipeline(
     PipelineToDisk {
@@ -29,6 +30,7 @@ pub async fn do_file_pipeline(
             let mut new_file_writer = GzDecoder::new(new_file_writer);
 
             for chunk in 0..partition.num_chunks {
+                assert_eq!(partition.num_chunks, 1);
                 // open a reader to the original file
                 let old_file_reader = std::io::BufReader::new(std::fs::File::open(
                     input_dir.join(writeout.chunk_locations.get(chunk as usize).ok_or(anyhow!(
