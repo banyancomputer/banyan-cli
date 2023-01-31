@@ -8,6 +8,17 @@ fn it_adds_two() {
     assert_eq!(4, 2 + 2);
 }
 
+
+#[test]
+fn test_macro() {
+    assert_paths!("dataprep/dataprep-pipelines/src/pipeline/mod.rs", "dataprep/dataprep-pipelines/src/pipeline/mod.rs");
+}
+
+#[test]
+fn test_fn() {
+    assert_paths("dataprep/dataprep-pipelines/src/pipeline/mod.rs", "dataprep/dataprep-pipelines/src/pipeline/mod.rs").unwrap();
+}
+
 #[tokio::test]
 async fn it_works_for_one_file() {
     // remove any old test crud
