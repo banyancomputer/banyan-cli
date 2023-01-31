@@ -4,18 +4,6 @@ use tokio::fs;
 use dataprep_pipelines;
 
 
-#[test]
-fn test_macro() {
-    // macro to determine if two directories/files are equal
-    assert_paths!(input_dir, unpacked_dir);
-}
-
-#[test]
-fn test_fn() {
-    // function to determine if two directories/files are equal
-    assert_paths(input_dir, unpacked_dir).unwrap();
-}
-
 #[tokio::test]
 async fn it_works_for_one_file() {
     // remove any old test crud
