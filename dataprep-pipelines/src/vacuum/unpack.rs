@@ -4,8 +4,8 @@ use crate::crypto_tools::decryption_reader::DecryptionReader;
 use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::write::GzDecoder;
-use std::path::PathBuf;
 use printio as _;
+use std::path::PathBuf;
 
 pub async fn do_file_pipeline(
     PipelineToDisk {

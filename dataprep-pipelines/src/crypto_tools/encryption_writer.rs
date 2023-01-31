@@ -169,7 +169,7 @@ mod test {
         let mut cursor = Cursor::new(Vec::<u8>::new());
 
         // Create a new EncryptionWriter
-        let (mut encryptor, key_and_nonce) = EncryptionWriter::new(&mut cursor);
+        let (mut encryptor, _) = EncryptionWriter::new(&mut cursor);
         // Try Encrypting the data to the cursor
         encryptor.write(&data).unwrap();
         // Finish the encryption
