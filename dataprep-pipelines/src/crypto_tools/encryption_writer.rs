@@ -2,9 +2,6 @@ use crate::crypto_tools::key_and_nonce_types::{keygen, KeyAndNonce, KeyAndNonceT
 use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
 
-
-
-
 use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::Result;
 
