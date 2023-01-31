@@ -3,19 +3,16 @@ use tokio::fs;
 
 use dataprep_pipelines;
 
-#[test]
-fn it_adds_two() {
-    assert_eq!(4, 2 + 2);
-}
-
 
 #[test]
 fn test_macro() {
+    // macro to determine if two directories/files are equal
     assert_paths!(input_dir, unpacked_dir);
 }
 
 #[test]
 fn test_fn() {
+    // function to determine if two directories/files are equal
     assert_paths(input_dir, unpacked_dir).unwrap();
 }
 
