@@ -22,9 +22,9 @@ pub async fn do_file_pipeline(
             writeout,
         }) => {
             // TODO (laudiacay) async these reads. also is this buf setup right
-
+            let output = output_dir.join(origin_data.original_location);
             let new_file_writer =
-                std::fs::File::create(output_dir.join(origin_data.original_location))?;
+                std::fs::File::create(output)?;
             assert_eq!(compression.compression_info, "GZIP");
             let mut new_file_writer = GzDecoder::new(new_file_writer);
 
