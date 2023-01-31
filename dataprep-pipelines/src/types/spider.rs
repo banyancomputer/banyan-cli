@@ -5,18 +5,21 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct SpiderMetadata {
+    /// this is the root of the backup
     pub original_root: PathBuf,
-    pub original_location: DirEntry<((), ())>,
+    /// this is the path relative to the root of the backup
+    pub original_location: PathBuf,
+    /// this is the canonicalized path of the original file
     pub canonicalized_path: PathBuf,
+    /// this is the metadata of the original file
     pub original_metadata: Metadata,
 }
 
-impl From<DirEntry<((), ())>> for SpiderMetadata {
-    fn from(entry: DirEntry<((), ())>) -> Self {
-        let original_root = entry.path().parent().unwrap().to_path_buf();
-        let original_location = entry;
-        let canonicalized_path = original_location.path().canonicalize().unwrap();
-        let original_metadata = original_location.metadata().unwrap();
+    pub fn make_spider_metadata(entry: DirEntry<((), ())>, input_root: PathBuf) -> SpiderMetadata {
+        let original_root = input_root;
+        let original_location = entry.path().strip_prefix(&original_root).unwrap().to_path_buf();
+        let canonicalized_path = entry.path().canonicalize().unwrap();
+        let original_metadata = entry.metadata().unwrap();
         SpiderMetadata {
             original_root,
             original_location,
@@ -24,7 +27,6 @@ impl From<DirEntry<((), ())>> for SpiderMetadata {
             original_metadata,
         }
     }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FileType {
@@ -59,7 +61,7 @@ pub struct SpiderMetadataToDisk {
 impl From<&SpiderMetadata> for SpiderMetadataToDisk {
     fn from(value: &SpiderMetadata) -> Self {
         let original_root = value.original_root.clone();
-        let original_location = value.original_location.path();
+        let original_location = value.original_location.clone();
         let canonicalized_path = value.canonicalized_path.clone();
         let original_metadata = MetadataToDisk {
             file_type: match value.original_metadata.file_type().is_dir() {

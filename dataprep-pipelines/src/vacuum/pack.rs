@@ -1,8 +1,7 @@
 use crate::crypto_tools::encryption_writer::EncryptionWriter;
-use aead::OsRng;
+
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
-use rand::RngCore;
 use tokio::fs::File;
 
 use crate::types::pipeline::{
@@ -60,13 +59,8 @@ pub async fn do_file_pipeline(
                     })?;
 
                 // make the encryptor
-                // TODO put key/nonce gen into a utility function
-                let mut key = [0u8; 32];
-                OsRng.fill_bytes(&mut key);
-                let mut nonce = [0u8; 12];
-                OsRng.fill_bytes(&mut nonce);
-                let mut new_file_encryptor =
-                    EncryptionWriter::new(&mut new_file_writer, &key, &nonce);
+                let (mut new_file_encryptor, key_and_nonce) =
+                    EncryptionWriter::new(&mut new_file_writer);
                 // TODO turn these checks into actual encryption switches
                 assert_eq!(new_file_encryptor.cipher_info(), encryption.cipher_info);
                 assert_eq!(encryption.cipher_info, "AES-256-GCM");
@@ -86,7 +80,7 @@ pub async fn do_file_pipeline(
 
                 // write out the metadata
                 encrypted_pieces.push(EncryptionPart {
-                    key,
+                    key_and_nonce,
                     size_after: encryptor_bytes_written as u64,
                 });
                 i += 1;

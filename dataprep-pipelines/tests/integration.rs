@@ -23,6 +23,7 @@ async fn it_works_for_one_file() {
     fs::write("test/input/test.txt", b"test").await.unwrap();
     let final_out = PathBuf::from("test/unpacked/test.txt");
     // run the function
+    println!("doing pack pipeline!");
     dataprep_pipelines::pipeline::pack_pipeline::pack_pipeline(
         input_dir.clone(),
         output_dir.clone(),
@@ -32,6 +33,7 @@ async fn it_works_for_one_file() {
     )
     .await
     .unwrap();
+    println!("doing unpack pipeline!");
     dataprep_pipelines::pipeline::unpack_pipeline::unpack_pipeline(
         output_dir,
         manifest_file,

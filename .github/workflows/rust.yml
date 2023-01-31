@@ -1,5 +1,6 @@
 name: Rust
 
+# Run this when a PR is opened, or when a commit is pushed to master:
 on:
   push:
     branches: [ "master" ]
@@ -8,22 +9,22 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C link-dead-code"
 
+# Queue up our Rust jobs (these all use +nightly):
 jobs:
-  build:
 
-    runs-on: ubuntu-latest
+  # Run Codecov:
+  call_codecov_workflow:
+    uses: banyancomputer/.github/.github/workflows/rust-codecov.yml@master
+    with:
+      name_of_stuff_to_test_in_target: 'dataprep'
+  # Run the linters and formatters:
+  run_linters:
+    uses: banyancomputer/.github/.github/workflows/rust_linters_formatters.yml@master
+  # Run the tests:
+  run_tests:
+    uses: banyancomputer/.github/.github/workflows/rust_test.yml@master
+  run_todo:
+    uses: banyancomputer/.github/.github/workflows/todo.yml@master
 
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-    - name: Build
-      run: cargo +nightly build --verbose
-    - name: Format checker
-      run: cargo +nightly fmt --check
-    - name: Clippy
-      run: cargo +nightly clippy -D --verbose
-    - name: Run tests
-      run: cargo +nightly test --verbose

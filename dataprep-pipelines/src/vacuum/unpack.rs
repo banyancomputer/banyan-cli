@@ -1,9 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::crypto_tools::decryption_reader::DecryptionReader;
 use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
-use flate2::read::GzDecoder;
+use flate2::write::GzDecoder;
 use std::path::PathBuf;
 
 pub async fn do_file_pipeline(
@@ -22,20 +22,34 @@ pub async fn do_file_pipeline(
             writeout,
         }) => {
             // TODO (laudiacay) async these reads. also is this buf setup right
-
-            let mut new_file_writer =
-                std::fs::File::create(output_dir.join(origin_data.original_location))?;
+            let output = output_dir.join(origin_data.original_location);
+            let new_file_writer =
+                std::fs::File::create(output)?;
+            assert_eq!(compression.compression_info, "GZIP");
+            let mut new_file_writer = GzDecoder::new(new_file_writer);
 
             for chunk in 0..partition.num_chunks {
                 // open a reader to the original file
                 let old_file_reader = std::io::BufReader::new(std::fs::File::open(
-                    input_dir.join(writeout.chunk_locations.get(chunk as usize).unwrap()),
+                    input_dir.join(writeout.chunk_locations.get(chunk as usize).ok_or(anyhow!(
+                        "could not find the chunk location for chunk {}!",
+                        chunk
+                    ))?),
                 )?);
+
+                let encrypted_piece =
+                    encryption
+                        .encrypted_pieces
+                        .get(chunk as usize)
+                        .ok_or(anyhow!(
+                            "could not find the encrypted piece for chunk {}!",
+                            chunk
+                        ))?;
+                // TODO naughty clone
+                let mut old_file_reader =
+                    DecryptionReader::new(old_file_reader, encrypted_piece.key_and_nonce.clone())
+                        .await?;
                 // put a gzip encoder on it then buffer it
-                assert_eq!(compression.compression_info, "GZIP");
-                let old_file_reader = GzDecoder::new(old_file_reader);
-                let key = encryption.encrypted_pieces.get(chunk as usize).unwrap().key;
-                let mut old_file_reader = DecryptionReader::new(old_file_reader, &key).await;
 
                 std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
                 // TODO check the encryption tag at the end of the file
