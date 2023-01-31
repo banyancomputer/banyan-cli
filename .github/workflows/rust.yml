@@ -20,10 +20,10 @@ jobs:
       with:
         toolchain: nightly
     - name: Build
-      run: cargo build --verbose
+      run: cargo +nightly build --verbose
     - name: Format checker
-      run: cargo fmt --check
+      run: cargo +nightly fmt --check
     - name: Clippy
-      run: cargo clippy -D --verbose
+      run: cargo +nightly clippy -D --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo +nightly test --verbose
