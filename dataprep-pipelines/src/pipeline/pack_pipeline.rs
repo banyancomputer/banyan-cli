@@ -70,7 +70,7 @@ pub async fn pack_pipeline(
         .create_new(true)
         .open(manifest_file)
         .unwrap();
-    serde_json::to_writer(
+    serde_json::to_writer_pretty(
         manifest_writer,
         &copied
             .map(|pipeline| pipeline.try_into())
