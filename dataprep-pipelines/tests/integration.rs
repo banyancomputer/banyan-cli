@@ -20,7 +20,7 @@ async fn it_works_for_one_file() {
     let manifest_file = PathBuf::from("test/manifest.json");
     // create a file in the input directory
     fs::write("test/input/test.txt", b"test").await.unwrap();
-    let final_out = PathBuf::from("test/unpacked/test.txt");
+
     // run the function
     println!("doing pack pipeline!");
     dataprep_pipelines::pipeline::pack_pipeline::pack_pipeline(
@@ -36,7 +36,7 @@ async fn it_works_for_one_file() {
     dataprep_pipelines::pipeline::unpack_pipeline::unpack_pipeline(
         output_dir,
         manifest_file,
-        unpacked_dir,
+        unpacked_dir.clone(),
     )
     .await
     .unwrap();
