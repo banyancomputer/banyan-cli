@@ -55,7 +55,9 @@ pub async fn do_file_pipeline(
                             return Err(anyhow!("passphrase decryption not supported"))
                         }
                     };
-                    decryptor.decrypt(iter::once(&encrypted_piece.identity.clone() as &dyn age::Identity))?
+                    decryptor.decrypt(iter::once(
+                        &encrypted_piece.identity.clone() as &dyn age::Identity
+                    ))?
                 };
                 // put a gzip encoder on it then buffer it
 
