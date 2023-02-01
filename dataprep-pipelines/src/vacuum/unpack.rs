@@ -4,8 +4,8 @@ use crate::crypto_tools::decryption_reader::DecryptionReader;
 use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::write::GzDecoder;
-use std::path::PathBuf;
 use printio as _;
+use std::path::PathBuf;
 
 pub async fn do_file_pipeline(
     PipelineToDisk {
@@ -24,8 +24,7 @@ pub async fn do_file_pipeline(
         }) => {
             // TODO (laudiacay) async these reads. also is this buf setup right
             let output = output_dir.join(origin_data.original_location);
-            let new_file_writer =
-                std::fs::File::create(output)?;
+            let new_file_writer = std::fs::File::create(output)?;
             assert_eq!(compression.compression_info, "GZIP");
             let mut new_file_writer = GzDecoder::new(new_file_writer);
 
