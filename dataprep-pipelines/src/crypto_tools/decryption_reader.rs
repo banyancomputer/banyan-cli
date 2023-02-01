@@ -1,3 +1,6 @@
+// THIS FILE IS DEPRECATED- WE ARE USING AGE INSTEAD
+
+
 use crate::crypto_tools::key_and_nonce_types::{BUF_SIZE, KeyAndNonce, KeyAndNonceToDisk, TAG_SIZE};
 use aead::stream::{Decryptor, NewStream, StreamBE32, StreamPrimitive};
 use aes_gcm::{Aes256Gcm, KeyInit};
@@ -47,6 +50,7 @@ impl<R: Read + Unpin + Seek> DecryptionReader<R> {
         let decryptor = RefCell::new(StreamBE32::from_aead(cipher, &nonce).decryptor());
 
         let file_len = reader.seek(SeekFrom::End(0))?;
+        reader.seek(SeekFrom::Start(0))?;
         Ok(Self {
             buf: RefCell::new(vec![]),
             tag_buf: RefCell::new([0; TAG_SIZE]),
@@ -76,12 +80,13 @@ impl<R: Read + Unpin + Seek> DecryptionReader<R> {
         // Clear the buffer and reset size
         buf.clear();
         buf.resize(BUF_SIZE, 0);
-
+        println!("Buffer size: {}", buf.len());
         // Read from the reader into the buffer
         let new_bytes_read = reader.read(&mut *buf)?;
         println!("Read {} bytes", new_bytes_read);
 
         if new_bytes_read >= *bytes_in_reader {
+            println!("Finalizing decryption");
             // let's get the tag.
             // there may be some tag bytes in the buffer, but maybe not all of them.
             // we need to read the rest of any of them from the reader.
@@ -126,6 +131,11 @@ impl<R: Read + Unpin + Seek> DecryptionReader<R> {
         assert_eq!(self.bytes_in_reader.borrow().clone(), 0);
         assert_eq!(self.finalize.borrow().clone(), true);
         assert_eq!(self.bytes_in_buffer.borrow().clone(), self.buf_ptr.borrow().clone());
+        // decrypt_next_in_place
+        self.decryptor
+            .into_inner()
+            .decrypt_next_in_place(b"".as_ref(), self.buf.borrow_mut())
+            .map_err(|_| anyhow!("Error decrypting last block"))?;
         // TODO maybe add a sanity check for bytes_read!
         self.decryptor
             .into_inner()
@@ -225,7 +235,7 @@ mod test {
         let mut data = vec![0u8; 1024];
         // encrypt the data
         let mut enc = StreamBE32::from_aead(aes_gcm::Aes256Gcm::new(&key), &nonce).encryptor();
-        let encrypted = enc.encrypt_next(Payload::from(&*data)).unwrap();
+        let encrypted = enc.encrypt_last(Payload::from(&*data)).unwrap();
 
         // Initialize the Decryption Reader
         let mut decryption_reader =

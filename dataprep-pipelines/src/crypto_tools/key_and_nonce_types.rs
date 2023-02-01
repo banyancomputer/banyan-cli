@@ -1,3 +1,6 @@
+// THIS FILE IS DEPRECATED- WE ARE USING AGE INSTEAD
+
+
 use aes_gcm::aes::cipher::crypto_common::rand_core::{OsRng, RngCore};
 use aes_gcm::aes::cipher::generic_array::GenericArray;
 use aes_gcm::aes::cipher::typenum::U7;
@@ -5,7 +8,7 @@ use aes_gcm::{Aes256Gcm, Key, KeyInit};
 use serde::{Deserialize, Serialize};
 
 pub const TAG_SIZE: usize = 16;
-pub const BUF_SIZE: usize = 1024 * 1024;
+pub const MESSAGE_BUF_SIZE: usize = 1024 * 2;
 
 pub fn keygen() -> KeyAndNonce {
     let key = Aes256Gcm::generate_key(&mut OsRng);
