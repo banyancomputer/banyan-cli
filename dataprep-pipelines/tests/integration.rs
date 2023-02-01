@@ -1,12 +1,11 @@
+use dir_assert::assert_paths;
 use std::path::PathBuf;
 use tokio::fs;
-use dir_assert::assert_paths;
 
-
-const MANIFEST_FILE : PathBuf = PathBuf::from("test/manifest.json");
+const MANIFEST_FILE: PathBuf = PathBuf::from("test/manifest.json");
 const TEST_DIR: PathBuf = PathBuf::from("test");
-const INPUT_DIR : PathBuf = PathBuf::from("test/input");
-const OUTPUT_DIR : PathBuf = PathBuf::from("test/output");
+const INPUT_DIR: PathBuf = PathBuf::from("test/input");
+const OUTPUT_DIR: PathBuf = PathBuf::from("test/output");
 const UNPACKED_DIR: PathBuf = PathBuf::from("test/unpacked");
 
 fn setup_structure() {
@@ -31,16 +30,16 @@ fn transform_and_check() {
         1073741824, // 1GB
         true,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     println!("doing unpack pipeline!");
     dataprep_pipelines::pipeline::unpack_pipeline::unpack_pipeline(
         OUTPUT_DIR,
         MANIFEST_FILE,
         UNPACKED_DIR.clone(),
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
     // checks if two directories are the same
     assert_paths(input_dir, unpacked_dir).unwrap();
 }
@@ -58,31 +57,34 @@ async fn test_directory_structure() {
         while current_depth < depth {
             for i in 0..subdirectories_per_dir {
                 let new_dir = format!("{}/{}_{}", current_dir, current_depth, i);
-                task::spawn(async move { fs::create_dir(new_dir).await.unwrap(); }).await;
+                task::spawn(async move {
+                    fs::create_dir(new_dir).await.unwrap();
+                })
+                .await;
 
                 current_dir = new_dir;
                 current_depth += 1;
             }
         }
     }
-     // create_directory_structure is called to create the desired directory structure 
-     create_directory_structure(2, 2, "test/input").await;
-     // fs::write is used to create a file and its duplicate in the input directory
-     fs::write("test/input/0_0/test.txt", b"test").await.unwrap();
-     // duplicate
-     fs::write("test/input/0_0/test2.txt", b"test").await.unwrap();
-     // transform_and_check is then called to transform and check the files
-     transform_and_check().await;
- 
-     // fs::metadata is used to retrieve the metadata for the two files,
-     let metadata = fs::metadata("test/input/0_0/test.txt").await.unwrap();
-     // assert! macro is used to ensure that both files were created successfully
-     assert!(metadata.is_file());
-     let metadata = fs::metadata("test/input/0_0/test2.txt").await.unwrap();
-     assert!(metadata.is_file());
+    // create_directory_structure is called to create the desired directory structure
+    create_directory_structure(2, 2, "test/input").await;
+    // fs::write is used to create a file and its duplicate in the input directory
+    fs::write("test/input/0_0/test.txt", b"test").await.unwrap();
+    // duplicate
+    fs::write("test/input/0_0/test2.txt", b"test")
+        .await
+        .unwrap();
+    // transform_and_check is then called to transform and check the files
+    transform_and_check().await;
+
+    // fs::metadata is used to retrieve the metadata for the two files,
+    let metadata = fs::metadata("test/input/0_0/test.txt").await.unwrap();
+    // assert! macro is used to ensure that both files were created successfully
+    assert!(metadata.is_file());
+    let metadata = fs::metadata("test/input/0_0/test2.txt").await.unwrap();
+    assert!(metadata.is_file());
 }
-
-
 
 // #[tokio::test]
 // async fn it_works_for_one_file() {
