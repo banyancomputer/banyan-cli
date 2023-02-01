@@ -4,6 +4,9 @@ use aes_gcm::aes::cipher::typenum::U7;
 use aes_gcm::{Aes256Gcm, Key, KeyInit};
 use serde::{Deserialize, Serialize};
 
+pub const TAG_SIZE: usize = 16;
+pub const BUF_SIZE: usize = 1024 * 1024;
+
 pub fn keygen() -> KeyAndNonce {
     let key = Aes256Gcm::generate_key(&mut OsRng);
     let mut nonce = [0u8; 7];

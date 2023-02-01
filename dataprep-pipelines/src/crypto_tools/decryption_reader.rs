@@ -1,20 +1,20 @@
-use crate::crypto_tools::key_and_nonce_types::{KeyAndNonce, KeyAndNonceToDisk};
+use crate::crypto_tools::key_and_nonce_types::{BUF_SIZE, KeyAndNonce, KeyAndNonceToDisk, TAG_SIZE};
 use aead::stream::{Decryptor, NewStream, StreamBE32, StreamPrimitive};
 use aes_gcm::{Aes256Gcm, KeyInit};
 use anyhow::{anyhow, Result};
 use futures::executor;
 use std::cell::RefCell;
-use std::io::{Cursor, ErrorKind, Read, Write};
+use std::io::{Cursor, ErrorKind, Read, Seek, SeekFrom, Write};
 use std::pin::Pin;
-
-const BUF_SIZE: usize = 1024 * 1024; // 1 MB
 
 /// A wrapper around a writer that encrypts the data as it is written.
 /// Should not be used on files larger than 32 GB.
-pub struct DecryptionReader<R: Read + Unpin> {
+pub struct DecryptionReader<R: Read + Unpin+ Seek> {
     /// Internal buffer, holds data from disk and decrypts it in place
     /// // TODO why a vec? why not a fixed size array?
     buf: RefCell<Vec<u8>>,
+    /// tracks how much encrypted data is left in the reader
+    bytes_in_reader: RefCell<usize>,
     /// buf_ptr tracks the current position in the buffer- where to start reading decrypted data from
     buf_ptr: RefCell<usize>,
     /// bytes_in_buffer tracks how many bytes are in the buffer- it may not always be full
@@ -23,17 +23,16 @@ pub struct DecryptionReader<R: Read + Unpin> {
     reader: RefCell<R>,
     /// Decryptor. This stores the key
     decryptor: RefCell<Decryptor<Aes256Gcm, StreamBE32<Aes256Gcm>>>,
-    /// Counter of bytes read into the read() method
+    /// Counter of bytes read from this struct's read() method
     bytes_read: RefCell<usize>,
-    /// size limit for buffer
-    // TODO implement me
-    _size_limit: usize,
-    /// eof checker
-    eof: RefCell<bool>,
+    /// buffer to eventually put the tag into
+    tag_buf: RefCell<[u8; TAG_SIZE]>,
+    /// should we finalize the decryption? this means tag_buf will be filled with the tag and bytes_in_reader will be 0
+    finalize: RefCell<bool>,
 }
 
 /// A wrapper around a reader that decrypts the data as it is written.
-impl<R: Read + Unpin> DecryptionReader<R> {
+impl<R: Read + Unpin + Seek> DecryptionReader<R> {
     /// Create a new DecryptionReader.
     ///
     /// # Arguments
@@ -42,70 +41,95 @@ impl<R: Read + Unpin> DecryptionReader<R> {
     ///
     /// # Returns
     /// A DecryptionReader
-    pub async fn new(reader: R, key_and_nonce: KeyAndNonceToDisk) -> Result<Self> {
+    pub async fn new(mut reader: R, key_and_nonce: KeyAndNonceToDisk) -> Result<Self> {
         let KeyAndNonce { key, nonce } = *key_and_nonce.consume_and_prep_from_disk()?;
         let cipher = Aes256Gcm::new(&key);
         let decryptor = RefCell::new(StreamBE32::from_aead(cipher, &nonce).decryptor());
 
+        let file_len = reader.seek(SeekFrom::End(0))?;
         Ok(Self {
-            buf: RefCell::new(Vec::new()),
+            buf: RefCell::new(vec![]),
+            tag_buf: RefCell::new([0; TAG_SIZE]),
+            bytes_in_reader: RefCell::new(file_len as usize - TAG_SIZE),
             bytes_in_buffer: RefCell::new(0),
             buf_ptr: RefCell::new(0),
             reader: reader.into(),
             decryptor,
-            _size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
             bytes_read: RefCell::new(0),
-            eof: RefCell::new(false),
+            finalize: RefCell::new(false),
         })
     }
 
     /// Read from the Reader into the buffer, decrypting it in place.
     pub async fn refresh_buffer(&mut self) -> std::io::Result<()> {
+        println!("Refreshing buffer");
         // Borrow the mutable references to the fields we need
         let mut buf = self.buf.borrow_mut();
         let mut reader = self.reader.borrow_mut();
         let mut decryptor = self.decryptor.borrow_mut();
         let mut buf_ptr = self.buf_ptr.borrow_mut();
         let mut bytes_in_buffer = self.bytes_in_buffer.borrow_mut();
-        let mut eof = self.eof.borrow_mut();
+        let mut bytes_in_reader = self.bytes_in_reader.borrow_mut();
+
         // Assert that our internal buffer is empty
         assert_eq!(*buf_ptr, *bytes_in_buffer);
-        // Clear the buffer
+        // Clear the buffer and reset size
         buf.clear();
-        // Make sure the buffer is the right size (Do we need this?)
         buf.resize(BUF_SIZE, 0);
+
         // Read from the reader into the buffer
-        let new_bytes_read = reader.read(&mut buf)?;
-        // If we read 0 bytes, we're at the end of the file
-        if new_bytes_read == 0 {
-            // Set eof to true
-            *eof = true;
+        let new_bytes_read = reader.read(&mut *buf)?;
+        println!("Read {} bytes", new_bytes_read);
+
+        if new_bytes_read >= *bytes_in_reader {
+            // let's get the tag.
+            // there may be some tag bytes in the buffer, but maybe not all of them.
+            // we need to read the rest of any of them from the reader.
+            let mut tag_buf = self.tag_buf.borrow_mut();
+            // get the tag bytes out of the buffer
+            tag_buf[..new_bytes_read - *bytes_in_reader].copy_from_slice(&buf[*bytes_in_reader..new_bytes_read]);
+            // zero that part of the buffer
+            buf[*bytes_in_reader..new_bytes_read].fill(0);
+            // read the rest of the tag from the reader
+            reader.read_exact(&mut tag_buf[new_bytes_read - *bytes_in_reader..])?;
+            // set buf_ptr
+            *buf_ptr = 0;
+            // set bytes_in_buffer
+            *bytes_in_buffer = *bytes_in_reader;
+            // in this case, the last 16 bytes we read are the tag
+            *bytes_in_reader = 0;
+            // set the finalize flag
+            *self.finalize.borrow_mut() = true;
+        } else {
+            // Otherwise, there's more data to decrypt
+            *bytes_in_reader -= new_bytes_read;
+            // set buf_ptr
+            *buf_ptr = 0;
+            // set bytes_in_buffer
+            *bytes_in_buffer = new_bytes_read;
         }
-        // Otherwise, there's more data to decrypt
-        else {
+        // if we got anything, decrypt it
+        if *bytes_in_buffer > 0 {
+            // TODO laudiacay i think this copies
+            let mut buf_to_decrypt=  buf[..*bytes_in_buffer].to_vec();
+            // Decrypt the buffer in place
             (*decryptor)
-                .decrypt_next_in_place(b"".as_ref(), &mut *buf)
+                .decrypt_next_in_place(b"".as_ref(), &mut buf_to_decrypt)
                 .map_err(|_| {
                     std::io::Error::new(ErrorKind::Other, anyhow!("Error decrypting block!"))
                 })?;
         };
-        // Update the buffer pointer and bytes in buffer
-        // Set the bytes in buffer to the number of bytes read
-        *bytes_in_buffer = new_bytes_read;
-        // Set the buffer pointer to 0
-        *buf_ptr = 0;
         Ok(())
     }
 
     pub async fn finish(self) -> Result<usize> {
-        assert_eq!(
-            self.reader.borrow_mut().read(&mut self.buf.borrow_mut())?,
-            0
-        );
-        *self.bytes_read.borrow_mut() += self.buf.borrow().len();
+        assert_eq!(self.bytes_in_reader.borrow().clone(), 0);
+        assert_eq!(self.finalize.borrow().clone(), true);
+        assert_eq!(self.bytes_in_buffer.borrow().clone(), self.buf_ptr.borrow().clone());
+        // TODO maybe add a sanity check for bytes_read!
         self.decryptor
             .into_inner()
-            .decrypt_last_in_place(b"".as_ref(), &mut *self.buf.borrow_mut())
+            .decrypt_last_in_place(b"".as_ref(), &mut self.tag_buf.borrow().to_vec())
             .map_err(|_| anyhow!("Error decrypting last block"))?;
         Ok(*self.bytes_read.borrow_mut())
     }
@@ -116,7 +140,7 @@ impl<R: Read + Unpin> DecryptionReader<R> {
 }
 
 /// Implement the Read trait for DecryptionReader.
-impl<R: Read + Unpin> Read for DecryptionReader<R> {
+impl<R: Read + Unpin + Seek> Read for DecryptionReader<R> {
     /// Read from the DecryptionReader into a buffer.
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // Determine how many bytes can read into the buffer
@@ -128,14 +152,18 @@ impl<R: Read + Unpin> Read for DecryptionReader<R> {
         let mut self_pin = Pin::new(&mut *self);
 
         // Read as many bytes as we can into the buffer
-        while bytes_to_read > 0 && !*self_pin.eof.borrow() {
+        println!("made it");
+        while bytes_to_read > 0 && !self_pin.finalize.borrow().clone() {
+            println!("made it 2");
             // There's still bytes to read, and we're not at the end of the file
 
             // Determine how many bytes are available in the internal buffer
             let bytes_available = *self_pin.bytes_in_buffer.borrow() - *self_pin.buf_ptr.borrow();
             // If there's more to read than there's space available, read the space available
+            println!("bytes available: {}", bytes_available);
             if bytes_available >= bytes_to_read {
                 {
+                    println!("we should not be here");
                     let buf_ptr = self_pin.buf_ptr.borrow();
                     // Copy the bytes that can be read into the output buffer
                     buf_cursor
@@ -148,16 +176,20 @@ impl<R: Read + Unpin> Read for DecryptionReader<R> {
             }
             // Otherwise, read the bytes available
             else {
+                println!("we should be here");
                 // Do we need to write if bytes_available == 0?
                 {
                     let mut buf_ptr = self_pin.buf_ptr.borrow_mut();
                     // Copy all available bytes from the internal buffer into the output buffer
                     buf_cursor
                         .write_all(&self_pin.buf.borrow()[*buf_ptr..*buf_ptr + bytes_available])?;
-                    // Update the buffer pointer (They should be equal now)
+                    // Update the buffer pointer (it should now be at the end of the buffer, == bytes_in_buffer)
                     *buf_ptr += bytes_available;
                     // Update the number of bytes we still need to read
                     bytes_to_read -= bytes_available;
+                    println!("state check: {}", bytes_to_read);
+                    println!("state check: {}", bytes_available);
+                    println!("state check: {}", *buf_ptr);
                 }
                 // Refresh the internal buffer with decrypted data
                 // TODO block_on considered harmful
@@ -172,6 +204,11 @@ impl<R: Read + Unpin> Read for DecryptionReader<R> {
 // TODO (xBalbinus & thea-exe): Our inline tests
 #[cfg(test)]
 mod test {
+    use aead::Payload;
+    use aead::stream::{NewStream, StreamBE32, StreamPrimitive};
+    use aes_gcm::KeyInit;
+    use crate::crypto_tools::key_and_nonce_types::KeyAndNonce;
+
     #[tokio::test]
     /// Test that we can decrypt-read some random piece of data with a random key and nonce without
     /// panicking
@@ -182,27 +219,26 @@ mod test {
         use std::io::{Cursor, Read};
 
         // generate a random key and nonce
-        let keygen = keygen();
-        // Consume the keygen to get the key and nonce to disk
-        let KeyAndNonceToDisk { key, nonce } = keygen.consume_and_prep_to_disk();
+        let keygen @ KeyAndNonce {key, nonce} = keygen();
 
-        // generate a random piece of data in a 1kb buffer and wrap it in a cursor
+        // generate an all-zero piece of data in a 1kb buffer and wrap it in a cursor
         let mut data = vec![0u8; 1024];
-        OsRng.fill_bytes(&mut data);
-        let data_cursor = Cursor::new(data);
+        // encrypt the data
+        let mut enc = StreamBE32::from_aead(aes_gcm::Aes256Gcm::new(&key), &nonce).encryptor();
+        let encrypted = enc.encrypt_next(Payload::from(&*data)).unwrap();
 
         // Initialize the Decryption Reader
         let mut decryption_reader =
-            DecryptionReader::new(data_cursor, KeyAndNonceToDisk { key, nonce })
+            DecryptionReader::new(Cursor::new(encrypted),  keygen.consume_and_prep_to_disk())
                 .await
                 .unwrap();
 
         // Try and decrypt the data
-        let mut decrypted_data = vec![0u8; 1024];
+        let mut decrypted_data = vec![1u8; 1024];
         decryption_reader.read(&mut decrypted_data).unwrap();
         decryption_reader.finish().await.unwrap();
 
-        // If we got here, we didn't panic, so we're good
-        return;
+        // check that decrypted_data is now all zeros
+        assert_eq!(decrypted_data, vec![0u8; 1024]);
     }
 }
