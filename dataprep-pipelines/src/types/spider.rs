@@ -15,18 +15,22 @@ pub struct SpiderMetadata {
     pub original_metadata: Metadata,
 }
 
-    pub fn make_spider_metadata(entry: DirEntry<((), ())>, input_root: PathBuf) -> SpiderMetadata {
-        let original_root = input_root;
-        let original_location = entry.path().strip_prefix(&original_root).unwrap().to_path_buf();
-        let canonicalized_path = entry.path().canonicalize().unwrap();
-        let original_metadata = entry.metadata().unwrap();
-        SpiderMetadata {
-            original_root,
-            original_location,
-            canonicalized_path,
-            original_metadata,
-        }
+pub fn make_spider_metadata(entry: DirEntry<((), ())>, input_root: PathBuf) -> SpiderMetadata {
+    let original_root = input_root;
+    let original_location = entry
+        .path()
+        .strip_prefix(&original_root)
+        .unwrap()
+        .to_path_buf();
+    let canonicalized_path = entry.path().canonicalize().unwrap();
+    let original_metadata = entry.metadata().unwrap();
+    SpiderMetadata {
+        original_root,
+        original_location,
+        canonicalized_path,
+        original_metadata,
     }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FileType {
