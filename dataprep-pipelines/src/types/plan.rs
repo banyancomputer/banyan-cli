@@ -30,19 +30,22 @@ impl PartitionPlan {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EncryptionPlan {
-    pub cipher_info: String,
-    // TODO yikes
-    pub tag_size: u64,
+    pub identity: age::x25519::Identity,
 }
 
 impl EncryptionPlan {
-    pub fn new_aes_256_gcm() -> Self {
+    pub fn new() -> Self {
         EncryptionPlan {
-            cipher_info: "AES-256-GCM".to_string(),
-            tag_size: 16, // TODO is this right? CHECK
+            identity: age::x25519::Identity::generate(),
         }
+    }
+}
+
+impl Default for EncryptionPlan {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -52,7 +55,7 @@ pub struct WriteoutPlan {
 }
 
 /// this struct is used to build up the data processing steps for a file
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DataProcessPlan {
     /// describes how we will compress the file
     pub compression: CompressionPlan,

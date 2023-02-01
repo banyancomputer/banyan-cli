@@ -32,3 +32,4 @@ serde_json = { version = "1.0.72", features = ["std"]}
 dataprep-pipelines = { version = "0.1.0", path = "./dataprep-pipelines" }
 # TODO (laudiacay) eventually you want to use CBOR but debug with JSON
 printio = "0.2.2"
+age = {version = "0.9.0", features = ["async"]}

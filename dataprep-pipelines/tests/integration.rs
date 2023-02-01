@@ -1,7 +1,6 @@
+use dir_assert::assert_paths;
 use std::path::PathBuf;
 use tokio::fs;
-use dir_assert::assert_paths;
-
 
 #[tokio::test]
 async fn it_works_for_one_file() {
@@ -42,5 +41,4 @@ async fn it_works_for_one_file() {
     .unwrap();
     // checks if two directories are the same
     assert_paths(input_dir, unpacked_dir).unwrap();
-
 }

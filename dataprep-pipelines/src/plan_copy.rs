@@ -38,8 +38,7 @@ pub async fn plan_copy(
             origin_data: Rc::new(origin_data),
             data_processing: DataProcessDirective::Directory,
         })
-    }
-    else if origin_data.original_metadata.is_symlink() {
+    } else if origin_data.original_metadata.is_symlink() {
         // return
         Ok(PipelinePlan {
             origin_data: Rc::new(origin_data),
@@ -89,7 +88,7 @@ pub async fn plan_copy(
                 data_processing: DataProcessDirective::File(DataProcessPlan {
                     compression: CompressionPlan::new_gzip(),
                     partition: PartitionPlan::new(target_chunk_size, num_chunks),
-                    encryption: EncryptionPlan::new_aes_256_gcm(),
+                    encryption: EncryptionPlan::new(),
                     writeout: WriteoutPlan {
                         output_paths: random_filenames,
                     },
