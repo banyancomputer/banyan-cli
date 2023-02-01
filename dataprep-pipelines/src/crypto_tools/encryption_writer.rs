@@ -1,3 +1,6 @@
+// THIS FILE IS DEPRECATED- WE ARE USING AGE INSTEAD
+
+
 use crate::crypto_tools::key_and_nonce_types::{keygen, KeyAndNonce, KeyAndNonceToDisk, TAG_SIZE, BUF_SIZE};
 use aead::stream::NewStream;
 use aead::stream::{Encryptor, StreamBE32, StreamPrimitive};
@@ -18,6 +21,8 @@ use tokio::io::{AsyncSeek, AsyncWrite, AsyncWriteExt};
 pub struct EncryptionWriter<W: AsyncWrite + Unpin> {
     /// Internal buffer, holds data to be encrypted in place
     buf: RefCell<Vec<u8>>,
+    /// Pointer to the end of the buffer
+    buf_ptr: RefCell<usize>,
     /// Writer to another file
     writer: RefCell<W>,
     /// Encryptor. This stores the key
@@ -48,10 +53,12 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
         let cipher = Aes256Gcm::new(&key);
         let encryptor = RefCell::new(StreamBE32::from_aead(cipher, &nonce).encryptor());
 
-        // kick things off with a cute little nonce write
+        // get the file length
+
         (
             Self {
-                buf: RefCell::new(Vec::new()),
+                buf: RefCell::new(vec![0; BUF_SIZE + TAG_SIZE]),
+                buf_ptr: RefCell::new(0),
                 writer: writer.into(),
                 encryptor,
                 size_limit: BUF_SIZE, // TODO (laudiacay) maybe one day make changeable
@@ -67,7 +74,7 @@ impl<W: AsyncWrite + Unpin> EncryptionWriter<W> {
         // TODO (laudiacay): check this logic better, especially once your PR is merged on rust crypto
         self.encryptor
             .into_inner()
-            .encrypt_last(Payload::from(self.buf.borrow_mut().as_slice()))
+            .encrypt_last(Payload::from(b"finalize"))
             .unwrap();
         executor::block_on(self.writer.borrow_mut().write_all(&self.buf.borrow_mut()))?;
         *self.bytes_written.borrow_mut() += self.buf.borrow().len();
@@ -88,29 +95,24 @@ impl<W: AsyncWrite + Unpin > Write for EncryptionWriter<W> {
         // if it's too long, we need to split it up so we're not encrypting more than the buffer size at a time
         let mut buf = buf;
         while !buf.is_empty() {
-            // figure out how much space is left
-            let remaining_space = self_pin.size_limit - self_pin.buf.borrow().len();
-
-            if remaining_space > buf.len() {
+            // get the buffer pointer
+            let mut buf_ptr = self_pin.buf_ptr.borrow_mut();
+            // how much of the buf can we fit in the buffer?
+            if *buf_ptr + buf.len() <= self_pin.size_limit {
                 // if we can fit it all in the buffer, do that
-                self_pin.buf.borrow_mut().extend_from_slice(buf);
-                break;
-                // TODO make sure you test this logic with a big chunkin file
-            }
-
-            // grab what we can fit in the buffer
-            let (buf1, buf2) = buf.split_at(remaining_space);
-
-            // stick it in there
-            self_pin.buf.borrow_mut().extend_from_slice(buf1);
-
-            // flush if we're full
-            if self_pin.buf.borrow().len() >= self_pin.size_limit {
+                self_pin.buf.borrow_mut()[*buf_ptr..*buf_ptr + buf.len()].copy_from_slice(buf);
+                *buf_ptr += buf.len();
+                let buf = &buf[buf.len()..];
+            } else {
+                // grab what we can fit in the buffer
+                let (buf1, buf2) = buf.split_at(self_pin.size_limit - *buf_ptr);
+                // stick it in there
+                self_pin.buf.borrow_mut()[*buf_ptr..*buf_ptr + buf1.len()].copy_from_slice(buf1);
+                // flush if we're full
                 self_pin.flush()?;
-            };
-
-            // advance the buffer
-            buf = buf2;
+                // set the buf to the rest of the data
+                buf = buf2;
+            }
         }
         Ok(buf.len())
     }
@@ -119,6 +121,7 @@ impl<W: AsyncWrite + Unpin > Write for EncryptionWriter<W> {
     fn flush(&mut self) -> std::io::Result<()> {
         let self_pin = Pin::new(&mut *self);
 
+        assert!(*self.buf_ptr.borrow() == self.size_limit);
         // do the encryption
         self_pin
             .encryptor
