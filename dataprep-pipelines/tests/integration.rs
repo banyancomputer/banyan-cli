@@ -8,7 +8,7 @@ const INPUT_DIR: PathBuf = PathBuf::from("test/input");
 const OUTPUT_DIR: PathBuf = PathBuf::from("test/output");
 const UNPACKED_DIR: PathBuf = PathBuf::from("test/unpacked");
 
-fn setup_structure() {
+async fn setup_structure() {
     // remove any old test crud
     fs::remove_dir_all(TEST_DIR).await.unwrap();
     fs::create_dir(TEST_DIR).await.unwrap();
@@ -20,7 +20,7 @@ fn setup_structure() {
     fs::create_dir(UNPACKED_DIR).await.unwrap();
 }
 
-fn transform_and_check() {
+async fn transform_and_check() {
     // run the function
     println!("doing pack pipeline!");
     dataprep_pipelines::pipeline::pack_pipeline::pack_pipeline(
@@ -41,7 +41,7 @@ fn transform_and_check() {
     .await
     .unwrap();
     // checks if two directories are the same
-    assert_paths(input_dir, unpacked_dir).unwrap();
+    assert_paths(INPUT_DIR, UNPACKED_DIR).unwrap();
 }
 
 // TODO: make a function that puts random data into a file with a given length
@@ -50,7 +50,7 @@ fn transform_and_check() {
 // function is called to create the desired directory structure
 #[tokio::test]
 async fn test_directory_structure() {
-    fn create_directory_structure(depth: i32, subdirectories_per_dir: i32, parent_dir: &str) {
+    async fn create_directory_structure(depth: i32, subdirectories_per_dir: i32, parent_dir: &str) {
         let mut current_depth = 0;
         let mut current_dir = parent_dir.to_string();
 
