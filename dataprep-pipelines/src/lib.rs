@@ -31,6 +31,7 @@
 
 use dir_assert as _;
 use lazy_static as _;
+use rand as _;
 
 extern crate core;
 
