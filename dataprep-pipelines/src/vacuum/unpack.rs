@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
+use std::iter;
 
-use crate::crypto_tools::decryption_reader::DecryptionReader;
 use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::write::GzDecoder;
@@ -47,9 +47,18 @@ pub async fn do_file_pipeline(
                             chunk
                         ))?;
                 // TODO naughty clone
-                let mut old_file_reader =
-                    DecryptionReader::new(old_file_reader, encrypted_piece.key_and_nonce.clone())
-                        .await?;
+
+                let mut old_file_reader = {
+                    let decryptor = match age::Decryptor::new(old_file_reader)? {
+                        age::Decryptor::Recipients(decryptor) => decryptor,
+                        age::Decryptor::Passphrase(_) => {
+                            return Err(anyhow!("passphrase decryption not supported"))
+                        }
+                    };
+                    decryptor.decrypt(iter::once(
+                        &encrypted_piece.identity.clone() as &dyn age::Identity
+                    ))?
+                };
                 // put a gzip encoder on it then buffer it
 
                 std::io::copy(&mut old_file_reader, &mut new_file_writer)?;

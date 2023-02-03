@@ -3,12 +3,13 @@ use crate::types::{
     shared::DataProcessDirective,
     spider::SpiderMetadata,
 };
+use age::secrecy::ExposeSecret;
 use anyhow::anyhow;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::str::FromStr;
 
-use crate::crypto_tools::key_and_nonce_types::KeyAndNonceToDisk;
 use crate::types::shared::DataProcessDirectiveToDisk;
 use crate::types::spider::SpiderMetadataToDisk;
 use serde::{Deserialize, Serialize};
@@ -32,22 +33,40 @@ pub struct PartitionMetadata {
     pub num_chunks: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// Metadata generated when a part of a file is encrypted and compressed
-pub struct EncryptionPart {
-    /// The key and nonce used to encrypt the part or file
-    pub key_and_nonce: KeyAndNonceToDisk,
-    /// The size after encryption
-    pub size_after: u64,
+fn serialize_age_identity<S>(
+    identity: &age::x25519::Identity,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(identity.to_string().expose_secret())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+fn deserialize_age_identity<'de, D>(deserializer: D) -> Result<age::x25519::Identity, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    age::x25519::Identity::from_str(&s).map_err(serde::de::Error::custom)
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+/// Metadata generated when a part of a file is encrypted and compressed
+pub struct EncryptionPart {
+    /// age identity for decrypting this part
+    #[serde(
+        serialize_with = "serialize_age_identity",
+        deserialize_with = "deserialize_age_identity"
+    )]
+    pub identity: age::x25519::Identity,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 /// Metadata generated when a file is compressed and encrypted
 pub struct EncryptionMetadata {
     /// The parts of the file that were encrypted and associated metadata
     pub encrypted_pieces: Vec<EncryptionPart>,
-    /// The cipher used to encrypt the file
-    pub cipher_info: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,7 +89,7 @@ pub struct WriteoutMetadata {
 // }
 
 /// this struct is the completed data processing steps for a file
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DataProcess {
     /// describes how we compressed the entire file
     pub compression: CompressionMetadata,
@@ -100,7 +119,7 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
 }
 
 /// describes how a file from the origin was processed.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Pipeline {
     /// describes where a file came from on the original filesystem
     pub origin_data: Rc<SpiderMetadata>,
@@ -121,7 +140,7 @@ impl TryFrom<PipelinePlan> for Pipeline {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PipelineToDisk {
     /// describes where a file came from on the original filesystem
     pub origin_data: SpiderMetadataToDisk,
