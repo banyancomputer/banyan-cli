@@ -30,6 +30,7 @@
  */
 
 use dir_assert as _;
+use lazy_static as _;
 
 extern crate core;
 

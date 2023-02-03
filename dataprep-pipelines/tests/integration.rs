@@ -1,23 +1,29 @@
+#[macro_use]
+extern crate lazy_static;
+
 use dir_assert::assert_paths;
 use std::path::PathBuf;
 use tokio::fs;
+use tokio::task;
 
-const MANIFEST_FILE: PathBuf = PathBuf::from("test/manifest.json");
-const TEST_DIR: PathBuf = PathBuf::from("test");
-const INPUT_DIR: PathBuf = PathBuf::from("test/input");
-const OUTPUT_DIR: PathBuf = PathBuf::from("test/output");
-const UNPACKED_DIR: PathBuf = PathBuf::from("test/unpacked");
+lazy_static! {
+    static ref MANIFEST_FILE: PathBuf = PathBuf::from("test/manifest.json");
+    static ref TEST_DIR: PathBuf = PathBuf::from("test");
+    static ref INPUT_DIR: PathBuf = PathBuf::from("test/input");
+    static ref OUTPUT_DIR: PathBuf = PathBuf::from("test/output");
+    static ref UNPACKED_DIR: PathBuf = PathBuf::from("test/unpacked");
+}
 
 async fn setup_structure() {
     // remove any old test crud
-    fs::remove_dir_all(TEST_DIR).await.unwrap();
-    fs::create_dir(TEST_DIR).await.unwrap();
+    fs::remove_dir_all(&*TEST_DIR).await.unwrap();
+    fs::create_dir(&*TEST_DIR).await.unwrap();
     // create input directory
-    fs::create_dir(INPUT_DIR).await.unwrap();
+    fs::create_dir(&*INPUT_DIR).await.unwrap();
     // create output directory
-    fs::create_dir(OUTPUT_DIR).await.unwrap();
+    fs::create_dir(&*OUTPUT_DIR).await.unwrap();
     // create final output directory for unpacked
-    fs::create_dir(UNPACKED_DIR).await.unwrap();
+    fs::create_dir(&*UNPACKED_DIR).await.unwrap();
 }
 
 async fn transform_and_check() {
@@ -34,14 +40,14 @@ async fn transform_and_check() {
     .unwrap();
     println!("doing unpack pipeline!");
     dataprep_pipelines::pipeline::unpack_pipeline::unpack_pipeline(
-        OUTPUT_DIR,
-        MANIFEST_FILE,
+        OUTPUT_DIR.to_path_buf(),
+        MANIFEST_FILE.to_path_buf(),
         UNPACKED_DIR.clone(),
     )
     .await
     .unwrap();
     // checks if two directories are the same
-    assert_paths(INPUT_DIR, UNPACKED_DIR).unwrap();
+    assert_paths(&*INPUT_DIR, &*UNPACKED_DIR).unwrap();
 }
 
 // TODO: make a function that puts random data into a file with a given length
@@ -57,8 +63,9 @@ async fn test_directory_structure() {
         while current_depth < depth {
             for i in 0..subdirectories_per_dir {
                 let new_dir = format!("{}/{}_{}", current_dir, current_depth, i);
+                let new_dir_clone = new_dir.clone();
                 task::spawn(async move {
-                    fs::create_dir(new_dir).await.unwrap();
+                    fs::create_dir(new_dir_clone).await.unwrap();
                 })
                 .await;
 
