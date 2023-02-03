@@ -1116,9 +1116,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
-<<<<<<< HEAD
- "rand_core",
-=======
  "rand_core 0.6.4",
 ]
 
@@ -1129,7 +1126,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90bde5296fc891b0cef12a6d03ddccc162ce7b2aff54160af9338f8d40df6d19"
 dependencies = [
  "getrandom 0.1.16",
->>>>>>> 797f7a089ab6d033b0eb171113e13d7a3500bedb
 ]
 
 [[package]]
