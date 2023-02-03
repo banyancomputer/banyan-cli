@@ -20,4 +20,5 @@ uuid.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 dir-assert.workspace = true # TODO this should be a dev dependency but something's upsetting clippy.
+lazy_static.workspace = true
 printio.workspace = true
