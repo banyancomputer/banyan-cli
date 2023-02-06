@@ -5,10 +5,7 @@ extern crate rand;
 use dir_assert::assert_paths;
 use rand::Rng;
 use std::path::PathBuf;
-use std::{
-    io::{Write},
-    fs
-};
+use std::{fs, io::Write};
 
 lazy_static! {
     static ref MANIFEST_FILE: PathBuf = PathBuf::from("test/manifest.json");
@@ -72,7 +69,7 @@ pub struct FileStructure {
     /// How deep the directory structure should be. 0 means this is a file
     pub depth: usize,
     /// How much data should be in the file
-    pub target_size: usize
+    pub target_size: usize,
 }
 
 // TODO (amiller68) : maybe benchmark
@@ -118,7 +115,8 @@ impl FileStructure {
                 new_path.push(i.to_string());
                 // TODO: Is it ok to recurse here?
                 // Generate a new FileStructure with the new path
-                FileStructure::new(self.width, self.depth - 1, target_size).generate_balanced(new_path);
+                FileStructure::new(self.width, self.depth - 1, target_size)
+                    .generate_balanced(new_path);
             }
         }
     }
