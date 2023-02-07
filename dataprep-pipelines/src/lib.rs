@@ -23,11 +23,10 @@
  * 7. TODO (laudiacay): Make car file with it.
  */
 
+// Used by benchmarking and testing
+use criterion as _;
 use dir_assert as _;
 use fs_extra as _;
-use lazy_static as _;
-use rand as _;
-
 extern crate core;
 
 pub mod fs_carfiler;

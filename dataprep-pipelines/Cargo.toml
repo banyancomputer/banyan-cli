@@ -23,3 +23,9 @@ rand.workspace = true
 printio.workspace = true
 age.workspace = true
 fs_extra.workspace = true
+criterion.workspace = true
+fs_extra.workspace = true
+
+[[bench]]
+name = "pipeline"
+harness = false

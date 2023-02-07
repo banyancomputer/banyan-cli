@@ -36,7 +36,7 @@ async fn main() {
             manifest_file,
             output_dir,
         } => {
-            unpack_pipeline(input_dir, manifest_file, output_dir)
+            unpack_pipeline(input_dir, output_dir, manifest_file)
                 .await
                 .unwrap();
         }
