@@ -86,6 +86,7 @@ impl FileStructure {
     /// # Arguments
     /// path: The path to generate the file structure at
     /// # Panics
+    /// Panics if it cant create a directory at the given path (i.e. the path parent doesn't exist)
     /// Panics if the path already exists
     /// Errors if the file structure cannot be generated
     pub fn generate(&self, path: PathBuf) -> Result<(), Error> {
@@ -93,7 +94,7 @@ impl FileStructure {
         assert!(!path.exists());
         // If this is 0, we're creating a file
         if self.depth == 0 {
-            let file_path = path.clone();
+            let file_path = path;
             // Create a file with the target size
             create_random_file(file_path, self.target_size, self.utf8_only);
             return Ok(()); // We're done here
@@ -257,7 +258,8 @@ pub fn create_random_file(path: PathBuf, size: usize, utf8_only: bool) {
         } else {
             buf[0] = rng.gen();
         }
-        file.write(&buf).unwrap();
+        let n = file.write(&buf).unwrap();
+        assert_eq!(n, 1);
     }
 }
 
@@ -271,7 +273,7 @@ pub fn create_random_file(path: PathBuf, size: usize, utf8_only: bool) {
 /// use dataprep_pipelines::utils::fs::ensure_path_exists_and_is_dir;
 /// use std::path::PathBuf;
 /// let path = PathBuf::from("test");
-/// ensure_path_exists_and_is_dir(&path)?;
+/// ensure_path_exists_and_is_dir(&path).unwrap();
 /// ```
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     if !path.exists() {
@@ -294,7 +296,7 @@ pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
 /// use dataprep_pipelines::utils::fs::ensure_path_exists_and_is_empty_dir;
 /// use std::path::PathBuf;
 /// let path = PathBuf::from("test");
-/// ensure_path_exists_and_is_empty_dir(&path, bool)?;
+/// ensure_path_exists_and_is_empty_dir(&path, false).unwrap();
 /// ```
 pub fn ensure_path_exists_and_is_empty_dir(path: &Path, force: bool) -> Result<()> {
     // Check the path exists and is a directory
