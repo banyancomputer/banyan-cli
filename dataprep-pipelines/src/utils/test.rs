@@ -21,22 +21,21 @@ pub fn setup_test_structure(
     desired_structure: FileStructure,
 ) {
     // Remove all old test files and directories
-    fs::remove_dir_all(PathBuf::from(&*test_path)).unwrap_or_default();
+    fs::remove_dir_all(PathBuf::from(test_path)).unwrap_or_default();
     // Create the test directory
-    fs::create_dir(PathBuf::from(&*test_path)).unwrap();
+    fs::create_dir(PathBuf::from(test_path)).unwrap();
     // create a test set directory structure with a width of 2, depth of 2, and a target size of 1024 bytes
-    let mut input_path = PathBuf::from(&*input_path);
+    let mut input_path = PathBuf::from(input_path);
     fs::create_dir(input_path.clone()).unwrap();
     input_path.push(desired_structure.to_string());
-    println!("input_path: {:?}", input_path);
     // create a directory structure at the given path
     desired_structure.generate(input_path.clone()).unwrap();
     // Create the output directory
-    fs::create_dir(PathBuf::from(&*output_path)).unwrap();
+    fs::create_dir(PathBuf::from(output_path)).unwrap();
     // Create the unpacked directory
-    fs::create_dir(PathBuf::from(&*unpacked_path)).unwrap();
+    fs::create_dir(PathBuf::from(unpacked_path)).unwrap();
     // Remove the manifest file if it exists
-    fs::remove_file(PathBuf::from(&*manifest_file_path)).unwrap_or_default();
+    fs::remove_file(PathBuf::from(manifest_file_path)).unwrap_or_default();
 }
 
 pub async fn pipeline_test(
@@ -47,18 +46,18 @@ pub async fn pipeline_test(
 ) {
     // run the function
     pack_pipeline(
-        PathBuf::from(&*input_dir),
-        PathBuf::from(&*output_dir),
-        PathBuf::from(&*manifest_file),
+        PathBuf::from(input_dir),
+        PathBuf::from(output_dir),
+        PathBuf::from(manifest_file),
         1073741824, // 1GB
         false,
     )
     .await
     .unwrap();
     unpack_pipeline(
-        PathBuf::from(&*output_dir),
-        PathBuf::from(&*manifest_file),
-        PathBuf::from(&*unpacked_dir),
+        PathBuf::from(output_dir),
+        PathBuf::from(manifest_file),
+        PathBuf::from(unpacked_dir),
     )
     .await
     .unwrap();

@@ -98,12 +98,6 @@ pub async fn plan_copy(
     }
 }
 
-// TODO (xBalbinus & thea-exe): Our inline tests
+// TODO (thea-exe): Our inline tests
 #[cfg(test)]
-mod test {
-    // Note (amiller68): I'm pretty sure this needs to run in a tokio task, but I could be wrong.
-    #[tokio::test]
-    async fn test_copy_file_or_dir() {
-        todo!("Write tests");
-    }
-}
+mod test {}
