@@ -1,6 +1,7 @@
 use crate::plan_copy::plan_copy;
 use crate::types::pipeline::PipelineToDisk;
-use crate::{fsutil, spider, vacuum};
+use crate::utils::fs as fsutil;
+use crate::{spider, vacuum};
 use anyhow::Result;
 use futures::FutureExt;
 use std::collections::HashMap;
@@ -18,7 +19,7 @@ pub async fn pack_pipeline(
 ) -> Result<()> {
     // Get the output DIR from the command line arguments
     let output_dir = output_dir.canonicalize()?;
-    fsutil::ensure_path_exists_and_is_empty_dir(&output_dir)
+    fsutil::ensure_path_exists_and_is_empty_dir(&output_dir, false)
         .expect("output directory must exist and be empty");
 
     // Note (amiller68): We don't necessarily need to create the keys dir, removing for now.
