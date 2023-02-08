@@ -105,12 +105,6 @@ pub async fn do_file_pipeline(
         }),
     }
 }
-// TODO (xBalbinus & thea-exe): Our inline tests
-// Note (amiller68): Testing may rely on decrypting the file, which is not yet implemented
+// TODO (thea-exe): Our inline tests
 #[cfg(test)]
-mod test {
-    #[test]
-    fn test() {
-        todo!("Test compression and encryption");
-    }
-}
+mod test {}
