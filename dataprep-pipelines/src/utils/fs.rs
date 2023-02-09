@@ -82,7 +82,8 @@ impl FileStructure {
         }
     }
 
-    /// Generate a FileStructure with the given path
+    /// Generate a FileStructure with the given path. Does not check if the path can hold
+    /// the file structure. Use with caution!
     /// # Arguments
     /// path: The path to generate the file structure at
     /// # Panics
@@ -186,8 +187,7 @@ mod test {
     #[test]
     fn test_balanced_file_structure() {
         use super::*;
-        let mut test_scratch_space =
-            PathBuf::from("test_scratch_space/test_balanced_file_structure");
+        let mut test_scratch_space = PathBuf::from("test/test_balanced_file_structure");
         // Remove the scratch space and recreate it
         fs::remove_dir_all(&test_scratch_space).unwrap_or(());
         fs::create_dir_all(&test_scratch_space).unwrap();
@@ -233,7 +233,6 @@ mod test {
 
 /* Miscellaneous filesystem utilities */
 
-// TODO (thea-exe): Add a quick test for this
 /// Create a random at the given path with the given size
 /// # Arguments
 /// * `path` - The path to create the file at

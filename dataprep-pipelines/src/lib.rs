@@ -27,6 +27,10 @@
 use criterion as _;
 use dir_assert as _;
 use fs_extra as _;
+use lazy_static as _;
+use pprof as _;
+use test_notifier as _;
+
 extern crate core;
 
 pub mod fs_carfiler;
