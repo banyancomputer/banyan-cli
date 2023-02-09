@@ -140,6 +140,11 @@ impl TryFrom<PipelinePlan> for Pipeline {
     }
 }
 
+pub struct PipelineToCar {
+    pipeline: Pipeline,
+    car_id: Cid,
+}
+// TODO deduplicate by removing things from todisk earlier. this is silly
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PipelineToDisk {
     /// describes where a file came from on the original filesystem

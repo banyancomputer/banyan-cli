@@ -1,8 +1,11 @@
 [workspace]
 members = [
     "dataprep",
-    "dataprep-pipelines"
+    "dataprep-pipelines",
+    #"carfile-rs"
 ]
+exclude = ["carfile-rs"]
+
 [workspace.package]
 version = "0.1.0"
 license = "MIT"
@@ -32,4 +35,5 @@ serde_json = { version = "1.0.72", features = ["std"]}
 dataprep-pipelines = { version = "0.1.0", path = "./dataprep-pipelines" }
 # TODO (laudiacay) eventually you want to use CBOR but debug with JSON
 printio = "0.2.2"
-age = {version = "0.9.0", features = ["async"]}
+iroh-bitswap = "0.2.0"
+
