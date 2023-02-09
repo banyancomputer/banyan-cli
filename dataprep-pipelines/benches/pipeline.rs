@@ -10,7 +10,7 @@ use fs_extra::dir;
 use lazy_static::lazy_static;
 use std::time::Duration;
 use std::{env, fs, path::PathBuf};
-// use test_notifier::TestNotifier;
+use test_notifier::TestNotifier;
 use tokio::runtime::Runtime;
 
 mod perf;
@@ -28,13 +28,138 @@ lazy_static! {
     // Path we will use to hold the manifest files generated during benchmarking
     static ref MANIFEST_PATH: String = env::var("MANIFESTS_PATH").unwrap_or_else(|_| "bench/manifests".to_string());
     // IFTTT key to use for sending notifications
-    static ref IFTTT_KEY: String = env::var("IFTTT_KEY").unwrap_or_else(|_| "none".to_string());
+    static ref IFTTT_KEY: String = env::var("IFTTT_TEST_WEBHOOK_KEY").unwrap_or_else(|_| "none".to_string());
+
+    // Test Set Generation
+    // What sort of File Structures to generate
+    // This is a comma separated list [ simple, skinny, wide, file ]
+    static ref BENCH_FILE_STRUCTURES_STRING: String = env::var("BENCH_FILE_STRUCTURES").unwrap_or_else(|_| "simple".to_string());
+    // How big each test should be
+    // Try and make all the following powers of 2
+    static ref BENCH_FILE_STRUCTURE_SIZE: usize = env::var("BENCH_FILE_STRUCTURE_SIZE")
+        .unwrap_or_else(|_| "1048576".to_string()) // Default to 1Mb
+        .parse::<usize>()
+        .unwrap();
+    static ref BENCH_FILE_STRUCTURE_MAX_WIDTH : usize = env::var("BENCH_FILE_STRUCTURE_MAX_WIDTH")
+        .unwrap_or_else(|_| "4".to_string()) // Default to 4
+        .parse::<usize>()
+        .unwrap();
+    static ref BENCH_FILE_STRUCTURE_MAX_DEPTH : usize = env::var("BENCH_FILE_STRUCTURE_MAX_DEPTH")
+        .unwrap_or_else(|_| "4".to_string()) // Default to 4
+        .parse::<usize>()
+        .unwrap();
+    // How long to run each sample for
+    static ref SAMPLE_TIME: usize = env::var("BENCH_SAMPLE_TIME")
+        .unwrap_or_else(|_| "30".to_string()) // Default to 30 seconds
+        .parse::<usize>()
+        .unwrap();
+    // Hwo many samples
+    static ref SAMPLE_SIZE: usize = env::var("BENCH_SAMPLE_COUNT")
+        .unwrap_or_else(|_| "10".to_string()) // Default to 10 samples
+        .parse::<usize>()
+        .unwrap();
+    static ref WARMUP_TIME: usize = env::var("BENCH_WARMUP_TIME")
+        .unwrap_or_else(|_| "5".to_string()) // Default to 5 seconds
+        .parse::<usize>()
+        .unwrap();
+}
+
+// /// Read what File structures we want to test from the environment
+// /// # Returns
+// /// A list of file structures to test - if nothing is specified we test one
+// /// And how big each test should be
+// /// Usage:
+// ///  BENCH_FILE_STRUCTURES="simple,skinny,wide,file" cargo bench
+fn get_desired_file_structures() -> Vec<FileStructure> {
+    // Initialize a list of file structures to test
+    let mut desired_structures: Vec<FileStructure> = Vec::new();
+    // Get the list of file structures to test from the environment
+    let bench_file_structures = BENCH_FILE_STRUCTURES_STRING.as_str();
+    // Get the size of the test from the environment, as a usize
+    let bench_file_structure_size = *BENCH_FILE_STRUCTURE_SIZE;
+    // Split the list of file structures into a list of strings
+    let file_structures = bench_file_structures.split(",");
+    // Get the max width of the file structures
+    let max_width = *BENCH_FILE_STRUCTURE_MAX_WIDTH;
+    // Get the max depth of the file structures
+    let max_depth = *BENCH_FILE_STRUCTURE_MAX_DEPTH;
+
+    // Print the file structures we are testing
+    println!("Testing File Structures: {}", bench_file_structures);
+    // Print the size of the test
+    println!("Testing File Structure Size: {}", bench_file_structure_size);
+    // Print the max width of the file structures
+    println!("Testing File Structure Max Width: {}", max_width);
+    // Print the max depth of the file structures
+    println!("Testing File Structure Max Depth: {}", max_depth);
+
+    // We're only gonna make balanced trees for now
+    let strategy = FileStructureStrategy::Balanced;
+    // Iterate through the list of file structures
+    for file_structure in file_structures {
+        // Add the file structure to our list of desired structures
+        match file_structure {
+            "skinny" => {
+                let structure = FileStructure::new(
+                    max_width / 2,
+                    max_depth,
+                    bench_file_structure_size,
+                    strategy.clone(),
+                    false, // This is a dummy value, we don't care about it
+                );
+                desired_structures.push(structure);
+            }
+            "wide" => {
+                let structure = FileStructure::new(
+                    max_width,
+                    max_depth / 2,
+                    bench_file_structure_size,
+                    strategy.clone(),
+                    false, // This is a dummy value, we don't care about it
+                );
+                desired_structures.push(structure);
+            }
+            "file" => {
+                let structure = FileStructure::new(
+                    0,
+                    0,
+                    bench_file_structure_size,
+                    strategy.clone(),
+                    false, // This is a dummy value, we don't care about it
+                );
+                desired_structures.push(structure);
+            }
+            // catches simple and anything else
+            _ => {
+                let structure = FileStructure::new(
+                    max_width,
+                    max_depth,
+                    bench_file_structure_size,
+                    strategy.clone(),
+                    false, // This is a dummy value, we don't care about it
+                );
+                desired_structures.push(structure);
+            }
+        }
+        // Add the structure to the list of desired structures
+    }
+    // Return the list of desired structures
+    desired_structures
 }
 
 /// Populate the input directory with a with a test set to benchmark against
 /// # Arguments
 /// # `desired_structures` - A list of file structures to generate
-pub fn populate_input_dirs(desired_structures: Vec<FileStructure>) {
+fn populate_input_dirs(desired_structures: Vec<FileStructure>) {
+    // TODO - ifttt for sending notifications - this doesn't work yet for me
+    // Get the string from the IFTTT key
+    let ifttt_key = IFTTT_KEY.as_str();
+    // If the key is not "none", then we want to send notifications
+    if ifttt_key != "none" {
+        println!("Sending notifications to IFTTT webhook: {}", ifttt_key);
+        // Create a notifier
+        let _tn = TestNotifier::new_with_message("Populating Input Directories".to_string());
+    }
     // Get the paths we want to use by turning these into a list of paths
     let desired_paths = desired_structures
         .iter()
@@ -294,15 +419,7 @@ fn unpack_benchmark(
 pub fn pipeline_benchmark(c: &mut Criterion) {
     // TODO - replace with some sort of bench manifest
     // Define the file structure to test
-    let desired_structure: FileStructure = FileStructure::new(
-        4,                               // width
-        4,                               // depth
-        1024,                            // target size in bytes (1Kb)
-        FileStructureStrategy::Balanced, // Balanced
-        true,                            // utf8 only
-    );
-    // Turn our desired file structure into a one member list
-    let desired_structures: Vec<FileStructure> = vec![desired_structure];
+    let desired_structures = get_desired_file_structures();
     // TODO - ifttt for setting up directory structures
     // Setup the bench
     setup_bench(desired_structures);
@@ -312,10 +429,18 @@ pub fn pipeline_benchmark(c: &mut Criterion) {
     let packed_path = PathBuf::from(PACKED_PATH.as_str());
     let unpacked_path = PathBuf::from(UNPACKED_PATH.as_str());
 
-    // TODO - ifttt for notifying when test are done
     // Read the input directory for the benchmark
     let input_dir = fs::read_dir(root_input_path).unwrap();
     // Iterate over our input directories and run the benchmarks
+    // TODO - ifttt for sending notifications - this doesn't work yet for me
+    // Get the string from the IFTTT key
+    let ifttt_key = IFTTT_KEY.as_str();
+    // If the key is not "none", then we want to send notifications
+    if ifttt_key != "none" {
+        println!("Sending notifications to IFTTT webhook: {}", ifttt_key);
+        // Create a notifier
+        let _tn = TestNotifier::new_with_message("Running Benchmarks".to_string());
+    }
     for entry in input_dir {
         // Paths we will have to mutate
         let mut input_path = PathBuf::from(INPUT_PATH.as_str());
@@ -341,9 +466,9 @@ pub fn pipeline_benchmark(c: &mut Criterion) {
 fn custom_config() -> Criterion {
     // Get the size of the input directory
     Criterion::default()
-        .sample_size(10)
-        .measurement_time(Duration::from_secs(30))
-        .warm_up_time(Duration::from_secs(5))
+        .sample_size(*SAMPLE_SIZE)
+        .measurement_time(Duration::from_secs(*SAMPLE_TIME as u64))
+        .warm_up_time(Duration::from_secs(*WARMUP_TIME as u64))
         .with_profiler(perf::FlamegraphProfiler::new(100))
 }
 

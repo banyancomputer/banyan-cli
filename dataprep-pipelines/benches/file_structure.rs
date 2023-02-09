@@ -29,8 +29,8 @@ fn balanced_file_structure(c: &mut Criterion) {
     let bench_path = PathBuf::from(BENCH_PATH.as_str());
     ensure_path_exists_and_is_dir(&bench_path).unwrap();
     // Get the input path and make sure it exists and is empty
-    let input_path = PathBuf::from(INPUT_PATH.as_str()).join("balanced");
-    ensure_path_exists_and_is_empty_dir(&input_path.clone(), true).unwrap();
+    let balanced_path = PathBuf::from(INPUT_PATH.as_str()).join("balanced");
+    ensure_path_exists_and_is_empty_dir(&balanced_path.clone(), true).unwrap();
     // Declare a balanced file structure
     let file_structure = FileStructure::new(
         4,                               // width
@@ -39,6 +39,10 @@ fn balanced_file_structure(c: &mut Criterion) {
         FileStructureStrategy::Balanced, // Balanced
         true,                            // utf8 only
     );
+    // Get a path to the file structure
+    let file_structure_path = file_structure.to_string();
+    // Get the full path to the file structure
+    let full_path = balanced_path.join(file_structure_path);
     // Create the benchmark group
     let mut group = c.benchmark_group("balanced_file_structure");
     // Add a throughput benchmark
@@ -49,16 +53,15 @@ fn balanced_file_structure(c: &mut Criterion) {
         b.iter_batched(
             || {
                 // Prep the input path
-                prep_generate(&input_path);
+                prep_generate(&full_path.clone());
             },
             |_| {
                 // Generate the file structure
                 file_structure
-                    .generate(black_box(input_path.clone()))
+                    .generate(black_box(full_path.clone()))
                     .unwrap();
             },
-            // Batch size of 1
-            BatchSize::SmallInput,
+            BatchSize::PerIteration,
         )
     });
     // Finish the benchmark group

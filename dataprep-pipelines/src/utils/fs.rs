@@ -1,8 +1,9 @@
 use anyhow::{anyhow, Error, Result};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::io::BufWriter;
 use std::{
-    fs,
+    cmp, fs,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -40,9 +41,6 @@ pub struct FileStructure {
     pub target_size: usize,
     /// What strategy to use for generating the file structure
     pub strategy: FileStructureStrategy,
-    // TODO (amiller68): Deprecate when we figure out how to handle non-utf8 characters
-    /// Whether or not files can include non-utf8 characters
-    pub utf8_only: bool,
 }
 
 impl ToString for FileStructure {
@@ -71,14 +69,13 @@ impl FileStructure {
         depth: usize,
         target_size: usize,
         strategy: FileStructureStrategy,
-        utf8_only: bool,
+        _utf8_only: bool,
     ) -> Self {
         Self {
             width,
             depth,
             target_size,
             strategy,
-            utf8_only,
         }
     }
 
@@ -97,7 +94,7 @@ impl FileStructure {
         if self.depth == 0 {
             let file_path = path;
             // Create a file with the target size
-            create_random_file(file_path, self.target_size, self.utf8_only);
+            create_random_file(file_path, self.target_size);
             return Ok(()); // We're done here
         }
         let file_path = path.clone();
@@ -123,7 +120,7 @@ impl FileStructure {
                         self.depth - 1,
                         target_size,
                         self.strategy.clone(),
-                        self.utf8_only,
+                        true, // todo: this is a dummy arg
                     )
                     .generate(new_path)
                     .unwrap();
@@ -233,6 +230,7 @@ mod test {
 
 /* Miscellaneous filesystem utilities */
 
+// TODO (amiller68): Use this only once we can hanle utf8 - massive improvement in performance
 /// Create a random at the given path with the given size
 /// # Arguments
 /// * `path` - The path to create the file at
@@ -242,21 +240,40 @@ mod test {
 /// Panics if the file cannot be created
 /// # Examples
 /// ```no_run
-/// use dataprep_pipelines::utils::fs::create_random_file;
+/// use dataprep_pipelines::utils::fs::_create_random_file;
 /// use std::path::PathBuf;
 /// let path = PathBuf::from("test.txt");
-/// create_random_file(path, 100, false);
+/// _create_random_file(path, 100);
 /// ```
-pub fn create_random_file(path: PathBuf, size: usize, utf8_only: bool) {
+pub fn _create_random_file(path: PathBuf, size: usize) {
+    let file = fs::File::create(path).unwrap();
+    let mut rng = rand::thread_rng();
+    let mut writer = BufWriter::new(file);
+
+    let mut buffer = [0; 1024];
+    let mut remaining_size = size;
+
+    while remaining_size > 0 {
+        let to_write = cmp::min(remaining_size, buffer.len());
+        let buffer = &mut buffer[..to_write];
+        rng.fill(buffer);
+        writer.write_all(buffer).unwrap();
+
+        remaining_size -= to_write;
+    }
+}
+
+/// TODO (amiller68): Deprecate this function once we get non-utf8 support
+/// Create a random utf-8 file at the given path with the given size
+/// # Arguments
+/// * `path` - The path to create the file at
+/// * `size` - The size of the file to create
+pub fn create_random_file(path: PathBuf, size: usize) {
     let mut file = fs::File::create(path).unwrap();
     let mut rng = rand::thread_rng();
     let mut buf = [0u8; 1];
     for _ in 0..size {
-        if utf8_only {
-            buf[0] = rng.gen_range(0x20..0x7F);
-        } else {
-            buf[0] = rng.gen();
-        }
+        buf[0] = rng.gen_range(0x20..0x7F);
         let n = file.write(&buf).unwrap();
         assert_eq!(n, 1);
     }
