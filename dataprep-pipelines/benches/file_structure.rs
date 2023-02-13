@@ -15,7 +15,8 @@ lazy_static! {
     static ref IFTTT_KEY: String = env::var("IFTTT_KEY").unwrap_or_else(|_| "none".to_string());
 }
 
-//Ready a directory for benchmarking
+/// Ready a directory for benchmarking
+#[doc(hidden)]
 fn prep_generate(path: &PathBuf) {
     // If the path exists, remove it, regardless of whether it is a file or directory
     if path.exists() {
@@ -23,7 +24,8 @@ fn prep_generate(path: &PathBuf) {
     }
 }
 
-// Bench the generation of a file structure
+/// Bench the generation of a file structure
+#[doc(hidden)]
 fn balanced_file_structure(c: &mut Criterion) {
     // Get the Bench path and make sure it exists
     let bench_path = PathBuf::from(BENCH_PATH.as_str());
@@ -37,10 +39,9 @@ fn balanced_file_structure(c: &mut Criterion) {
         4,                               // depth
         1024 * 1024,                     // target size in bytes (1Mb)
         FileStructureStrategy::Balanced, // Balanced
-        true,                            // utf8 only
     );
     // Get a path to the file structure
-    let file_structure_path = file_structure.to_string();
+    let file_structure_path = file_structure.to_path_string();
     // Get the full path to the file structure
     let full_path = balanced_path.join(file_structure_path);
     // Create the benchmark group
@@ -68,7 +69,6 @@ fn balanced_file_structure(c: &mut Criterion) {
     group.finish()
 }
 
-// Bench a balanced, utf8 only file structure
 criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(10).measurement_time(time::Duration::from_secs(30));

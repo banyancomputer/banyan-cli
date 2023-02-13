@@ -1,32 +1,32 @@
 use anyhow::{anyhow, Error, Result};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::io::BufWriter;
 use std::{
     cmp, fs,
-    io::Write,
+    io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
 
 /// Enum for describing how to generate a file structure
 /// This is used for generating random data for testing
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, strum::Display)]
 pub enum FileStructureStrategy {
     /// Generate a balanced file structure
     Balanced,
-    /// Generate a random file structure
+    /// Generate a Random file structure
     Random,
 }
 
-impl ToString for FileStructureStrategy {
-    /// Convert the FileStructureStrategy to a string that can be used as a filename
-    fn to_string(&self) -> String {
-        match self {
-            FileStructureStrategy::Balanced => "balanced".to_string(),
-            FileStructureStrategy::Random => "random".to_string(),
-        }
-    }
-}
+// impl ToString for FileStructureStrategy {
+//     /// Convert the FileStructureStrategy to a string that can be used as a filename
+//     fn to_string(&self) -> String {
+//         // Note (amiller68): We don't need to worry anything except balanced for right now
+//         match self {
+//             FileStructureStrategy::Balanced => "balanced".to_string(),
+//             FileStructureStrategy::Random => "random".to_string(),
+//         }
+//     }
+// }
 
 /// Everything is a file in Unix :) including directories
 /// Struct for representing a file structure, regardless of depth (i.e. a file or a directory)
@@ -41,19 +41,6 @@ pub struct FileStructure {
     pub target_size: usize,
     /// What strategy to use for generating the file structure
     pub strategy: FileStructureStrategy,
-}
-
-impl ToString for FileStructure {
-    /// Convert the FileStructure to a string that can be used as a filename
-    fn to_string(&self) -> String {
-        format!(
-            "w{}_d{}_s{}_{}",
-            self.width,
-            self.depth,
-            self.target_size,
-            self.strategy.to_string()
-        )
-    }
 }
 
 impl FileStructure {
@@ -78,6 +65,27 @@ impl FileStructure {
         }
     }
 
+    /// Convert the FileStructure to a string that can be used as a filename
+    /// # Example
+    /// ```no_run
+    /// use dataprep_pipelines::utils::fs::FileStructure;
+    /// use dataprep_pipelines::utils::fs::FileStructureStrategy;
+    /// let file_structure = FileStructure::new(
+    ///    4,                               // width
+    ///   4,                               // depth
+    ///  1024 * 1024,                     // target size in bytes (1Mb)
+    /// FileStructureStrategy::Balanced, // Balanced
+    /// );
+    /// assert_eq!(file_structure.to_path_string(), "w4_d4_s1048576_balanced");
+    /// ```
+    pub fn to_path_string(&self) -> String {
+        let strategy_str: String = self.strategy.to_string();
+        format!(
+            "w{}_d{}_s{}_{}",
+            self.width, self.depth, self.target_size, strategy_str
+        )
+    }
+
     /// Generate a FileStructure with the given path. Does not check if the path can hold
     /// the file structure. Use with caution!
     /// # Arguments
@@ -93,7 +101,7 @@ impl FileStructure {
         if self.depth == 0 {
             let file_path = path;
             // Create a file with the target size
-            _create_random_file(file_path, self.target_size);
+            create_random_file(file_path, self.target_size);
             return Ok(()); // We're done here
         }
         let file_path = path.clone();
@@ -101,11 +109,7 @@ impl FileStructure {
         fs::create_dir(file_path).unwrap();
         // Generate a new FileStructure with the new path
         match self.strategy {
-            /*
-               Generate a balanced file structure
-               This means that each file will have the same amount of data, and only leaf
-               directories will hold files
-            */
+            // Note (amiller68): We don't need to worry anything except balanced for right now
             FileStructureStrategy::Balanced => {
                 for i in 0..self.width {
                     // Read a fixed amount of data from target size
@@ -124,51 +128,9 @@ impl FileStructure {
                     .unwrap();
                 }
             }
-            /*
-               Generate a random file structure
-               This means that each dir will have a random amount of data, bounded by the
-               target size. Non-leaf directories can have files of leftover data, or fewer
-               files than the width
-            */
             FileStructureStrategy::Random => {
-                panic!("Random file structure generation not implemented yet");
-                // TODO (amiller68 & thea-exe): This is not safe to run, fix it!
-                // Track how much data we've written
-                // let mut data_written = 0;
-                // let mut target_size = self.target_size;
-                // for i in 0..self.width {
-                //     // Read a random amount of data from (target size - data written)
-                //     target_size = rand::random::<usize>() % (self.target_size - data_written);
-                //     // Chop off the target size from the total target size
-                //     data_written += target_size;
-                //     // Push the new path onto the path
-                //     let mut new_path = path.clone();
-                //     new_path.push(i.to_string());
-                //     // Recurse and generate a new FileStructure with the new path
-                //     FileStructure::new(
-                //         self.width,
-                //         self.depth - 1,
-                //         target_size,
-                //         self.strategy.clone(),
-                //         self.utf8_only,
-                //     )
-                //     .generate(new_path)?;
-                // }
-                // // If we haven't written all the data, keep chopping into files
-                // // Keep an index for the file name
-                // let mut i = 0;
-                // while data_written < self.target_size {
-                //     // Read a random amount of data from (target size - data written)
-                //     target_size = rand::random::<usize>() % (self.target_size - data_written);
-                //     // Chop off the target size from the total target size
-                //     data_written += target_size;
-                //     // Push the new path onto the path
-                //     let mut new_path = path.clone();
-                //     new_path.push(i.to_string() + "_file");
-                //     // Recurse and generate a new FileStructure with the new path
-                //     create_random_file(new_path, target_size, self.utf8_only);
-                //     i += 1;
-                // }
+                // Note (amiller68): We don't need to worry anything except balanced for right now
+                unimplemented!()
             }
         }
         Ok(())
@@ -178,18 +140,32 @@ impl FileStructure {
 #[cfg(test)]
 mod test {
     use fs_extra::dir::get_size;
-    // TODO (thea-exe): Add more qualified tests for FileStructure
+
+    const TEST_SCRATCH_SPACE: &str = "test";
+    const TEST_SIZE: usize = 1024;
+    const TEST_WIDTH: usize = 2;
+    const TEST_DEPTH: usize = 2;
+
+    /// Create a balanced file structure, 1 KB in size
     #[test]
     fn test_balanced_file_structure() {
         use super::*;
-        let mut test_scratch_space = PathBuf::from("test/test_balanced_file_structure");
+        let mut test_scratch_space = PathBuf::from(format!(
+            "{}/{}",
+            TEST_SCRATCH_SPACE, "balanced_file_structure"
+        ));
         // Remove the scratch space and recreate it
         fs::remove_dir_all(&test_scratch_space).unwrap_or(());
         fs::create_dir_all(&test_scratch_space).unwrap();
-        // Create a balanced file structure, 1 KB in size
-        let file_structure = FileStructure::new(3, 2, 1024, FileStructureStrategy::Balanced);
+        // Create a file structure
+        let file_structure = FileStructure::new(
+            TEST_WIDTH,
+            TEST_DEPTH,
+            TEST_SIZE,
+            FileStructureStrategy::Balanced,
+        );
         // Push another path onto the scratch space
-        test_scratch_space.push(file_structure.to_string());
+        test_scratch_space.push(file_structure.to_path_string());
         // Generate the file structure
         file_structure
             .generate(test_scratch_space.clone())
@@ -201,49 +177,27 @@ mod test {
         assert!(test_scratch_space.exists());
         // Check the the file structure is around the right size
         let file_structure_size = get_size(&test_scratch_space).unwrap();
-        println!("File structure size: {}", file_structure_size);
-        assert!(file_structure_size > 1000 && file_structure_size < 1024);
+        assert_eq!(file_structure_size, TEST_SIZE as u64);
     }
-
-    // TODO (thea-exe): debug this test plz
-    // #[test]
-    // fn test_random_file_structure() {
-    //     use super::*;
-    //     let mut test_scratch_space = PathBuf::from("test_scratch_space/test_random_file_structure");
-    //     // Remove the scratch space and recreate it
-    //     fs::remove_dir_all(&test_scratch_space).unwrap_or(());
-    //     fs::create_dir_all(&test_scratch_space).unwrap();
-    //     // Push another path onto the scratch space
-    //     test_scratch_space.push("fs");
-    //     // Create a balanced file structure, 1 KB in size
-    //     let file_structure = FileStructure::new(3, 2, 1024, FileStructureStrategy::Random,true);
-    //     file_structure.generate(test_scratch_space.clone());
-    //     // Check that the file structure was created
-    //     assert!(test_scratch_space.exists());
-    //     // Check the the file structure is around the right size
-    //     let file_structure_size = get_size(&test_scratch_space).unwrap();
-    //     assert!(file_structure_size > 90 && file_structure_size < 110);
-    // }
 }
 
 /* Miscellaneous filesystem utilities */
 
-// TODO (amiller68): Use this only once we can hanle utf8 - massive improvement in performance
-/// Create a random at the given path with the given size
+/// Creates a random file at the given path with the given size
 /// # Arguments
 /// * `path` - The path to create the file at
-/// * `size` - The size of the file to create
-/// * `utf8_only` - Whether or not to only write utf-8 characters to the file
+/// * `size` - The size of the file to create in bytes
 /// # Panics
 /// Panics if the file cannot be created
 /// # Examples
 /// ```no_run
-/// use dataprep_pipelines::utils::fs::_create_random_file;
+/// use dataprep_pipelines::utils::fs::create_random_file;
 /// use std::path::PathBuf;
 /// let path = PathBuf::from("test.txt");
-/// _create_random_file(path, 100);
+/// create_random_file(path, 1024);
 /// ```
-pub fn _create_random_file(path: PathBuf, size: usize) {
+#[doc(hidden)]
+pub fn create_random_file(path: PathBuf, size: usize) {
     let file = fs::File::create(path).unwrap();
     let mut rng = rand::thread_rng();
     let mut writer = BufWriter::new(file);
@@ -261,27 +215,14 @@ pub fn _create_random_file(path: PathBuf, size: usize) {
     }
 }
 
-/// TODO (amiller68): Deprecate this function once we get non-utf8 support
-/// Create a random utf-8 file at the given path with the given size
-/// # Arguments
-/// * `path` - The path to create the file at
-/// * `size` - The size of the file to create
-pub fn create_random_file(path: PathBuf, size: usize) {
-    let mut file = fs::File::create(path).unwrap();
-    let mut rng = rand::thread_rng();
-    let mut buf = [0u8; 1];
-    for _ in 0..size {
-        buf[0] = rng.gen_range(0x20..0x7F);
-        let n = file.write(&buf).unwrap();
-        assert_eq!(n, 1);
-    }
-}
-
-/// Check if a path is an existing directory
+/// Ensures that the given path exists and is a directory
 /// # Arguments
 /// path: The path to check
 /// # Returns
-/// Result<(), anyhow::Error> - Ok if the path is an existing directory, Err otherwise
+/// Creates the directory if it doesn't exist, and is a directory
+/// Result<()>
+/// # Panics
+/// Panics if the path exists but is not a directory
 /// # Examples
 /// ```no_run
 /// use dataprep_pipelines::utils::fs::ensure_path_exists_and_is_dir;
@@ -289,6 +230,7 @@ pub fn create_random_file(path: PathBuf, size: usize) {
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_dir(&path).unwrap();
 /// ```
+#[doc(hidden)]
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     if !path.exists() {
         // create path if it doesn't exist
@@ -300,11 +242,15 @@ pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Check if a path is an existing empty directory
+/// Ensures that the given path exists and is a directory and is empty
 /// # Arguments
 /// path: The path to check
 /// # Returns
-/// Result<(), anyhow::Error> - Ok if the path is an existing empty directory, Err otherwise
+/// Creates the directory if it doesn't exist. Makes the directory empty if it is not empty.
+/// Result<()>
+/// # Panics
+/// Panics if the path is not an existing directory.
+/// Panics if the path is not empty and force is false.
 /// # Examples
 /// ```no_run
 /// use dataprep_pipelines::utils::fs::ensure_path_exists_and_is_empty_dir;
@@ -312,6 +258,7 @@ pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_empty_dir(&path, false).unwrap();
 /// ```
+#[doc(hidden)]
 pub fn ensure_path_exists_and_is_empty_dir(path: &Path, force: bool) -> Result<()> {
     // Check the path exists and is a directory
     ensure_path_exists_and_is_dir(path)?;

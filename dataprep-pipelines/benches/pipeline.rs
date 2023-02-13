@@ -80,12 +80,29 @@ lazy_static! {
         .unwrap();
 }
 
-// /// Read what File structures we want to test from the environment
-// /// # Returns
-// /// A list of file structures to test - if nothing is specified we test one
-// /// And how big each test should be
-// /// Usage:
-// ///  BENCH_FILE_STRUCTURES="simple,skinny,wide,file" cargo bench
+/// Return a TestNotifier if we have an IFFTT key set, initialized with the given message
+/// # Arguments
+/// * `message` - The message to send to the TestNotifier
+/// # Returns
+/// A TestNotifier if we have an IFTTT key set, None otherwise
+#[doc(hidden)]
+fn get_test_notifier(message: &str) -> Option<TestNotifier> {
+    // Get the string from the IFTTT key
+    let ifttt_key = IFTTT_KEY.as_str();
+    // If the key is not "none", then we want to send notifications
+    if ifttt_key != "none" {
+        println!("Sending notifications to IFTTT: {}", message);
+        // Create a notifier
+        Some(TestNotifier::new_with_message(message.to_string()));
+    }
+    // Otherwise, we don't want to send notifications
+    None
+}
+
+/// Read what File structures we want to test from the environment (or use defaults)
+/// # Returns
+/// A list of file structures to test from the environment
+#[doc(hidden)]
 fn get_desired_file_structures() -> Vec<FileStructure> {
     // Initialize a list of file structures to test
     let mut desired_structures: Vec<FileStructure> = Vec::new();
@@ -157,22 +174,20 @@ fn get_desired_file_structures() -> Vec<FileStructure> {
 }
 
 /// Populate the input directory with a with a test set to benchmark against
-/// # Arguments
-/// # `desired_structures` - A list of file structures to generate
-fn populate_input_dirs(desired_structures: Vec<FileStructure>) {
-    println!("Populating inputs...");
-    // Get the string from the IFTTT key
-    let ifttt_key = IFTTT_KEY.as_str();
-    // If the key is not "none", then we want to send notifications
-    if ifttt_key != "none" {
-        println!("Sending notifications to IFTTT webhook: {}", ifttt_key);
-        // Create a notifier
-        let _tn = TestNotifier::new_with_message("Populating Input Directories".to_string());
-    }
+/// If the input directory already exists, it will be cleaned of any file structures we don't want to test
+/// Any pre-existing file structures we want to test will be left alone
+#[doc(hidden)]
+fn populate_input_dirs() {
+    // Get a test notifier
+    let _tn = get_test_notifier("Populating input directories");
+
+    // Get the desired file structures
+    let desired_structures = get_desired_file_structures();
+
     // Get the paths we want to use by turning these into a list of paths
     let desired_paths = desired_structures
         .iter()
-        .map(|f: &FileStructure| PathBuf::from(INPUT_PATH.as_str()).join(f.to_string()))
+        .map(|f: &FileStructure| PathBuf::from(INPUT_PATH.as_str()).join(f.to_path_string()))
         .collect::<Vec<PathBuf>>();
 
     // Make sure the input directory exists
@@ -218,9 +233,11 @@ fn populate_input_dirs(desired_structures: Vec<FileStructure>) {
 /// Setup the benchmarking directories
 /// Makes sure output directories exist and are empty
 /// Makes sure the input directory exists and is populated with the desired file structures
-/// # Arguments
-/// desired_structures - The file structures we want to test
-fn setup_bench(desired_structures: Vec<FileStructure>) {
+/// Makes sure the packed directory exists and is empty
+/// Makes sure the unpacked directory exists and is empty
+/// Makes sure the manifest file directory exists and is empty
+#[doc(hidden)]
+fn setup_bench() {
     println!("Setting up benchmarking directories...");
     println!("-> Bench Path: {}", BENCH_PATH.as_str());
     println!("-> Input Path: {}", INPUT_PATH.as_str());
@@ -243,7 +260,7 @@ fn setup_bench(desired_structures: Vec<FileStructure>) {
         })
         .unwrap();
     // Populate the input directory with the desired file structures, as needed
-    populate_input_dirs(desired_structures);
+    populate_input_dirs();
 
     // Make sure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(PACKED_PATH.as_str()), true)
@@ -270,9 +287,8 @@ fn setup_bench(desired_structures: Vec<FileStructure>) {
         .unwrap();
 }
 
-// TODO (amiller68): Do we want to correctness check the unpacked files here?
-/// Make sure the packed and unpacked directories are empty
-/// // At this point there should be packed and unpacked directories for each file structure
+/// Make sure the packed and unpacked directories are empty, using the environment variables (or defaults) for the paths
+#[doc(hidden)]
 fn cleanup_bench() {
     println!("Cleaning up benchmarking directories...");
     // Make sure the packed directory exists and is empty
@@ -301,6 +317,7 @@ fn cleanup_bench() {
 }
 
 /// Make sure packed directory and manifest file are empty for packing
+#[doc(hidden)]
 fn prep_pack(packed_path: &PathBuf, manifest_path: &PathBuf) {
     // Ensure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(packed_path, true)
@@ -317,6 +334,7 @@ fn prep_pack(packed_path: &PathBuf, manifest_path: &PathBuf) {
 }
 
 /// Make sure the unpacked directory is empty for unpacking and that the manifest file exists
+#[doc(hidden)]
 fn prep_unpack(unpacked_path: &PathBuf, manifest_path: &PathBuf) {
     // Ensure the unpacked directory exists and is empty
     ensure_path_exists_and_is_empty_dir(unpacked_path, true)
@@ -329,7 +347,7 @@ fn prep_unpack(unpacked_path: &PathBuf, manifest_path: &PathBuf) {
     assert!(manifest_path.exists());
 }
 
-/// Benchmark packing - relies on INPUT_PATH being populated!
+/// Benchmark packing - relies on input_path being populated!
 /// # Arguments
 /// * `c` - Criterion object
 /// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark
@@ -347,7 +365,6 @@ fn pack_benchmark(
     let input_name = input_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
     let bench_id = BenchmarkId::new("pack", input_name.to_string());
-    // TODO - Might need add check to see if input path has that much data
     // Figure out how many bytes are in the input directory
     let input_dir_size = dir::get_size(input_path).unwrap();
     // Declare a runtime for the async function
@@ -381,10 +398,9 @@ fn pack_benchmark(
     group.finish();
 }
 
-/// Benchmark unpacking - relies on PACKED_DIR and MANIFEST_FILE being populated!
+/// Benchmark unpacking - relies on PACKED_PATH and MANIFEST_PATH having packed data!
 /// # Arguments
 /// * `c` - Criterion object
-/// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark
 /// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `unpacked_path` - Path to the unpacked directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `manifest_path` - Path to the manifest file to use for the benchmark. This will probably be the same as every other benchmark, until need is demonstrated to keep these.
@@ -430,30 +446,25 @@ fn unpack_benchmark(
 }
 
 /// Run our end to end pipeline benchmarks sequentially on multiple Input Directories
+/// # Arguments
+/// * `c` - Criterion object
 pub fn pipeline_benchmark(c: &mut Criterion) {
-    // Define the file structure to test
-    let desired_structures = get_desired_file_structures();
-    // Setup the bench
-    setup_bench(desired_structures);
+    // Setup the bench - populate the input directory
+    setup_bench();
 
-    // Paths we will not have to mutate
+    // Get a test notifier
+    let _tn = get_test_notifier("Running Benchmarks");
+
+    // Where we will store our input sets
     let root_input_path = PathBuf::from(INPUT_PATH.as_str());
+    // Where we will store our packed data
     let packed_path = PathBuf::from(PACKED_PATH.as_str());
 
     // Read the input directory for the benchmark
-    let input_dir = fs::read_dir(root_input_path).unwrap();
-
-    // Get the string from the IFTTT key
-    let ifttt_key = IFTTT_KEY.as_str();
-    // If the key is not "none", then we want to send notifications
-    if ifttt_key != "none" {
-        println!("Sending notifications to IFTTT webhook: {}", ifttt_key);
-        // Create a notifier
-        let _tn = TestNotifier::new_with_message("Running Benchmarks".to_string());
-    }
+    let root_input_dir = fs::read_dir(root_input_path).unwrap();
 
     // Iterate over our input directories and run the benchmarks
-    for entry in input_dir {
+    for entry in root_input_dir {
         // Paths we will have to mutate
         let mut input_path = PathBuf::from(INPUT_PATH.as_str());
         let mut unpacked_path = PathBuf::from(UNPACKED_PATH.as_str());

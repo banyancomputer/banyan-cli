@@ -27,7 +27,7 @@ pub fn setup_test_structure(
     // create a test set directory structure with a width of 2, depth of 2, and a target size of 1024 bytes
     let mut input_path = PathBuf::from(input_path);
     fs::create_dir(input_path.clone()).unwrap();
-    input_path.push(desired_structure.to_string());
+    input_path.push(desired_structure.to_path_string());
     // create a directory structure at the given path
     desired_structure.generate(input_path.clone()).unwrap();
     // Create the output directory
@@ -69,7 +69,7 @@ pub async fn pipeline_test(
     )
     .await
     .unwrap();
+
     // checks if two directories are the same
-    // TODO: (amiller68) - this does not work for non utf-8 files!
     assert_paths(input_dir, unpacked_dir).unwrap();
 }

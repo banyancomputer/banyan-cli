@@ -27,7 +27,7 @@ dataprep unpack --input-dir <INPUT_DIR> --manifest-file <MANIFEST_FILE> --output
 Your PRs are welcome! Please make sure to run the following commands before committing:
 ```bash
 cargo +nightly fmt # format code
-cargo +nightly  clippy # lint code
+cargo +nightly clippy # lint code
 ```
 And make sure to sign your commits with `git commit -s`, for example:
 ```bash
@@ -35,7 +35,6 @@ git commit -s -m "Add a new feature"
 ```
 
 ## Test
-
 for unit tests
 ```bash
 cargo +nightly test
@@ -48,7 +47,8 @@ cargo +nightly test pipeline
 ```
 
 ## Benchmarks
-You can configure and run two types of benchmarks:
+TODO (amiller68): Document how to divert logs to a file
+You can configure and run two types of benchmarks you can run on your system:
 - Throughput
 - Profiling
 Edit the contents of `env/env.benchmark` to configure the benchmarks. See that file for options and defaults.

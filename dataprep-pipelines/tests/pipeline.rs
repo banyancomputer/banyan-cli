@@ -13,19 +13,23 @@ lazy_static! {
     static ref MANIFEST_FILE_PATH: &'static str = "test/manifest.json";
 }
 
+/// Small Input End to End Integration Tests for the Pipeline
 #[cfg(test)]
 mod test {
     use super::*;
-    // use std::io::_print;
 
+    const TEST_INPUT_SIZE: usize = 1024 * 1024; // 1MB
+    const TEST_MAX_WIDTH: usize = 4;
+    const TEST_MAX_DEPTH: usize = 4;
+
+    /// Test the pipeline with a small file structure
     #[tokio::test]
-    /// A simple end to end integration test of a small file structure
     async fn test_pipeline() {
         // Define the file structure to test
         let desired_structure = FileStructure::new(
-            2,                               // width
-            2,                               // depth
-            1024,                            // target size in bytes (1KB)
+            TEST_MAX_WIDTH, // width
+            TEST_MAX_DEPTH, // depth
+            TEST_INPUT_SIZE,
             FileStructureStrategy::Balanced, // Balanced
         );
         println!("Setting up test structure: {:?}", desired_structure);
