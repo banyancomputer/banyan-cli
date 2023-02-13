@@ -27,7 +27,6 @@ mod test {
             2,                               // depth
             1024,                            // target size in bytes (1KB)
             FileStructureStrategy::Balanced, // Balanced
-            true,                            // utf8 only
         );
         println!("Setting up test structure: {:?}", desired_structure);
         // Setup the test structure

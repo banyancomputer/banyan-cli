@@ -70,5 +70,6 @@ pub async fn pipeline_test(
     .await
     .unwrap();
     // checks if two directories are the same
+    // TODO: (amiller68) - this does not work for non utf-8 files!
     assert_paths(input_dir, unpacked_dir).unwrap();
 }

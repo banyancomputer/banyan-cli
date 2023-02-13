@@ -605,8 +605,7 @@ dependencies = [
 [[package]]
 name = "dir-assert"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52079f51e329f84f2895c4752455296d9a2dab76d7af51fc7b026f05889b1899"
+source = "git+https://github.com/banyancomputer/dir-assert.git?branch=non-utf8#2e127661b92bbf6101479728bed01c33e6af24e8"
 
 [[package]]
 name = "displaydoc"

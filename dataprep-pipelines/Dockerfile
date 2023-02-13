@@ -10,36 +10,30 @@ WORKDIR /dataprep
 
 # Install the nightly toolchain
 RUN rustup toolchain install nightly
+RUN cargo +nightly install cargo-criterion
 
 # Install libssl-dev
 RUN apt-get update && apt-get install -y libssl-dev pkg-config linux-perf
 
 # Copy over the workspace
 RUN rm -rf /dataprep
+# Copy the entire workspace into the container
 COPY . /dataprep
 
 # this build step will cache your dependencies
 RUN cargo +nightly build --bench pipeline --release
 
-#FROM build as run
-
-#RUN mkdir /dataprep/bench
 RUN mkdir -p bench/input
 RUN mkdir -p bench/packed
 RUN mkdir -p bench/unpacked
 RUN mkdir -p bench/manifests
 RUN mkdir -p bench/results
 
-# Set ENV variables on the container
-ENV BENCH_PATH bench
-ENV INPUT_PATH bench/input
-ENV PACKED_PATH bench/packed
-ENV UNPACKED_PATH bench/unpacked
-ENV MANIFESTS_PATH bench/manifests
-ENV RESULTS_PATH bench/results
+# TODO: Some sort of environment config for the benchmarking
+# For now, defaults are fine
 
 # Echo a run command to the console for normal use
-RUN echo "cargo +nightly bench --bench pipeline --target-dir bench/results" > run.sh
+RUN echo "cargo +nightly  criterion --bench pipeline" > run.sh
 # Make the run command executable
 RUN chmod +x run.sh
 

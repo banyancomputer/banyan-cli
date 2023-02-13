@@ -1,9 +1,9 @@
 // TODO (amiller68) - Audit this file and make sure it's still relevant.
 // This file is courtesy of https://www.jibbow.com/posts/criterion-flamegraphs/
-use std::{fs::File, os::raw::c_int, path::Path};
-
 use criterion::profiler::Profiler;
 use pprof::ProfilerGuard;
+use std::{fs::File, os::raw::c_int, path::Path};
+
 pub struct FlamegraphProfiler<'a> {
     frequency: c_int,
     active_profiler: Option<ProfilerGuard<'a>>,

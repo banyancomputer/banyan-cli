@@ -6,6 +6,9 @@
 // TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
 // TODO (xBalbinus & thea-exe): get rid of all the clones and stop copying around pathbufs
 
+/* Bugs */
+// TODO (amiller68 and laudiacay): Pipeline unpacks single file input to a empty directory with the same name as the file, instead of the file
+
 /* Speculative Lifts */
 // TODO (laudiacay): Can / Should we include an option to pack chunks into a CAR file? Look into this.
 // TODO (laudiacay) : Handle pinning threads to CPU cores (with tokio localsets and runtimes?) correctly so that disk throughput is maximized

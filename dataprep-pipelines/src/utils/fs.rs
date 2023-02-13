@@ -69,7 +69,6 @@ impl FileStructure {
         depth: usize,
         target_size: usize,
         strategy: FileStructureStrategy,
-        _utf8_only: bool,
     ) -> Self {
         Self {
             width,
@@ -94,7 +93,7 @@ impl FileStructure {
         if self.depth == 0 {
             let file_path = path;
             // Create a file with the target size
-            create_random_file(file_path, self.target_size);
+            _create_random_file(file_path, self.target_size);
             return Ok(()); // We're done here
         }
         let file_path = path.clone();
@@ -120,7 +119,6 @@ impl FileStructure {
                         self.depth - 1,
                         target_size,
                         self.strategy.clone(),
-                        true, // todo: this is a dummy arg
                     )
                     .generate(new_path)
                     .unwrap();
@@ -189,7 +187,7 @@ mod test {
         fs::remove_dir_all(&test_scratch_space).unwrap_or(());
         fs::create_dir_all(&test_scratch_space).unwrap();
         // Create a balanced file structure, 1 KB in size
-        let file_structure = FileStructure::new(3, 2, 1024, FileStructureStrategy::Balanced, true);
+        let file_structure = FileStructure::new(3, 2, 1024, FileStructureStrategy::Balanced);
         // Push another path onto the scratch space
         test_scratch_space.push(file_structure.to_string());
         // Generate the file structure
