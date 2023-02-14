@@ -3,19 +3,11 @@
 ## Dependencies
 - cargo
 - rustup
-<<<<<<< HEAD
-- rust +nightly
-
-## Build the binary!
-```bash
-cargo build --bin dataprep
-=======
 - rust +nightly -- either make this the default or use `cargo +nightly <command>` for all commands
 
 ## Build the binary!
 ```bash
 cargo +nightly build --bin dataprep
->>>>>>> origin/bench
 ```
 
 ## Run the binary!

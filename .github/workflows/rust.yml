@@ -24,9 +24,6 @@ jobs:
   # Run the tests:
   run_tests:
     uses: banyancomputer/.github/.github/workflows/rust_test.yml@master
-<<<<<<< HEAD
   run_todo:
     uses: banyancomputer/.github/.github/workflows/todo.yml@master
 
-=======
->>>>>>> origin/bench
