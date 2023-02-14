@@ -6,8 +6,8 @@ use tokio_stream::StreamExt;
 
 pub async fn unpack_pipeline(
     input_dir: PathBuf,
-    manifest_file: PathBuf,
     output_dir: PathBuf,
+    manifest_file: PathBuf,
 ) -> Result<()> {
     // parse manifest file into Vec<PipelineToDisk>
     let reader = std::fs::File::open(manifest_file)?;

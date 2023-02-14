@@ -27,7 +27,7 @@ pub fn setup_test_structure(
     // create a test set directory structure with a width of 2, depth of 2, and a target size of 1024 bytes
     let mut input_path = PathBuf::from(input_path);
     fs::create_dir(input_path.clone()).unwrap();
-    input_path.push(desired_structure.to_string());
+    input_path.push(desired_structure.to_path_string());
     // create a directory structure at the given path
     desired_structure.generate(input_path.clone()).unwrap();
     // Create the output directory
@@ -38,11 +38,19 @@ pub fn setup_test_structure(
     fs::remove_file(PathBuf::from(manifest_file_path)).unwrap_or_default();
 }
 
+/// Run the pipeline and check if the output is the same as the input
+/// # Arguments
+/// * `input_dir` - The path to the input directory
+/// * `output_dir` - The path to the output directory
+/// * `unpacked_dir` - The path to the unpacked directory
+/// * `manifest_file` - The path to the manifest file
+/// # Panics
+/// If the output is not the same as the input
 pub async fn pipeline_test(
     input_dir: &str,
     output_dir: &str,
-    manifest_file: &str,
     unpacked_dir: &str,
+    manifest_file: &str,
 ) {
     // run the function
     pack_pipeline(
@@ -56,11 +64,12 @@ pub async fn pipeline_test(
     .unwrap();
     unpack_pipeline(
         PathBuf::from(output_dir),
-        PathBuf::from(manifest_file),
         PathBuf::from(unpacked_dir),
+        PathBuf::from(manifest_file),
     )
     .await
     .unwrap();
+
     // checks if two directories are the same
     assert_paths(input_dir, unpacked_dir).unwrap();
 }
