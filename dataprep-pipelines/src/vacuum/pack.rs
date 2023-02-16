@@ -1,26 +1,30 @@
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
 
+use crate::cargovroom;
 use crate::types::pipeline::{
     CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
     WriteoutMetadata,
 };
 use crate::types::plan::{DataProcessPlan, PipelinePlan};
 use crate::types::shared::DataProcessDirective;
-use std::io::{BufRead, Read};
+use std::io::{BufRead, Cursor, Read, Write};
+use std::sync::Arc;
+use tokio::fs::File;
+use tokio::sync::RwLock;
 
 pub async fn do_file_pipeline(
     PipelinePlan {
         origin_data,
         data_processing,
     }: PipelinePlan,
+    cars_writer: Arc<RwLock<cargovroom::CarsWriter<File>>>,
 ) -> Result<Pipeline> {
     match data_processing {
         DataProcessDirective::File(DataProcessPlan {
             compression,
             partition,
             encryption,
-            writeout,
         }) => {
             // TODO (laudiacay) async these reads. also is this buf setup right
 
@@ -36,48 +40,42 @@ pub async fn do_file_pipeline(
                 flate2::Compression::default(),
             ));
 
+            let mut buf = [0; 1024 * 1024]; // 1MB buffer
+            let mut encrypted_buf = Vec::new();
+
             // output
             let mut encrypted_pieces = Vec::new();
-            let mut i = 0;
+            let mut writeout_pieces = Vec::new();
             // iterate over the file, partitioning it and encrypting it
             while old_file_reader.has_data_left()? {
                 // read a chunk of the file
-                // TODO (laudiacay) write down somewhere which bytes of the OG file this was.
-                let mut old_file_take = old_file_reader.take(partition.0.chunk_size);
-                // open the output file for writing
-                let new_file_writer =
-                    std::fs::File::create(&writeout.output_paths[i]).map_err(|e| {
-                        anyhow!(
-                            "could not create new file writer! {} at {:?}",
-                            e,
-                            &writeout.output_paths[i]
-                        )
-                    })?;
+                old_file_reader.read_exact(&mut buf)?;
 
                 // make the encryptor
+                let mut cursor = Cursor::new(&mut encrypted_buf);
                 let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
                     encryption.identity.to_public(),
                 )])
                 .expect("could not create encryptor")
-                .wrap_output(new_file_writer)?;
+                .wrap_output(&mut cursor)?;
 
-                // TODO this blocks.  I don't know how to make it async
-                // copy the data from the old file to the new file. also does the compression tag!
-                std::io::copy(&mut old_file_take, &mut new_file_encryptor)
-                    .map_err(|e| anyhow!("could not copy data from old file to new file! {}", e))?;
+                // encrypt
+                new_file_encryptor.write_all(&buf)?;
+                new_file_encryptor.finish()?;
 
-                old_file_reader = old_file_take.into_inner();
-
-                // finish the encryption (write out the tag and anything in the buffer)
-                new_file_encryptor
-                    .finish()
-                    .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
+                // TODO this is a massive global lock on how many things can write out to the car files at once. this is not fantastic and should be fixed.
+                let cars_location = cars_writer
+                    .write()
+                    .await
+                    .write_block_raw(&encrypted_buf)
+                    .await?;
 
                 // write out the metadata
+                writeout_pieces.push(cars_location);
+
                 encrypted_pieces.push(EncryptionPart {
                     identity: encryption.identity.clone(),
                 });
-                i += 1;
             }
             let encryption = EncryptionMetadata { encrypted_pieces };
             let compression = CompressionMetadata {
@@ -86,7 +84,7 @@ pub async fn do_file_pipeline(
             };
             let partition = partition.0;
             let writeout = WriteoutMetadata {
-                chunk_locations: writeout.output_paths,
+                car_locations: writeout_pieces,
             };
             let data_processing = DataProcessDirective::File(DataProcess {
                 encryption,

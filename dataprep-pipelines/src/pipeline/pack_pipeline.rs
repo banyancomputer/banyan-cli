@@ -1,3 +1,4 @@
+use crate::cargovroom::CarsWriter;
 use crate::plan_copy::plan_copy;
 use crate::types::pipeline::PipelineToDisk;
 use crate::utils::fs as fsutil;
@@ -44,25 +45,21 @@ pub async fn pack_pipeline(
     // Iterate over all the futures in the stream map.
     let copy_plan = spidered.then(|origin_data| {
         let origin_data = origin_data.unwrap(); // TODO kill this unwrap
-        let output_dir = output_dir.clone();
-        // Clone the references to the seen_hashes map
+                                                // Clone the references to the seen_hashes map
         let local_seen_hashes = seen_hashes.clone();
         // Move the dir_entry into the future and copy the file.
         async move {
-            plan_copy(
-                origin_data,
-                output_dir,
-                local_seen_hashes,
-                target_chunk_size,
-            )
-            .await
-            .expect("copy failed")
+            plan_copy(origin_data, local_seen_hashes, target_chunk_size)
+                .await
+                .expect("copy failed")
         }
     });
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let copied =
-        copy_plan.then(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan).map(|e| e.unwrap()));
+    let cars_writer = Arc::new(RwLock::new(CarsWriter::new(output_dir.clone()).await?));
+    let copied = copy_plan.then(|copy_plan| {
+        vacuum::pack::do_file_pipeline(copy_plan, cars_writer.clone()).map(|e| e.unwrap())
+    });
 
     // For now just write out the content of compressed_and_encrypted to a file.
     // make sure the manifest file doesn't exist

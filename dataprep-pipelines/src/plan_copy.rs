@@ -1,14 +1,12 @@
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use uuid::Uuid;
 
 use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::types::plan::{
-    CompressionPlan, DataProcessPlan, EncryptionPlan, PartitionPlan, PipelinePlan, WriteoutPlan,
+    CompressionPlan, DataProcessPlan, EncryptionPlan, PartitionPlan, PipelinePlan,
 };
 use crate::types::shared::DataProcessDirective;
 use crate::types::spider::SpiderMetadata;
@@ -27,7 +25,6 @@ use crate::utils::hasher;
 // TODO (laudiacay): one day, do we use Rabin partitioning?
 pub async fn plan_copy(
     origin_data: SpiderMetadata,
-    to_root: PathBuf,
     seen_hashes: Arc<RwLock<HashMap<String, Rc<SpiderMetadata>>>>,
     target_chunk_size: u64,
 ) -> Result<PipelinePlan> {
@@ -77,10 +74,6 @@ pub async fn plan_copy(
             let file_size = od.original_metadata.len();
             // how many chunks will we need to make?
             let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
-            let random_filenames = (0..num_chunks)
-                .map(|_| Uuid::new_v4())
-                .map(|f| to_root.join(f.to_string()))
-                .collect();
 
             // Return the CopyMetadata struct
             Ok(PipelinePlan {
@@ -89,9 +82,6 @@ pub async fn plan_copy(
                     compression: CompressionPlan::new_gzip(),
                     partition: PartitionPlan::new(target_chunk_size, num_chunks),
                     encryption: EncryptionPlan::new(),
-                    writeout: WriteoutPlan {
-                        output_paths: random_filenames,
-                    },
                 }),
             })
         }

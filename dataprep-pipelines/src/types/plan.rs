@@ -1,7 +1,6 @@
 use crate::types::pipeline::PartitionMetadata;
 use crate::types::shared::DataProcessDirective;
 use crate::types::spider::SpiderMetadata;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 // TODO (laudiacay) continue making types better...
@@ -49,11 +48,6 @@ impl Default for EncryptionPlan {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct WriteoutPlan {
-    pub output_paths: Vec<PathBuf>,
-}
-
 /// this struct is used to build up the data processing steps for a file
 #[derive(Clone)]
 pub struct DataProcessPlan {
@@ -63,8 +57,6 @@ pub struct DataProcessPlan {
     pub partition: PartitionPlan,
     /// describes how we will encrypt the file
     pub encryption: EncryptionPlan,
-    /// describes how we will write the file out on the new filesystem
-    pub writeout: WriteoutPlan,
 }
 
 pub struct PipelinePlan {

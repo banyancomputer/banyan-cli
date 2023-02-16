@@ -1,11 +1,14 @@
 use anyhow::{anyhow, Result};
 use std::iter;
 
+use crate::cargovroom;
 use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::write::GzDecoder;
 use printio as _;
+use std::io::Cursor;
 use std::path::PathBuf;
+use tokio::sync::RwLock;
 
 pub async fn do_file_pipeline(
     PipelineToDisk {
@@ -31,12 +34,14 @@ pub async fn do_file_pipeline(
             for chunk in 0..partition.num_chunks {
                 assert_eq!(partition.num_chunks, 1);
                 // open a reader to the original file
-                let old_file_reader = std::io::BufReader::new(std::fs::File::open(
-                    input_dir.join(writeout.chunk_locations.get(chunk as usize).ok_or(anyhow!(
-                        "could not find the chunk location for chunk {}!",
-                        chunk
-                    ))?),
-                )?);
+                let carloc = writeout.car_locations.get(chunk as usize).unwrap();
+                // TODO opening a new reader in every singlefile is pretty bad. i hate it
+                // TODO this sucks one reader per chunk lmaooo
+                let old_file_reader = std::fs::File::open(input_dir.join(carloc.car_file.clone()))?;
+                let blocky_block_marky_mark = Cursor::new(
+                    cargovroom::car_reader::get_block(carloc.clone(), RwLock::new(old_file_reader))
+                        .await?,
+                );
 
                 let encrypted_piece =
                     encryption
@@ -47,9 +52,8 @@ pub async fn do_file_pipeline(
                             chunk
                         ))?;
                 // TODO naughty clone
-
                 let mut old_file_reader = {
-                    let decryptor = match age::Decryptor::new(old_file_reader)? {
+                    let decryptor = match age::Decryptor::new(blocky_block_marky_mark)? {
                         age::Decryptor::Recipients(decryptor) => decryptor,
                         age::Decryptor::Passphrase(_) => {
                             return Err(anyhow!("passphrase decryption not supported"))

@@ -76,8 +76,6 @@ pub struct CarsWriterLocation {
     pub(crate) car_file: PathBuf,
     /// offset is the offset in the car file we're writing to
     pub(crate) offset: usize,
-    /// size is the size of the block we're writing
-    pub(crate) size: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

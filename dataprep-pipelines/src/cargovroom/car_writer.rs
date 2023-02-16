@@ -8,7 +8,7 @@ use unsigned_varint::encode as varint_encode;
 use super::car_header::CarHeader;
 
 #[derive(Debug)]
-pub struct CarWriter<W> {
+pub struct CarWriter<W: AsyncWrite + AsyncSeek + Send + Unpin> {
     header: CarHeader,
     writer: W,
     cid_buffer: Vec<u8>,
@@ -38,7 +38,7 @@ where
             let header_bytes = self.header.encode()?;
             let mut varint_buf = varint_encode::u64_buffer();
             let varint = varint_encode::u64((header_bytes.len()) as u64, &mut varint_buf);
-            self.writer.write_all(&varint).await?;
+            self.writer.write_all(varint).await?;
             self.writer.write_all(&header_bytes).await?;
             self.is_header_written = true;
         }
@@ -52,7 +52,7 @@ where
 
         let mut varint_buf = varint_encode::u64_buffer();
         let varint = varint_encode::u64((len) as u64, &mut varint_buf);
-        self.writer.write_all(&varint).await?;
+        self.writer.write_all(varint).await?;
         self.writer.write_all(&self.cid_buffer).await?;
         self.writer.write_all(data).await?;
 
@@ -64,13 +64,13 @@ where
     }
 
     /// Finishes writing, including flushing and returns the writer.
-    pub async fn finish(mut self) -> Result<W> {
-        self.flush().await?;
+    pub async fn _finish(mut self) -> Result<W> {
+        self._flush().await?;
         Ok(self.writer)
     }
 
     /// Flushes the underlying writer.
-    pub async fn flush(&mut self) -> Result<()> {
+    pub async fn _flush(&mut self) -> Result<()> {
         self.writer.flush().await?;
         Ok(())
     }
