@@ -1,10 +1,10 @@
 // also stolen from iroh
 
 use cid::Cid;
-use libipld_core::codec::Codec;
-use libipld_cbor::DagCborCodec;
+use ipld::codec::Codec;
 
 use anyhow::{anyhow, Result};
+use ipld_cbor::DagCborCodec;
 
 /// A car header.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,16 +21,16 @@ impl CarHeader {
     pub fn decode(buffer: &[u8]) -> Result<Self> {
         let header: CarHeaderV1 = DagCborCodec
             .decode(buffer)
-            .map_err(|e| Err(anyhow!("Parsing: {}", e.to_string())))?;
+            .map_err(|e| anyhow!("Parsing: {}", e.to_string()))?;
 
         if header.roots.is_empty() {
             return Err(anyhow!("empty CAR file"));
         }
 
         if header.version != 1 {
-            return Err(
-                anyhow!("Invalid File: Only CAR file version 1 is supported"),
-            );
+            return Err(anyhow!(
+                "Invalid File: Only CAR file version 1 is supported"
+            ));
         }
 
         Ok(CarHeader::V1(header))

@@ -5,19 +5,19 @@
 // if we succeed we're gonna go up a node. and get as many of its siblings as we can.
 // this is... hard.
 
+use crate::car_header::CarHeader;
 use crate::car_writer::CarWriter;
 use crate::types::pipeline::CarsWriterLocation;
 use anyhow::Result;
 use cid::multihash::MultihashDigest;
 use cid::{multihash, Cid};
+use ipld_cbor::DagCborCodec;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::str::FromStr;
 use tokio::fs::File;
 use tokio::io::{AsyncSeek, AsyncWrite};
 use unsigned_varint::encode as varint_encode;
-use ipld_cbor::DagCborCodec;
-use crate::header::CarHeader;
 
 const MAX_CAR_SIZE: usize = 1024 * 1024 * 1024;
 
@@ -44,7 +44,7 @@ impl CarsWriter<tokio::fs::File> {
         let new_car_loc = self
             .car_dir
             .join(format!("car_{}.car", self.cars_so_fars.borrow()));
-        let mut car = CarWriter::new(self.header.clone(), File::open(new_car_loc).await?);
+        let car = CarWriter::new(self.header.clone(), File::open(new_car_loc).await?);
         self.current_car_writer.replace(car);
         self.space_left_in_current = MAX_CAR_SIZE - self.header_size;
         Ok(())
@@ -56,7 +56,7 @@ impl CarsWriter<tokio::fs::File> {
         let header = CarHeader::new_v1(vec![Cid::from_str("bafkqaaa").unwrap().into()]);
         let header_size = header.encode()?.len();
         let new_car_loc = cars_dir.join(format!("car_{}.car", 0));
-        let mut car = CarWriter::new(header.clone(), File::open(new_car_loc).await?);
+        let car = CarWriter::new(header.clone(), File::open(new_car_loc).await?);
         Ok(CarsWriter {
             current_car_writer: RefCell::new(car),
             space_left_in_current: MAX_CAR_SIZE - header_size,
@@ -91,11 +91,12 @@ impl CarsWriter<tokio::fs::File> {
             self.new_car_smell();
         };
 
-        let offset : usize = self
+        let offset: usize = self
             .current_car_writer
             .borrow_mut()
             .underlying_location()
-            .await?.try_into()?;
+            .await?
+            .try_into()?;
         self.current_car_writer.borrow_mut().write(cid, buf).await?;
         self.space_left_in_current -= buf.len() + cid_size + varint_size;
         Ok(CarsWriterLocation {

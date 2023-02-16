@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 use cid::Cid;
-use integer_encoding::VarIntAsyncWriter;
 use tokio::io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
+use unsigned_varint::encode as varint_encode;
 
 use crate::car_header::CarHeader;
 
@@ -37,8 +37,8 @@ where
             // Write header bytes
             let header_bytes = self.header.encode()?;
             let mut varint_buf = varint_encode::u64_buffer();
-            let varint = varint_encode::u64((cid_size + buf_size) as u64, &mut varint_buf);
-            self.writer.write_all(varint).await?;
+            let varint = varint_encode::u64((header_bytes.len()) as u64, &mut varint_buf);
+            self.writer.write_all(&varint).await?;
             self.writer.write_all(&header_bytes).await?;
             self.is_header_written = true;
         }
@@ -50,7 +50,9 @@ where
         let data = data.as_ref();
         let len = self.cid_buffer.len() + data.len();
 
-        self.writer.write_varint_async(len).await?;
+        let mut varint_buf = varint_encode::u64_buffer();
+        let varint = varint_encode::u64((len) as u64, &mut varint_buf);
+        self.writer.write_all(&varint).await?;
         self.writer.write_all(&self.cid_buffer).await?;
         self.writer.write_all(data).await?;
 

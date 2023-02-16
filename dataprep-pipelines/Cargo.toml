@@ -24,9 +24,8 @@ age.workspace = true
 unsigned-varint = "0.7.1"
 cid = "0.10.1"
 #iroh-car = "0.2.0"
-integer-encoding = "3.0.4"
-libipld-cbor = "0.16.0"
-libipld-core = "0.16.0"
+ipld = { package = "libipld", version = "0.16" }
+ipld-cbor = { package = "libipld-cbor", version = "0.16" }
 # TODO Dev dependencies
 strum.workspace = true
 dir-assert.workspace = true
