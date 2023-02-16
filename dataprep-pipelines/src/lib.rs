@@ -37,6 +37,7 @@ use test_notifier as _;
 
 extern crate core;
 
+mod car_writer;
 pub mod fs_carfiler;
 pub mod pipeline;
 pub mod plan_copy;
@@ -44,3 +45,4 @@ pub mod spider;
 pub mod types;
 pub mod utils;
 pub mod vacuum;
+mod car_header;

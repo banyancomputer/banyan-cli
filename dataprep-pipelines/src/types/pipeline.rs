@@ -70,10 +70,21 @@ pub struct EncryptionMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CarsWriterLocation {
+    /// car_file is the car file we're writing to
+    /// TODO address these by CommP and do the fr32
+    pub(crate) car_file: PathBuf,
+    /// offset is the offset in the car file we're writing to
+    pub(crate) offset: usize,
+    /// size is the size of the block we're writing
+    pub(crate) size: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata that is emitted on successful write into new filesystem
 pub struct WriteoutMetadata {
-    /// mapping from compressed and encrypted chunks to their new locations
-    pub chunk_locations: Vec<PathBuf>,
+    /// mapping from compressed and encrypted chunks to their new locations in car files
+    pub car_locations: Vec<CarsWriterLocation>,
 }
 
 // /// this struct is used to build up the data processing steps for a file

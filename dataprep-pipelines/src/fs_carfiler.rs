@@ -5,19 +5,25 @@
 // if we succeed we're gonna go up a node. and get as many of its siblings as we can.
 // this is... hard.
 
-use std::cell::RefCell;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-use tokio::io::AsyncWriteExt;
-use iroh_car::{CarWriter, CarHeader};
+use crate::car_writer::CarWriter;
+use crate::types::pipeline::CarsWriterLocation;
 use anyhow::Result;
+use cid::multihash::MultihashDigest;
+use cid::{multihash, Cid};
+use std::cell::RefCell;
+use std::path::PathBuf;
+use std::str::FromStr;
+use tokio::fs::File;
+use tokio::io::{AsyncSeek, AsyncWrite};
+use unsigned_varint::encode as varint_encode;
+use ipld_cbor::DagCborCodec;
+use crate::header::CarHeader;
 
 const MAX_CAR_SIZE: usize = 1024 * 1024 * 1024;
 
-pub struct CarsWriter {
+pub struct CarsWriter<W: AsyncWrite + AsyncSeek + Send + Unpin> {
     /// current car writer because we will be making a lot of car files...
-    current_car_writer: RefCell<CarWriter>,
+    current_car_writer: RefCell<CarWriter<W>>,
     /// space_left_in_current is the amount of space left in the current car file
     space_left_in_current: usize,
     /// we're using the same one for all of them and it's hardcoded. cope
@@ -31,62 +37,80 @@ pub struct CarsWriter {
     car_dir: PathBuf,
 }
 
-impl CarsWriter {
-    fn new_car_smell(&mut self) {
-        self.cars_so_fars += 1;
-        let new_car_loc = self.car_dir.join(format!("car_{}.car", *self.cars_so_fars));
-        let mut car = CarWriter::new(self.header.clone(), File::open(new_car_loc));
+// lol
+impl CarsWriter<tokio::fs::File> {
+    async fn new_car_smell(&mut self) -> Result<()> {
+        *self.cars_so_fars.borrow_mut() += 1;
+        let new_car_loc = self
+            .car_dir
+            .join(format!("car_{}.car", self.cars_so_fars.borrow()));
+        let mut car = CarWriter::new(self.header.clone(), File::open(new_car_loc).await?);
         self.current_car_writer.replace(car);
         self.space_left_in_current = MAX_CAR_SIZE - self.header_size;
+        Ok(())
     }
 
-    pub fn new(cars_dir: PathBuf) -> Self {
+    pub async fn new(cars_dir: PathBuf) -> Result<Self> {
         assert!(cars_dir.is_dir());
         // secretly encodes twice. dumb
-        let header = CarHeader::new_v1(vec![Cid::from_str("bafkqaaa").unwrap()]);
-        let header_size = header.encode().len();
+        let header = CarHeader::new_v1(vec![Cid::from_str("bafkqaaa").unwrap().into()]);
+        let header_size = header.encode()?.len();
         let new_car_loc = cars_dir.join(format!("car_{}.car", 0));
-        let mut car = CarWriter::new(header, File::open(new_car_loc));
-        CarsWriter {
+        let mut car = CarWriter::new(header.clone(), File::open(new_car_loc).await?);
+        Ok(CarsWriter {
             current_car_writer: RefCell::new(car),
             space_left_in_current: MAX_CAR_SIZE - header_size,
             header,
             header_size,
             cars_so_fars: RefCell::new(0),
             car_dir: cars_dir,
-        }
+        })
+    }
+
+    fn current_car_file(&self) -> PathBuf {
+        self.car_dir
+            .join(format!("car_{}.car", self.cars_so_fars.borrow()))
     }
 
     /// computes the varint and CID for this buf and writes it to the current car file
     /// if there's not enough space in the current car file, it opens a new one
     /// and writes the varint and CID to that one after writing the header :)
-    async fn write_block_raw(&mut self, buf: &[u8]) -> Result<usize> {
+    async fn write_block_raw(&mut self, buf: &[u8]) -> Result<CarsWriterLocation> {
         // compute CID of buf
         let digest = multihash::Code::Sha2_256.digest(buf);
-        let cid = Cid::new_v1(Cid::SHA2_256, digest);
+        let cid = Cid::new_v1(DagCborCodec.into(), digest);
         // compute the varint size of the cid + buf
         let cid_size = cid.to_bytes().len();
         let buf_size = buf.len();
-        let varint = varint::encode(cid_size + buf_size);
+        let mut varint_buf = varint_encode::u64_buffer();
+        let varint = varint_encode::u64((cid_size + buf_size) as u64, &mut varint_buf);
         let varint_size = varint.len();
 
-        if buf.len() + cid_size + varint_size > self.space_left_in_current {
+        let block_len = cid_size + buf_size + varint_size;
+        if block_len > self.space_left_in_current {
             self.new_car_smell();
         };
 
-        *self.current_car_writer.write(varint).await;
-        *self.current_car_writer.write(cid.to_bytes()).await;
-        *self.current_car_writer.write(buf).await;
+        let offset : usize = self
+            .current_car_writer
+            .borrow_mut()
+            .underlying_location()
+            .await?.try_into()?;
+        self.current_car_writer.borrow_mut().write(cid, buf).await?;
         self.space_left_in_current -= buf.len() + cid_size + varint_size;
-        Ok(buf.len())
+        Ok(CarsWriterLocation {
+            car_file: self.current_car_file(),
+            offset,
+            size: block_len,
+        })
     }
 
     async fn finish(mut self) -> Result<()> {
-        self.current_car_writer.flush().await?;
+        self.flush().await?;
         Ok(())
     }
-    async fn flush (&mut self) -> Result<()> {
-        self.current_car_writer.flush().await?;
+    async fn flush(&mut self) -> Result<()> {
+        self.current_car_writer.borrow_mut().flush().await?;
         Ok(())
     }
 }
