@@ -4,9 +4,11 @@
 // so we're gonna start at the leftmost node. we're gonna try and get as many of its siblings as we can.
 // if we succeed we're gonna go up a node. and get as many of its siblings as we can.
 // this is... hard.
+mod car_header;
+mod car_writer;
 
-use crate::car_header::CarHeader;
-use crate::car_writer::CarWriter;
+use car_header::CarHeader;
+use car_writer::CarWriter;
 use crate::types::pipeline::CarsWriterLocation;
 use anyhow::Result;
 use cid::multihash::MultihashDigest;

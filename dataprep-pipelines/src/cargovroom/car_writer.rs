@@ -5,7 +5,7 @@ use cid::Cid;
 use tokio::io::{AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
 use unsigned_varint::encode as varint_encode;
 
-use crate::car_header::CarHeader;
+use super::car_header::CarHeader;
 
 #[derive(Debug)]
 pub struct CarWriter<W> {

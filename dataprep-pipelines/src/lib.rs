@@ -37,9 +37,7 @@ use test_notifier as _;
 
 extern crate core;
 
-mod car_header;
-mod car_writer;
-pub mod fs_carfiler;
+pub mod cargovroom;
 pub mod pipeline;
 pub mod plan_copy;
 pub mod spider;
