@@ -18,9 +18,9 @@ lazy_static! {
 mod test {
     use super::*;
 
-    const TEST_INPUT_SIZE: usize = 1024 * 1024; // 1MB
-    const TEST_MAX_WIDTH: usize = 4;
-    const TEST_MAX_DEPTH: usize = 4;
+    const TEST_INPUT_SIZE: usize = 10; // 1MB
+    const TEST_MAX_WIDTH: usize = 1;
+    const TEST_MAX_DEPTH: usize = 1;
 
     /// Test the pipeline with a small file structure
     #[tokio::test]

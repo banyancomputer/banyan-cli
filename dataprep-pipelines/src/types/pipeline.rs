@@ -61,8 +61,16 @@ pub struct EncryptionPart {
     )]
     pub identity: age::x25519::Identity,
 }
+// TODO danger will robinson
+impl Debug for EncryptionPart {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EncryptionPart")
+            .field("identity", &self.identity.to_string().expose_secret())
+            .finish()
+    }
+}
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata generated when a file is compressed and encrypted
 pub struct EncryptionMetadata {
     /// The parts of the file that were encrypted and associated metadata
@@ -98,7 +106,7 @@ pub struct WriteoutMetadata {
 // }
 
 /// this struct is the completed data processing steps for a file
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataProcess {
     /// describes how we compressed the entire file
     pub compression: CompressionMetadata,

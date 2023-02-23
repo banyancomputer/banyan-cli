@@ -35,11 +35,7 @@ where
     {
         if !self.is_header_written {
             // Write header bytes
-            let header_bytes = self.header.encode()?;
-            let mut varint_buf = varint_encode::u64_buffer();
-            let varint = varint_encode::u64((header_bytes.len()) as u64, &mut varint_buf);
-            self.writer.write_all(varint).await?;
-            self.writer.write_all(&header_bytes).await?;
+            self.writer.write_all(self.header.encode()?.as_ref()).await?;
             self.is_header_written = true;
         }
 
@@ -53,13 +49,21 @@ where
         let mut varint_buf = varint_encode::u64_buffer();
         let varint = varint_encode::u64((len) as u64, &mut varint_buf);
         self.writer.write_all(varint).await?;
+        println!("varint: {:?}", varint);
         self.writer.write_all(&self.cid_buffer).await?;
+        println!("cid: {:?}", self.cid_buffer.to_ascii_lowercase());
+        println!("cid string: {:?}", cid.to_string());
         self.writer.write_all(data).await?;
 
         Ok(())
     }
 
     pub async fn underlying_location(&mut self) -> Result<u64> {
+        if !self.is_header_written {
+            // Write header bytes
+            self.writer.write_all(self.header.encode()?.as_ref()).await?;
+            self.is_header_written = true;
+        }
         Ok(self.writer.seek(std::io::SeekFrom::Current(0)).await?)
     }
 

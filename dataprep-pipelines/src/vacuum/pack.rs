@@ -40,7 +40,7 @@ pub async fn do_file_pipeline(
                 flate2::Compression::default(),
             ));
 
-            let mut buf = [0; 1024 * 1024]; // 1MB buffer
+            let mut buf = vec![0_u8; 1024 * 1024]; // 1MB buffer on da heap
             let mut encrypted_buf = Vec::new();
 
             // output
@@ -49,7 +49,10 @@ pub async fn do_file_pipeline(
             // iterate over the file, partitioning it and encrypting it
             while old_file_reader.has_data_left()? {
                 // read a chunk of the file
-                old_file_reader.read_exact(&mut buf)?;
+                old_file_reader.read(&mut buf)?;
+                if buf.is_empty() {
+                    break;
+                }
 
                 // make the encryptor
                 let mut cursor = Cursor::new(&mut encrypted_buf);
@@ -92,6 +95,8 @@ pub async fn do_file_pipeline(
                 partition,
                 writeout,
             });
+            //println!("origin: {:?}", origin_data);
+            //println!("packtastic! {:?}", data_processing);
             Ok(Pipeline {
                 origin_data,
                 data_processing,

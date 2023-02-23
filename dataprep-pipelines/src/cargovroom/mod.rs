@@ -51,7 +51,7 @@ impl CarsWriter<tokio::fs::File> {
             self.current_car_writer.car_file_id + 1
         ));
         let car = CarFileId {
-            car_writer: CarWriter::new(self.header.clone(), File::open(new_car_loc).await?),
+            car_writer: CarWriter::new(self.header.clone(), File::create(new_car_loc).await?),
             car_file_id: self.current_car_writer.car_file_id + 1,
         };
         self.current_car_writer = car;
@@ -65,7 +65,7 @@ impl CarsWriter<tokio::fs::File> {
         let header = CarHeader::new_v1(vec![Cid::from_str("bafkqaaa").unwrap()]);
         let header_size = header.encode()?.len();
         let new_car_loc = cars_dir.join(format!("car_{}.car", 0));
-        let car = CarWriter::new(header.clone(), File::open(new_car_loc).await?);
+        let car = CarWriter::new(header.clone(), File::create(new_car_loc).await?);
         Ok(CarsWriter {
             current_car_writer: CarFileId {
                 car_writer: car,
@@ -109,7 +109,7 @@ impl CarsWriter<tokio::fs::File> {
             .await?
             .try_into()?;
         self.current_car_writer.car_writer.write(cid, buf).await?;
-        self.space_left_in_current -= buf.len() + cid_size + varint_size;
+        self.space_left_in_current -= block_len;
         Ok(CarsWriterLocation {
             car_file: self.current_car_file(),
             offset,
