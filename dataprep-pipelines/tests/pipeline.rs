@@ -1,7 +1,5 @@
-use dataprep_pipelines::utils::{
-    fs::{FileStructure, FileStructureStrategy},
-    test::{pipeline_test, setup_test_structure},
-};
+use dataprep_pipelines::utils::test::{pipeline_test, setup_test_structure};
+use fake_file::Structure;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -26,11 +24,10 @@ mod test {
     #[tokio::test]
     async fn test_pipeline() {
         // Define the file structure to test
-        let desired_structure = FileStructure::new(
+        let desired_structure = Structure::new(
             TEST_MAX_WIDTH, // width
             TEST_MAX_DEPTH, // depth
             TEST_INPUT_SIZE,
-            FileStructureStrategy::Balanced, // Balanced
         );
         println!("Setting up test structure: {:?}", desired_structure);
         // Setup the test structure

@@ -21,18 +21,13 @@ lazy_static.workspace = true
 rand.workspace = true
 printio.workspace = true
 age.workspace = true
+
 # TODO Dev dependencies
-strum.workspace = true
+fake-file.workspace = true
 dir-assert.workspace = true
 fs_extra.workspace = true
 criterion.workspace = true
-test-notifier.workspace = true
-pprof.workspace = true
 
 [[bench]]
 name = "pipeline"
-harness = false
-
-[[bench]]
-name = "file_structure"
 harness = false

@@ -1,6 +1,6 @@
 use crate::pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline};
-use crate::utils::fs::FileStructure;
 use dir_assert::assert_paths;
+use fake_file::Structure;
 use std::fs;
 use std::path::PathBuf;
 
@@ -18,7 +18,7 @@ pub fn setup_test_structure(
     output_path: &str,
     unpacked_path: &str,
     manifest_file_path: &str,
-    desired_structure: FileStructure,
+    desired_structure: Structure,
 ) {
     // Remove all old test files and directories
     fs::remove_dir_all(PathBuf::from(test_path)).unwrap_or_default();
@@ -29,7 +29,7 @@ pub fn setup_test_structure(
     fs::create_dir(input_path.clone()).unwrap();
     input_path.push(desired_structure.to_path_string());
     // create a directory structure at the given path
-    desired_structure.generate(input_path.clone()).unwrap();
+    desired_structure.generate(&input_path).unwrap();
     // Create the output directory
     fs::create_dir(PathBuf::from(output_path)).unwrap();
     // Create the unpacked directory
