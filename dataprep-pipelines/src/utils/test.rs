@@ -7,15 +7,14 @@ use std::path::PathBuf;
 
 /// Generate a directory structure to run tests on
 /// # Arguments
-/// * `test_path` - The path to the test directory
 /// * `input_path` - The path to the input directory
 /// * `packed_path` - The path to the output directory
 /// * `unpacked_path` - The path to the unpacked directory
 /// * `manifest_path` - The path to the manifest directory
 /// * `desired_structure` - The file structure to generate
 #[doc(hidden)]
+#[allow(clippy::ptr_arg)]
 pub fn setup_test_structure(
-    test_path: &PathBuf,
     input_path: &PathBuf,
     packed_path: &PathBuf,
     unpacked_path: &PathBuf,
@@ -23,7 +22,6 @@ pub fn setup_test_structure(
     desired_structure: Structure,
     structure_name: &str,
 ) {
-    fs::create_dir_all(test_path).unwrap();
     ensure_path_exists_and_is_empty_dir(input_path, true).unwrap();
     // Push the structure name to the input path
     let mut input_path = input_path.clone();
@@ -64,5 +62,5 @@ pub async fn pipeline_test(
     .unwrap();
 
     // checks if two directories are the same
-    assert_paths(&input_path.clone(), &unpacked_path.clone()).unwrap();
+    assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
 }

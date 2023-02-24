@@ -159,6 +159,7 @@ fn populate_input_dirs() {
         // If the path does not exist, then we need to generate the desired files
         if !entry.exists() {
             // Get the desired structure
+            #[allow(unused_mut)]
             let mut desired_structure = &desired_structures[i];
             // Generate the desired files
             desired_structure.generate(&entry).unwrap();
