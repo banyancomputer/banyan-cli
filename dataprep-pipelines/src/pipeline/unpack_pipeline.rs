@@ -1,4 +1,4 @@
-use crate::types::pipeline::PipelineToDisk;
+use crate::types::pipeline::CodablePipeline;
 use crate::vacuum::unpack::do_file_pipeline;
 use anyhow::Result;
 use std::path::PathBuf;
@@ -9,15 +9,18 @@ pub async fn unpack_pipeline(
     output_dir: PathBuf,
     manifest_file: PathBuf,
 ) -> Result<()> {
-    // parse manifest file into Vec<PipelineToDisk>
+    // parse manifest file into Vec<CodablePipeline>
     let reader = std::fs::File::open(manifest_file)?;
-    let pipelines: Vec<PipelineToDisk> = serde_json::from_reader(reader)?;
+    let pipelines: Vec<CodablePipeline> = serde_json::from_reader(reader)?;
 
+    // Iterate over each pipeline
     tokio_stream::iter(pipelines)
         .then(|pipeline_to_disk| {
             do_file_pipeline(pipeline_to_disk, input_dir.clone(), output_dir.clone())
         })
         .collect::<Result<Vec<_>>>()
         .await?;
+
+    // If the async block returns, we're Ok.
     Ok(())
 }

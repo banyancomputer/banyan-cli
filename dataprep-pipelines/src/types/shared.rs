@@ -1,4 +1,4 @@
-use crate::types::spider::{SpiderMetadata, SpiderMetadataToDisk};
+use crate::types::spider::{SpiderMetadata, CodableSpiderMetadata};
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
 
@@ -19,10 +19,10 @@ pub enum DataProcessDirective<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DataProcessDirectiveToDisk<T> {
+pub enum CodableDataProcessDirective<T> {
     /// The file was a duplicate, use the processed data from the original- here's where to find it
     /// once everything else is restored
-    Duplicate(SpiderMetadataToDisk),
+    Duplicate(CodableSpiderMetadata),
     /// It was a directory, just create it
     Directory,
     /// it was a symlink, just create it
@@ -31,17 +31,19 @@ pub enum DataProcessDirectiveToDisk<T> {
     File(T),
 }
 
-impl<T> TryFrom<DataProcessDirective<T>> for DataProcessDirectiveToDisk<T> {
+impl<T> TryFrom<DataProcessDirective<T>> for CodableDataProcessDirective<T> {
     type Error = anyhow::Error;
     fn try_from(data_process_directive: DataProcessDirective<T>) -> Result<Self, Self::Error> {
         Ok(match data_process_directive {
             DataProcessDirective::Duplicate(spider) => {
-                DataProcessDirectiveToDisk::Duplicate(spider.as_ref().try_into()?)
+                CodableDataProcessDirective::Duplicate(
+                    spider.as_ref().try_into()?
+                )
             }
-            DataProcessDirective::Directory => DataProcessDirectiveToDisk::Directory,
-            DataProcessDirective::Symlink => DataProcessDirectiveToDisk::Symlink,
+            DataProcessDirective::Directory => CodableDataProcessDirective::Directory,
+            DataProcessDirective::Symlink => CodableDataProcessDirective::Symlink,
             DataProcessDirective::File(data_process) => {
-                DataProcessDirectiveToDisk::File(data_process)
+                CodableDataProcessDirective::File(data_process)
             }
         })
     }

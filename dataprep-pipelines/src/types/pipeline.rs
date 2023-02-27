@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::types::shared::DataProcessDirectiveToDisk;
-use crate::types::spider::SpiderMetadataToDisk;
+use crate::types::shared::CodableDataProcessDirective;
+use crate::types::spider::CodableSpiderMetadata;
 use serde::{Deserialize, Serialize};
 
 // TODO (laudiacay) this "ToDisk" stuff sort of sucks
@@ -141,20 +141,20 @@ impl TryFrom<PipelinePlan> for Pipeline {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct PipelineToDisk {
+pub struct CodablePipeline {
     /// describes where a file came from on the original filesystem
-    pub origin_data: SpiderMetadataToDisk,
+    pub origin_data: CodableSpiderMetadata,
     /// describes data processing, if any is needed
-    pub data_processing: DataProcessDirectiveToDisk<DataProcess>,
+    pub data_processing: CodableDataProcessDirective<DataProcess>,
 }
 
-impl TryFrom<Pipeline> for PipelineToDisk {
+impl TryFrom<Pipeline> for CodablePipeline {
     type Error = anyhow::Error;
 
     fn try_from(pipeline: Pipeline) -> Result<Self, Self::Error> {
         let origin_data = pipeline.origin_data.as_ref().try_into()?;
         let data_processing = pipeline.data_processing.try_into()?;
-        Ok(PipelineToDisk {
+        Ok(CodablePipeline {
             origin_data,
             data_processing,
         })

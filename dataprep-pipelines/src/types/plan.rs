@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use crate::types::pipeline::PartitionMetadata;
 use crate::types::shared::DataProcessDirective;
 use crate::types::spider::SpiderMetadata;
@@ -7,6 +9,7 @@ use std::rc::Rc;
 // TODO (laudiacay) continue making types better...
 
 #[derive(Debug, Clone)]
+#[derive(Serialize)]
 pub struct CompressionPlan {
     pub compression_info: String,
 }
@@ -49,7 +52,7 @@ impl Default for EncryptionPlan {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WriteoutPlan {
     pub output_paths: Vec<PathBuf>,
 }

@@ -1,5 +1,8 @@
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
+use std::io::BufReader;
+use std::fs::File;
+use flate2::Compression;
 
 use crate::types::pipeline::{
     CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
@@ -16,6 +19,7 @@ pub async fn do_file_pipeline(
     }: PipelinePlan,
 ) -> Result<Pipeline> {
     match data_processing {
+        // If this is a file
         DataProcessDirective::File(DataProcessPlan {
             compression,
             partition,
@@ -26,15 +30,17 @@ pub async fn do_file_pipeline(
 
             // open a reader to the original file
             let old_file_reader =
-                std::io::BufReader::new(std::fs::File::open(&origin_data.canonicalized_path).map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}",e))
-                    ?);
+                BufReader::new(
+                    File::open(&origin_data.canonicalized_path)
+                        .map_err(|e| 
+                            anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e)
+                        )
+                ?);
 
             // put a gzip encoder on it then buffer it
             assert_eq!(compression.compression_info, "GZIP");
-            let mut old_file_reader = std::io::BufReader::new(GzEncoder::new(
-                old_file_reader,
-                flate2::Compression::default(),
-            ));
+
+            let mut old_file_reader = BufReader::new(GzEncoder::new(old_file_reader, Compression::default()));
 
             // output
             let mut encrypted_pieces = Vec::new();
@@ -99,6 +105,7 @@ pub async fn do_file_pipeline(
                 data_processing,
             })
         }
+        // If this is a directory, symlink, or duplicate
         _ => Ok(Pipeline {
             origin_data,
             data_processing: data_processing.try_into()?,
