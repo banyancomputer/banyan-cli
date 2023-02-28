@@ -76,17 +76,10 @@ pub struct WriteoutMetadata {
     pub chunk_locations: Vec<PathBuf>,
 }
 
-// /// this struct is used to build up the data processing steps for a file
-// pub struct DataProcessBuilder {
-//     /// describes how we compressed the file
-//     compression: Option<CompressionMetadata>,
-//     /// describes how we partitioned the file
-//     partition: Option<PartitionMetadata>,
-//     /// describes how we encrypted the file
-//     encryption: Option<EncryptionMetadata>,
-//     /// describes how we wrote the file out on the new filesystem
-//     writeout: Option<WriteoutMetadata>,
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicationMetadata {
+    pub expected_location: Option<PathBuf>,
+}
 
 /// this struct is the completed data processing steps for a file
 #[derive(Clone, Serialize, Deserialize)]
@@ -100,6 +93,8 @@ pub struct DataProcess {
     pub encryption: EncryptionMetadata,
     /// describes how/where we wrote the file out on the new filesystem
     pub writeout: WriteoutMetadata,
+    // Describes if/how the file needs to be deduplicated
+    pub duplication: DuplicationMetadata,
 }
 
 // all these are no-ops except for the File case
@@ -113,7 +108,6 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
             DataProcessDirective::File(_) => Err(anyhow!("You have to process files!")),
             DataProcessDirective::Directory => Ok(DataProcessDirective::Directory),
             DataProcessDirective::Symlink => Ok(DataProcessDirective::Symlink),
-            DataProcessDirective::Duplicate(spider) => Ok(DataProcessDirective::Duplicate(spider)),
         }
     }
 }

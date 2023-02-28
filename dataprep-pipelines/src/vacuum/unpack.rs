@@ -1,5 +1,5 @@
 use age::Decryptor;
-use anyhow::{anyhow, Result, Ok};
+use anyhow::{anyhow, Ok, Result};
 use flate2::write::GzDecoder;
 use printio as _;
 use std::fs::File;
@@ -7,7 +7,7 @@ use std::io::BufReader;
 use std::iter;
 use std::path::PathBuf;
 
-use crate::types::pipeline::{DataProcess, CodablePipeline};
+use crate::types::pipeline::{CodablePipeline, DataProcess};
 use crate::types::shared::CodableDataProcessDirective;
 
 // Unpack a single file, directory, or symlink
@@ -26,7 +26,13 @@ pub async fn do_file_pipeline(
             partition,
             encryption,
             writeout,
+            duplication,
         }) => {
+            // if
+            if duplication.expected_location.is_some() {
+                todo!("deduplication not yet implemented come back later");
+            }
+
             // TODO (laudiacay) async these reads. also is this buf setup right
             let output = output_dir.join(origin_data.original_location);
             let new_file_writer = File::create(output)?;
@@ -87,15 +93,15 @@ pub async fn do_file_pipeline(
             // Return OK status
             Ok(())
         }
-        CodableDataProcessDirective::Duplicate(smtd) => {
-            // The location of the file that this file is a duplicate of
-            let original_location = smtd.original_location;
-            // The location that this file is expected in
-            let expected_location = origin_data.original_location;
-            println!("using the file in {} but extracting it to {}", original_location.display(), expected_location.display());
+        // CodableDataProcessDirective::Duplicate(smtd) => {
+        //     // The location of the file that this file is a duplicate of
+        //     let original_location = smtd.original_location;
+        //     // The location that this file is expected in
+        //     let expected_location = origin_data.original_location;
+        //     println!("using the file in {} but extracting it to {}", original_location.display(), expected_location.display());
 
-            todo!("Duplicates are not yet implemented. Come back later!");
-        }
+        //     todo!("Duplicates are not yet implemented. Come back later!");
+        // }
         CodableDataProcessDirective::Directory => {
             let loc = output_dir.join(origin_data.original_location);
             // TODO (laudiacay) set all the permissions and stuff right?
@@ -108,9 +114,6 @@ pub async fn do_file_pipeline(
         }
     }
 }
-
-
-
 
 // TODO (thea-exe): Our inline tests
 // Note (amiller68): Testing may rely on decrypting the file, which is not yet implemented

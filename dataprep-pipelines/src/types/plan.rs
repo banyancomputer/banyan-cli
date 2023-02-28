@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::types::pipeline::PartitionMetadata;
 use crate::types::shared::DataProcessDirective;
@@ -8,8 +8,7 @@ use std::rc::Rc;
 
 // TODO (laudiacay) continue making types better...
 
-#[derive(Debug, Clone)]
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CompressionPlan {
     pub compression_info: String,
 }
@@ -57,17 +56,24 @@ pub struct WriteoutPlan {
     pub output_paths: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicationPlan {
+    pub expected_location: Option<PathBuf>,
+}
+
 /// this struct is used to build up the data processing steps for a file
 #[derive(Clone)]
 pub struct DataProcessPlan {
-    /// describes how we will compress the file
+    // Describes how we will compress the file
     pub compression: CompressionPlan,
-    /// describes how we will partition the file
+    // Describes how we will partition the file
     pub partition: PartitionPlan,
-    /// describes how we will encrypt the file
+    // Describes how we will encrypt the file
     pub encryption: EncryptionPlan,
-    /// describes how we will write the file out on the new filesystem
+    // Describes how we will write the file out on the new filesystem
     pub writeout: WriteoutPlan,
+    // Described if/how we will deduplicate the file
+    pub duplication: DuplicationPlan,
 }
 
 pub struct PipelinePlan {

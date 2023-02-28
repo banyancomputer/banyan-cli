@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
-use std::io::BufReader;
-use std::fs::File;
 use flate2::Compression;
+use std::fs::File;
+use std::io::BufReader;
 
 use crate::types::pipeline::{
-    CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
-    WriteoutMetadata,
+    CompressionMetadata, DataProcess, DuplicationMetadata, EncryptionMetadata, EncryptionPart,
+    Pipeline, WriteoutMetadata,
 };
 use crate::types::plan::{DataProcessPlan, PipelinePlan};
 use crate::types::shared::DataProcessDirective;
@@ -25,6 +25,7 @@ pub async fn do_file_pipeline(
             partition,
             encryption,
             writeout,
+            duplication,
         }) => {
             // TODO (laudiacay) async these reads. also is this buf setup right
 
@@ -32,15 +33,14 @@ pub async fn do_file_pipeline(
             let old_file_reader =
                 BufReader::new(
                     File::open(&origin_data.canonicalized_path)
-                        .map_err(|e| 
-                            anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e)
-                        )
+                        .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))
                 ?);
 
             // put a gzip encoder on it then buffer it
             assert_eq!(compression.compression_info, "GZIP");
 
-            let mut old_file_reader = BufReader::new(GzEncoder::new(old_file_reader, Compression::default()));
+            let mut old_file_reader =
+                BufReader::new(GzEncoder::new(old_file_reader, Compression::default()));
 
             // output
             let mut encrypted_pieces = Vec::new();
@@ -94,11 +94,17 @@ pub async fn do_file_pipeline(
             let writeout = WriteoutMetadata {
                 chunk_locations: writeout.output_paths,
             };
+
+            let duplication = DuplicationMetadata {
+                expected_location: duplication.expected_location,
+            };
+
             let data_processing = DataProcessDirective::File(DataProcess {
                 encryption,
                 compression,
                 partition,
                 writeout,
+                duplication,
             });
             Ok(Pipeline {
                 origin_data,

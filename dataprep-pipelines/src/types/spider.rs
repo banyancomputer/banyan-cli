@@ -54,7 +54,7 @@ pub struct CodableMetadata {
 
 impl From<&SpiderMetadata> for CodableMetadata {
     fn from(value: &SpiderMetadata) -> Self {
-        return CodableMetadata {
+        CodableMetadata {
             file_type: match value.original_metadata.file_type().is_dir() {
                 true => FileType::Directory,
                 false => match value.original_metadata.file_type().is_symlink() {
@@ -68,7 +68,7 @@ impl From<&SpiderMetadata> for CodableMetadata {
             accessed: (),
             created: (),
             owner: (),
-        };
+        }
     }
 }
 
