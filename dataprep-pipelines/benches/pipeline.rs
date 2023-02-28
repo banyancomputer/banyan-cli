@@ -1,42 +1,35 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use dataprep_pipelines::{
     pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
-    utils::fs::{
-        ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir, FileStructure,
-        FileStructureStrategy,
-    },
+    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 use dir_assert::assert_paths;
+use fake_file::{Strategy, Structure};
 use fs_extra::dir;
 use lazy_static::lazy_static;
+use std::str::FromStr;
 use std::time::Duration;
 use std::{env, fs, path::PathBuf};
-use test_notifier::TestNotifier;
 use tokio::runtime::Runtime;
-
-mod perf;
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
     // Bench set directory configuration
     // Path we will use to hold our benchmarking data
-    static ref BENCH_PATH: String = env::var("BENCH_PATH").unwrap_or_else(|_| "bench".to_string());
+    static ref BENCH_PATH: String = env::var("BENCH_PATH").unwrap_or_else(|_| "target/bench".to_string());
     // Path we will use to hold inputs we build for benchmarking
-    static ref INPUT_PATH: String = env::var("INPUT_PATH").unwrap_or_else(|_| "bench/input".to_string());
+    static ref INPUT_PATH: String = env::var("INPUT_PATH").unwrap_or_else(|_| "target/bench/input".to_string());
     // Path we will use to hold packed data we build from inputs for benchmarking
-    static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "bench/packed".to_string());
+    static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "target/bench/packed".to_string());
     // Path we will use to hold unpacked data we build from packed data for benchmarking
-    static ref UNPACKED_PATH: String = env::var("UNPACKED_PATH").unwrap_or_else(|_| "bench/unpacked".to_string());
+    static ref UNPACKED_PATH: String = env::var("UNPACKED_PATH").unwrap_or_else(|_| "target/bench/unpacked".to_string());
     // Path we will use to hold the manifest files generated during benchmarking
-    static ref MANIFEST_PATH: String = env::var("MANIFEST_PATH").unwrap_or_else(|_| "bench/manifest".to_string());
-
-    // TODO (make this work) IFTTT key to use for sending notifications
-    static ref IFTTT_KEY: String = env::var("IFTTT_TEST_WEBHOOK_KEY").unwrap_or_else(|_| "none".to_string());
+    static ref MANIFEST_PATH: String = env::var("MANIFEST_PATH").unwrap_or_else(|_| "target/bench/manifest".to_string());
 
     // Test Set Generation configuration
     // Defaults to a simple 4x4 file structure with 1Mb of data
     // What sort of File Structures to generate --options [ simple, skinny, wide, file ]
-    static ref BENCH_FILE_STRUCTURES_STRING: String = env::var("BENCH_FILE_STRUCTURES").unwrap_or_else(|_| "simple".to_string());
+    static ref BENCH_FILE_STRUCTURES_STRING: String = env::var("BENCH_FILE_STRUCTURES").unwrap_or_else(|_| "Simple".to_string());
     // How big each test should be (in bytes) Try to use powers of 2 here
     static ref BENCH_FILE_STRUCTURES_SIZE: usize = env::var("BENCH_FILE_STRUCTURES_SIZE")
         .unwrap_or_else(|_| "1048576".to_string()) // Default to 1Mb
@@ -80,32 +73,14 @@ lazy_static! {
         .unwrap();
 }
 
-/// Return a TestNotifier if we have an IFFTT key set, initialized with the given message
-/// # Arguments
-/// * `message` - The message to send to the TestNotifier
-/// # Returns
-/// A TestNotifier if we have an IFTTT key set, None otherwise
-#[doc(hidden)]
-fn get_test_notifier(message: &str) -> Option<TestNotifier> {
-    // Get the string from the IFTTT key
-    let ifttt_key = IFTTT_KEY.as_str();
-    // If the key is not "none", then we want to send notifications
-    if ifttt_key != "none" {
-        println!("Sending notifications to IFTTT: {}", message);
-        // Create a notifier
-        Some(TestNotifier::new_with_message(message.to_string()));
-    }
-    // Otherwise, we don't want to send notifications
-    None
-}
-
 /// Read what File structures we want to test from the environment (or use defaults)
 /// # Returns
 /// A list of file structures to test from the environment
 #[doc(hidden)]
-fn get_desired_file_structures() -> Vec<FileStructure> {
+fn get_desired_file_structures() -> Vec<Structure> {
     // Initialize a list of file structures to test
-    let mut desired_structures: Vec<FileStructure> = Vec::new();
+    #[allow(unused_mut)]
+    let mut desired_structures: Vec<Structure> = Vec::new();
     // Get the list of file structures to test from the environment
     let bench_file_structures = BENCH_FILE_STRUCTURES_STRING.as_str();
     // Get the size of the test from the environment, as a usize
@@ -127,47 +102,13 @@ fn get_desired_file_structures() -> Vec<FileStructure> {
     // Print the max depth of the file structures
     println!("-> Max Depth: {}", max_depth);
 
-    // We're only gonna make balanced trees for now
-    let strategy = FileStructureStrategy::Balanced;
     // Iterate through the list of file structures
     for file_structure in file_structures {
-        // Add the file structure to our list of desired structures
-        match file_structure {
-            "skinny" => {
-                let structure = FileStructure::new(
-                    max_width / 2,
-                    max_depth,
-                    bench_file_structure_size,
-                    strategy.clone(),
-                );
-                desired_structures.push(structure);
-            }
-            "wide" => {
-                let structure = FileStructure::new(
-                    max_width,
-                    max_depth / 2,
-                    bench_file_structure_size,
-                    strategy.clone(),
-                );
-                desired_structures.push(structure);
-            }
-            "file" => {
-                let structure =
-                    FileStructure::new(0, 0, bench_file_structure_size, strategy.clone());
-                desired_structures.push(structure);
-            }
-            // catches simple and anything else
-            _ => {
-                let structure = FileStructure::new(
-                    max_width,
-                    max_depth,
-                    bench_file_structure_size,
-                    strategy.clone(),
-                );
-                desired_structures.push(structure);
-            }
-        }
-        // Add the structure to the list of desired structures
+        // Determine what Strategy we want to use
+        let strategy = Strategy::from_str(file_structure).unwrap();
+
+        let s = Structure::new(max_width, max_depth, bench_file_structure_size, strategy);
+        desired_structures.push(s);
     }
     // Return the list of desired structures
     desired_structures
@@ -178,16 +119,13 @@ fn get_desired_file_structures() -> Vec<FileStructure> {
 /// Any pre-existing file structures we want to test will be left alone
 #[doc(hidden)]
 fn populate_input_dirs() {
-    // Get a test notifier
-    let _tn = get_test_notifier("Populating input directories");
-
     // Get the desired file structures
     let desired_structures = get_desired_file_structures();
 
     // Get the paths we want to use by turning these into a list of paths
     let desired_paths = desired_structures
         .iter()
-        .map(|f: &FileStructure| PathBuf::from(INPUT_PATH.as_str()).join(f.to_path_string()))
+        .map(|f: &Structure| PathBuf::from(INPUT_PATH.as_str()).join(f.to_path_string()))
         .collect::<Vec<PathBuf>>();
 
     // Make sure the input directory exists
@@ -221,9 +159,10 @@ fn populate_input_dirs() {
         // If the path does not exist, then we need to generate the desired files
         if !entry.exists() {
             // Get the desired structure
-            let desired_structure = &desired_structures[i];
+            #[allow(unused_mut)]
+            let mut desired_structure = &desired_structures[i];
             // Generate the desired files
-            desired_structure.generate(entry).unwrap();
+            desired_structure.generate(&entry).unwrap();
         }
         // Increment the index
         i += 1;
@@ -452,9 +391,6 @@ pub fn pipeline_benchmark(c: &mut Criterion) {
     // Setup the bench - populate the input directory
     setup_bench();
 
-    // Get a test notifier
-    let _tn = get_test_notifier("Running Benchmarks");
-
     // Where we will store our input sets
     let root_input_path = PathBuf::from(INPUT_PATH.as_str());
     // Where we will store our packed data
@@ -507,7 +443,6 @@ fn custom_config() -> Criterion {
         .sample_size(*SAMPLE_SIZE)
         .measurement_time(Duration::from_secs(*SAMPLE_TIME as u64))
         .warm_up_time(Duration::from_secs(*WARMUP_TIME as u64))
-        .with_profiler(perf::FlamegraphProfiler::new(100))
 }
 
 // Wrap our benchmarks in a criterion group

@@ -4,6 +4,8 @@
 - cargo
 - rustup
 - rust +nightly -- either make this the default or use `cargo +nightly <command>` for all commands
+- cargo-criterion
+- cargo-flamegraph
 
 ## Build the binary!
 ```bash
@@ -23,27 +25,6 @@ Unpack a file:
 dataprep unpack --input-dir <INPUT_DIR> --manifest-file <MANIFEST_FILE> --output-dir <OUTPUT_DIR>
 ```
 
-<<<<<<< HEAD
-## Format
-
-Make sure to run `cargo fmt` before committing. Run it in the package you want to format. (like, go into the `dataprep` directory and run `cargo fmt`)
-
-```bash
-cargo fmt # format code
-cargo clippy # lint code
-```
-
-## Test
-
-for unit tests
-```bash
-cargo test
-```
-for integration tests
-```bash
-cargo test --test integration
-```
-=======
 ## Contributing 
 Your PRs are welcome! Please make sure to run the following commands before committing:
 ```bash
@@ -68,22 +49,19 @@ cargo +nightly test pipeline
 ```
 
 ## Benchmarks
-TODO (amiller68): Document how to divert logs to a file
-You can configure and run two types of benchmarks you can run on your system:
-- Throughput
-- Profiling
 Edit the contents of `env/env.benchmark` to configure the benchmarks. See that file for options and defaults.
+To use custom configuration, source the `env/env.benchmark` file before running the benchmarks.
 
 ### Naming Conventions
-Packing benchmarks are named `Throughput/pack/<name-of-benchmark>`.
-Unpacking benchmarks are named `Throughput/unpack/<name-of-benchmark>`.
+Packing benchmarks are named `Throughput/pack/<input_benchmarked>`.
+Unpacking benchmarks are named `Throughput/unpack/<input_benchmarked>`.
 Where the name of the benchmark is the name of the file or directory that is being packed/unpacked.
 If the file is generated, then the name of the benchmark is the description of the generator i.e. `w2_d2_s1024` for 
 a file structure with a width of 2, depth of 2, and a target size of 1024 bytes.
 
-### Throughput
-Any machine with rust should be able to run the throughput benchmarks.
-By default, scratch space is created in a `bench` directory
+### Benchmarking
+Please use Criterion when running benchmarks.
+By default, scratch space for generating and packing files is created in a `target/bench` directory
 ```bash
 # If you want to load your own config, you can do so by running
 source env/env.benchmark
@@ -93,75 +71,20 @@ cargo +nightly criterion --bench pipeline
 
 You should see results in the `target/criterion/report/index.html` file.
 
-### Profiling
-You need to have `perf` installed on your machine, which is a linux tool, to run the profiling benchmarks.
-These benchmarks will generate a flamegraph, which is a visual representation of the code's performance.
+### Profiling with Flamegraph
+Dependencies
+- Flamegraph
+- Perf (linux only)
+- Dtrace (mac only)
 
-The flamegraphs will be in the `target/criterion/<name-of-benchmark>/profile/flamegraph.svg` file for all the benchmarks you ran.
-
-#### Linux
+You can use flamegraph to run profiling when running tests, benchmarks, or whole binaries
+Be sure to check out their docs for more info:
+https://github.com/flamegraph-rs/flamegraph
+Here's an example of how you would run a profiling benchmark on linux:
 ```bash
 # Remember to source your env file if you want to load your own config
-source env/env.benchmark
-# Then bench the pipeline
-cargo +nightly bench --bench pipeline -- --profile-time 30 # Or $BENCH_PROFILER_TIME if that's set
-```
-This will run the pack and unpack benchmarks for the specified time, and then generate a flamegraph for you.
-
-#### Mac
-If you are on a mac, you're (mostly) out of luck. You can't run accurate profiling benchmarks on a mac, because the `perf` tool is not available.
-However, a very crappy unoptimized Dockerfile is provided in `dataprep-pipelines/Dockerfile`. This dockerfile will build a docker image that you can run both the throughput and profiling benchmarks in.
-
-To use:
-```bash
-# Build the pipeline docker image
-docker build -t pipeline -f dataprep-pipelines/Dockerfile .
-```
-```bash
-# Create a volume to mount the code into the docker container
-docker volume create dataprep
-```
-```bash
-# Run the pipeline docker image and open a shell
-docker run -it --rm -v dataprep-bench:/dataprep -w /dataprep dataprep-pipeline
-```
-This will open a shell in the docker container. Now, you can run the benchmarks:
-```bash
-# Run the throughput benchmark (if you want)
-./run.sh
-# Run the profiling benchmark
-./run_profiling.sh
-```
-These don't run configured benchmarks, they just run the default benchmarks. If you want to run a different benchmark, you can import
-the `env/env.benchmark` file into the docker container and then run the benchmarks.
-
-TODO (amiller68) : I thought there'd be an easy way to get the flamegraph out of the docker container, but I couldn't figure it out. If you know how, please let me know!
-In the meantime
-```bash
-# While the container is still running, open a new terminal
-# Get the container id
-docker container ls
-# Copy the flamegraph out of the container
-docker cp <container-id>:/dataprep/target/criterion/<name-of-benchmark>/profile/flamegraph.svg .
-```
-For the default benchmarks the name of the pack benchmark is `Throughput/pack/w4_d4_s1048576_balanced`
-and the name of the unpack benchmark is `Throughput/unpack/w4_d4_s1048576_balanced`
-So:
-```bash
-docker cp <container-id>:/dataprep/target/criterion/Throughput/pack/w4_d4_s1024_balanced/profile/flamegraph.svg .
-```
-or
-```bash
-docker cp <container-id>:/dataprep/target/criterion/Throughput/unpack/w4_d4_s1024_balanced/profile/flamegraph.svg .
+cargo +nightly flamegraph --bench pipeline
 ```
 
 Here's an exmaple of what the flamegraph looks like. I made this using the docker container, so it might not be representative of the performance on your machine.
 ![flamegraph](.github/flamegraph.svg)
-
-
-
-
-
-
-
->>>>>>> origin/bench
