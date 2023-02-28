@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -28,7 +28,8 @@ use crate::utils::hasher;
 pub async fn plan_copy(
     origin_data: SpiderMetadata,
     to_root: PathBuf,
-    seen_hashes: Arc<RwLock<HashSet<String>>>,
+    // This data structure is a little uglier than i would like it to be
+    seen_hashes: Arc<RwLock<HashMap<String, (EncryptionPlan, Vec<PathBuf>)>>>,
     target_chunk_size: u64,
 ) -> Result<PipelinePlan> {
     // If this is a directory
@@ -52,11 +53,13 @@ pub async fn plan_copy(
         // Compute the file hash
         let file_hash = hasher::hash_file(&origin_data.canonicalized_path).await?;
         // Determine whether or not the file is a duplicate
-        let file_is_duplicate = {
+        let duplicate_metadata = {
             // grab a read lock and check if we've seen it
             let seen_hashes = seen_hashes.read().await;
-            seen_hashes.get(&file_hash).is_some()
+            seen_hashes.get(&file_hash).cloned()
         };
+        // If there are file names associated with this hash, we've seen it before
+        let file_is_duplicate = duplicate_metadata.is_some();
 
         // Enclose origin data in Reference Counter
         let od = Rc::new(origin_data);
@@ -66,18 +69,28 @@ pub async fn plan_copy(
         // Determine number of chunks required to store this file
         let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
         // Generate a random filenames for each chunk, collected in a Vec
-        let random_filenames = (0..num_chunks)
-            .map(|_| Uuid::new_v4())
-            .map(|f| to_root.join(f.to_string()))
-            .collect();
+        let random_filenames: Vec<PathBuf> = if file_is_duplicate {
+            duplicate_metadata.clone().unwrap().1
+        } else {
+            (0..num_chunks)
+                .map(|_| Uuid::new_v4())
+                .map(|f| to_root.join(f.to_string()))
+                .collect()
+        };
+
+        let encryption_plan = if file_is_duplicate {
+            duplicate_metadata.unwrap().0
+        } else {
+            EncryptionPlan::new()
+        };
 
         // Create a DataProcessPlan for packing and unpacking
         let process_plan = DataProcessPlan {
             compression: CompressionPlan::new_gzip(),
             partition: PartitionPlan::new(target_chunk_size, num_chunks),
-            encryption: EncryptionPlan::new(),
+            encryption: encryption_plan.clone(),
             writeout: WriteoutPlan {
-                output_paths: random_filenames,
+                output_paths: random_filenames.clone(),
             },
             duplication: DuplicationPlan {
                 expected_location: if file_is_duplicate {
@@ -98,7 +111,7 @@ pub async fn plan_copy(
             // Grab write lock
             let mut seen_hashes = seen_hashes.write().await;
             // Insert the file hash into the Hashset
-            seen_hashes.insert(file_hash.clone());
+            seen_hashes.insert(file_hash.clone(), (encryption_plan, random_filenames));
         }
 
         // Now that plan is created and file is marked as seen, return Ok

@@ -4,10 +4,7 @@ use flate2::Compression;
 use std::fs::File;
 use std::io::BufReader;
 
-use crate::types::pipeline::{
-    CompressionMetadata, DataProcess, DuplicationMetadata, EncryptionMetadata, EncryptionPart,
-    Pipeline, WriteoutMetadata,
-};
+use crate::types::pipeline::{EncryptionPart, Pipeline};
 use crate::types::plan::{DataProcessPlan, PipelinePlan};
 use crate::types::shared::DataProcessDirective;
 use std::io::{BufRead, Read};
@@ -20,16 +17,17 @@ pub async fn do_file_pipeline(
 ) -> Result<Pipeline> {
     match data_processing.clone() {
         // If this is a file
-        DataProcessDirective::File(DataProcessPlan {
-            compression,
-            partition,
-            encryption,
-            writeout,
-            duplication,
-        }) => {
+        DataProcessDirective::File(dpp) => {
+            let DataProcessPlan {
+                compression,
+                partition,
+                encryption,
+                writeout,
+                duplication,
+            } = dpp.clone();
             // TODO (laudiacay) async these reads. also is this buf setup right
-
-            // If this is a duplicate, we don't need to do anything
+            
+            // If this is a duplicate file, we don't need to do anything
             if duplication.expected_location.is_some() {
                 return Ok(Pipeline {
                     origin_data,
@@ -59,8 +57,8 @@ pub async fn do_file_pipeline(
                 // TODO (laudiacay) write down somewhere which bytes of the OG file this was.
                 let mut old_file_take = old_file_reader.take(partition.0.chunk_size);
                 // open the output file for writing
-                let new_file_writer =
-                    std::fs::File::create(&writeout.output_paths[i]).map_err(|e| {
+                let new_file_writer = std::fs::File::create(&writeout.output_paths[i])
+                    .map_err(|e| {
                         anyhow!(
                             "could not create new file writer! {} at {:?}",
                             e,
@@ -69,16 +67,18 @@ pub async fn do_file_pipeline(
                     })?;
 
                 // make the encryptor
-                let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
-                    encryption.identity.to_public(),
-                )])
-                .expect("could not create encryptor")
-                .wrap_output(new_file_writer)?;
+                let mut new_file_encryptor =
+                    age::Encryptor::with_recipients(vec![Box::new(
+                        encryption.identity.to_public(),
+                    )])
+                    .expect("could not create encryptor")
+                    .wrap_output(new_file_writer)?;
 
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
-                std::io::copy(&mut old_file_take, &mut new_file_encryptor)
-                    .map_err(|e| anyhow!("could not copy data from old file to new file! {}", e))?;
+                std::io::copy(&mut old_file_take, &mut new_file_encryptor).map_err(
+                    |e| anyhow!("could not copy data from old file to new file! {}", e),
+                )?;
 
                 old_file_reader = old_file_take.into_inner();
 
@@ -93,28 +93,11 @@ pub async fn do_file_pipeline(
                 });
                 i += 1;
             }
-            let encryption = EncryptionMetadata { encrypted_pieces };
-            let compression = CompressionMetadata {
-                compression_info: "GZIP".to_string(),
-                size_after: 0, // TODO (laudiacay) figure out how to get this
-            };
-            let partition = partition.0;
-            let writeout = WriteoutMetadata {
-                chunk_locations: writeout.output_paths,
-            };
-            let duplication = DuplicationMetadata {
-                expected_location: duplication.expected_location,
-            };
-            let data_processing = DataProcessDirective::File(DataProcess {
-                encryption,
-                compression,
-                partition,
-                writeout,
-                duplication,
-            });
+
+            //
             Ok(Pipeline {
                 origin_data,
-                data_processing,
+                data_processing: DataProcessDirective::File(dpp.try_into()?),
             })
         }
         // If this is a directory, symlink, or duplicate

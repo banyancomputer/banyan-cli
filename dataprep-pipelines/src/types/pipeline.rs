@@ -5,7 +5,6 @@ use crate::types::{
 };
 use age::secrecy::ExposeSecret;
 use anyhow::anyhow;
-use jwalk::rayon::vec;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -103,24 +102,22 @@ impl TryFrom<DataProcessPlan> for DataProcess {
 
     fn try_from(dpp: DataProcessPlan) -> Result<Self, Self::Error> {
         Ok(DataProcess {
-            compression: CompressionMetadata { 
-                compression_info: String::from("GZIP"), 
-                size_after: 0 
+            compression: CompressionMetadata {
+                compression_info: String::from("GZIP"),
+                size_after: 0,
             },
             partition: dpp.partition.0,
-            encryption: EncryptionMetadata { 
-                encrypted_pieces: vec![
-                    EncryptionPart {
-                        identity: dpp.encryption.identity.clone(),
-                    }
-                ]
+            encryption: EncryptionMetadata {
+                encrypted_pieces: vec![EncryptionPart {
+                    identity: dpp.encryption.identity.clone(),
+                }],
             },
-            writeout: WriteoutMetadata { 
-                chunk_locations: dpp.writeout.output_paths 
+            writeout: WriteoutMetadata {
+                chunk_locations: dpp.writeout.output_paths,
             },
             duplication: DuplicationMetadata {
                 expected_location: dpp.duplication.expected_location,
-            }
+            },
         })
     }
 }
@@ -136,11 +133,10 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
             DataProcessDirective::File(process_plan) => {
                 if process_plan.duplication.expected_location.is_some() {
                     Ok(DataProcessDirective::File(process_plan.try_into()?))
-                }
-                else {
+                } else {
                     Err(anyhow!("You have to process non-duplicate files!"))
                 }
-            },
+            }
             DataProcessDirective::Directory => Ok(DataProcessDirective::Directory),
             DataProcessDirective::Symlink => Ok(DataProcessDirective::Symlink),
         }

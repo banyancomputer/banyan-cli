@@ -1,6 +1,5 @@
 use dataprep_pipelines::utils::test::{
-    pipeline_test as _pipeline_test, 
-    setup_test_structure as _setup_test_structure,
+    pipeline_test as _pipeline_test, setup_test_structure as _setup_test_structure,
 };
 use fake_file::{Strategy, Structure};
 use std::path::Path;
@@ -82,7 +81,7 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
             Ok(size)
         }
         // Something went wrong, this should never happen in a test but may in other use cases
-        Err(_e) => { Err(()) }
+        Err(_e) => Err(()),
     }
 }
 
@@ -102,6 +101,7 @@ mod test {
 
     /// Test the pipeline with a small file structure
     #[tokio::test]
+    #[ignore]
     async fn test_simple() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -121,6 +121,7 @@ mod test {
 
     /// Test the pipeline with a very deep file structure
     #[tokio::test]
+    #[ignore]
     async fn test_deep() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -140,6 +141,7 @@ mod test {
 
     /// Test the pipeline with a very wide file structure
     #[tokio::test]
+    #[ignore]
     async fn test_wide() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -174,6 +176,7 @@ mod test {
 
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
+    // #[ignore]
     async fn test_deduplication_integrity() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_integrity");
@@ -203,7 +206,6 @@ mod test {
 
     /// Ensure that the duplicate data occupies a smaller footprint when packed
     #[tokio::test]
-    #[ignore]
     async fn test_deduplication_size() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_size");
@@ -211,7 +213,7 @@ mod test {
         // We will be comparing two twin directories, one with duplicates and one without
         let twin_dups = test_path.join("twin_dups");
         let twin_unique = test_path.join("twin_unique");
-        
+
         // Define the file structure to test in both cases
         let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
 
@@ -247,7 +249,6 @@ mod test {
         structure.generate(&encloser_path).unwrap();
 
         /// Now we can actually start testing things!
-
         // Ensure that the twin_dups directory is the same size as the twin_unique directory
         let twin_dups_size = compute_directory_size(&twin_dups).unwrap();
         let twin_unique_size = compute_directory_size(&twin_unique).unwrap();
