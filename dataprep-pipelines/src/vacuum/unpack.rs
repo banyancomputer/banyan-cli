@@ -28,19 +28,15 @@ pub async fn do_file_pipeline(
             writeout,
             duplication,
         }) => {
-            println!(
-                "unpacking\nfile: {}\nduplicate: {}",
-                origin_data.original_location.display(),
-                duplication.expected_location.is_some()
-            );
-
-            let output_path = if duplication.expected_location.is_some() {
-                output_dir.join(duplication.expected_location.unwrap())
+            // Determine the subdirectory based on the duplication status
+            let sub_path = if let Some(expected_location) = duplication.expected_location {
+                expected_location
             } else {
-                output_dir.join(origin_data.original_location)
+                origin_data.original_location
             };
 
-            println!("writing this file to {}", output_path.display());
+            // Construct the output path
+            let output_path = output_dir.join(sub_path);
 
             // TODO (laudiacay) async these reads. also is this buf setup right
             let new_file_writer = File::create(output_path)?;
@@ -49,10 +45,12 @@ pub async fn do_file_pipeline(
             // Create a new file writer
             let mut new_file_writer = GzDecoder::new(new_file_writer);
 
+            // TODO (organizedgrime): switch back to iterating over chunks if use case arises
+            // If there are chunks in the partition to process
             if partition.num_chunks > 0 {
+                // Ensure that there is only one chunk
                 assert_eq!(partition.num_chunks, 1);
-
-                // Chunk
+                // Chunk is a constant for now
                 let chunk = 0;
 
                 // Construct the file path within the input directory
@@ -101,15 +99,6 @@ pub async fn do_file_pipeline(
             // Return OK status
             Ok(())
         }
-        // CodableDataProcessDirective::Duplicate(smtd) => {
-        //     // The location of the file that this file is a duplicate of
-        //     let original_location = smtd.original_location;
-        //     // The location that this file is expected in
-        //     let expected_location = origin_data.original_location;
-        //     println!("using the file in {} but extracting it to {}", original_location.display(), expected_location.display());
-
-        //     todo!("Duplicates are not yet implemented. Come back later!");
-        // }
         CodableDataProcessDirective::Directory => {
             let loc = output_dir.join(origin_data.original_location);
             // TODO (laudiacay) set all the permissions and stuff right?

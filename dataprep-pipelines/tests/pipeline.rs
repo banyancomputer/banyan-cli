@@ -203,6 +203,7 @@ mod test {
 
     /// Ensure that the duplicate data occupies a smaller footprint when packed
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication_size() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_size");

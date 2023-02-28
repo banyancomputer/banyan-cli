@@ -18,7 +18,7 @@ pub async fn do_file_pipeline(
         data_processing,
     }: PipelinePlan,
 ) -> Result<Pipeline> {
-    match data_processing {
+    match data_processing.clone() {
         // If this is a file
         DataProcessDirective::File(DataProcessPlan {
             compression,
@@ -28,6 +28,14 @@ pub async fn do_file_pipeline(
             duplication,
         }) => {
             // TODO (laudiacay) async these reads. also is this buf setup right
+
+            // If this is a duplicate, we don't need to do anything
+            if duplication.expected_location.is_some() {
+                return Ok(Pipeline {
+                    origin_data,
+                    data_processing: data_processing.try_into()?,
+                });
+            }
 
             // open a reader to the original file
             let old_file_reader =
@@ -94,11 +102,9 @@ pub async fn do_file_pipeline(
             let writeout = WriteoutMetadata {
                 chunk_locations: writeout.output_paths,
             };
-
             let duplication = DuplicationMetadata {
                 expected_location: duplication.expected_location,
             };
-
             let data_processing = DataProcessDirective::File(DataProcess {
                 encryption,
                 compression,

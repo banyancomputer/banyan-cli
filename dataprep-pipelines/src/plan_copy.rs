@@ -31,7 +31,6 @@ pub async fn plan_copy(
     seen_hashes: Arc<RwLock<HashSet<String>>>,
     target_chunk_size: u64,
 ) -> Result<PipelinePlan> {
-    println!("current path: {}", origin_data.original_location.display());
     // If this is a directory
     if origin_data.original_metadata.is_dir() {
         // Return
