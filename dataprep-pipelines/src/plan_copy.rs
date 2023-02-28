@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -28,11 +28,10 @@ use crate::utils::hasher;
 pub async fn plan_copy(
     origin_data: SpiderMetadata,
     to_root: PathBuf,
-    seen_hashes: Arc<RwLock<HashMap<String, Rc<SpiderMetadata>>>>,
+    seen_hashes: Arc<RwLock<HashSet<String>>>,
     target_chunk_size: u64,
 ) -> Result<PipelinePlan> {
     println!("current path: {}", origin_data.original_location.display());
-
     // If this is a directory
     if origin_data.original_metadata.is_dir() {
         // Return
@@ -53,40 +52,27 @@ pub async fn plan_copy(
     else {
         // Compute the file hash
         let file_hash = hasher::hash_file(&origin_data.canonicalized_path).await?;
-        // Grab the associated value from the hashmap
-        let duplicate_path = {
+        // Determine whether or not the file is a duplicate
+        let file_is_duplicate = {
             // grab a read lock and check if we've seen it
             let seen_hashes = seen_hashes.read().await;
-            seen_hashes.get(&file_hash).cloned()
+            seen_hashes.get(&file_hash).is_some()
         };
-        // Determine whether the file is a duplicate
-        let file_is_duplicate = duplicate_path.is_some();
 
-        // If the file is a duplicate, handle this case specially
-        // if file_is_duplicate {
-        //     // Extract the duplicate path value
-        //     let duplicate_path = duplicate_path.unwrap();
-        //     // TODO remove; this is just for debugging
-        //     println!(
-        //         "I've seen this file before!\nog: {}\nnew: {}",
-        //         duplicate_path.original_location.display(),
-        //         origin_data.original_location.display()
-        //     );
-        // }
-
-        // make random filenames to put this thing's chunks in
+        // Enclose origin data in Reference Counter
         let od = Rc::new(origin_data);
 
-        // how long is the file?
+        // Determine file size based on metadata
         let file_size = od.original_metadata.len();
-        // how many chunks will we need to make?
+        // Determine number of chunks required to store this file
         let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
+        // Generate a random filenames for each chunk, collected in a Vec
         let random_filenames = (0..num_chunks)
             .map(|_| Uuid::new_v4())
             .map(|f| to_root.join(f.to_string()))
             .collect();
 
-        // Create a DataProcessPlan
+        // Create a DataProcessPlan for packing and unpacking
         let process_plan = DataProcessPlan {
             compression: CompressionPlan::new_gzip(),
             partition: PartitionPlan::new(target_chunk_size, num_chunks),
@@ -96,8 +82,7 @@ pub async fn plan_copy(
             },
             duplication: DuplicationPlan {
                 expected_location: if file_is_duplicate {
-                    let path = &duplicate_path.unwrap().original_location;
-                    Some(path.to_path_buf())
+                    Some(od.original_location.to_path_buf())
                 } else {
                     None
                 },
@@ -110,15 +95,14 @@ pub async fn plan_copy(
             data_processing: DataProcessDirective::File(process_plan),
         };
 
-        // Add to hashmap using file-specific data so that duplicates know where to look
         {
-            // otherwise, get the write lock and add this file's SpiderMetadata to the seen hashes
+            // Grab write lock
             let mut seen_hashes = seen_hashes.write().await;
-            // Using the hash as key, insert the SpiderMetadata and DataProcessPlan
-            seen_hashes.insert(file_hash.clone(), od);
+            // Insert the file hash into the Hashset
+            seen_hashes.insert(file_hash.clone());
         }
 
-        // Return Ok with PipelinePlan
+        // Now that plan is created and file is marked as seen, return Ok
         Ok(pipeline_plan)
     }
 }

@@ -142,28 +142,30 @@ mod test {
 
     /// Test the pipeline with a trivial duplicated file structure -- ignore cuz it broke
     #[tokio::test]
-    #[ignore]
     async fn test_duplicate_dir() {
         // Create a new path for this test
-        let test_path = Path::new(TEST_PATH);
-        let test_path = test_path.join("duplicate_dir");
+        let test_path = Path::new(TEST_PATH).join("deduplication");
         // Define the file structure to test
-        let desired_structure = Structure::new(1, 1, TEST_INPUT_SIZE, Strategy::Simple);
+        let desired_structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
         // Setup the test
         setup_test(&test_path, desired_structure, "test_duplicate_dir");
         // Duplicate the test file
         let input_path = test_path.join(INPUT_PATH);
-        // Copy $input_path/test_duplicate to $input_path/_test_duplicate
+        // Copy $input_path/test_duplicate to $input_path/encloser
         let original_path = input_path.join("test_duplicate_dir");
-        let duplicate_path = input_path.join("_test_duplicate_dir");
-        ensure_path_exists_and_is_dir(&duplicate_path).unwrap();
+        // Enclose the duplicate in multiple parent directories
+        let encloser_path = input_path.join("encloser1").join("encloser2");
+        // Create the directory
+        ensure_path_exists_and_is_dir(&encloser_path).unwrap();
+        // Copy the contents of the original directory into the new directory
         fs_extra::dir::copy(
             &original_path,
-            &duplicate_path,
+            &encloser_path,
             &fs_extra::dir::CopyOptions::new(),
         )
         .unwrap();
-        // Run the test
+
+        // Run the test to ensure input = output
         run_test(&test_path).await;
     }
 }

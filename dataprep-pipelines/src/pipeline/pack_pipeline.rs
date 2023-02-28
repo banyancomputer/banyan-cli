@@ -1,6 +1,6 @@
 use anyhow::Result;
 use futures::FutureExt;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -41,7 +41,7 @@ pub async fn pack_pipeline(
     /* Perform deduplication and partitioning on the files */
 
     // Initialize a struct to memorize the hashes of files
-    let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
+    let seen_hashes = Arc::new(RwLock::new(HashSet::new()));
     // Iterate over all the futures in the stream map.
     let copy_plan = spidered.then(|origin_data| {
         let origin_data = origin_data.unwrap(); // TODO kill this unwrap

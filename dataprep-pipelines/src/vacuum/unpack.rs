@@ -28,14 +28,22 @@ pub async fn do_file_pipeline(
             writeout,
             duplication,
         }) => {
-            // if
-            if duplication.expected_location.is_some() {
-                todo!("deduplication not yet implemented come back later");
-            }
+            println!(
+                "unpacking\nfile: {}\nduplicate: {}",
+                origin_data.original_location.display(),
+                duplication.expected_location.is_some()
+            );
+
+            let output_path = if duplication.expected_location.is_some() {
+                output_dir.join(duplication.expected_location.unwrap())
+            } else {
+                output_dir.join(origin_data.original_location)
+            };
+
+            println!("writing this file to {}", output_path.display());
 
             // TODO (laudiacay) async these reads. also is this buf setup right
-            let output = output_dir.join(origin_data.original_location);
-            let new_file_writer = File::create(output)?;
+            let new_file_writer = File::create(output_path)?;
             // Ensure that our compression scheme is congruent with expectations
             assert_eq!(compression.compression_info, "GZIP");
             // Create a new file writer
