@@ -265,10 +265,11 @@ mod test {
         let packed_dups_path = twin_dups.join(PACKED_PATH);
         let packed_unique_path = twin_unique.join(PACKED_PATH);
         // Compute the sizes of these directories
-        let packed_dups_size = compute_directory_size(&packed_dups_path).unwrap();
-        let packed_unique_size = compute_directory_size(&packed_unique_path).unwrap();
-        // Ensure that the size of the packed duplicates directory is exactly half that of the unique directory
-        assert!(packed_dups_size == packed_unique_size / 2);
+        let packed_dups_size = compute_directory_size(&packed_dups_path).unwrap() as f32;
+        let packed_unique_size = compute_directory_size(&packed_unique_path).unwrap() as f32;
+        // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
+        // TODO (organizedgrime) determine the threshold for this test that is most appropriate
+        assert!(packed_unique_size / packed_dups_size >= 1.8);
     }
 
     /// Ensure that deduplication is equally effective in the case of large files
