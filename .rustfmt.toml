@@ -1,0 +1,3 @@
+# How to lint this workspace
+edition = "2021"
+imports_granularity = "Crate"

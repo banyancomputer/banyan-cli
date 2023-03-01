@@ -1,3 +1,4 @@
+# TODO: Deprecate this in favor of the new workflows
 name: Rust
 
 # Run this when a PR is opened, or when a commit is pushed to master:
@@ -24,5 +25,3 @@ jobs:
   # Run the tests:
   run_tests:
     uses: banyancomputer/.github/.github/workflows/rust_test.yml@master
-
-
