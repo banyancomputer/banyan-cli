@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use flate2::{bufread::GzEncoder, Compression};
 use std::{fs::File, io::BufReader};
+use zstd::stream::read::Encoder as ZstdEncoder;
 
 use crate::types::{
     pipeline::{EncryptionPart, Pipeline},
@@ -35,22 +35,22 @@ pub async fn do_file_pipeline(
                 });
             }
 
-            // open a reader to the original file
-            let old_file_reader =
-                BufReader::new(
-                    File::open(&origin_data.canonicalized_path)
-                        .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))
-                ?);
+            // Ensure that our compression scheme is congruent with expectations
+            assert_eq!(compression.compression_info, "ZSTD");
 
-            // put a gzip encoder on it then buffer it
-            assert_eq!(compression.compression_info, "GZIP");
+            // Open the original file
+            let file = File::open(&origin_data.canonicalized_path)
+                .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
 
-            let mut old_file_reader =
-                BufReader::new(GzEncoder::new(old_file_reader, Compression::default()));
+            // Build an encoder for the file
+            let encoder = ZstdEncoder::new(file, 0).unwrap();
+            // Create a Buffured Reader for the file
+            let mut old_file_reader = BufReader::new(encoder);
 
-            // output
+            // Keep track of encrypted pieces
             let mut encrypted_pieces = Vec::new();
             let mut i = 0;
+
             // iterate over the file, partitioning it and encrypting it
             while old_file_reader.has_data_left()? {
                 // read a chunk of the file
@@ -91,10 +91,10 @@ pub async fn do_file_pipeline(
                 i += 1;
             }
 
-            //
+            // Construct Pipeline
             Ok(Pipeline {
                 origin_data,
-                data_processing: DataProcessDirective::File(dpp.try_into()?),
+                data_processing: DataProcessDirective::File(dpp.into()),
             })
         }
         // If this is a directory, symlink, or duplicate

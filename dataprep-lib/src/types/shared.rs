@@ -23,15 +23,14 @@ pub enum CodableDataProcessDirective<T> {
     File(T),
 }
 
-impl<T> TryFrom<DataProcessDirective<T>> for CodableDataProcessDirective<T> {
-    type Error = anyhow::Error;
-    fn try_from(data_process_directive: DataProcessDirective<T>) -> Result<Self, Self::Error> {
-        Ok(match data_process_directive {
+impl<T> From<DataProcessDirective<T>> for CodableDataProcessDirective<T> {
+    fn from(data_process_directive: DataProcessDirective<T>) -> Self {
+        match data_process_directive {
             DataProcessDirective::Directory => CodableDataProcessDirective::Directory,
             DataProcessDirective::Symlink => CodableDataProcessDirective::Symlink,
             DataProcessDirective::File(data_process) => {
                 CodableDataProcessDirective::File(data_process)
             }
-        })
+        }
     }
 }

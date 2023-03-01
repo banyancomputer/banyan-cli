@@ -2,7 +2,7 @@ use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
 use std::{fs::Metadata, path::PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SpiderMetadata {
     /// this is the root of the backup
     pub original_root: PathBuf,

@@ -18,12 +18,9 @@ clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
 tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
 tokio-stream = { version = "0.1.11", features = ["fs"]}
-aead = { version = "0.5.1", features = ["stream", "alloc"] }
-aes-gcm = {version = "0.10.0", features = ["aes"]}
 jwalk = "0.8.1"
 rand = "0.8.4"
 blake2 = "0.10.6"
-flate2 = "1.0.25"
 uuid = { version = "1.2.2", features = ["v4"]}
 serde ={version= "1.0.152", features = ["derive"]}
 serde_json = { version = "1.0.72", features = ["std"]}
@@ -36,6 +33,7 @@ fake-file = "0.1.0"
 lazy_static = "1.4"
 criterion = {version = "0.4.0", features = ["async_tokio"]}
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
+zstd = "0.12.3"
 
 [patch]
 
@@ -43,4 +41,3 @@ dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch 
 split-debuginfo = "unpacked"
 
 [profile.release]
-

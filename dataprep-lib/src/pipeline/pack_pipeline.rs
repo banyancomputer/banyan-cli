@@ -1,11 +1,16 @@
 use anyhow::Result;
-use futures::FutureExt;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use tokio::sync::RwLock;
-use tokio_stream::StreamExt;
 
 use crate::{
-    plan_copy::plan_copy, spider, types::pipeline::CodablePipeline, utils::fs as fsutil, vacuum,
+    plan_copy::plan_copy,
+    spider,
+    types::{
+        pipeline::{CodablePipeline, Pipeline},
+        plan::PipelinePlan,
+        spider::SpiderMetadata,
+    },
+    utils::fs as fsutil,
+    vacuum,
 };
 
 pub async fn pack_pipeline(
@@ -17,6 +22,7 @@ pub async fn pack_pipeline(
 ) -> Result<()> {
     // Get the output DIR from the command line arguments
     let output_dir = output_dir.canonicalize()?;
+
     fsutil::ensure_path_exists_and_is_empty_dir(&output_dir, false)
         .expect("output directory must exist and be empty");
 
@@ -33,34 +39,40 @@ pub async fn pack_pipeline(
 
     /* Copy all the files over to a scratch directory */
 
-    let spidered = spider::spider(input_dir, follow_links)?;
+    let spidered: Vec<SpiderMetadata> = spider::spider(input_dir, follow_links).await?;
 
     /* Perform deduplication and partitioning on the files */
 
     // Initialize a struct to memorize the hashes of files
-    let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
-    // Iterate over all the futures in the stream map.
-    let copy_plan = spidered.then(|origin_data| {
-        let origin_data = origin_data.unwrap(); // TODO kill this unwrap
-        let output_dir = output_dir.clone();
-        // Clone the references to the seen_hashes map
-        let local_seen_hashes = seen_hashes.clone();
-        // Move the dir_entry into the future and copy the file.
-        async move {
+    // TODO bye bye rwlock
+    let seen_hashes = Arc::new(std::sync::RwLock::new(HashMap::new()));
+    // Iterate over all the futures in the stream map, await all of them together
+    let copy_plan = spidered
+        .iter()
+        .map(|spider_metadata| {
+            // Clone the output_dir reference
+            let output_dir = output_dir.clone();
+            // Move the dir_entry into the future and copy the file.
             plan_copy(
-                origin_data,
+                spider_metadata.clone(),
                 output_dir,
-                local_seen_hashes,
+                seen_hashes.clone(),
                 target_chunk_size,
             )
-            .await
-            .expect("copy failed")
-        }
-    });
+        })
+        .map(|e| e.unwrap())
+        .collect::<Vec<PipelinePlan>>();
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let copied =
-        copy_plan.then(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan).map(|e| e.unwrap()));
+    let copied = futures::future::join_all(
+        copy_plan
+            .iter()
+            .map(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan.clone())),
+    )
+    .await
+    .into_iter()
+    .map(|e| e.unwrap())
+    .collect::<Vec<Pipeline>>();
 
     // For now just write out the content of compressed_and_encrypted to a file.
     // make sure the manifest file doesn't exist
@@ -69,12 +81,14 @@ pub async fn pack_pipeline(
         .create_new(true)
         .open(manifest_file)
         .unwrap();
+
     serde_json::to_writer_pretty(
         manifest_writer,
+        // Iterate over the copied files and convert them to codable pipelines
         &copied
-            .map(|pipeline| pipeline.try_into())
-            .collect::<Result<Vec<CodablePipeline>, anyhow::Error>>()
-            .await?,
+            .iter()
+            .map(|pipeline| pipeline.clone().into())
+            .collect::<Vec<CodablePipeline>>(),
     )
     .map_err(|e| anyhow::anyhow!(e))
 }

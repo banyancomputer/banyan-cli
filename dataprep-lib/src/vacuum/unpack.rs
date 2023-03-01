@@ -1,6 +1,5 @@
 use age::Decryptor;
 use anyhow::{anyhow, Ok, Result};
-use flate2::write::GzDecoder;
 use printio as _;
 use std::{fs::File, io::BufReader, iter, path::PathBuf};
 
@@ -40,9 +39,9 @@ pub async fn do_file_pipeline(
             // TODO (laudiacay) async these reads. also is this buf setup right
             let new_file_writer = File::create(output_path)?;
             // Ensure that our compression scheme is congruent with expectations
-            assert_eq!(compression.compression_info, "GZIP");
+            assert_eq!(compression.compression_info, "ZSTD");
             // Create a new file writer
-            let mut new_file_writer = GzDecoder::new(new_file_writer);
+            // let mut new_file_writer = ZstdDecoder::new(new_file_writer).unwrap();
 
             // TODO (organizedgrime): switch back to iterating over chunks if use case arises
             // If there are chunks in the partition to process
@@ -73,7 +72,7 @@ pub async fn do_file_pipeline(
 
                 // TODO naughty clone
                 // Construct the old file reader by decrypting the encrypted piece
-                let mut old_file_reader = {
+                let old_file_reader = {
                     // Match decryptor type to ensure compatibility;
                     // use internal variable to construct the decryptor
                     let decryptor = match Decryptor::new(old_file_reader)? {
@@ -90,7 +89,7 @@ pub async fn do_file_pipeline(
                 };
 
                 // Copy the contents of the old reader into the new writer
-                std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
+                zstd::stream::copy_decode(old_file_reader, new_file_writer).unwrap();
 
                 // old_file_reader.finish()?;
                 // TODO check the encryption tag at the end of the file

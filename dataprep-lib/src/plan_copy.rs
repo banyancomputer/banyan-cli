@@ -10,8 +10,11 @@ use crate::{
     utils::hasher,
 };
 use anyhow::Result;
-use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
-use tokio::sync::RwLock;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, RwLock},
+};
 use uuid::Uuid;
 
 /// Copy a file or directory from one location to another. If the file is a duplicate, it will not be copied.
@@ -25,7 +28,7 @@ use uuid::Uuid;
 /// # Returns
 /// CopyMetadata struct that contains the original and new location of the file, as well as the blake2 hash of the file.
 // TODO (laudiacay): one day, do we use Rabin partitioning?
-pub async fn plan_copy(
+pub fn plan_copy(
     origin_data: SpiderMetadata,
     to_root: PathBuf,
     // This data structure is a little uglier than i would like it to be
@@ -36,7 +39,7 @@ pub async fn plan_copy(
     if origin_data.original_metadata.is_dir() {
         // Return
         Ok(PipelinePlan {
-            origin_data: Rc::new(origin_data),
+            origin_data: Arc::new(origin_data),
             data_processing: DataProcessDirective::Directory,
         })
     }
@@ -44,25 +47,25 @@ pub async fn plan_copy(
     else if origin_data.original_metadata.is_symlink() {
         // return
         Ok(PipelinePlan {
-            origin_data: Rc::new(origin_data),
+            origin_data: Arc::new(origin_data),
             data_processing: DataProcessDirective::Symlink,
         })
     }
     // If this is a file
     else {
         // Compute the file hash
-        let file_hash = hasher::hash_file(&origin_data.canonicalized_path).await?;
+        let file_hash = hasher::hash_file(&origin_data.canonicalized_path)?;
         // Determine whether or not the file is a duplicate based on this hash
         let duplicate_metadata = {
-            // grab a read lock and check if we've seen it
-            let seen_hashes = seen_hashes.read().await;
+            // grab a read lock and check if we've seen it //TODO claudia yikes
+            let seen_hashes = seen_hashes.read().unwrap();
             seen_hashes.get(&file_hash).cloned()
         };
         // If there are file names associated with this hash, we've seen it before
         let file_is_duplicate = duplicate_metadata.is_some();
 
         // Enclose origin data in Reference Counter
-        let od = Rc::new(origin_data);
+        let od = Arc::new(origin_data);
 
         // Determine file size based on metadata
         let file_size = od.original_metadata.len();
@@ -70,7 +73,7 @@ pub async fn plan_copy(
         let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
 
         // Compression and partition plans are the same even in the duplicate case
-        let compression_plan = CompressionPlan::new_gzip();
+        let compression_plan = CompressionPlan::new_zstd();
         let partition_plan = PartitionPlan::new(target_chunk_size, num_chunks);
 
         // Create a DataProcessPlan based on duplication status
@@ -111,15 +114,15 @@ pub async fn plan_copy(
 
         // Create a PipelinePlan
         let pipeline_plan = PipelinePlan {
-            origin_data: od.clone(),
+            origin_data: od,
             data_processing: DataProcessDirective::File(process_plan.clone()),
         };
 
         {
-            // Grab write lock
-            let mut seen_hashes = seen_hashes.write().await;
+            // Grab write lock TODO claudia come on
+            let mut seen_hashes = seen_hashes.write().unwrap();
             // Insert the file hash and DuplicationMetadata into the HashMap
-            seen_hashes.insert(file_hash.clone(), process_plan.try_into().unwrap());
+            seen_hashes.insert(file_hash, process_plan.into());
         }
 
         // Now that plan is created and file is marked as seen, return Ok

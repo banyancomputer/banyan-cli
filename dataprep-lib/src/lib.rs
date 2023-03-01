@@ -1,9 +1,10 @@
 #![feature(io_error_more)]
 #![feature(buf_read_has_data_left)]
 #![deny(unused_crate_dependencies)]
-// #![cfg_attr(docsrs, feature(doc_cfg))]
-// #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
-// #![deny(unreachable_pub, private_in_public)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
+#![deny(unreachable_pub, private_in_public)]
+#![feature(async_closure)]
 
 /* General Project Chores */
 // TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
@@ -36,9 +37,9 @@ use fake_file as _;
 use fs_extra as _;
 use lazy_static as _;
 
+#[allow(unused_extern_crates)]
 extern crate core;
 
-pub mod fs_carfiler;
 pub mod pipeline;
 pub mod plan_copy;
 pub mod spider;

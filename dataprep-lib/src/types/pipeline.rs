@@ -5,7 +5,7 @@ use crate::types::{
 };
 use age::secrecy::ExposeSecret;
 use anyhow::anyhow;
-use std::{fmt::Debug, path::PathBuf, rc::Rc, str::FromStr};
+use std::{fmt::Debug, path::PathBuf, str::FromStr, sync::Arc};
 
 use crate::types::{shared::CodableDataProcessDirective, spider::CodableSpiderMetadata};
 use serde::{Deserialize, Serialize};
@@ -58,7 +58,13 @@ pub struct EncryptionPart {
     pub identity: age::x25519::Identity,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+impl std::fmt::Debug for EncryptionPart {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "encryption parts are secret for now")
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata generated when a file is compressed and encrypted
 pub struct EncryptionMetadata {
     /// The parts of the file that were encrypted and associated metadata
@@ -78,7 +84,7 @@ pub struct DuplicationMetadata {
 }
 
 /// this struct is the completed data processing steps for a file
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataProcess {
     /// describes how we compressed the entire file
     pub compression: CompressionMetadata,
@@ -93,13 +99,11 @@ pub struct DataProcess {
     pub duplication: DuplicationMetadata,
 }
 
-impl TryFrom<DataProcessPlan> for DataProcess {
-    type Error = anyhow::Error;
-
-    fn try_from(dpp: DataProcessPlan) -> Result<Self, Self::Error> {
-        Ok(DataProcess {
+impl From<DataProcessPlan> for DataProcess {
+    fn from(dpp: DataProcessPlan) -> Self {
+        DataProcess {
             compression: CompressionMetadata {
-                compression_info: String::from("GZIP"),
+                compression_info: String::from("ZSTD"),
                 size_after: 0,
             },
             partition: dpp.partition.0,
@@ -114,7 +118,7 @@ impl TryFrom<DataProcessPlan> for DataProcess {
             duplication: DuplicationMetadata {
                 expected_location: dpp.duplication.expected_location,
             },
-        })
+        }
     }
 }
 
@@ -128,7 +132,7 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
         match data_process_directive {
             DataProcessDirective::File(process_plan) => {
                 if process_plan.duplication.expected_location.is_some() {
-                    Ok(DataProcessDirective::File(process_plan.try_into()?))
+                    Ok(DataProcessDirective::File(process_plan.into()))
                 } else {
                     Err(anyhow!("You have to process non-duplicate files!"))
                 }
@@ -140,10 +144,10 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
 }
 
 /// describes how a file from the origin was processed.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Pipeline {
     /// describes where a file came from on the original filesystem
-    pub origin_data: Rc<SpiderMetadata>,
+    pub origin_data: Arc<SpiderMetadata>,
     /// describes data processing, if any is needed
     pub data_processing: DataProcessDirective<DataProcess>,
 }
@@ -161,7 +165,7 @@ impl TryFrom<PipelinePlan> for Pipeline {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CodablePipeline {
     /// describes where a file came from on the original filesystem
     pub origin_data: CodableSpiderMetadata,
@@ -169,15 +173,13 @@ pub struct CodablePipeline {
     pub data_processing: CodableDataProcessDirective<DataProcess>,
 }
 
-impl TryFrom<Pipeline> for CodablePipeline {
-    type Error = anyhow::Error;
-
-    fn try_from(pipeline: Pipeline) -> Result<Self, Self::Error> {
-        let origin_data = pipeline.origin_data.as_ref().try_into()?;
-        let data_processing = pipeline.data_processing.try_into()?;
-        Ok(CodablePipeline {
+impl From<Pipeline> for CodablePipeline {
+    fn from(pipeline: Pipeline) -> Self {
+        let origin_data = pipeline.origin_data.as_ref().into();
+        let data_processing = pipeline.data_processing.into();
+        CodablePipeline {
             origin_data,
             data_processing,
-        })
+        }
     }
 }

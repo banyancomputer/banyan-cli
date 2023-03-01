@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{
     pipeline::PartitionMetadata, shared::DataProcessDirective, spider::SpiderMetadata,
 };
-use std::{path::PathBuf, rc::Rc};
+use std::{path::PathBuf, sync::Arc};
 
 // TODO (laudiacay) continue making types better...
 
@@ -12,9 +12,9 @@ pub struct CompressionPlan {
     pub compression_info: String,
 }
 impl CompressionPlan {
-    pub fn new_gzip() -> Self {
+    pub fn new_zstd() -> Self {
         CompressionPlan {
-            compression_info: "GZIP".to_string(),
+            compression_info: "ZSTD".to_string(),
         }
     }
 }
@@ -34,6 +34,12 @@ impl PartitionPlan {
 #[derive(Clone)]
 pub struct EncryptionPlan {
     pub identity: age::x25519::Identity,
+}
+
+impl std::fmt::Debug for EncryptionPlan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "encryption plans are secret for now")
+    }
 }
 
 impl EncryptionPlan {
@@ -72,24 +78,23 @@ impl DuplicationPlan {
 /// both the original and duplicate versions of a file's DataProcessPlan. Particularly,
 /// encryption and writeout locations must be present or the unpacker will not know
 /// where to find the file or how to decrypt it.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DuplicationMetadata {
     pub key: EncryptionPlan,
     pub locations: Vec<PathBuf>,
 }
 
-impl TryFrom<DataProcessPlan> for DuplicationMetadata {
-    type Error = anyhow::Error;
-    fn try_from(plan: DataProcessPlan) -> Result<Self, Self::Error> {
+impl From<DataProcessPlan> for DuplicationMetadata {
+    fn from(plan: DataProcessPlan) -> Self {
         let key = plan.encryption;
         let locations = plan.writeout.output_paths;
 
-        Ok(DuplicationMetadata { key, locations })
+        DuplicationMetadata { key, locations }
     }
 }
 
 /// this struct is used to build up the data processing steps for a file
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct DataProcessPlan {
     // Describes how we will compress the file
     pub compression: CompressionPlan,
@@ -103,9 +108,10 @@ pub struct DataProcessPlan {
     pub duplication: DuplicationPlan,
 }
 
+#[derive(Clone, Debug)]
 pub struct PipelinePlan {
     /// describes where a file came from on the original filesystem
-    pub origin_data: Rc<SpiderMetadata>,
+    pub origin_data: Arc<SpiderMetadata>,
     /// describes data processing, if any is needed
     pub data_processing: DataProcessDirective<DataProcessPlan>,
 }
