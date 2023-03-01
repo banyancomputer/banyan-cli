@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
 use flate2::bufread::GzEncoder;
+use flate2::Compression;
+use std::fs::File;
+use std::io::BufReader;
 
-use crate::types::pipeline::{
-    CompressionMetadata, DataProcess, EncryptionMetadata, EncryptionPart, Pipeline,
-    WriteoutMetadata,
-};
+use crate::types::pipeline::{EncryptionPart, Pipeline};
 use crate::types::plan::{DataProcessPlan, PipelinePlan};
 use crate::types::shared::DataProcessDirective;
 use std::io::{BufRead, Read};
@@ -15,26 +15,38 @@ pub async fn do_file_pipeline(
         data_processing,
     }: PipelinePlan,
 ) -> Result<Pipeline> {
-    match data_processing {
-        DataProcessDirective::File(DataProcessPlan {
-            compression,
-            partition,
-            encryption,
-            writeout,
-        }) => {
+    match data_processing.clone() {
+        // If this is a file
+        DataProcessDirective::File(dpp) => {
+            let DataProcessPlan {
+                compression,
+                partition,
+                encryption,
+                writeout,
+                duplication,
+            } = dpp.clone();
             // TODO (laudiacay) async these reads. also is this buf setup right
+
+            // If this is a duplicate file, we don't need to do anything
+            if duplication.expected_location.is_some() {
+                return Ok(Pipeline {
+                    origin_data,
+                    data_processing: data_processing.try_into()?,
+                });
+            }
 
             // open a reader to the original file
             let old_file_reader =
-                std::io::BufReader::new(std::fs::File::open(&origin_data.canonicalized_path).map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}",e))
-                    ?);
+                BufReader::new(
+                    File::open(&origin_data.canonicalized_path)
+                        .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))
+                ?);
 
             // put a gzip encoder on it then buffer it
             assert_eq!(compression.compression_info, "GZIP");
-            let mut old_file_reader = std::io::BufReader::new(GzEncoder::new(
-                old_file_reader,
-                flate2::Compression::default(),
-            ));
+
+            let mut old_file_reader =
+                BufReader::new(GzEncoder::new(old_file_reader, Compression::default()));
 
             // output
             let mut encrypted_pieces = Vec::new();
@@ -45,14 +57,13 @@ pub async fn do_file_pipeline(
                 // TODO (laudiacay) write down somewhere which bytes of the OG file this was.
                 let mut old_file_take = old_file_reader.take(partition.0.chunk_size);
                 // open the output file for writing
-                let new_file_writer =
-                    std::fs::File::create(&writeout.output_paths[i]).map_err(|e| {
-                        anyhow!(
-                            "could not create new file writer! {} at {:?}",
-                            e,
-                            &writeout.output_paths[i]
-                        )
-                    })?;
+                let new_file_writer = File::create(&writeout.output_paths[i]).map_err(|e| {
+                    anyhow!(
+                        "could not create new file writer! {} at {:?}",
+                        e,
+                        &writeout.output_paths[i]
+                    )
+                })?;
 
                 // make the encryptor
                 let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
@@ -79,26 +90,14 @@ pub async fn do_file_pipeline(
                 });
                 i += 1;
             }
-            let encryption = EncryptionMetadata { encrypted_pieces };
-            let compression = CompressionMetadata {
-                compression_info: "GZIP".to_string(),
-                size_after: 0, // TODO (laudiacay) figure out how to get this
-            };
-            let partition = partition.0;
-            let writeout = WriteoutMetadata {
-                chunk_locations: writeout.output_paths,
-            };
-            let data_processing = DataProcessDirective::File(DataProcess {
-                encryption,
-                compression,
-                partition,
-                writeout,
-            });
+
+            //
             Ok(Pipeline {
                 origin_data,
-                data_processing,
+                data_processing: DataProcessDirective::File(dpp.try_into()?),
             })
         }
+        // If this is a directory, symlink, or duplicate
         _ => Ok(Pipeline {
             origin_data,
             data_processing: data_processing.try_into()?,

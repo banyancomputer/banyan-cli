@@ -39,9 +39,9 @@ pub enum FileType {
     File,
 }
 
-/// for getting the metadata you want in the manifest from the Metadata object onto disk.
+// This is a codable version of the Metadata struct designed for our specific use case
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MetadataToDisk {
+pub struct CodableMetadata {
     file_type: FileType,
     len: u64,
     permissions: (), //TODO: figure out how to get permissions
@@ -52,22 +52,9 @@ pub struct MetadataToDisk {
                      // TODO come up with more metadata to store
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// for getting the metadata you want in the manifest from the Metadata object onto disk.
-pub struct SpiderMetadataToDisk {
-    pub original_root: PathBuf,
-    /// this is the path relative to the root of the backup
-    pub original_location: PathBuf,
-    pub canonicalized_path: PathBuf,
-    pub original_metadata: MetadataToDisk,
-}
-
-impl From<&SpiderMetadata> for SpiderMetadataToDisk {
+impl From<&SpiderMetadata> for CodableMetadata {
     fn from(value: &SpiderMetadata) -> Self {
-        let original_root = value.original_root.clone();
-        let original_location = value.original_location.clone();
-        let canonicalized_path = value.canonicalized_path.clone();
-        let original_metadata = MetadataToDisk {
+        CodableMetadata {
             file_type: match value.original_metadata.file_type().is_dir() {
                 true => FileType::Directory,
                 false => match value.original_metadata.file_type().is_symlink() {
@@ -81,8 +68,35 @@ impl From<&SpiderMetadata> for SpiderMetadataToDisk {
             accessed: (),
             created: (),
             owner: (),
-        };
-        SpiderMetadataToDisk {
+        }
+    }
+}
+
+// This is a codable version of the SpiderMetadata struct
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodableSpiderMetadata {
+    pub original_root: PathBuf,
+    /// this is the path relative to the root of the backup
+    pub original_location: PathBuf,
+    pub canonicalized_path: PathBuf,
+    pub original_metadata: CodableMetadata,
+}
+
+// Define how to construct a codable version of the SpiderMetadata struct
+impl From<&SpiderMetadata> for CodableSpiderMetadata {
+    fn from(value: &SpiderMetadata) -> Self {
+        // Most values can be simply cloned
+        let original_root = value.original_root.clone();
+        let original_location = value.original_location.clone();
+        let canonicalized_path = value.canonicalized_path.clone();
+
+        // Construct the metadata using the entirety of SpiderMetaData struct.
+        // Note that right now, not all of the information contained here is necessary to do this,
+        // but it may be in the future.
+        let original_metadata = CodableMetadata::from(value);
+
+        // Construct and return
+        CodableSpiderMetadata {
             original_root,
             original_location,
             canonicalized_path,

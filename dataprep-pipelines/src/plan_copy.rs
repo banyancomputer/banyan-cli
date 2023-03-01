@@ -1,14 +1,14 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use uuid::Uuid;
-
 use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::types::plan::{
-    CompressionPlan, DataProcessPlan, EncryptionPlan, PartitionPlan, PipelinePlan, WriteoutPlan,
+    CompressionPlan, DataProcessPlan, DuplicationMetadata, DuplicationPlan, EncryptionPlan,
+    PartitionPlan, PipelinePlan, WriteoutPlan,
 };
 use crate::types::shared::DataProcessDirective;
 use crate::types::spider::SpiderMetadata;
@@ -28,73 +28,102 @@ use crate::utils::hasher;
 pub async fn plan_copy(
     origin_data: SpiderMetadata,
     to_root: PathBuf,
-    seen_hashes: Arc<RwLock<HashMap<String, Rc<SpiderMetadata>>>>,
+    // This data structure is a little uglier than i would like it to be
+    seen_hashes: Arc<RwLock<HashMap<String, DuplicationMetadata>>>,
     target_chunk_size: u64,
 ) -> Result<PipelinePlan> {
-    // If this is a directory,
+    // If this is a directory
     if origin_data.original_metadata.is_dir() {
         // Return
         Ok(PipelinePlan {
             origin_data: Rc::new(origin_data),
             data_processing: DataProcessDirective::Directory,
         })
-    } else if origin_data.original_metadata.is_symlink() {
+    }
+    // If this is a symlink
+    else if origin_data.original_metadata.is_symlink() {
         // return
         Ok(PipelinePlan {
             origin_data: Rc::new(origin_data),
             data_processing: DataProcessDirective::Symlink,
         })
     }
-    // Otherwise this is just a file
+    // If this is a file
     else {
         // Compute the file hash
         let file_hash = hasher::hash_file(&origin_data.canonicalized_path).await?;
-        // Check if we've seen this file before
-        let maybe_duplicate_path = {
+        // Determine whether or not the file is a duplicate based on this hash
+        let duplicate_metadata = {
             // grab a read lock and check if we've seen it
             let seen_hashes = seen_hashes.read().await;
             seen_hashes.get(&file_hash).cloned()
         };
-        // If we've seen this file before,
-        if let Some(duplicate_path) = maybe_duplicate_path {
-            // Point to the first file we saw with this hash. all done
-            let od = Rc::new(origin_data);
-            Ok(PipelinePlan {
-                origin_data: od,
-                data_processing: DataProcessDirective::Duplicate(Rc::clone(&duplicate_path)),
-            })
+        // If there are file names associated with this hash, we've seen it before
+        let file_is_duplicate = duplicate_metadata.is_some();
+
+        // Enclose origin data in Reference Counter
+        let od = Rc::new(origin_data);
+
+        // Determine file size based on metadata
+        let file_size = od.original_metadata.len();
+        // Determine number of chunks required to store this file
+        let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
+
+        // Compression and partition plans are the same even in the duplicate case
+        let compression_plan = CompressionPlan::new_gzip();
+        let partition_plan = PartitionPlan::new(target_chunk_size, num_chunks);
+
+        // Create a DataProcessPlan based on duplication status
+        let process_plan = if file_is_duplicate {
+            // DataProcessPlan for a duplicate file
+            DataProcessPlan {
+                compression: compression_plan,
+                partition: partition_plan,
+                // The encryption key was already generated the first time this file was seen
+                encryption: duplicate_metadata.clone().unwrap().key,
+                writeout: WriteoutPlan {
+                    // The output paths were already generated the first time this file was seen
+                    output_paths: duplicate_metadata.unwrap().locations,
+                },
+                duplication: DuplicationPlan {
+                    // This represents the location that the unpacker will extract the file to
+                    expected_location: Some(od.original_location.to_path_buf()),
+                },
+            }
         } else {
-            // make random filenames to put this thing's chunks in
-            let od = Rc::new(origin_data);
+            // DataProcessPlan for a new file
+            DataProcessPlan {
+                compression: compression_plan,
+                partition: partition_plan,
+                // Construct a new encryption key
+                encryption: EncryptionPlan::new(),
+                writeout: WriteoutPlan {
+                    // Construct a vector of random filenames for writing
+                    output_paths: (0..num_chunks)
+                        .map(|_| Uuid::new_v4())
+                        .map(|f| to_root.join(f.to_string()))
+                        .collect::<Vec<PathBuf>>(),
+                },
+                // There is no duplication plan for new files
+                duplication: DuplicationPlan::none(),
+            }
+        };
 
-            {
-                // otherwise, get the write lock and add this file's SpiderMetadata to the seen hashes
-                let mut seen_hashes = seen_hashes.write().await;
-                seen_hashes.insert(file_hash.clone(), od.clone());
-            } // drop the write lock
+        // Create a PipelinePlan
+        let pipeline_plan = PipelinePlan {
+            origin_data: od.clone(),
+            data_processing: DataProcessDirective::File(process_plan.clone()),
+        };
 
-            // how long is the file?
-            let file_size = od.original_metadata.len();
-            // how many chunks will we need to make?
-            let num_chunks = (file_size as f64 / target_chunk_size as f64).ceil() as u64;
-            let random_filenames = (0..num_chunks)
-                .map(|_| Uuid::new_v4())
-                .map(|f| to_root.join(f.to_string()))
-                .collect();
-
-            // Return the CopyMetadata struct
-            Ok(PipelinePlan {
-                origin_data: od,
-                data_processing: DataProcessDirective::File(DataProcessPlan {
-                    compression: CompressionPlan::new_gzip(),
-                    partition: PartitionPlan::new(target_chunk_size, num_chunks),
-                    encryption: EncryptionPlan::new(),
-                    writeout: WriteoutPlan {
-                        output_paths: random_filenames,
-                    },
-                }),
-            })
+        {
+            // Grab write lock
+            let mut seen_hashes = seen_hashes.write().await;
+            // Insert the file hash and DuplicationMetadata into the HashMap
+            seen_hashes.insert(file_hash.clone(), process_plan.try_into().unwrap());
         }
+
+        // Now that plan is created and file is marked as seen, return Ok
+        Ok(pipeline_plan)
     }
 }
 

@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use crate::types::shared::DataProcessDirectiveToDisk;
-use crate::types::spider::SpiderMetadataToDisk;
+use crate::types::shared::CodableDataProcessDirective;
+use crate::types::spider::CodableSpiderMetadata;
 use serde::{Deserialize, Serialize};
 
 // TODO (laudiacay) this "ToDisk" stuff sort of sucks
@@ -76,17 +76,10 @@ pub struct WriteoutMetadata {
     pub chunk_locations: Vec<PathBuf>,
 }
 
-// /// this struct is used to build up the data processing steps for a file
-// pub struct DataProcessBuilder {
-//     /// describes how we compressed the file
-//     compression: Option<CompressionMetadata>,
-//     /// describes how we partitioned the file
-//     partition: Option<PartitionMetadata>,
-//     /// describes how we encrypted the file
-//     encryption: Option<EncryptionMetadata>,
-//     /// describes how we wrote the file out on the new filesystem
-//     writeout: Option<WriteoutMetadata>,
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DuplicationMetadata {
+    pub expected_location: Option<PathBuf>,
+}
 
 /// this struct is the completed data processing steps for a file
 #[derive(Clone, Serialize, Deserialize)]
@@ -100,6 +93,33 @@ pub struct DataProcess {
     pub encryption: EncryptionMetadata,
     /// describes how/where we wrote the file out on the new filesystem
     pub writeout: WriteoutMetadata,
+    // Describes if/how the file needs to be deduplicated
+    pub duplication: DuplicationMetadata,
+}
+
+impl TryFrom<DataProcessPlan> for DataProcess {
+    type Error = anyhow::Error;
+
+    fn try_from(dpp: DataProcessPlan) -> Result<Self, Self::Error> {
+        Ok(DataProcess {
+            compression: CompressionMetadata {
+                compression_info: String::from("GZIP"),
+                size_after: 0,
+            },
+            partition: dpp.partition.0,
+            encryption: EncryptionMetadata {
+                encrypted_pieces: vec![EncryptionPart {
+                    identity: dpp.encryption.identity.clone(),
+                }],
+            },
+            writeout: WriteoutMetadata {
+                chunk_locations: dpp.writeout.output_paths,
+            },
+            duplication: DuplicationMetadata {
+                expected_location: dpp.duplication.expected_location,
+            },
+        })
+    }
 }
 
 // all these are no-ops except for the File case
@@ -110,10 +130,15 @@ impl TryFrom<DataProcessDirective<DataProcessPlan>> for DataProcessDirective<Dat
         data_process_directive: DataProcessDirective<DataProcessPlan>,
     ) -> Result<Self, Self::Error> {
         match data_process_directive {
-            DataProcessDirective::File(_) => Err(anyhow!("You have to process files!")),
+            DataProcessDirective::File(process_plan) => {
+                if process_plan.duplication.expected_location.is_some() {
+                    Ok(DataProcessDirective::File(process_plan.try_into()?))
+                } else {
+                    Err(anyhow!("You have to process non-duplicate files!"))
+                }
+            }
             DataProcessDirective::Directory => Ok(DataProcessDirective::Directory),
             DataProcessDirective::Symlink => Ok(DataProcessDirective::Symlink),
-            DataProcessDirective::Duplicate(spider) => Ok(DataProcessDirective::Duplicate(spider)),
         }
     }
 }
@@ -141,20 +166,20 @@ impl TryFrom<PipelinePlan> for Pipeline {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct PipelineToDisk {
+pub struct CodablePipeline {
     /// describes where a file came from on the original filesystem
-    pub origin_data: SpiderMetadataToDisk,
+    pub origin_data: CodableSpiderMetadata,
     /// describes data processing, if any is needed
-    pub data_processing: DataProcessDirectiveToDisk<DataProcess>,
+    pub data_processing: CodableDataProcessDirective<DataProcess>,
 }
 
-impl TryFrom<Pipeline> for PipelineToDisk {
+impl TryFrom<Pipeline> for CodablePipeline {
     type Error = anyhow::Error;
 
     fn try_from(pipeline: Pipeline) -> Result<Self, Self::Error> {
         let origin_data = pipeline.origin_data.as_ref().try_into()?;
         let data_processing = pipeline.data_processing.try_into()?;
-        Ok(PipelineToDisk {
+        Ok(CodablePipeline {
             origin_data,
             data_processing,
         })

@@ -1,7 +1,3 @@
-use crate::plan_copy::plan_copy;
-use crate::types::pipeline::PipelineToDisk;
-use crate::utils::fs as fsutil;
-use crate::{spider, vacuum};
 use anyhow::Result;
 use futures::FutureExt;
 use std::collections::HashMap;
@@ -9,6 +5,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
+
+use crate::plan_copy::plan_copy;
+use crate::types::pipeline::CodablePipeline;
+use crate::utils::fs as fsutil;
+use crate::{spider, vacuum};
 
 pub async fn pack_pipeline(
     input_dir: PathBuf,
@@ -39,7 +40,7 @@ pub async fn pack_pipeline(
 
     /* Perform deduplication and partitioning on the files */
 
-    // Initialize a struct to memoize the hashes of files
+    // Initialize a struct to memorize the hashes of files
     let seen_hashes = Arc::new(RwLock::new(HashMap::new()));
     // Iterate over all the futures in the stream map.
     let copy_plan = spidered.then(|origin_data| {
@@ -75,7 +76,7 @@ pub async fn pack_pipeline(
         manifest_writer,
         &copied
             .map(|pipeline| pipeline.try_into())
-            .collect::<Result<Vec<PipelineToDisk>, anyhow::Error>>()
+            .collect::<Result<Vec<CodablePipeline>, anyhow::Error>>()
             .await?,
     )
     .map_err(|e| anyhow::anyhow!(e))
