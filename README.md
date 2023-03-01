@@ -89,8 +89,8 @@ dataprep unpack --input-dir <PACKED_DIR>  --output-dir <UNPACKED_DIR> --manifest
 For benchmarking and measuring performance, this project leverages
 [criterion][criterion] and a tool called [fake-file][fake-file]. So far these benchmarks
 are very simple and only measure the performance of the whole encryption and decryption pipeline.
-As such, they are somewhat helpful for measuring the performance of the project, but can offer the developer a
-good baseline for measuring the performance of the project.
+As such, they alone are not helpful for identifying performance bottlenecks, but can offer the developer a
+good baseline for measuring the performance of the project on there local machine.
 
 ### Configuring the benchmarks
 The one benchmark in this workspace can be configured by editing and sourcing `env/env.benchmark`. See this file 
@@ -104,6 +104,17 @@ for more information on how to best configure the benchmarks, as well as info on
   ```
   
 ### Profiling the benchmarks + cli
+At the moment, profiling is not built into the benchmarks. However, we do support and recommend using the `flamegraph` crate
+for profiling the benchmarks and the CLI. 
+It is unclear whether this provides accurate readings with our Async code, but it is a good starting point for profiling.
+Use this if you are trying to figure out where bottlenecks exist in `dataprep-lib`.
+
+Example of profiling the benchmarks:
+```console 
+cargo flamegraph --bench pipeline
+```
+See the [flamegraph crate][flamegraph] Github page for more information on how to use this tool,
+and resources on interpreting the results.
 
 [//]: # (TODO: Implement Docker for this project.)
 [//]: # (## Running dataprep on Docker)
@@ -190,9 +201,7 @@ also adhere to our [Code of Conduct](./CODE_OF_CONDUCT.md).
 For formatting Rust in particular, please use `cargo fmt` as it uses
 specific nightly features we recommend by default.
 
-TODO: Setup pre-commit hooks for this project.
 ### Pre-commit Hook
-
 
 This project recommends using [pre-commit][pre-commit] for running pre-commit
 
@@ -262,3 +271,4 @@ These are references to specifications, talks and presentations, etc.
 [pre-commit]: https://pre-commit.com/
 [proptest]: https://github.com/proptest-rs/proptest
 [strategies]: https://docs.rs/proptest/latest/proptest/strategy/trait.Strategy.html
+[flamegraph]: https://github.com/flamegraph-rs/flamegraph
