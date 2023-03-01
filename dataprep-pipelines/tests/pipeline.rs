@@ -101,7 +101,6 @@ mod test {
 
     /// Test the pipeline with a small file structure
     #[tokio::test]
-    #[ignore]
     async fn test_simple() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -121,7 +120,6 @@ mod test {
 
     /// Test the pipeline with a very deep file structure
     #[tokio::test]
-    #[ignore]
     async fn test_deep() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -141,7 +139,6 @@ mod test {
 
     /// Test the pipeline with a very wide file structure
     #[tokio::test]
-    #[ignore]
     async fn test_wide() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -176,7 +173,6 @@ mod test {
 
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
-    // #[ignore]
     async fn test_deduplication_integrity() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_integrity");
@@ -205,6 +201,7 @@ mod test {
     }
 
     /// Ensure that the duplicate data occupies a smaller footprint when packed
+    //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
     async fn test_deduplication_size() {
         // Create a new path for this test
@@ -248,7 +245,7 @@ mod test {
         // Generate the structure inside this directory, which will be unique
         structure.generate(&encloser_path).unwrap();
 
-        /// Now we can actually start testing things!
+        // Now we can actually start testing things!
         // Ensure that the twin_dups directory is the same size as the twin_unique directory
         let twin_dups_size = compute_directory_size(&twin_dups).unwrap();
         let twin_unique_size = compute_directory_size(&twin_unique).unwrap();

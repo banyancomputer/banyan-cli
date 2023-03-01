@@ -26,7 +26,7 @@ pub async fn do_file_pipeline(
                 duplication,
             } = dpp.clone();
             // TODO (laudiacay) async these reads. also is this buf setup right
-            
+
             // If this is a duplicate file, we don't need to do anything
             if duplication.expected_location.is_some() {
                 return Ok(Pipeline {
@@ -57,28 +57,25 @@ pub async fn do_file_pipeline(
                 // TODO (laudiacay) write down somewhere which bytes of the OG file this was.
                 let mut old_file_take = old_file_reader.take(partition.0.chunk_size);
                 // open the output file for writing
-                let new_file_writer = std::fs::File::create(&writeout.output_paths[i])
-                    .map_err(|e| {
-                        anyhow!(
-                            "could not create new file writer! {} at {:?}",
-                            e,
-                            &writeout.output_paths[i]
-                        )
-                    })?;
+                let new_file_writer = File::create(&writeout.output_paths[i]).map_err(|e| {
+                    anyhow!(
+                        "could not create new file writer! {} at {:?}",
+                        e,
+                        &writeout.output_paths[i]
+                    )
+                })?;
 
                 // make the encryptor
-                let mut new_file_encryptor =
-                    age::Encryptor::with_recipients(vec![Box::new(
-                        encryption.identity.to_public(),
-                    )])
-                    .expect("could not create encryptor")
-                    .wrap_output(new_file_writer)?;
+                let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
+                    encryption.identity.to_public(),
+                )])
+                .expect("could not create encryptor")
+                .wrap_output(new_file_writer)?;
 
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
-                std::io::copy(&mut old_file_take, &mut new_file_encryptor).map_err(
-                    |e| anyhow!("could not copy data from old file to new file! {}", e),
-                )?;
+                std::io::copy(&mut old_file_take, &mut new_file_encryptor)
+                    .map_err(|e| anyhow!("could not copy data from old file to new file! {}", e))?;
 
                 old_file_reader = old_file_take.into_inner();
 
