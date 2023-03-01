@@ -93,24 +93,24 @@ As such, they alone are not helpful for identifying performance bottlenecks, but
 good baseline for measuring the performance of the project on there local machine.
 
 ### Configuring the benchmarks
-The one benchmark in this workspace can be configured by editing and sourcing `env/env.benchmark`. See this file 
+The one benchmark in this workspace can be configured by editing and sourcing `env/env.benchmark`. See this file
 for more information on how to best configure the benchmarks, as well as info on default values.
 
 ### Running the benchmarks
 - Run benchmarks
 
   ```console
-  cargo bench 
+  cargo bench
   ```
-  
+
 ### Profiling the benchmarks + cli
 At the moment, profiling is not built into the benchmarks. However, we do support and recommend using the `flamegraph` crate
-for profiling the benchmarks and the CLI. 
+for profiling the benchmarks and the CLI.
 It is unclear whether this provides accurate readings with our Async code, but it is a good starting point for profiling.
 Use this if you are trying to figure out where bottlenecks exist in `dataprep-lib`.
 
 Example of profiling the benchmarks:
-```console 
+```console
 cargo flamegraph --bench pipeline
 ```
 See the [flamegraph crate][flamegraph] Github page for more information on how to use this tool,
@@ -223,7 +223,8 @@ hooks. Please run this before every commit and/or push.
 
 - We recommend leveraging [cargo-watch][cargo-watch],
   [cargo-expand][cargo-expand] and [irust][irust] for Rust development.
-- We recommend using [cargo-udeps][cargo-udeps] for removing unused dependencies
+- We recommend using [cargo-udeps][cargo-udeps] for
+- emoving unused dependencies
   before commits and pull-requests.
 
 ### Conventional Commits
@@ -253,7 +254,6 @@ We would be happy to try to answer your question or try opening a new issue on G
 These are references to specifications, talks and presentations, etc.
 
 ## License
-
 
 [buildx]: https://github.com/docker/buildx
 [cargo-expand]: https://github.com/dtolnay/cargo-expand
