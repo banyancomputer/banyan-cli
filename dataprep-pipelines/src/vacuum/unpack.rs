@@ -6,7 +6,7 @@ use crate::types::pipeline::{DataProcess, PipelineToDisk};
 use crate::types::shared::DataProcessDirectiveToDisk;
 use flate2::write::GzDecoder;
 use printio as _;
-use std::io::Cursor;
+use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 
@@ -64,8 +64,25 @@ pub async fn do_file_pipeline(
                     ))?
                 };
                 // put a gzip encoder on it then buffer it
-
-                std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
+                loop {
+                    let mut buf = [0; 1024];
+                    let mut n = old_file_reader.read(&mut buf)?;
+                    if n == 0 {
+                        break;
+                    }
+                    loop {
+                        n = match new_file_writer.write(&buf[..n]) {
+                            Ok(n_) => n - n_,
+                            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                            Err(e) => return Err(e.into()),
+                        };
+                        if n == 0 {
+                            break;
+                        }
+                    }
+                    new_file_writer.write_all(&buf[..n])?;
+                }
+                //std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
                 // TODO check the encryption tag at the end of the file
                 // old_file_reader.finish()?;
             }

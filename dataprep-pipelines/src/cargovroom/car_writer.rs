@@ -49,10 +49,11 @@ where
         let mut varint_buf = varint_encode::u64_buffer();
         let varint = varint_encode::u64((len) as u64, &mut varint_buf);
         self.writer.write_all(varint).await?;
-        println!("varint: {:?}", varint);
+        println!("writer varint: {:?}", varint);
         self.writer.write_all(&self.cid_buffer).await?;
-        println!("cid: {:?}", self.cid_buffer.to_ascii_lowercase());
-        println!("cid string: {:?}", cid.to_string());
+        println!("writer cid: {:?}", self.cid_buffer.to_ascii_lowercase());
+        println!("writer cid string: {:?}", cid.to_string());
+        println!("writer data: {:?}", data);
         self.writer.write_all(data).await?;
 
         Ok(())

@@ -16,15 +16,17 @@ pub async fn get_block<R: Seek + Read + Unpin>(
     let mut car_reader = car_reader.write().await;
     car_reader.seek(tokio::io::SeekFrom::Start(location.offset as u64))?;
     let len: usize = VarIntReader::read_varint(&mut *car_reader)?;
-    println!("len: {}", len);
+    println!("decode: len: {}", len);
     // make a buf put the cid
     let mut everything_else_buf = vec![0; len];
     car_reader.read_exact(&mut everything_else_buf)?;
     println!("everything_else_buf first 100: {:?}", &everything_else_buf[0..100]);
     let mut cursor = Cursor::new(&everything_else_buf);
     let cid = Cid::read_bytes(&mut cursor)?;
+    println!("decode: cid: {}", cid.to_string());
     let cursor_location = cursor.position() as usize;
     let everything_else_buf = cursor.into_inner()[cursor_location..].to_vec();
+    println!("decode: data: {:?}", everything_else_buf);
 
     // compute the digest of everything_else_buf
     // and compare it to the digest in the cid

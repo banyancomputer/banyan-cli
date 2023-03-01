@@ -28,7 +28,7 @@ mod test {
         // Define the file structure to test
         let desired_structure = FileStructure::new(
             TEST_MAX_WIDTH, // width
-            TEST_MAX_DEPTH, // depth
+            0, // depth
             TEST_INPUT_SIZE,
             FileStructureStrategy::Balanced, // Balanced
         );
