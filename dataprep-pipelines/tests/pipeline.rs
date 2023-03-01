@@ -1,3 +1,4 @@
+use dataprep_pipelines::utils::fs::ensure_path_exists_and_is_empty_dir;
 use dataprep_pipelines::utils::test::{
     pipeline_test as _pipeline_test, setup_test_structure as _setup_test_structure,
 };
@@ -58,7 +59,7 @@ async fn run_test(test_path: &Path) {
 //TODO(organizedgrime) - Move this into fakefile
 // Determines the size of the contents of a directory.
 // This standard unix tool handles far more edge cases than we could ever hope
-// to approximate with a hardcoded recursion step.
+// to approximate with a hardcoded recursion step, and with more efficiency too.
 fn compute_directory_size(path: &Path) -> Result<usize, ()> {
     // Execute the unix du command to evaluate the size of the given path in kilobytes
     let du_result = Command::new("du")
@@ -207,6 +208,11 @@ mod test {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_size");
 
+        // Empty that test directory! Because we're doing setup a little bit differently here,
+        // it seems that my OSX machine occasionally generates metadata files that cause the test to fail.
+        // Emptying this directory each time prevents this.
+        ensure_path_exists_and_is_empty_dir(&test_path, true).unwrap();
+
         // We will be comparing two twin directories, one with duplicates and one without
         let twin_dups = test_path.join("twin_dups");
         let twin_unique = test_path.join("twin_unique");
@@ -261,7 +267,38 @@ mod test {
         // Compute the sizes of these directories
         let packed_dups_size = compute_directory_size(&packed_dups_path).unwrap();
         let packed_unique_size = compute_directory_size(&packed_unique_path).unwrap();
-        // Ensure that the size of the packed duplicates directory is smaller than the packed unique directory
-        assert!(packed_dups_size < packed_unique_size);
+        // Ensure that the size of the packed duplicates directory is exactly half that of the unique directory
+        assert!(packed_dups_size == packed_unique_size / 2);
+    }
+
+    /// Ensure that deduplication is equally effective in the case of large files
+    /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
+    /// as well as ensuring that deduplication works when both files are in the same directory.
+    #[tokio::test]
+    async fn test_deduplication_large() {
+        // Create a new path for this test
+        let test_path = Path::new(TEST_PATH);
+        let test_path = test_path.join("deduplication_large");
+        // Define the file structure to test
+        // TODO (organizedgrime) - anything higher than 20x takes too long to run on my machine. Need to find a better way to test this.
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 20, Strategy::Simple);
+        // Setup the test
+        setup_test(&test_path, desired_structure, "0");
+
+        // Duplicate the file in place
+        fs_extra::file::copy(
+            test_path.join(INPUT_PATH).join("0"),
+            test_path.join(INPUT_PATH).join("1"),
+            &fs_extra::file::CopyOptions::new(),
+        )
+        .unwrap();
+
+        // Run the test
+        run_test(&test_path).await;
+
+        // Assert that only one file was packed
+        let packed_path = test_path.join(PACKED_PATH);
+        let dir_info = fs_extra::dir::get_dir_content(packed_path).unwrap();
+        assert_eq!(dir_info.files.len(), 1);
     }
 }
