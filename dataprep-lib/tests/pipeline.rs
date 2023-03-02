@@ -181,7 +181,7 @@ mod test {
 
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
-    async fn test_deduplication_integrity() {
+    async fn test_deduplication() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_integrity");
         // Define the file structure to test

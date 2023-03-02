@@ -6,20 +6,14 @@
   <h1 align="center">Dataprep</h1>
 
   <p>
-    <a href="https://crates.io/crates/dataprep">
-      <img src="https://img.shields.io/crates/v/dataprep?label=crates" alt="Crate">
-    </a>
     <a href="https://codecov.io/gh/banyancomputer/dataprep">
-      <img src="https://codecov.io/gh/banyancomputer/dataprep/branch/main/graph/badge.svg?token=SOMETOKEN" alt="Code Coverage"/>
+      <img src="https://codecov.io/gh/banyancomputer/dataprep/branch/main/graph/badge.svg?token=LQL6MA4KSI" alt="Code Coverage"/>
     </a>
     <a href="https://github.com/banyancomputer/dataprep/actions?query=">
-      <img src="https://github.com/banyancomputer/dataprep/actions/workflows/tests_and_checks.yml/badge.svg" alt="Build Status">
+      <img src="https://github.com/banyancomputer/dataprep/actions/workflows/rust.yml/badge.svg" alt="Build Status">
     </a>
     <a href="https://github.com/banyancomputer/dataprep/blob/main/LICENSE-MIT">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License-MIT">
-    </a>
-    <a href="https://docs.rs/dataprep">
-      <img src="https://img.shields.io/static/v1?label=Docs&message=docs.rs&color=blue" alt="Docs">
     </a>
     <a href="https://discord.gg/aHaSw9zgwV">
       <img src="https://img.shields.io/static/v1?label=Discord&message=join%20us!&color=mediumslateblue" alt="Discord">
@@ -103,16 +97,20 @@ for more information on how to best configure the benchmarks, as well as info on
   cargo bench
   ```
 
-### Profiling the benchmarks + cli
+### Profiling the binary 
 At the moment, profiling is not built into the benchmarks. However, we do support and recommend using the `flamegraph` crate
-for profiling the benchmarks and the CLI.
+for profiling the binary.
 It is unclear whether this provides accurate readings with our Async code, but it is a good starting point for profiling.
 Use this if you are trying to figure out where bottlenecks exist in `dataprep-lib`.
 
 Example of profiling the benchmarks:
 ```console
-cargo flamegraph --bench pipeline
+cargo install flamegraph
+cargo install --path dataprep
+cargo flamegraph -- dataprep ...
 ```
+You may have to run `flamegraph` as `sudo`.
+
 See the [flamegraph crate][flamegraph] Github page for more information on how to use this tool,
 and resources on interpreting the results.
 

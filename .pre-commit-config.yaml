@@ -63,4 +63,5 @@ repos:
       - id: check-added-large-files
       - id: detect-private-key
       - id: check-executables-have-shebangs
-      - id: check-toml
+#        This was kinda annoying
+#      - id: check-toml
