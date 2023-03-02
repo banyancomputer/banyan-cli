@@ -1,20 +1,18 @@
-use anyhow::Result;
-use std::{
-    collections::HashMap, 
-    path::PathBuf,
-    rc::Rc, 
-    sync::Arc
+use crate::{
+    types::{
+        plan::{
+            CompressionPlan, DataProcessPlan, DuplicationMetadata, DuplicationPlan, EncryptionPlan,
+            PartitionPlan, PipelinePlan, WriteoutPlan,
+        },
+        shared::DataProcessDirective,
+        spider::SpiderMetadata,
+    },
+    utils::hasher,
 };
-use uuid::Uuid;
-
+use anyhow::Result;
+use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
-
-use crate::types::plan::{
-    CompressionPlan, DataProcessPlan, DuplicationMetadata, DuplicationPlan, EncryptionPlan,
-    PartitionPlan, PipelinePlan, WriteoutPlan,
-
-};
 
 /// Copy a file or directory from one location to another. If the file is a duplicate, it will not be copied.
 ///

@@ -7,8 +7,7 @@ use age::secrecy::ExposeSecret;
 use anyhow::anyhow;
 use std::{fmt::Debug, path::PathBuf, rc::Rc, str::FromStr};
 
-use crate::types::shared::CodableDataProcessDirective;
-use crate::types::spider::CodableSpiderMetadata;
+use crate::types::{shared::CodableDataProcessDirective, spider::CodableSpiderMetadata};
 use serde::{Deserialize, Serialize};
 
 // TODO (laudiacay) this "ToDisk" stuff sort of sucks

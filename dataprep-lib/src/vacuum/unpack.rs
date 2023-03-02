@@ -4,9 +4,10 @@ use flate2::write::GzDecoder;
 use printio as _;
 use std::{fs::File, io::BufReader, iter, path::PathBuf};
 
-use crate::types::pipeline::{CodablePipeline, DataProcess};
-use crate::types::shared::CodableDataProcessDirective;
-
+use crate::types::{
+    pipeline::{CodablePipeline, DataProcess},
+    shared::CodableDataProcessDirective,
+};
 
 // Unpack a single file, directory, or symlink
 pub async fn do_file_pipeline(

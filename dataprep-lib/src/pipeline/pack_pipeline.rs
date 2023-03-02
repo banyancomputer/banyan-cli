@@ -1,16 +1,12 @@
-use crate::{
-    plan_copy::plan_copy, spider, types::pipeline::PipelineToDisk, utils::fs as fsutil, vacuum,
-};
 use anyhow::Result;
 use futures::FutureExt;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 
-use crate::plan_copy::plan_copy;
-use crate::types::pipeline::CodablePipeline;
-use crate::utils::fs as fsutil;
-use crate::{spider, vacuum};
+use crate::{
+    plan_copy::plan_copy, spider, types::pipeline::CodablePipeline, utils::fs as fsutil, vacuum,
+};
 
 pub async fn pack_pipeline(
     input_dir: PathBuf,

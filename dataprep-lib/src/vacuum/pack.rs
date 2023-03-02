@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
-use flate2::bufread::GzEncoder;
-use flate2::Compression;
-use std::fs::File;
-use std::io::BufReader;
+use flate2::{bufread::GzEncoder, Compression};
+use std::{fs::File, io::BufReader};
 
-use crate::types::pipeline::{EncryptionPart, Pipeline};
-use crate::types::plan::{DataProcessPlan, PipelinePlan};
-use crate::types::shared::DataProcessDirective;
+use crate::types::{
+    pipeline::{EncryptionPart, Pipeline},
+    plan::{DataProcessPlan, PipelinePlan},
+    shared::DataProcessDirective,
+};
 use std::io::{BufRead, Read};
 
 pub async fn do_file_pipeline(

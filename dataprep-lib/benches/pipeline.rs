@@ -84,7 +84,7 @@ fn get_desired_file_structures() -> Vec<Structure> {
     // Get the size of the test from the environment, as a usize
     let bench_file_structure_size = *BENCH_FILE_STRUCTURES_SIZE;
     // Split the list of file structures into a list of strings
-    let file_structures = bench_file_structures.split(",");
+    let file_structures = bench_file_structures.split(',');
     // Get the max width of the file structures
     let max_width = *BENCH_FILE_STRUCTURES_MAX_WIDTH;
     // Get the max depth of the file structures

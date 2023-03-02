@@ -4,8 +4,7 @@ use dataprep_lib::{
 };
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
-use std::process::Command;
-use std::{fs::remove_file, path::Path};
+use std::{fs::remove_file, path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
@@ -29,7 +28,7 @@ fn setup_test(test_path: &Path, structure: Structure, test_name: &str) {
     structure.generate(&input_path).unwrap();
     ensure_path_exists_and_is_empty_dir(&packed_path, true).unwrap();
     ensure_path_exists_and_is_empty_dir(&unpacked_path, true).unwrap();
-    remove_file(&manifest_path).unwrap_or_default();
+    remove_file(manifest_path).unwrap_or_default();
 }
 
 /// Helper function to run a test end to end
@@ -84,7 +83,7 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
             // Interpret the output as a string
             let output_str = String::from_utf8(output.stdout).unwrap();
             // Grab all text before the tab
-            let size_str = output_str.split("\t").next().unwrap();
+            let size_str = output_str.split('\t').next().unwrap();
             // Parse that text as a number
             let size = size_str.parse::<usize>().unwrap();
             // Ok status with size

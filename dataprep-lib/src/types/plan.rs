@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::pipeline::PartitionMetadata;
-use crate::types::shared::DataProcessDirective;
-use crate::types::spider::SpiderMetadata;
-use std::path::PathBuf;
-use std::rc::Rc;
+use crate::types::{
+    pipeline::PartitionMetadata, shared::DataProcessDirective, spider::SpiderMetadata,
+};
+use std::{path::PathBuf, rc::Rc};
 
 // TODO (laudiacay) continue making types better...
 

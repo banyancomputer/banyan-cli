@@ -1,5 +1,4 @@
-use crate::types::pipeline::CodablePipeline;
-use crate::vacuum::unpack::do_file_pipeline;
+use crate::{types::pipeline::CodablePipeline, vacuum::unpack::do_file_pipeline};
 use anyhow::Result;
 use std::path::PathBuf;
 use tokio_stream::StreamExt;
