@@ -19,6 +19,7 @@ jobs:
     uses: banyancomputer/.github/.github/workflows/rust-codecov.yml@master
     with:
       name_of_stuff_to_test_in_target: 'dataprep'
+      needs_test: 'true'
   # Run the linters and formatters:
   run_linters:
     uses: banyancomputer/.github/.github/workflows/rust_linters_formatters.yml@master

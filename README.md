@@ -7,7 +7,7 @@
 
   <p>
     <a href="https://codecov.io/gh/banyancomputer/dataprep">
-      <img src="https://codecov.io/gh/banyancomputer/dataprep/branch/main/graph/badge.svg?token=LQL6MA4KSI" alt="Code Coverage"/>
+      <img src="https://codecov.io/gh/banyancomputer/dataprep/branch/master/graph/badge.svg?token=LQL6MA4KSI" alt="Code Coverage"/>
     </a>
     <a href="https://github.com/banyancomputer/dataprep/actions?query=">
       <img src="https://github.com/banyancomputer/dataprep/actions/workflows/rust.yml/badge.svg" alt="Build Status">
