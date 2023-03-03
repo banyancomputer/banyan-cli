@@ -3,8 +3,7 @@
 #![deny(unused_crate_dependencies)]
 
 use clap::Parser;
-use dataprep_pipelines::pipeline::pack_pipeline::pack_pipeline;
-use dataprep_pipelines::pipeline::unpack_pipeline::unpack_pipeline;
+use dataprep_lib::pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline};
 
 mod cli;
 

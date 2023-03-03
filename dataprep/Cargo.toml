@@ -7,6 +7,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+dataprep-lib.workspace = true
 clap.workspace = true
-dataprep-pipelines.workspace = true
 tokio.workspace = true

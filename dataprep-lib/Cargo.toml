@@ -1,0 +1,33 @@
+[package]
+name = "dataprep-lib"
+description = "Where shared types and functions should live for the Dataprep project"
+# These are locked across the repository for now
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+futures.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+jwalk.workspace = true
+blake2.workspace = true
+flate2.workspace = true
+uuid.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+printio.workspace = true
+age.workspace = true
+# Dev-Dependencies: These should live under a different tag
+fake-file.workspace = true
+dir-assert.workspace = true
+fs_extra.workspace = true
+criterion.workspace = true
+lazy_static.workspace = true
+
+# Benchmark for packing -> unpacking an input directory
+[[bench]]
+name = "pipeline"
+harness = false
