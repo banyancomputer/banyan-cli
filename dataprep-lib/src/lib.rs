@@ -5,6 +5,7 @@
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 #![deny(unreachable_pub, private_in_public)]
 #![feature(async_closure)]
+#![feature(dec2flt)]
 
 /* General Project Chores */
 // TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
@@ -40,9 +41,9 @@ use lazy_static as _;
 #[allow(unused_extern_crates)]
 extern crate core;
 
-pub mod pipeline;
-pub mod plan_copy;
-pub mod spider;
-pub mod types;
-pub mod utils;
-pub mod vacuum;
+pub mod do_pipeline_and_write_metadata;
+mod plan_copy;
+mod spider;
+mod types;
+mod utils;
+mod vacuum;

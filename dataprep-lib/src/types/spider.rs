@@ -1,6 +1,7 @@
+use anyhow::Result;
 use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
-use std::{fs::Metadata, path::PathBuf};
+use std::{fs::Metadata, path::PathBuf, time::SystemTime};
 
 #[derive(Debug, Clone)]
 pub struct SpiderMetadata {
@@ -43,17 +44,18 @@ pub enum FileType {
 pub struct CodableMetadata {
     file_type: FileType,
     len: u64,
-    permissions: (), //TODO: figure out how to get permissions
-    modified: (),    //TODO: figure out how to get modified
-    accessed: (),    //TODO: figure out how to get accessed
-    created: (),     //TODO: figure out how to get created
-    owner: (),       //TODO: figure out how to get owner
-                     // TODO come up with more metadata to store
+    permissions: (), // TODO uuuugh permissions
+    modified: SystemTime,
+    accessed: SystemTime,
+    created: SystemTime,
+    owner: (), //TODO: figure out how to get owner
+               // TODO come up with more metadata to store
 }
 
-impl From<&SpiderMetadata> for CodableMetadata {
-    fn from(value: &SpiderMetadata) -> Self {
-        CodableMetadata {
+impl TryFrom<&SpiderMetadata> for CodableMetadata {
+    type Error = anyhow::Error;
+    fn try_from(value: &SpiderMetadata) -> Result<Self> {
+        Ok(CodableMetadata {
             file_type: match value.original_metadata.file_type().is_dir() {
                 true => FileType::Directory,
                 false => match value.original_metadata.file_type().is_symlink() {
@@ -62,12 +64,12 @@ impl From<&SpiderMetadata> for CodableMetadata {
                 },
             },
             len: value.original_metadata.len(),
-            permissions: (),
-            modified: (),
-            accessed: (),
-            created: (),
+            permissions: (), // TODO: figure out how to get permissions
+            modified: value.original_metadata.modified()?,
+            accessed: value.original_metadata.accessed()?,
+            created: value.original_metadata.created()?,
             owner: (),
-        }
+        })
     }
 }
 
@@ -82,8 +84,9 @@ pub struct CodableSpiderMetadata {
 }
 
 // Define how to construct a codable version of the SpiderMetadata struct
-impl From<&SpiderMetadata> for CodableSpiderMetadata {
-    fn from(value: &SpiderMetadata) -> Self {
+impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {
+    type Error = anyhow::Error;
+    fn try_from(value: &SpiderMetadata) -> Result<Self> {
         // Most values can be simply cloned
         let original_root = value.original_root.clone();
         let original_location = value.original_location.clone();
@@ -92,14 +95,14 @@ impl From<&SpiderMetadata> for CodableSpiderMetadata {
         // Construct the metadata using the entirety of SpiderMetaData struct.
         // Note that right now, not all of the information contained here is necessary to do this,
         // but it may be in the future.
-        let original_metadata = CodableMetadata::from(value);
+        let original_metadata = CodableMetadata::try_from(value)?;
 
         // Construct and return
-        CodableSpiderMetadata {
+        Ok(CodableSpiderMetadata {
             original_root,
             original_location,
             canonicalized_path,
             original_metadata,
-        }
+        })
     }
 }

@@ -1,9 +1,9 @@
 use crate::types::spider::{make_spider_metadata, SpiderMetadata};
 use anyhow::Result;
 use jwalk::WalkDir;
-use std::path::PathBuf;
+use std::path::Path;
 
-pub async fn spider(input_dir: PathBuf, _follow_links: bool) -> Result<Vec<SpiderMetadata>> {
+pub async fn spider(input_dir: &Path, _follow_links: bool) -> Result<Vec<SpiderMetadata>> {
     // Canonicalize the path
     let path_root = input_dir.canonicalize()?;
 

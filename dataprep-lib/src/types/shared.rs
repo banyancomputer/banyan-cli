@@ -1,36 +1,74 @@
+use age::secrecy::ExposeSecret;
+//use core::num::dec2flt::parse;
 use serde::{Deserialize, Serialize};
-
-/// This struct is used to describe how a file was processed. Either it was a duplicate/symlink/
-/// directory and there isn't much to do, or else we need to go through compression, partition, and
-/// encryption steps.
-#[derive(Debug, Clone)]
-pub enum DataProcessDirective<T> {
-    /// It was a directory, just create it
-    Directory,
-    /// it was a symlink, just create it
-    Symlink,
-    /// it was a file, here's the metadata for how it was encrypted and compressed
-    File(T),
-}
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum CodableDataProcessDirective<T> {
-    /// It was a directory, just create it
-    Directory,
-    /// it was a symlink, just create it
-    Symlink,
-    /// it was a file, here's the metadata for how it was encrypted and compressed
-    File(T),
+pub struct CompressionScheme {
+    pub compression_info: &'static str,
 }
-
-impl<T> From<DataProcessDirective<T>> for CodableDataProcessDirective<T> {
-    fn from(data_process_directive: DataProcessDirective<T>) -> Self {
-        match data_process_directive {
-            DataProcessDirective::Directory => CodableDataProcessDirective::Directory,
-            DataProcessDirective::Symlink => CodableDataProcessDirective::Symlink,
-            DataProcessDirective::File(data_process) => {
-                CodableDataProcessDirective::File(data_process)
-            }
+impl CompressionScheme {
+    pub fn new_zstd() -> Self {
+        CompressionScheme {
+            compression_info: "ZSTD",
         }
     }
+    // pub fn get_encoder(&self, reader: impl Read) -> impl Read {
+    //     match self.compression_info {
+    //         "ZSTD" => zstd::Encoder::new(reader, 0).unwrap(),
+    //         _ => panic!("unsupported compression!"),
+    //     }
+    // }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PartitionScheme {
+    /// The size of the chunks
+    pub chunk_size: u64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct EncryptionScheme {
+    #[serde(
+        serialize_with = "serialize_age_identity",
+        deserialize_with = "deserialize_age_identity"
+    )]
+    pub(crate) identity: age::x25519::Identity,
+}
+
+impl std::fmt::Debug for EncryptionScheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "encryption plans are secret for now")
+    }
+}
+
+impl EncryptionScheme {
+    pub fn new() -> Self {
+        EncryptionScheme {
+            identity: age::x25519::Identity::generate(),
+        }
+    }
+}
+
+impl Default for EncryptionScheme {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn serialize_age_identity<S>(
+    identity: &age::x25519::Identity,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(identity.to_string().expose_secret())
+}
+
+fn deserialize_age_identity<'de, D>(deserializer: D) -> Result<age::x25519::Identity, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    age::x25519::Identity::from_str(&s).map_err(serde::de::Error::custom)
 }

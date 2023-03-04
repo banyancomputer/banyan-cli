@@ -34,6 +34,7 @@ lazy_static = "1.4"
 criterion = {version = "0.4.0", features = ["async_tokio"]}
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
 zstd = "0.12.3"
+fclones = "0.29.3"
 
 [patch]
 

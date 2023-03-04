@@ -1,107 +1,116 @@
 use anyhow::{anyhow, Result};
 use std::{fs::File, io::BufReader};
-use zstd::stream::read::Encoder as ZstdEncoder;
+use std::io::Seek;
 
 use crate::types::{
-    pipeline::{EncryptionPart, Pipeline},
-    plan::{DataProcessPlan, PipelinePlan},
-    shared::DataProcessDirective,
+    pack_plan::{PackPipelinePlan, PackPlan},
+    unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType, WriteoutLocations},
 };
-use std::io::{BufRead, Read};
 
+// TODO in the battle against repeated code... fn refresh_file_encryptor() ->
+
+/// this file takes in a plan for how to process an identical file group, dir, or symlink,
+/// and performs that action on the filesystem
+/// returns a struct that can be used to unpack the file.
 pub async fn do_file_pipeline(
-    PipelinePlan {
-        origin_data,
-        data_processing,
-    }: PipelinePlan,
-) -> Result<Pipeline> {
-    match data_processing.clone() {
+    pack_pipeline_plan: PackPipelinePlan,
+) -> Result<Vec<UnpackPipelinePlan>> {
+    match pack_pipeline_plan {
         // If this is a file
-        DataProcessDirective::File(dpp) => {
-            let DataProcessPlan {
+        PackPipelinePlan::FileGroup(metadatas, pack_plan) => {
+            let PackPlan {
                 compression,
                 partition,
                 encryption,
                 writeout,
-                duplication,
-            } = dpp.clone();
-            // TODO (laudiacay) async these reads. also is this buf setup right
+            } = pack_plan;
 
-            // If this is a duplicate file, we don't need to do anything
-            if duplication.expected_location.is_some() {
-                return Ok(Pipeline {
-                    origin_data,
-                    data_processing: data_processing.try_into()?,
-                });
-            }
+            // TODO (organizedgrime) async these reads? also is this buf setup right?
 
-            // Ensure that our compression scheme is congruent with expectations
-            assert_eq!(compression.compression_info, "ZSTD");
-
-            // Open the original file
-            let file = File::open(&origin_data.canonicalized_path)
+            // Open the original file (just the first one!)
+            let file = File::open(&metadatas.get(0).expect("why is there nothing in metadatas").canonicalized_path)
                 .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
 
             // Build an encoder for the file
-            let encoder = ZstdEncoder::new(file, 0).unwrap();
-            // Create a Buffured Reader for the file
-            let mut old_file_reader = BufReader::new(encoder);
+            // TODO one day make this look like compression_info.get_encoder
+            let old_file_reader = zstd::Encoder::new(file, 0).unwrap();
 
             // Keep track of encrypted pieces
-            let mut encrypted_pieces = Vec::new();
-            let mut i = 0;
+            let mut writeout_locations = Vec::new();
+            let mut current_chunk_num = 0;
+            let mut current_chunk_size = 0;
 
-            // iterate over the file, partitioning it and encrypting it
-            while old_file_reader.has_data_left()? {
+            let mut new_path = uuid::Uuid::new_v4().to_string();
+            new_path.push_str(".packed");
+            let mut new_file_loc = writeout.join(new_path);
+            let mut new_file_writer = File::create(&new_file_loc)
+                .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
+            let mut new_file_encryptor =
+                age::Encryptor::with_recipients(vec![Box::new(encryption.identity.to_public())])
+                    .expect("could not create encryptor")
+                    .wrap_output(new_file_writer)?;
+            writeout_locations.push(new_file_loc);
+
+            let file_len = old_file_reader.get_ref().seek(std::io::SeekFrom::End(0))?;
+            // we aren't done with the file until we've read all of it
+            while old_file_reader.get_ref().seek(std::io::SeekFrom::Current(0))? < file_len {
+                if current_chunk_size >= partition.chunk_size {
+                    current_chunk_num += 1;
+                    current_chunk_size = 0;
+
+                    // finish the encryption (write out the tag and anything in the buffer)
+                    // TODO deduplicate code
+                    new_file_encryptor
+                        .finish()
+                        .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
+
+                    new_path = uuid::Uuid::new_v4().to_string();
+                    new_path.push_str(".packed");
+                    new_file_loc = writeout.join(new_path);
+                    // open the output file for writing
+                    new_file_writer = File::create(&new_file_loc)
+                        .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
+                    new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
+                        encryption.identity.to_public(),
+                    )])
+                        .expect("could not create encryptor")
+                        .wrap_output(new_file_writer)?;
+                    writeout_locations.push(new_file_loc);
+                }
+
                 // read a chunk of the file
                 // TODO (laudiacay) write down somewhere which bytes of the OG file this was.
-                let mut old_file_take = old_file_reader.take(partition.0.chunk_size);
-                // open the output file for writing
-                let new_file_writer = File::create(&writeout.output_paths[i]).map_err(|e| {
-                    anyhow!(
-                        "could not create new file writer! {} at {:?}",
-                        e,
-                        &writeout.output_paths[i]
-                    )
-                })?;
-
-                // make the encryptor
-                let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
-                    encryption.identity.to_public(),
-                )])
-                .expect("could not create encryptor")
-                .wrap_output(new_file_writer)?;
+                // let mut old_file_take =
+                //     old_file_reader.take((partition.chunk_size - current_chunk_size) as usize);
 
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
-                std::io::copy(&mut old_file_take, &mut new_file_encryptor)
+
+                std::io::copy(&mut old_file_reader, &mut new_file_encryptor)
                     .map_err(|e| anyhow!("could not copy data from old file to new file! {}", e))?;
-
-                old_file_reader = old_file_take.into_inner();
-
-                // finish the encryption (write out the tag and anything in the buffer)
-                new_file_encryptor
-                    .finish()
-                    .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
-
-                // write out the metadata
-                encrypted_pieces.push(EncryptionPart {
-                    identity: encryption.identity.clone(),
-                });
-                i += 1;
             }
-
-            // Construct Pipeline
-            Ok(Pipeline {
-                origin_data,
-                data_processing: DataProcessDirective::File(dpp.into()),
-            })
+            old_file_reader.finish()?;
+            // TODO turn this into a map
+            let mut ret = vec![];
+            for m in metadatas {
+                ret.push(UnpackPipelinePlan {
+                    origin_data: m.as_ref().try_into()?,
+                    data_processing: UnpackType::File(UnpackPlan {
+                        compression,
+                        partition,
+                        encryption,
+                        writeout: WriteoutLocations {
+                            chunk_locations: writeout_locations.clone(),
+                        },
+                    }),
+                })
+            }
+            Ok(ret)
         }
-        // If this is a directory, symlink, or duplicate
-        _ => Ok(Pipeline {
-            origin_data,
-            data_processing: data_processing.try_into()?,
-        }),
+        // If this is a directory or symlink
+        d @ PackPipelinePlan::Directory(_) | d @ PackPipelinePlan::Symlink(..) => {
+            Ok(vec![d.try_into()?])
+        }
     }
 }
 // TODO (thea-exe): Our inline tests
