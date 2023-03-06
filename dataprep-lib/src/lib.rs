@@ -43,8 +43,8 @@ use lazy_static as _;
 extern crate core;
 
 pub mod do_pipeline_and_write_metadata;
-pub mod utils;
 mod plan_copy;
 mod spider;
 mod types;
+pub mod utils;
 mod vacuum;

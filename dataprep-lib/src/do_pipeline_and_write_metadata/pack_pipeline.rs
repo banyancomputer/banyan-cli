@@ -57,9 +57,9 @@ pub async fn pack_pipeline(
                         /// this is the path relative to the root of the backup
                         original_location: file_path_buf.clone(),
                         /// this is the canonicalized path of the original file
-                        canonicalized_path: can_file_path_buf.clone(),
+                        canonicalized_path: can_file_path_buf,
                         /// this is the metadata of the original file
-                        original_metadata: fs::metadata(file_path_buf.clone()).unwrap(),
+                        original_metadata: fs::metadata(file_path_buf).unwrap(),
                     })
                 })
                 .collect::<Vec<Arc<SpiderMetadata>>>(),
@@ -87,14 +87,14 @@ pub async fn pack_pipeline(
             let symlink_target = fs::read_link(spidered.canonicalized_path.clone()).unwrap();
             // TODO clone spidered?? why
             copy_plan.push(PackPipelinePlan::Symlink(
-                Arc::new(spidered.clone()),
+                origin_data.clone(),
                 symlink_target,
             ));
         } else {
             panic!("files should be all done by now");
         }
         // TODO clone ?? why
-        seen_files.insert(spidered.canonicalized_path.clone().into());
+        seen_files.insert(spidered.canonicalized_path.clone());
     }
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.

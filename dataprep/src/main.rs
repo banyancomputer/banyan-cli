@@ -3,7 +3,9 @@
 #![deny(unused_crate_dependencies)]
 
 use clap::Parser;
-use dataprep_lib::do_pipeline_and_write_metadata::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline};
+use dataprep_lib::do_pipeline_and_write_metadata::{
+    pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
+};
 use fclones::config::GroupConfig;
 
 mod cli;
@@ -19,14 +21,22 @@ async fn main() {
             output_dir,
             manifest_file,
             target_chunk_size,
-            group_config,
+            follow_links,
         } => {
+            let group_config = GroupConfig {
+                follow_links,
+                base_dir: input_dir.clone().into(),
+                ..Default::default()
+            };
+            // TODO think about fclones caching for repeated runs :3 this will b useful for backup utility kind of thing
+            // TODO groupconfig.threads and think about splitting squential and random io into separate thread pools
+
             pack_pipeline(
                 input_dir,
                 output_dir,
                 manifest_file,
                 target_chunk_size,
-                GroupConfig::default(),
+                group_config,
             )
             .await
             .unwrap();

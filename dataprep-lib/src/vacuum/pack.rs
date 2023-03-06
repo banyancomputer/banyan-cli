@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
-use std::{fs::File, io::BufReader};
-use std::io::Seek;
+use std::{
+    fs::File,
+    io::{BufReader, Seek},
+};
 
 use crate::types::{
     pack_plan::{PackPipelinePlan, PackPlan},
@@ -33,11 +35,9 @@ pub async fn do_file_pipeline(
 
             // Build an encoder for the file
             // TODO one day make this look like compression_info.get_encoder
-            
 
             // Keep track of encrypted pieces
             let mut writeout_locations = Vec::new();
-            let mut current_chunk_num = 0;
             let mut current_chunk_size = 0;
 
             let mut new_path = uuid::Uuid::new_v4().to_string();
@@ -51,13 +51,15 @@ pub async fn do_file_pipeline(
                     .wrap_output(new_file_writer)?;
             writeout_locations.push(new_file_loc);
 
-
             let old_file_reader = BufReader::new(file);
             let file_len = old_file_reader.get_ref().seek(std::io::SeekFrom::End(0))?;
             // we aren't done with the file until we've read all of it
-            while old_file_reader.get_ref().seek(std::io::SeekFrom::Current(0))? < file_len {
+            while old_file_reader
+                .get_ref()
+                .stream_position()?
+                < file_len
+            {
                 if current_chunk_size >= partition.chunk_size {
-                    current_chunk_num += 1;
                     current_chunk_size = 0;
 
                     // finish the encryption (write out the tag and anything in the buffer)
@@ -75,8 +77,8 @@ pub async fn do_file_pipeline(
                     new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
                         encryption.identity.to_public(),
                     )])
-                        .expect("could not create encryptor")
-                        .wrap_output(new_file_writer)?;
+                    .expect("could not create encryptor")
+                    .wrap_output(new_file_writer)?;
                     writeout_locations.push(new_file_loc);
                 }
 
@@ -88,7 +90,7 @@ pub async fn do_file_pipeline(
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
 
-                zstd::stream::copy_encode(old_file_reader.get_ref(), &mut new_file_encryptor, 1);
+                zstd::stream::copy_encode(old_file_reader.get_ref(), &mut new_file_encryptor, 1)?;
             }
 
             // TODO turn this into a map

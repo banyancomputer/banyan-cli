@@ -1,8 +1,12 @@
 use age::Decryptor;
 use anyhow::{anyhow, Ok, Result};
 use printio as _;
-use std::{fs::File, io::BufReader, iter, path::PathBuf};
-use std::path::Path;
+use std::{
+    fs::File,
+    io::BufReader,
+    iter,
+    path::{Path, PathBuf},
+};
 
 use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
 
@@ -19,13 +23,10 @@ pub async fn do_file_pipeline(
     match data_processing {
         UnpackType::File(UnpackPlan {
             compression,
-            partition,
+            partition: _partition,
             encryption,
             writeout,
         }) => {
-            // TODO (laudiacay) make sure you don't unpack things 23910 times with all the duplicates
-            // TODO (organizedgrime) FILESYSTEM LOCKS ?
-
             // Construct the output path
             let output_path = output_dir.join(origin_data.original_location);
 
@@ -55,7 +56,7 @@ pub async fn do_file_pipeline(
                 // Chunk is a constant for now
 
                 // Finish constructing the old file reader
-                let old_file_reader = BufReader::new(File::open(chunk)?);
+                let old_file_reader = BufReader::new(File::open(input_dir.join(chunk))?);
 
                 // TODO naughty clone
                 // Construct the old file reader by decrypting the encrypted piece
