@@ -6,7 +6,6 @@ use clap::Parser;
 use dataprep_lib::do_pipeline_and_write_metadata::{
     pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
 };
-use fclones::config::{GroupConfig, Parallelism};
 
 mod cli;
 
@@ -28,7 +27,7 @@ async fn main() {
                 output_dir,
                 manifest_file,
                 target_chunk_size,
-                follow_links
+                follow_links,
             )
             .await
             .unwrap();

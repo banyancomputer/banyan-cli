@@ -41,12 +41,12 @@ pub async fn pack_pipeline(
     /* Perform deduplication and plan how to copy the files */
 
     // Initialize a struct to figure out which files are friends with which
-    let fclones_logger = fclones::log::StdLog::new();
+    let mut fclones_logger = fclones::log::StdLog::new();
+    fclones_logger.no_progress = true;
     // TODO fix setting base_dir / do it right
     let file_groups = group_files(&group_config, &fclones_logger)?;
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
     let mut copy_plan = vec![];
-    println!("file_groups: {:#?}", file_groups);
     // go over the files- do it in groups
     for group in file_groups {
         let mut metadatas = vec![];
@@ -54,17 +54,24 @@ pub async fn pack_pipeline(
             let file_path_buf = file.path.to_path_buf();
             let can_file_path_buf = file_path_buf.canonicalize().unwrap();
             seen_files.insert(can_file_path_buf.clone());
-            // println!("inserted {:?} into seen_files", can_file_path_buf);
+
+            // Construct the original root and relative path
+            let original_root = group_config.base_dir.clone();
+            let original_location = file.path.strip_prefix(&original_root).unwrap();
+
+            // Construct the metadata
             let spider_metadata = Arc::new(SpiderMetadata {
                 /// this is the root of the backup
-                original_root: input_dir.clone(),
+                original_root: original_root.to_path_buf(),
                 /// this is the path relative to the root of the backup
-                original_location: file_path_buf.clone(),
+                original_location: original_location.to_path_buf(),
                 /// this is the canonicalized path of the original file
                 canonicalized_path: can_file_path_buf,
                 /// this is the metadata of the original file
                 original_metadata: fs::metadata(file_path_buf).unwrap(),
             });
+
+            // Append the metadata
             metadatas.push(spider_metadata);
         }
         let pack_plan = PackPlan {
@@ -80,11 +87,9 @@ pub async fn pack_pipeline(
 
     // and now get all the directories and symlinks
     for spidered in spidered.iter() {
+        // If this is a duplicate
         if seen_files.contains(&spidered.canonicalized_path.to_path_buf()) {
-            println!(
-                "skipping {:?} because it's already been seen",
-                spidered.canonicalized_path
-            );
+            // Just skip it
             continue;
         }
         let origin_data = Arc::new(spidered.clone());
@@ -149,6 +154,7 @@ pub async fn pack_pipeline(
 
 fn create_group_config(input_dir: &Path, follow_links: bool) -> GroupConfig {
     let base_dir = input_dir.canonicalize().unwrap();
+
     // we checked over these options manually and sorted them
     GroupConfig {
         // will definitely never need to change

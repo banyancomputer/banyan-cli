@@ -76,8 +76,9 @@ impl TryFrom<&SpiderMetadata> for CodableMetadata {
 // This is a codable version of the SpiderMetadata struct
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodableSpiderMetadata {
+    /// This is an absolute path
     pub original_root: PathBuf,
-    /// this is the path relative to the root of the backup
+    /// This is the path relative to the root of the backup
     pub original_location: PathBuf,
     pub canonicalized_path: PathBuf,
     pub original_metadata: CodableMetadata,

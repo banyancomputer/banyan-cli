@@ -31,23 +31,22 @@ pub async fn do_file_pipeline(
             // Construct the output path
             let output_path = output_dir.join(origin_data.original_location);
 
-            // TODO (organizedgrime) async these reads. also is this buf setup right
-
             // If the file already exists, skip it- we've already processed it
             if Path::exists(&output_path) {
                 // TODO make this a warning
                 println!("File already exists: {}", output_path.display());
                 return Ok(());
             }
-            // otherwise make it
+
+            // Create directories so that writing can take place
+            std::fs::create_dir_all(output_path.parent().unwrap())?;
+
+            // Otherwise make it
             let new_file_writer = File::create(output_path)?;
 
             // Ensure that our compression scheme is congruent with expectations
             // TODO use fancy .get_decoder() method :3
             assert_eq!(compression.compression_info, "ZSTD");
-
-            // Create a new file writer
-            // let mut new_file_writer = ZstdDecoder::new(new_file_writer).unwrap();
 
             // TODO (organizedgrime): switch back to iterating over chunks if use case arises
             // If there are chunks in the partition to process
@@ -78,8 +77,7 @@ pub async fn do_file_pipeline(
                 };
 
                 // Copy the contents of the old reader into the new writer
-                zstd::stream::copy_decode(old_file_reader, &new_file_writer).unwrap();
-
+                zstd::stream::copy_decode(old_file_reader, &new_file_writer)?;
                 // TODO check the encryption tag at the end of the file?
             }
 

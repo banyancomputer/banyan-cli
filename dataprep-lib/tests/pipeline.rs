@@ -6,7 +6,6 @@ use dataprep_lib::{
 };
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
-use fclones::config::GroupConfig;
 use std::{fs::remove_file, path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
@@ -183,8 +182,7 @@ mod test {
 
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
-    #[ignore]
-    async fn test_deduplication() {
+    async fn test_deduplication_integrity() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_integrity");
         // Define the file structure to test
@@ -214,7 +212,6 @@ mod test {
     /// Ensure that the duplicate data occupies a smaller footprint when packed
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
-    #[ignore]
     async fn test_deduplication_size() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_size");
@@ -287,7 +284,6 @@ mod test {
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.
     #[tokio::test]
-    #[ignore]
     async fn test_deduplication_large() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);

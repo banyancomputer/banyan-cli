@@ -701,7 +701,6 @@ version = "0.1.0"
 dependencies = [
  "clap 4.1.8",
  "dataprep-lib",
- "fclones",
  "tokio",
 ]
 

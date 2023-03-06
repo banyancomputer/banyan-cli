@@ -30,7 +30,8 @@ pub async fn do_file_pipeline(
             // TODO (organizedgrime) async these reads? also is this buf setup right?
 
             // Open the original file (just the first one!)
-            let file = File::open(&metadatas.get(0).expect("why is there nothing in metadatas").canonicalized_path)
+            let file = File::open(&metadatas.get(0)
+                .expect("why is there nothing in metadatas").canonicalized_path)
                 .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
 
             // Build an encoder for the file
@@ -117,12 +118,16 @@ pub async fn do_file_pipeline(
                 },
             });
 
+            // For each metadata
             for m in metadatas {
+                // Construct a new UnpackPipelinePlan
                 ret.push(UnpackPipelinePlan {
                     origin_data: m.as_ref().try_into()?,
                     data_processing: dpp.clone(),
                 })
             }
+
+            // Return okay status with all UnpackPipelinePlans
             Ok(ret)
         }
         // If this is a directory or symlink
