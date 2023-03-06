@@ -43,6 +43,7 @@ pub async fn pack_pipeline(
     // Initialize a struct to figure out which files are friends with which
     let mut fclones_logger = fclones::log::StdLog::new();
     fclones_logger.no_progress = true;
+
     // TODO fix setting base_dir / do it right
     let file_groups = group_files(&group_config, &fclones_logger)?;
     let mut seen_files: HashSet<PathBuf> = HashSet::new();

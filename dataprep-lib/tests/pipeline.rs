@@ -48,7 +48,8 @@ async fn run_test(test_path: &Path) {
         input_path.clone(),
         packed_path.clone(),
         manifest_path.clone(),
-        1073741824, // 1GB
+        // 0.25 GiB Chunk size because large files take too long to make
+        1074000000 / 4,
         true,
     )
     .await
@@ -168,12 +169,13 @@ mod test {
 
     /// Test with one very big file -- ignore cuz it takes a while
     #[tokio::test]
+    #[ignore]
     async fn test_big_file() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("big_file");
         // Define the file structure to test
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 20, Strategy::Simple);
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 1024, Strategy::Simple);
         // Setup the test
         setup_test(&test_path, desired_structure, "test_big_file");
         // Run the test
@@ -288,9 +290,9 @@ mod test {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("deduplication_large");
-        // Define the file structure to test
-        // TODO (organizedgrime) - anything higher than 20x takes too long to run on my machine. Need to find a better way to test this.
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 20, Strategy::Simple);
+        // Define the file structure to test. Note that the input size is slightly larger than the maximum 0.25 GiB chunk size
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * (256 + 5), Strategy::Simple);
+
         // Setup the test
         setup_test(&test_path, desired_structure, "0");
 
@@ -308,6 +310,7 @@ mod test {
         // Assert that only one file was packed
         let packed_path = test_path.join(PACKED_PATH);
         let dir_info = fs_extra::dir::get_dir_content(packed_path).unwrap();
-        assert_eq!(dir_info.files.len(), 1);
+        // Expect that the large file was packed into two files
+        assert_eq!(dir_info.files.len(), 2);
     }
 }

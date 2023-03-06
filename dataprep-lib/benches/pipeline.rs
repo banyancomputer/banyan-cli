@@ -1,6 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use dataprep_lib::{
-    pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
+    do_pipeline_and_write_metadata::{
+        pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
+    },
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 use dir_assert::assert_paths;
