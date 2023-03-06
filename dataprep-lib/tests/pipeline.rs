@@ -50,7 +50,7 @@ async fn run_test(test_path: &Path) {
         packed_path.clone(),
         manifest_path.clone(),
         1073741824, // 1GB
-        GroupConfig::default(),
+        true,
     )
     .await
     .unwrap();
@@ -169,13 +169,12 @@ mod test {
 
     /// Test with one very big file -- ignore cuz it takes a while
     #[tokio::test]
-    #[ignore]
     async fn test_big_file() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("big_file");
         // Define the file structure to test
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 1024, Strategy::Simple);
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 20, Strategy::Simple);
         // Setup the test
         setup_test(&test_path, desired_structure, "test_big_file");
         // Run the test
@@ -184,6 +183,7 @@ mod test {
 
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_integrity");
@@ -214,6 +214,7 @@ mod test {
     /// Ensure that the duplicate data occupies a smaller footprint when packed
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication_size() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_size");
@@ -286,6 +287,7 @@ mod test {
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication_large() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);

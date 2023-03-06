@@ -16,7 +16,8 @@ pub async fn do_file_pipeline(
         origin_data,
         data_processing,
     }: UnpackPipelinePlan,
-    input_dir: PathBuf,
+    // TODO (organizedgrime) why is this here? it's not used
+    _input_dir: PathBuf,
     output_dir: PathBuf,
 ) -> Result<()> {
     // Processing directives require different handling
@@ -56,7 +57,7 @@ pub async fn do_file_pipeline(
                 // Chunk is a constant for now
 
                 // Finish constructing the old file reader
-                let old_file_reader = BufReader::new(File::open(input_dir.join(chunk))?);
+                let old_file_reader = BufReader::new(File::open(chunk)?);
 
                 // TODO naughty clone
                 // Construct the old file reader by decrypting the encrypted piece
@@ -81,6 +82,7 @@ pub async fn do_file_pipeline(
 
                 // TODO check the encryption tag at the end of the file?
             }
+
             // Return OK status
             Ok(())
         }

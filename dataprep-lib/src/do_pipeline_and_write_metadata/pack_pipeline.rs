@@ -1,6 +1,11 @@
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
-use std::{collections::HashSet, fs, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crate::{
     spider,
@@ -19,10 +24,12 @@ pub async fn pack_pipeline(
     output_dir: PathBuf,
     manifest_file: PathBuf,
     target_chunk_size: u64,
-    mut group_config: GroupConfig,
+    follow_links: bool,
 ) -> Result<()> {
-    let output_dir = output_dir.canonicalize()?;
+    // Construct the group config
+    let group_config = create_group_config(&input_dir, follow_links);
 
+    // Create the output directory
     fsutil::ensure_path_exists_and_is_empty_dir(&output_dir, false)
         .expect("output directory must exist and be empty");
 
@@ -47,7 +54,7 @@ pub async fn pack_pipeline(
             let file_path_buf = file.path.to_path_buf();
             let can_file_path_buf = file_path_buf.canonicalize().unwrap();
             seen_files.insert(can_file_path_buf.clone());
-            println!("inserted {:?} into seen_files", can_file_path_buf);
+            // println!("inserted {:?} into seen_files", can_file_path_buf);
             let spider_metadata = Arc::new(SpiderMetadata {
                 /// this is the root of the backup
                 original_root: input_dir.clone(),
@@ -74,28 +81,43 @@ pub async fn pack_pipeline(
     // and now get all the directories and symlinks
     for spidered in spidered.iter() {
         if seen_files.contains(&spidered.canonicalized_path.to_path_buf()) {
-            println!("skipping {:?} because it's already been seen", spidered.canonicalized_path);
+            println!(
+                "skipping {:?} because it's already been seen",
+                spidered.canonicalized_path
+            );
             continue;
         }
         let origin_data = Arc::new(spidered.clone());
         if spidered.original_metadata.is_dir() {
-            println!("adding dir {:?} to copy_plan", spidered.canonicalized_path);
             // TODO clone spidered?? why
             copy_plan.push(PackPipelinePlan::Directory(Arc::new(spidered.clone())));
         } else if spidered.original_metadata.is_symlink() {
-            println!("adding symlink {:?} to copy_plan", spidered.canonicalized_path);
             let symlink_target = fs::read_link(spidered.canonicalized_path.clone()).unwrap();
             // TODO clone spidered?? why
             copy_plan.push(PackPipelinePlan::Symlink(
                 origin_data.clone(),
                 symlink_target,
             ));
-        } else {
-            panic!("files should be all done by now: {}", spidered.canonicalized_path.display());
+        }
+        // These files are not in a file group but still need to be processed!
+        else {
+            // Construct an artificial file group
+            let magic_spider = vec![Arc::new(spidered.clone())];
+
+            // Create pack pipeline plan
+            let pack_plan = PackPlan {
+                compression: CompressionScheme::new_zstd(),
+                partition: PartitionScheme {
+                    chunk_size: target_chunk_size,
+                },
+                encryption: EncryptionScheme::new(),
+                writeout: output_dir.clone(),
+            };
+            copy_plan.push(PackPipelinePlan::FileGroup(magic_spider, pack_plan));
         }
         // TODO clone ?? why
         seen_files.insert(spidered.canonicalized_path.clone());
-        println!("inserted {:?} into seen_files", spidered.canonicalized_path);
+        // println!("inserted {:?} into seen_files", spidered.canonicalized_path);
     }
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
@@ -123,4 +145,55 @@ pub async fn pack_pipeline(
         &copied,
     )
     .map_err(|e| anyhow::anyhow!(e))
+}
+
+fn create_group_config(input_dir: &Path, follow_links: bool) -> GroupConfig {
+    let base_dir = input_dir.canonicalize().unwrap();
+    // we checked over these options manually and sorted them
+    GroupConfig {
+        // will definitely never need to change
+        output: None,
+        format: Default::default(),
+        stdin: false,
+        isolate: false, // TODO laudiacay um bug?
+        in_place: false,
+        no_copy: false,
+        rf_over: None,
+        rf_under: None,
+        unique: false,
+
+        // will probably never need to change
+        depth: None,
+        match_links: false,
+        symbolic_links: false, // TODO laudiacay here be bugs
+        transform: None,
+        min_size: (0_usize).into(),
+        max_size: None,
+        ignore_case: false,
+        regex: false,
+
+        // may want to change for feature adds in the future
+        hidden: true,
+        no_ignore: false, // TODO laudiacay HELPPPP THIS MIGHT BE BUGS
+        // TODO laudiacay ????
+        name_patterns: vec![],
+        path_patterns: vec![],
+        exclude_patterns: vec![],
+        hash_fn: Default::default(),
+        cache: false,
+
+        // we are using this option it is load bearing
+        threads: vec![(
+            "default".to_string().parse().unwrap(),
+            fclones::config::Parallelism {
+                random: 1,
+                sequential: 1,
+            },
+        )],
+        follow_links,
+        base_dir: base_dir.into(),
+        paths: vec![".".into()],
+    }
+    // TODO think about fclones caching for repeated runs :3 this will b useful for backup utility kind of thing
+    // TODO groupconfig.threads and think about splitting squential and random io into separate thread pools
 }
