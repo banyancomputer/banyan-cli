@@ -36,54 +36,54 @@ pub async fn pack_pipeline(
     // Initialize a struct to figure out which files are friends with which
     let fclones_logger = fclones::log::StdLog::new();
     // TODO fix setting base_dir / do it right
-    group_config.base_dir = input_dir.clone().into();
     let file_groups = group_files(&group_config, &fclones_logger)?;
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
     let mut copy_plan = vec![];
+    println!("file_groups: {:#?}", file_groups);
     // go over the files- do it in groups
     for group in file_groups {
-        copy_plan.push(PackPipelinePlan::FileGroup(
-            group
-                .files
-                .iter()
-                .map(|file| {
-                    let file_path_buf = file.path.to_path_buf();
-                    // TODO unwrap :|
-                    let can_file_path_buf = file_path_buf.canonicalize().unwrap();
-                    seen_files.insert(can_file_path_buf.clone());
-                    Arc::new(SpiderMetadata {
-                        /// this is the root of the backup
-                        original_root: input_dir.clone(),
-                        /// this is the path relative to the root of the backup
-                        original_location: file_path_buf.clone(),
-                        /// this is the canonicalized path of the original file
-                        canonicalized_path: can_file_path_buf,
-                        /// this is the metadata of the original file
-                        original_metadata: fs::metadata(file_path_buf).unwrap(),
-                    })
-                })
-                .collect::<Vec<Arc<SpiderMetadata>>>(),
-            PackPlan {
-                compression: CompressionScheme::new_zstd(),
-                partition: PartitionScheme {
-                    chunk_size: target_chunk_size,
-                },
-                encryption: EncryptionScheme::new(),
-                writeout: output_dir.clone(),
+        let mut metadatas = vec![];
+        for file in group.files {
+            let file_path_buf = file.path.to_path_buf();
+            let can_file_path_buf = file_path_buf.canonicalize().unwrap();
+            seen_files.insert(can_file_path_buf.clone());
+            println!("inserted {:?} into seen_files", can_file_path_buf);
+            let spider_metadata = Arc::new(SpiderMetadata {
+                /// this is the root of the backup
+                original_root: input_dir.clone(),
+                /// this is the path relative to the root of the backup
+                original_location: file_path_buf.clone(),
+                /// this is the canonicalized path of the original file
+                canonicalized_path: can_file_path_buf,
+                /// this is the metadata of the original file
+                original_metadata: fs::metadata(file_path_buf).unwrap(),
+            });
+            metadatas.push(spider_metadata);
+        }
+        let pack_plan = PackPlan {
+            compression: CompressionScheme::new_zstd(),
+            partition: PartitionScheme {
+                chunk_size: target_chunk_size,
             },
-        ));
+            encryption: EncryptionScheme::new(),
+            writeout: output_dir.clone(),
+        };
+        copy_plan.push(PackPipelinePlan::FileGroup(metadatas, pack_plan));
     }
 
     // and now get all the directories and symlinks
     for spidered in spidered.iter() {
         if seen_files.contains(&spidered.canonicalized_path.to_path_buf()) {
+            println!("skipping {:?} because it's already been seen", spidered.canonicalized_path);
             continue;
         }
         let origin_data = Arc::new(spidered.clone());
         if spidered.original_metadata.is_dir() {
+            println!("adding dir {:?} to copy_plan", spidered.canonicalized_path);
             // TODO clone spidered?? why
             copy_plan.push(PackPipelinePlan::Directory(Arc::new(spidered.clone())));
         } else if spidered.original_metadata.is_symlink() {
+            println!("adding symlink {:?} to copy_plan", spidered.canonicalized_path);
             let symlink_target = fs::read_link(spidered.canonicalized_path.clone()).unwrap();
             // TODO clone spidered?? why
             copy_plan.push(PackPipelinePlan::Symlink(
@@ -91,10 +91,11 @@ pub async fn pack_pipeline(
                 symlink_target,
             ));
         } else {
-            panic!("files should be all done by now");
+            panic!("files should be all done by now: {}", spidered.canonicalized_path.display());
         }
         // TODO clone ?? why
         seen_files.insert(spidered.canonicalized_path.clone());
+        println!("inserted {:?} into seen_files", spidered.canonicalized_path);
     }
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
