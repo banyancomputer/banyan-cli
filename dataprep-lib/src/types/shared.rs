@@ -5,12 +5,13 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionScheme {
-    pub compression_info: &'static str,
+    pub compression_info: String,
 }
+
 impl CompressionScheme {
     pub fn new_zstd() -> Self {
         CompressionScheme {
-            compression_info: "ZSTD",
+            compression_info: String::from("ZSTD"),
         }
     }
     // pub fn get_encoder(&self, reader: impl Read) -> impl Read {

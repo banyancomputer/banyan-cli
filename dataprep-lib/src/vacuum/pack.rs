@@ -33,7 +33,7 @@ pub async fn do_file_pipeline(
 
             // Build an encoder for the file
             // TODO one day make this look like compression_info.get_encoder
-            let old_file_reader = zstd::Encoder::new(file, 0).unwrap();
+            
 
             // Keep track of encrypted pieces
             let mut writeout_locations = Vec::new();
@@ -51,6 +51,8 @@ pub async fn do_file_pipeline(
                     .wrap_output(new_file_writer)?;
             writeout_locations.push(new_file_loc);
 
+
+            let old_file_reader = BufReader::new(file);
             let file_len = old_file_reader.get_ref().seek(std::io::SeekFrom::End(0))?;
             // we aren't done with the file until we've read all of it
             while old_file_reader.get_ref().seek(std::io::SeekFrom::Current(0))? < file_len {
@@ -86,23 +88,24 @@ pub async fn do_file_pipeline(
                 // TODO this blocks.  I don't know how to make it async
                 // copy the data from the old file to the new file. also does the compression tag!
 
-                std::io::copy(&mut old_file_reader, &mut new_file_encryptor)
-                    .map_err(|e| anyhow!("could not copy data from old file to new file! {}", e))?;
+                zstd::stream::copy_encode(old_file_reader.get_ref(), &mut new_file_encryptor, 1);
             }
-            old_file_reader.finish()?;
+
             // TODO turn this into a map
             let mut ret = vec![];
+            let dpp = UnpackType::File(UnpackPlan {
+                compression,
+                partition,
+                encryption,
+                writeout: WriteoutLocations {
+                    chunk_locations: writeout_locations.clone(),
+                },
+            });
+
             for m in metadatas {
                 ret.push(UnpackPipelinePlan {
                     origin_data: m.as_ref().try_into()?,
-                    data_processing: UnpackType::File(UnpackPlan {
-                        compression,
-                        partition,
-                        encryption,
-                        writeout: WriteoutLocations {
-                            chunk_locations: writeout_locations.clone(),
-                        },
-                    }),
+                    data_processing: dpp.clone(),
                 })
             }
             Ok(ret)

@@ -1,9 +1,10 @@
 use dataprep_lib::{
-    pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
+    do_pipeline_and_write_metadata::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
+use fclones::config::GroupConfig;
 use std::{fs::remove_file, path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
@@ -47,7 +48,7 @@ async fn run_test(test_path: &Path) {
         packed_path.clone(),
         manifest_path.clone(),
         1073741824, // 1GB
-        false,
+        GroupConfig::default(),
     )
     .await
     .unwrap();

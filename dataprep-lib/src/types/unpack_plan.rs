@@ -17,6 +17,7 @@ pub struct WriteoutLocations {
 
 /// this struct is the completed data processing steps for a file and instructions for unpacking
 #[derive(Debug, Clone, Serialize, Deserialize)]
+
 pub struct UnpackPlan {
     /// describes how we compressed the entire file
     pub compression: CompressionScheme,

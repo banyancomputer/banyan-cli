@@ -3,7 +3,8 @@
 #![deny(unused_crate_dependencies)]
 
 use clap::Parser;
-use dataprep_lib::pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline};
+use dataprep_lib::do_pipeline_and_write_metadata::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline};
+use fclones::config::GroupConfig;
 
 mod cli;
 
@@ -18,14 +19,14 @@ async fn main() {
             output_dir,
             manifest_file,
             target_chunk_size,
-            follow_links,
+            group_config,
         } => {
             pack_pipeline(
                 input_dir,
                 output_dir,
                 manifest_file,
                 target_chunk_size,
-                follow_links,
+                GroupConfig::default(),
             )
             .await
             .unwrap();

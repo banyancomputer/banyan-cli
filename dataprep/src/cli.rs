@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use fclones::config::GroupConfig;
 
 #[derive(Debug, Subcommand, Clone)]
 pub enum Commands {
@@ -22,8 +23,11 @@ pub enum Commands {
 
         /// should we follow symlinks?
         /// fed into: https://docs.rs/jwalk/latest/jwalk/struct.WalkDirGeneric.html#method.follow_links
-        #[arg(short, long, help = "follow symlinks", default_value = "false")]
-        follow_links: bool,
+        
+        // group_config: GroupConfig,
+        /// should we follow symlinks?
+        #[arg(short, long, help = "", default_value = ".")]
+        group_config: PathBuf,
     },
     Unpack {
         /// input file root

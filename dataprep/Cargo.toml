@@ -10,3 +10,4 @@ repository.workspace = true
 dataprep-lib.workspace = true
 clap.workspace = true
 tokio.workspace = true
+fclones.workspace = true
