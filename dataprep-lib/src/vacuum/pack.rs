@@ -60,14 +60,6 @@ pub async fn do_file_pipeline(
 
             // While we've not yet seeked through the entirety of the file
             while remaining_bytes > 0 {
-                // If we've already written out some chunks
-                if let Some(previous_file_encryptor) = new_file_encryptor {
-                    // Close the previously written chunk
-                    previous_file_encryptor
-                        .finish()
-                        .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
-                }
-
                 // Create a new file name and writeout location
                 new_path = format!("{}{}", uuid::Uuid::new_v4(), ".packed");
                 new_file_loc = writeout.join(new_path);
@@ -92,6 +84,7 @@ pub async fn do_file_pipeline(
                 let read_size = std::cmp::min(partition.chunk_size, remaining_bytes);
 
                 // Construct a reader that will prevent us from reading the entire file at once
+                // TODO (organizedgrime) something about inner vs outer chunking?
                 let chunk_reader = old_file_reader.get_ref().take(read_size);
 
                 // TODO (organizedgrime) maybe we can async these one day, a girl can dream
@@ -100,14 +93,13 @@ pub async fn do_file_pipeline(
 
                 // Determine how much of the file has yet to be written
                 remaining_bytes -= read_size;
+
+                // Close the previously written chunk
+                new_file_encryptor
+                    .unwrap()
+                    .finish()
+                    .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
             }
-
-            // Finish off the last chunk
-            new_file_encryptor
-                .unwrap()
-                .finish()
-                .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
-
             // TODO turn this into a map
             let mut ret = vec![];
             let dpp = UnpackType::File(UnpackPlan {
