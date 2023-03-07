@@ -41,15 +41,6 @@ pub async fn do_file_pipeline(
             // Keep track of the location of encrypted pieces
             let mut writeout_locations = Vec::new();
 
-            // New packed file name
-            let mut new_path: String;
-            // Location of this new packed file is also dependent on the writeout location
-            let mut new_file_loc: std::path::PathBuf;
-            // Create a new file writer at this location
-            let mut new_file_writer: File;
-            // Create a new encryptor for this file
-            let mut new_file_encryptor: Option<age::stream::StreamWriter<File>> = None;
-
             // Reset the file seeking position to the start of the file
             old_file_reader
                 .get_ref()
@@ -60,22 +51,21 @@ pub async fn do_file_pipeline(
 
             // While we've not yet seeked through the entirety of the file
             while remaining_bytes > 0 {
-                // Create a new file name and writeout location
-                new_path = format!("{}{}", uuid::Uuid::new_v4(), ".packed");
-                new_file_loc = writeout.join(new_path);
+                // New packed file name
+                let new_path = format!("{}{}", uuid::Uuid::new_v4(), ".packed");
+                // Location of this new packed file is also dependent on the writeout location
+                let new_file_loc = writeout.join(new_path);
 
-                // open the output file for writing
-                new_file_writer = File::create(&new_file_loc)
+                // Create a new file writer at this location
+                let new_file_writer = File::create(&new_file_loc)
                     .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
 
                 // Create a new encryptor for this file
-                new_file_encryptor = Some(
-                    age::Encryptor::with_recipients(vec![Box::new(
-                        encryption.identity.to_public(),
-                    )])
-                    .expect("could not create encryptor")
-                    .wrap_output(new_file_writer)?,
-                );
+                let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
+                    encryption.identity.to_public(),
+                )])
+                .expect("could not create encryptor")
+                .wrap_output(new_file_writer)?;
 
                 // Append the writeout location
                 writeout_locations.push(new_file_loc);
@@ -89,14 +79,13 @@ pub async fn do_file_pipeline(
 
                 // TODO (organizedgrime) maybe we can async these one day, a girl can dream
                 // Encode and compress the chunk
-                zstd::stream::copy_encode(chunk_reader, new_file_encryptor.as_mut().unwrap(), 1)?;
+                zstd::stream::copy_encode(chunk_reader, &mut new_file_encryptor, 1)?;
 
                 // Determine how much of the file has yet to be written
                 remaining_bytes -= read_size;
 
                 // Close the previously written chunk
                 new_file_encryptor
-                    .unwrap()
                     .finish()
                     .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
             }
