@@ -13,7 +13,7 @@ use crate::{
         pack_plan::{PackPipelinePlan, PackPlan},
         shared::{CompressionScheme, EncryptionScheme, PartitionScheme},
         spider::SpiderMetadata,
-        unpack_plan::UnpackPipelinePlan,
+        unpack_plan::{UnpackPipelinePlan, ManifestData},
     },
     utils::fs as fsutil,
     vacuum,
@@ -127,7 +127,7 @@ pub async fn pack_pipeline(
     }
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let copied = futures::future::join_all(
+    let unpack_plans = futures::future::join_all(
         copy_plan
             .iter()
             .map(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan.clone())),
@@ -145,10 +145,15 @@ pub async fn pack_pipeline(
         .open(manifest_file)
         .unwrap();
 
+    // Construct the datastructure we're about to encode
+    let manifest_data = ManifestData {
+        unpack_plans,
+    };
+
     serde_json::to_writer_pretty(
         manifest_writer,
         // Iterate over the copied files and convert them to codable pipelines
-        &copied,
+        &manifest_data,
     )
     .map_err(|e| anyhow::anyhow!(e))
 }

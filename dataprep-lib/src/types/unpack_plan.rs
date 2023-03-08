@@ -5,7 +5,6 @@ use crate::types::{
 };
 use anyhow::anyhow;
 use std::{fmt::Debug, path::PathBuf};
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,12 +58,13 @@ pub enum UnpackType {
     File(UnpackPlan),
 }
 
-/// describes how to unpack a file back to its origin.
+/// Describes how to unpack a file back to its origin.
+/// A vector of structs with this type is encoded into the manifest file.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnpackPipelinePlan {
-    /// describes where a SINGLE file came from on the original filesystem
+    /// Describes where a SINGLE file came from on the original filesystem
     pub origin_data: CodableSpiderMetadata,
-    /// describes data processing, if any is needed
+    /// Describes data processing, if any is needed
     pub data_processing: UnpackType,
 }
 
@@ -84,4 +84,15 @@ impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {
             _ => Err(anyhow!("You have to go process non-duplicate files!")),
         }
     }
+}
+
+/// This is the struct that becomes the contents of the manifest file.
+/// It may seem silly to have a struct that has only one field, but in
+/// versioning this struct, we can also version its children identically.
+/// As well as any other fields we may add / remove in the future.
+#[obake::versioned]
+#[obake(version("0.1.0"))] 
+#[derive(Serialize, Deserialize)]
+pub struct ManifestData {
+    pub unpack_plans: Vec<UnpackPipelinePlan>,
 }
