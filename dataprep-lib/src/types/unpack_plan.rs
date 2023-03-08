@@ -4,8 +4,8 @@ use crate::types::{
     spider::CodableSpiderMetadata,
 };
 use anyhow::anyhow;
-use std::{fmt::Debug, path::PathBuf};
 use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, path::PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata that is emitted on successful write into new filesystem
@@ -90,9 +90,8 @@ impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {
 /// It may seem silly to have a struct that has only one field, but in
 /// versioning this struct, we can also version its children identically.
 /// As well as any other fields we may add / remove in the future.
-#[obake::versioned]
-#[obake(version("0.1.0"))] 
 #[derive(Serialize, Deserialize)]
 pub struct ManifestData {
-    pub unpack_plans: Vec<UnpackPipelinePlan>,
+    pub version: String,
+    pub unpack_plans: Vec<UnpackPipelinePlan>
 }

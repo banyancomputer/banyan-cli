@@ -1,3 +1,4 @@
+//! This crate contains all modules in our project. TODO(organizedgrime) write something useful here.
 #![feature(io_error_more)]
 #![feature(buf_read_has_data_left)]
 #![deny(unused_crate_dependencies)]
@@ -20,17 +21,17 @@
 // TODO (laudiacay) : Handle pinning threads to CPU cores (with tokio localsets and runtimes?) correctly so that disk throughput is maximized
 
 /* Dataprep:
- * 1. Copy files to scratch space from `input` directories to 'output-dir' directory
- * 2. Partition files into chunks of max size `target-chunk-size`
- * 3. Compress and encrypt each chunk in place. These chunks should be randomly named.
- * 4. Write out a manifest file that maps:
- *      - original file path to random chunk name / path
- *      - random chunk paths point to the key-path used to encrypt the chunk.
- *      - keys stored in csv file
- * 5. Encyprpt the manifest file in place with some master key. (later, optional)
- * 6. Use manifest file to repopulate the original directory structure
- * 7. TODO (laudiacay): Make car file with it.
- */
+* 1. Copy files to scratch space from `input` directories to 'output-dir' directory
+* 2. Partition files into chunks of max size `target-chunk-size`
+* 3. Compress and encrypt each chunk in place. These chunks should be randomly named.
+* 4. Write out a manifest file that maps:
+*      - original file path to random chunk name / path
+*      - random chunk paths point to the key-path used to encrypt the chunk.
+*      - keys stored in csv file
+* 5. Encyprpt the manifest file in place with some master key. (later, optional)
+* 6. Use manifest file to repopulate the original directory structure
+* 7. TODO (laudiacay): Make car file with it.
+*/
 
 // Used by benchmarking and testing
 use criterion as _;
@@ -42,9 +43,11 @@ use lazy_static as _;
 #[allow(unused_extern_crates)]
 extern crate core;
 
+/// The do_pipeline_and_write_metadata module contains both the pack_pipeline and the unpack_pipeline, which allow the main CLI to run packing an unpacking pipelines
 pub mod do_pipeline_and_write_metadata;
 mod plan_copy;
 mod spider;
 mod types;
+/// The utils module contains filesytem helper functions and hasher helper functions
 pub mod utils;
 mod vacuum;

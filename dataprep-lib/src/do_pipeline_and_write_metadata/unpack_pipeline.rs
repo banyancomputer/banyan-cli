@@ -1,8 +1,13 @@
-use crate::{types::unpack_plan::{UnpackPipelinePlan, ManifestData}, vacuum::unpack::do_file_pipeline};
+use crate::{
+    types::unpack_plan::{ManifestData, UnpackPipelinePlan},
+    vacuum::unpack::do_file_pipeline,
+};
 use anyhow::Result;
 use std::path::PathBuf;
 use tokio_stream::StreamExt;
 
+/// Given the input directory, the output directory, and the manifest file
+/// unpack the input directory into the output directory
 pub async fn unpack_pipeline(
     input_dir: PathBuf,
     output_dir: PathBuf,
@@ -14,6 +19,12 @@ pub async fn unpack_pipeline(
     // Deserialize the data read as the latest version of manifestdata
     let manifest_data: ManifestData = serde_json::from_reader(reader)?;
 
+    // Check the version is what we want
+    if manifest_data.version != "0.1.0" {
+        // Panic if it's not
+        panic!("Unsupported manifest version.");
+    }
+    
     // Extract the unpacking plans
     let unpack_plans: Vec<UnpackPipelinePlan> = manifest_data.unpack_plans;
 

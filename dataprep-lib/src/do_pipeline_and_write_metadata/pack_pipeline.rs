@@ -13,12 +13,14 @@ use crate::{
         pack_plan::{PackPipelinePlan, PackPlan},
         shared::{CompressionScheme, EncryptionScheme, PartitionScheme},
         spider::SpiderMetadata,
-        unpack_plan::{UnpackPipelinePlan, ManifestData},
+        unpack_plan::{ManifestData, UnpackPipelinePlan},
     },
     utils::fs as fsutil,
     vacuum,
 };
 
+/// Given the input directory, the output directory, the manifest file, and other metadata,
+/// pack the input directory into the output directory
 pub async fn pack_pipeline(
     input_dir: PathBuf,
     output_dir: PathBuf,
@@ -145,9 +147,10 @@ pub async fn pack_pipeline(
         .open(manifest_file)
         .unwrap();
 
-    // Construct the datastructure we're about to encode
-    let manifest_data = ManifestData {
-        unpack_plans,
+    // Construct the latest version of the ManifestData struct
+    let manifest_data = ManifestData { 
+        version: env!("CARGO_PKG_VERSION").to_string(), 
+        unpack_plans
     };
 
     serde_json::to_writer_pretty(
