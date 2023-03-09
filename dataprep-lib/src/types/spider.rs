@@ -1,7 +1,11 @@
 use anyhow::Result;
 use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
-use std::{fs::Metadata, path::{PathBuf, Path}, time::SystemTime};
+use std::{
+    fs::Metadata,
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
 
 #[derive(Debug, Clone)]
 /// Metadata associated with a file, directory, or symlink that was processed by the spider
@@ -16,6 +20,8 @@ pub struct SpiderMetadata {
     pub original_metadata: Metadata,
 }
 
+// TODO (organizedgrime) - these fields are literally identical. why not just keep a reference to the original SpiderMetadata?
+// there must be a way to make that look pretty.
 /// Codable version of the SpiderMetadata struct which can be written to disk using `serde` when required
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodableSpiderMetadata {
@@ -29,31 +35,42 @@ pub struct CodableSpiderMetadata {
     pub original_metadata: CodableMetadata,
 }
 
-pub fn make_spider_metadata(entry: DirEntry<((), ())>, input_root: &Path) -> SpiderMetadata {
-    let original_location = entry
-        .path()
-        .strip_prefix(&input_root)
-        .unwrap()
-        .to_path_buf();
-    let canonicalized_path = entry.path().canonicalize().unwrap();
-    let original_metadata = entry.metadata().unwrap();
-    SpiderMetadata {
-        original_root: input_root.to_path_buf(),
-        original_location,
-        canonicalized_path,
-        original_metadata,
+impl SpiderMetadata {
+    /// Creates a new `SpiderMetadata` struct from a `DirEntry` and a root path.
+    /// # Arguments
+    /// * `path_root` - The root of the path being spidered
+    /// * `entry` - The individual file / directory being processed
+    pub fn new(path_root: &Path, entry: DirEntry<((), ())>) -> Self {
+        // Determine the location of the entry by stripping the root path from it
+        let original_location = entry.path().strip_prefix(path_root).unwrap().to_path_buf();
+        // Represent this entry location canonically as an absolute path
+        let canonicalized_path = entry.path().canonicalize().unwrap();
+        // Grab the metadata of the entry
+        let original_metadata = entry.metadata().unwrap();
+        // Return the SpiderMetadata
+        SpiderMetadata {
+            original_root: path_root.to_path_buf(),
+            original_location,
+            canonicalized_path,
+            original_metadata,
+        }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Enum representing the types of File that the Spider can process.
 pub enum FileType {
+    /// Directories are files that show us where to find other files.
     Directory,
+    /// Symlinks are a special kind of directory.
     Symlink,
+    /// Files are just files.
     File,
 }
 
-// This is a codable version of the Metadata struct designed for our specific use case
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Codable Metadata struct which can be written to disk using `serde` when required,
+/// containing more fields than are typically stored in Metadata.
 pub struct CodableMetadata {
     file_type: FileType,
     len: u64,
@@ -85,7 +102,6 @@ impl TryFrom<&SpiderMetadata> for CodableMetadata {
         })
     }
 }
-
 
 // Define how to construct a codable version of the SpiderMetadata struct
 impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {

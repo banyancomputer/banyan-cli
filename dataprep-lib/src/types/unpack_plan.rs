@@ -52,9 +52,13 @@ pub struct UnpackPlan {
 // }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// The ways in which a packed file can be unpacked
 pub enum UnpackType {
+    /// Unpack a directory
     Directory,
+    /// Unpack a symlink
     Symlink(PathBuf),
+    /// Unpack a file
     File(UnpackPlan),
 }
 
@@ -90,7 +94,7 @@ impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {
 /// It may seem silly to have a struct that has only one field, but in
 /// versioning this struct, we can also version its children identically.
 /// As well as any other fields we may add / remove in the future.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,

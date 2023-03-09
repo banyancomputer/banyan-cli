@@ -75,7 +75,7 @@ pub async fn do_unpack_pipeline(
                 };
 
                 // Copy the contents of the old reader into the new writer
-                zstd::stream::copy_decode(old_file_reader, &new_file_writer)?;
+                compression.decode(old_file_reader, &new_file_writer)?
                 // TODO check the encryption tag at the end of the file?
             }
 

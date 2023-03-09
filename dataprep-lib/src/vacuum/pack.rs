@@ -66,7 +66,7 @@ pub async fn do_pack_pipeline(
 
                 // TODO (organizedgrime) maybe we can async these one day, a girl can dream
                 // Encode and compress the chunk
-                zstd::stream::copy_encode(chunk_reader, &mut new_file_encryptor, 1)?;
+                compression.encode(chunk_reader, &mut new_file_encryptor)?;
 
                 // Determine how much of the file has yet to be written
                 remaining_bytes -= read_size;
