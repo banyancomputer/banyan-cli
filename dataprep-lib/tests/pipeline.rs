@@ -45,9 +45,9 @@ async fn run_test(test_path: &Path) {
 
     // Pack the input
     pack_pipeline(
-        input_path.clone(),
-        packed_path.clone(),
-        manifest_path.clone(),
+        &input_path,
+        &packed_path,
+        &manifest_path,
         // 0.25 GiB Chunk size because large files take too long to make
         1074000000 / 4,
         true,
@@ -55,7 +55,7 @@ async fn run_test(test_path: &Path) {
     .await
     .unwrap();
     // Unpack the output
-    unpack_pipeline(unpacked_path.clone(), manifest_path.clone())
+    unpack_pipeline(&unpacked_path, &manifest_path)
         .await
         .unwrap();
 

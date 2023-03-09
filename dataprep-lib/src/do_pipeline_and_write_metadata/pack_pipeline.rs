@@ -20,25 +20,36 @@ use crate::{
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
-/// pack the input directory into the output directory
+/// pack the input directory into the output directory.
+///
+/// # Arguments
+///
+/// * `input_dir` - &Path representing the relative path of the input directory to pack.
+/// * `output_dir` - &Path representing the relative path of where to store the packed data.
+/// * `manifest_file` - &Path representing the relative path of where to store the manifest file.
+/// * `target_chunk_size` - The maximum size of a packed file / chunk in bytes.
+/// * `follow_links` - Whether or not to follow symlinks when packing.
+///
+/// # Return Type
+/// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pack_pipeline(
-    input_dir: PathBuf,
-    output_dir: PathBuf,
-    manifest_file: PathBuf,
+    input_dir: &Path,
+    output_dir: &Path,
+    manifest_file: &Path,
     target_chunk_size: u64,
     follow_links: bool,
 ) -> Result<()> {
     // Construct the group config
-    let group_config = create_group_config(&input_dir, follow_links);
+    let group_config = create_group_config(input_dir, follow_links);
 
     // Create the output directory
-    fsutil::ensure_path_exists_and_is_empty_dir(&output_dir, false)
+    fsutil::ensure_path_exists_and_is_empty_dir(output_dir, false)
         .expect("output directory must exist and be empty");
 
     /* Spider all the files so we can figure out what's there */
     // TODO fix setting follow_links / do it right
     let spidered: Vec<SpiderMetadata> =
-        spider::spider(&input_dir, group_config.follow_links).await?;
+        spider::spider(input_dir, group_config.follow_links).await?;
 
     /* Perform deduplication and plan how to copy the files */
 
@@ -83,7 +94,7 @@ pub async fn pack_pipeline(
                 chunk_size: target_chunk_size,
             },
             encryption: EncryptionScheme::new(),
-            writeout: output_dir.clone(),
+            writeout: output_dir.to_path_buf(),
         };
         copy_plan.push(PackPipelinePlan::FileGroup(metadatas, pack_plan));
     }
@@ -119,7 +130,7 @@ pub async fn pack_pipeline(
                     chunk_size: target_chunk_size,
                 },
                 encryption: EncryptionScheme::new(),
-                writeout: output_dir.clone(),
+                writeout: output_dir.to_path_buf(),
             };
             copy_plan.push(PackPipelinePlan::FileGroup(magic_spider, pack_plan));
         }
@@ -161,6 +172,9 @@ pub async fn pack_pipeline(
     .map_err(|e| anyhow::anyhow!(e))
 }
 
+/// Private function used to construct a GroupConfig struct from the relevant command line options.
+/// This is used to make the main function more readable, as well as to ensure that
+/// the GroupConfig options are always set correctly.
 fn create_group_config(input_dir: &Path, follow_links: bool) -> GroupConfig {
     let base_dir = input_dir.canonicalize().unwrap();
 

@@ -1,12 +1,7 @@
 use age::Decryptor;
 use anyhow::{anyhow, Ok, Result};
 use printio as _;
-use std::{
-    fs::File,
-    io::BufReader,
-    iter,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, io::BufReader, iter, path::Path};
 
 use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
 
@@ -16,9 +11,9 @@ pub async fn do_unpack_pipeline(
         origin_data,
         data_processing,
     }: UnpackPipelinePlan,
-    output_dir: PathBuf,
+    output_dir: &Path,
 ) -> Result<()> {
-    // Construct the output path
+    // Construct the full relative output path by appending the subdirectory
     let output_path = output_dir.join(origin_data.original_location);
 
     // Processing directives require different handling

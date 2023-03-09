@@ -23,9 +23,9 @@ async fn main() {
             follow_links,
         } => {
             pack_pipeline(
-                input_dir,
-                output_dir,
-                manifest_file,
+                &input_dir,
+                &output_dir,
+                &manifest_file,
                 target_chunk_size,
                 follow_links,
             )
@@ -36,7 +36,7 @@ async fn main() {
             manifest_file,
             output_dir,
         } => {
-            unpack_pipeline(output_dir, manifest_file).await.unwrap();
+            unpack_pipeline(&output_dir, &manifest_file).await.unwrap();
         }
     }
 }
