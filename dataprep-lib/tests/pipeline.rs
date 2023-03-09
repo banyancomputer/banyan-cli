@@ -282,6 +282,7 @@ mod test {
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication_large() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);

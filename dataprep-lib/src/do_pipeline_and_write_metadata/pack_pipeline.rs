@@ -52,7 +52,7 @@ pub async fn pack_pipeline(
     let pack_plan = PackPlan {
         compression: CompressionScheme::new_zstd(),
         partition: PartitionScheme { chunk_size },
-        encryption: EncryptionScheme::new(),
+        encryption: EncryptionScheme::new_age(),
         writeout: output_dir.to_path_buf(),
     };
 

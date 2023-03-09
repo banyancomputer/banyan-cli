@@ -9,10 +9,13 @@ use std::{
 };
 
 // TODO in the battle against repeated code... fn refresh_file_encryptor() ->
-
-/// this file takes in a plan for how to process an identical file group, dir, or symlink,
-/// and performs that action on the filesystem
-/// returns a struct that can be used to unpack the file.
+/// This function takes in a plan for how to process an individual file group, directory, or symlink,
+/// and uses that plan to pack the data into the specified location.
+/// # Arguments
+/// * `pack_pipeline_plan` - The plan for how to pack the this individual file group, directory, or symlink.
+/// # Returns
+/// Returns a `Result<Vec<UnpackPipelinePlan>>`. Provides vector of plans for unpacking the newly created files in cases where
+/// the file was chunked and compressed successfully, or an error if something went wrong.
 pub async fn do_pack_pipeline(
     pack_pipeline_plan: PackPipelinePlan,
 ) -> Result<Vec<UnpackPipelinePlan>> {

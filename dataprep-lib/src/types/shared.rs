@@ -66,20 +66,15 @@ impl std::fmt::Debug for EncryptionScheme {
 }
 
 impl EncryptionScheme {
-    /// Generate a new, unique encryption scheme
-    pub fn new() -> Self {
+    /// Generate a new, unique encryption scheme using the default age encryption algorithm
+    pub fn new_age() -> Self {
         EncryptionScheme {
             identity: age::x25519::Identity::generate(),
         }
     }
 }
 
-impl Default for EncryptionScheme {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+// Represent an age encryption key as a serialized string
 fn serialize_age_identity<S>(
     identity: &age::x25519::Identity,
     serializer: S,
@@ -87,13 +82,17 @@ fn serialize_age_identity<S>(
 where
     S: serde::Serializer,
 {
+    // Expose the secret key as a string
     serializer.serialize_str(identity.to_string().expose_secret())
 }
 
+// Reconstruct an age encryption struct from the serialized string counterpart
 fn deserialize_age_identity<'de, D>(deserializer: D) -> Result<age::x25519::Identity, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let s = String::deserialize(deserializer)?;
-    age::x25519::Identity::from_str(&s).map_err(serde::de::Error::custom)
+    // Deserialize the key
+    let key = String::deserialize(deserializer)?;
+    // Construct from the string
+    age::x25519::Identity::from_str(&key).map_err(serde::de::Error::custom)
 }
