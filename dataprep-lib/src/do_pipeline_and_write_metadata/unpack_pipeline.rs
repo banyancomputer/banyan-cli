@@ -20,11 +20,11 @@ pub async fn unpack_pipeline(
     let manifest_data: ManifestData = serde_json::from_reader(reader)?;
 
     // Check the version is what we want
-    if manifest_data.version != "0.1.0" {
+    if manifest_data.version != env!("CARGO_PKG_VERSION") {
         // Panic if it's not
         panic!("Unsupported manifest version.");
     }
-    
+
     // Extract the unpacking plans
     let unpack_plans: Vec<UnpackPipelinePlan> = manifest_data.unpack_plans;
 
