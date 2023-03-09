@@ -1,36 +1,37 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+/// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
 pub enum Commands {
     Pack {
-        /// input file root to spider
+        /// Root of the directory tree to pack.
         #[arg(short, long, help = "input directories and files")]
         input_dir: PathBuf,
 
-        /// output directory- must either not exist, or be an empty directory
+        /// Directory that either does not exist or is empty; this is where packed data will go.
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
 
-        /// where to put the manifest file
+        /// Location in which the manifest file will be written.
         #[arg(short, long, help = "manifest file location")]
         manifest_file: PathBuf,
 
-        /// target size for each chunk (default is one gig)
+        /// Maximum size for each chunk, defaults to 1GiB.
         #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
-        target_chunk_size: u64,
+        chunk_size: u64,
 
-        /// whether to follow symbolic links
+        /// Whether to follow symbolic links when processing the input directory.
         #[arg(short, long, help = "follow symbolic links")]
         follow_links: bool,
-        // todo add support for GroupConfig::path_patterns/name_patterns
+        // TODO add support for GroupConfig::path_patterns/name_patterns
     },
     Unpack {
-        /// where to get the manifest file
+        /// Location of the manifest file.
         #[arg(short, long, help = "manifest file location")]
         manifest_file: PathBuf,
 
-        /// output directory to repopulate with reinflated files
+        /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
     },
