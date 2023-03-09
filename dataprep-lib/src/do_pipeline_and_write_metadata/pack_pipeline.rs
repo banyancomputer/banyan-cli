@@ -148,7 +148,7 @@ pub async fn pack_pipeline(
     let unpack_plans = futures::future::join_all(
         packing_plan
             .iter()
-            .map(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan.clone())),
+            .map(|copy_plan| vacuum::pack::do_pack_pipeline(copy_plan.clone())),
     )
     .await
     .into_iter()
