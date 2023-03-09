@@ -23,8 +23,10 @@ pub async fn unpack_pipeline(output_dir: &Path, manifest_file: &Path) -> Result<
     // Deserialize the data read as the latest version of manifestdata
     let manifest_data: ManifestData = serde_json::from_reader(reader)?;
 
-    // Check the version is what we want
-    if manifest_data.version != env!("CARGO_PKG_VERSION") {
+    // If the major version of the manifest is not the same as the major version of the program
+    if manifest_data.version.split('.').next().unwrap()
+        != env!("CARGO_PKG_VERSION").split('.').next().unwrap()
+    {
         // Panic if it's not
         panic!("Unsupported manifest version.");
     }
