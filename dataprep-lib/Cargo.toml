@@ -13,7 +13,6 @@ anyhow.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 jwalk.workspace = true
-blake2.workspace = true
 uuid.workspace = true
 serde.workspace = true
 serde_json.workspace = true

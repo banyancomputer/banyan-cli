@@ -13,30 +13,48 @@ use crate::{
         pack_plan::{PackPipelinePlan, PackPlan},
         shared::{CompressionScheme, EncryptionScheme, PartitionScheme},
         spider::SpiderMetadata,
-        unpack_plan::UnpackPipelinePlan,
+        unpack_plan::{ManifestData, UnpackPipelinePlan},
     },
     utils::fs as fsutil,
     vacuum,
 };
 
+/// Given the input directory, the output directory, the manifest file, and other metadata,
+/// pack the input directory into the output directory and store a record of how this
+/// operation was performed in the manifest file.
+///
+/// # Arguments
+///
+/// * `input_dir` - &Path representing the relative path of the input directory to pack.
+/// * `output_dir` - &Path representing the relative path of where to store the packed data.
+/// * `manifest_file` - &Path representing the relative path of where to store the manifest file.
+/// * `chunk_size` - The maximum size of a packed file / chunk in bytes.
+/// * `follow_links` - Whether or not to follow symlinks when packing.
+///
+/// # Return Type
+/// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pack_pipeline(
-    input_dir: PathBuf,
-    output_dir: PathBuf,
-    manifest_file: PathBuf,
-    target_chunk_size: u64,
+    input_dir: &Path,
+    output_dir: &Path,
+    manifest_file: &Path,
+    chunk_size: u64,
     follow_links: bool,
 ) -> Result<()> {
     // Construct the group config
-    let group_config = create_group_config(&input_dir, follow_links);
+    let group_config = create_group_config(input_dir, follow_links);
 
     // Create the output directory
-    fsutil::ensure_path_exists_and_is_empty_dir(&output_dir, false)
+    fsutil::ensure_path_exists_and_is_empty_dir(output_dir, false)
         .expect("output directory must exist and be empty");
 
-    /* Spider all the files so we can figure out what's there */
-    // TODO fix setting follow_links / do it right
-    let spidered: Vec<SpiderMetadata> =
-        spider::spider(&input_dir, group_config.follow_links).await?;
+    // This pack plan is used to construct FileGroup type PackPipelinePlans,
+    // but is not unique to any individual file / FileGroup.
+    let pack_plan = PackPlan {
+        compression: CompressionScheme::new_zstd(),
+        partition: PartitionScheme { chunk_size },
+        encryption: EncryptionScheme::new_age(),
+        writeout: output_dir.to_path_buf(),
+    };
 
     /* Perform deduplication and plan how to copy the files */
 
@@ -46,91 +64,91 @@ pub async fn pack_pipeline(
 
     // TODO fix setting base_dir / do it right
     let file_groups = group_files(&group_config, &fclones_logger)?;
+    // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
-    let mut copy_plan = vec![];
+    // Vector holding all the PackPipelinePlans for packing
+    let mut packing_plan = vec![];
     // go over the files- do it in groups
     for group in file_groups {
-        let mut metadatas = vec![];
+        // Create a vector to hold the SpiderMetadata for each file in this group
+        let mut metadatas = Vec::new();
+        // For each file in this group
         for file in group.files {
+            // Construct a PathBuf version of the path of this file
             let file_path_buf = file.path.to_path_buf();
-            let can_file_path_buf = file_path_buf.canonicalize().unwrap();
-            seen_files.insert(can_file_path_buf.clone());
+            // Construct a canonicalized version of the path
+            let canonicalized_path = file_path_buf.canonicalize().unwrap();
+            // Insert that path into the list of seen paths
+            seen_files.insert(canonicalized_path.clone());
 
             // Construct the original root and relative path
-            let original_root = group_config.base_dir.clone();
-            let original_location = file.path.strip_prefix(&original_root).unwrap();
+            let original_root = &group_config.base_dir;
+            // Construct the original location relative to the root
+            let original_location = file.path.strip_prefix(original_root).unwrap().to_path_buf();
 
             // Construct the metadata
             let spider_metadata = Arc::new(SpiderMetadata {
-                /// this is the root of the backup
+                /// This is the root of the backup
                 original_root: original_root.to_path_buf(),
-                /// this is the path relative to the root of the backup
-                original_location: original_location.to_path_buf(),
-                /// this is the canonicalized path of the original file
-                canonicalized_path: can_file_path_buf,
-                /// this is the metadata of the original file
+                /// This is the path relative to the root of the backup
+                original_location,
+                /// This is the canonicalized path of the original file
+                canonicalized_path,
+                /// This is the metadata of the original file
                 original_metadata: fs::metadata(file_path_buf).unwrap(),
             });
 
             // Append the metadata
             metadatas.push(spider_metadata);
         }
-        let pack_plan = PackPlan {
-            compression: CompressionScheme::new_zstd(),
-            partition: PartitionScheme {
-                chunk_size: target_chunk_size,
-            },
-            encryption: EncryptionScheme::new(),
-            writeout: output_dir.clone(),
-        };
-        copy_plan.push(PackPipelinePlan::FileGroup(metadatas, pack_plan));
+        // Push a PackPipelinePlan with this file group
+        packing_plan.push(PackPipelinePlan::FileGroup(metadatas, pack_plan.clone()));
     }
 
+    /* Spider all the files so we can figure out what's there */
+    // TODO fix setting follow_links / do it right
+    let spidered: Vec<SpiderMetadata> =
+        spider::spider(input_dir, group_config.follow_links).await?;
+
     // and now get all the directories and symlinks
-    for spidered in spidered.iter() {
+    for spidered in spidered.into_iter() {
         // If this is a duplicate
         if seen_files.contains(&spidered.canonicalized_path.to_path_buf()) {
             // Just skip it
             continue;
         }
+        // Now that we've checked for duplicates, add this to the seen files
+        seen_files.insert(spidered.canonicalized_path.clone());
+
+        // Construct Automatic Reference Counting pointer to the spidered metadata
         let origin_data = Arc::new(spidered.clone());
+        // If this is a directory
         if spidered.original_metadata.is_dir() {
-            // TODO clone spidered?? why
-            copy_plan.push(PackPipelinePlan::Directory(Arc::new(spidered.clone())));
-        } else if spidered.original_metadata.is_symlink() {
-            let symlink_target = fs::read_link(spidered.canonicalized_path.clone()).unwrap();
-            // TODO clone spidered?? why
-            copy_plan.push(PackPipelinePlan::Symlink(
-                origin_data.clone(),
-                symlink_target,
+            // Push a PackPipelinePlan with this origin data
+            packing_plan.push(PackPipelinePlan::Directory(origin_data));
+        }
+        // If this is a symlink
+        else if spidered.original_metadata.is_symlink() {
+            // Determine where this symlink points to, an operation that should never fail
+            let symlink_target = fs::read_link(&spidered.canonicalized_path).unwrap();
+            // Push a PackPipelinePlan with this origin data and symlink
+            packing_plan.push(PackPipelinePlan::Symlink(origin_data, symlink_target));
+        }
+        // If this is a file that was not in a group
+        else {
+            // Push a PackPipelinePlan using fake file group of singular spidered metadata
+            packing_plan.push(PackPipelinePlan::FileGroup(
+                vec![origin_data],
+                pack_plan.clone(),
             ));
         }
-        // These files are not in a file group but still need to be processed!
-        else {
-            // Construct an artificial file group
-            let magic_spider = vec![Arc::new(spidered.clone())];
-
-            // Create pack pipeline plan
-            let pack_plan = PackPlan {
-                compression: CompressionScheme::new_zstd(),
-                partition: PartitionScheme {
-                    chunk_size: target_chunk_size,
-                },
-                encryption: EncryptionScheme::new(),
-                writeout: output_dir.clone(),
-            };
-            copy_plan.push(PackPipelinePlan::FileGroup(magic_spider, pack_plan));
-        }
-        // TODO clone ?? why
-        seen_files.insert(spidered.canonicalized_path.clone());
-        // println!("inserted {:?} into seen_files", spidered.canonicalized_path);
     }
 
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let copied = futures::future::join_all(
-        copy_plan
+    let unpack_plans = futures::future::join_all(
+        packing_plan
             .iter()
-            .map(|copy_plan| vacuum::pack::do_file_pipeline(copy_plan.clone())),
+            .map(|copy_plan| vacuum::pack::do_pack_pipeline(copy_plan.clone())),
     )
     .await
     .into_iter()
@@ -145,14 +163,20 @@ pub async fn pack_pipeline(
         .open(manifest_file)
         .unwrap();
 
-    serde_json::to_writer_pretty(
-        manifest_writer,
-        // Iterate over the copied files and convert them to codable pipelines
-        &copied,
-    )
-    .map_err(|e| anyhow::anyhow!(e))
+    // Construct the latest version of the ManifestData struct
+    let manifest_data = ManifestData {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        unpack_plans,
+    };
+
+    // Use serde to convert the ManifestData to JSON and write it to the path specified
+    // Return the result of this operation
+    serde_json::to_writer_pretty(manifest_writer, &manifest_data).map_err(|e| anyhow::anyhow!(e))
 }
 
+/// Private function used to construct a GroupConfig struct from the relevant command line options.
+/// This is used to make the main function more readable, as well as to ensure that
+/// the GroupConfig options are always set correctly.
 fn create_group_config(input_dir: &Path, follow_links: bool) -> GroupConfig {
     let base_dir = input_dir.canonicalize().unwrap();
 

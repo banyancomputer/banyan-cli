@@ -320,9 +320,9 @@ fn pack_benchmark(
             // The routine to benchmark
             |_| async {
                 pack_pipeline(
-                    black_box(input_path.clone()),
-                    black_box(packed_path.clone()),
-                    black_box(manifest_path.clone()),
+                    black_box(input_path),
+                    black_box(packed_path),
+                    black_box(manifest_path),
                     // TODO (amiller68) - make this configurable
                     black_box(1073741824),
                     black_box(false),
@@ -368,14 +368,7 @@ fn unpack_benchmark(
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path, manifest_path),
             // The routine to benchmark
-            |_| async {
-                unpack_pipeline(
-                    black_box(packed_path.clone()),
-                    black_box(unpacked_path.clone()),
-                    black_box(manifest_path.clone()),
-                )
-                .await
-            },
+            |_| async { unpack_pipeline(black_box(unpacked_path), black_box(manifest_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

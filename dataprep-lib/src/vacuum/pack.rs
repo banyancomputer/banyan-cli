@@ -1,24 +1,26 @@
-use anyhow::{anyhow, Result};
-use std::{
-    fs::File,
-    io::{BufReader, Read, Seek},
-};
-
 use crate::types::{
     pack_plan::{PackPipelinePlan, PackPlan},
     unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType, WriteoutLocations},
 };
+use anyhow::{anyhow, Result};
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+};
 
 // TODO in the battle against repeated code... fn refresh_file_encryptor() ->
-
-/// this file takes in a plan for how to process an identical file group, dir, or symlink,
-/// and performs that action on the filesystem
-/// returns a struct that can be used to unpack the file.
-pub async fn do_file_pipeline(
+/// This function takes in a plan for how to process an individual file group, directory, or symlink,
+/// and uses that plan to pack the data into the specified location.
+/// # Arguments
+/// * `pack_pipeline_plan` - The plan for how to pack the this individual file group, directory, or symlink.
+/// # Returns
+/// Returns a `Result<Vec<UnpackPipelinePlan>>`. Provides vector of plans for unpacking the newly created files in cases where
+/// the file was chunked and compressed successfully, or an error if something went wrong.
+pub async fn do_pack_pipeline(
     pack_pipeline_plan: PackPipelinePlan,
 ) -> Result<Vec<UnpackPipelinePlan>> {
     match pack_pipeline_plan {
-        // If this is a file
+        // If this is a FileGroup
         PackPipelinePlan::FileGroup(metadatas, pack_plan) => {
             let PackPlan {
                 compression,
@@ -26,28 +28,16 @@ pub async fn do_file_pipeline(
                 encryption,
                 writeout,
             } = pack_plan;
-
-            // TODO (organizedgrime) async these reads? also is this buf setup right?
-
             // Open the original file (just the first one!)
             let file = File::open(&metadatas.get(0)
                 .expect("why is there nothing in metadatas").canonicalized_path)
                 .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
+            // Keep track of how many bytes we've not yet processed
+            let mut remaining_bytes = file.metadata().unwrap().len();
             // Create a reader for the original file
             let old_file_reader = BufReader::new(file);
-            // Determine the length of that original file
-            let file_len = old_file_reader.get_ref().seek(std::io::SeekFrom::End(0))?;
-
             // Keep track of the location of encrypted pieces
-            let mut writeout_locations = Vec::new();
-
-            // Reset the file seeking position to the start of the file
-            old_file_reader
-                .get_ref()
-                .seek(std::io::SeekFrom::Start(0))?;
-
-            // Keep track of the data already written into this
-            let mut remaining_bytes = file_len;
+            let mut chunk_locations = Vec::new();
 
             // While we've not yet seeked through the entirety of the file
             while remaining_bytes > 0 {
@@ -60,15 +50,15 @@ pub async fn do_file_pipeline(
                 let new_file_writer = File::create(&new_file_loc)
                     .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
 
+                // Append the writeout location
+                chunk_locations.push(new_file_loc);
+
                 // Create a new encryptor for this file
                 let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
                     encryption.identity.to_public(),
                 )])
                 .expect("could not create encryptor")
                 .wrap_output(new_file_writer)?;
-
-                // Append the writeout location
-                writeout_locations.push(new_file_loc);
 
                 // Determine how much of the file we're going to read
                 let read_size = std::cmp::min(partition.chunk_size, remaining_bytes);
@@ -79,7 +69,7 @@ pub async fn do_file_pipeline(
 
                 // TODO (organizedgrime) maybe we can async these one day, a girl can dream
                 // Encode and compress the chunk
-                zstd::stream::copy_encode(chunk_reader, &mut new_file_encryptor, 1)?;
+                compression.encode(chunk_reader, &mut new_file_encryptor)?;
 
                 // Determine how much of the file has yet to be written
                 remaining_bytes -= read_size;
@@ -89,31 +79,34 @@ pub async fn do_file_pipeline(
                     .finish()
                     .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
             }
-            // TODO turn this into a map
-            let mut ret = vec![];
-            let dpp = UnpackType::File(UnpackPlan {
+
+            // Create a new UnpackType::File with the chunk locations constructed earlier
+            let unpack_file = UnpackType::File(UnpackPlan {
                 compression,
                 partition,
                 encryption,
-                writeout: WriteoutLocations {
-                    chunk_locations: writeout_locations.clone(),
-                },
+                writeout: WriteoutLocations { chunk_locations },
             });
 
-            // For each metadata
-            for m in metadatas {
-                // Construct a new UnpackPipelinePlan
-                ret.push(UnpackPipelinePlan {
-                    origin_data: m.as_ref().try_into()?,
-                    data_processing: dpp.clone(),
-                })
-            }
-
             // Return okay status with all UnpackPipelinePlans
-            Ok(ret)
+            Ok(
+                // For each SpiderMetadata in the FileGroup (even duplicates)
+                metadatas
+                    .iter()
+                    .map(|metadata| {
+                        // Construct a new UnpackPipelinePlan
+                        UnpackPipelinePlan {
+                            // Despite being a try_into, this is guaranteed to succeed given the context of the function
+                            origin_data: metadata.as_ref().try_into().unwrap(),
+                            data_processing: unpack_file.clone(),
+                        }
+                    })
+                    .collect::<Vec<UnpackPipelinePlan>>(),
+            )
         }
         // If this is a directory or symlink
         d @ PackPipelinePlan::Directory(_) | d @ PackPipelinePlan::Symlink(..) => {
+            // Directly convert into an UnpackPipelinePlan
             Ok(vec![d.try_into()?])
         }
     }

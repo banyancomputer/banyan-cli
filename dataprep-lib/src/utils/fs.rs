@@ -7,14 +7,12 @@ use std::{fs, path::Path};
 // here for now because they are used as utility functions in this crate
 // TODO: Scope out how these are used and potentially deprecate them
 
-/// Ensures that the given path exists and is a directory
+/// Ensures that a given path exists and is a directory.
 /// # Arguments
-/// path: The path to check
+/// * `path` - The path to check
 /// # Returns
-/// Creates the directory if it doesn't exist, and is a directory
-/// Result<()>
-/// # Panics
-/// Panics if the path exists but is not a directory
+/// Returns a `Result<()>` with no value if operation was successful, or an Error if something went wrong.
+///
 /// # Examples
 /// ```no_run
 /// use dataprep_lib::utils::fs::ensure_path_exists_and_is_dir;
@@ -22,27 +20,28 @@ use std::{fs, path::Path};
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_dir(&path).unwrap();
 /// ```
-#[doc(hidden)]
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
+    // If the path is non-existent
     if !path.exists() {
-        // create path if it doesn't exist
+        // Create it
         fs::create_dir_all(path)?;
     }
+
+    // If the path is actually a file
     if !path.is_dir() {
+        // Throw Error
         return Err(anyhow!("Path is not a directory: {}", path.display()));
     }
+
+    // Return Ok if path exists and is a directory
     Ok(())
 }
 
-/// Ensures that the given path exists and is a directory and is empty
+/// Ensures that a given path exists and is a directory and is empty.
 /// # Arguments
-/// path: The path to check
+/// * `path` - The path to check
 /// # Returns
-/// Creates the directory if it doesn't exist. Makes the directory empty if it is not empty.
-/// Result<()>
-/// # Panics
-/// Panics if the path is not an existing directory.
-/// Panics if the path is not empty and force is false.
+/// Returns a `Result<()>` with no value if operation was successful, or an Error if something went wrong.
 /// # Examples
 /// ```no_run
 /// use dataprep_lib::utils::fs::ensure_path_exists_and_is_empty_dir;
@@ -50,7 +49,6 @@ pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_empty_dir(&path, false).unwrap();
 /// ```
-#[doc(hidden)]
 pub fn ensure_path_exists_and_is_empty_dir(path: &Path, force: bool) -> Result<()> {
     // Check the path exists and is a directory
     ensure_path_exists_and_is_dir(path)?;

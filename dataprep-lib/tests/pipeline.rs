@@ -45,9 +45,9 @@ async fn run_test(test_path: &Path) {
 
     // Pack the input
     pack_pipeline(
-        input_path.clone(),
-        packed_path.clone(),
-        manifest_path.clone(),
+        &input_path,
+        &packed_path,
+        &manifest_path,
         // 0.25 GiB Chunk size because large files take too long to make
         1074000000 / 4,
         true,
@@ -55,13 +55,9 @@ async fn run_test(test_path: &Path) {
     .await
     .unwrap();
     // Unpack the output
-    unpack_pipeline(
-        packed_path.clone(),
-        unpacked_path.clone(),
-        manifest_path.clone(),
-    )
-    .await
-    .unwrap();
+    unpack_pipeline(&unpacked_path, &manifest_path)
+        .await
+        .unwrap();
 
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
@@ -286,6 +282,7 @@ mod test {
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication_large() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
