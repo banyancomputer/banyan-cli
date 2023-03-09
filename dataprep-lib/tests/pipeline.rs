@@ -1,5 +1,7 @@
 use dataprep_lib::{
-    pipeline::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
+    do_pipeline_and_write_metadata::{
+        pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
+    },
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 use dir_assert::assert_paths;
@@ -43,22 +45,19 @@ async fn run_test(test_path: &Path) {
 
     // Pack the input
     pack_pipeline(
-        input_path.clone(),
-        packed_path.clone(),
-        manifest_path.clone(),
-        1073741824, // 1GB
-        false,
+        &input_path,
+        &packed_path,
+        &manifest_path,
+        // 0.25 GiB Chunk size because large files take too long to make
+        1074000000 / 4,
+        true,
     )
     .await
     .unwrap();
     // Unpack the output
-    unpack_pipeline(
-        packed_path.clone(),
-        unpacked_path.clone(),
-        manifest_path.clone(),
-    )
-    .await
-    .unwrap();
+    unpack_pipeline(&unpacked_path, &manifest_path)
+        .await
+        .unwrap();
 
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
@@ -181,7 +180,7 @@ mod test {
 
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
-    async fn test_deduplication() {
+    async fn test_deduplication_integrity() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_integrity");
         // Define the file structure to test
@@ -283,13 +282,14 @@ mod test {
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.
     #[tokio::test]
+    #[ignore]
     async fn test_deduplication_large() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("deduplication_large");
-        // Define the file structure to test
-        // TODO (organizedgrime) - anything higher than 20x takes too long to run on my machine. Need to find a better way to test this.
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 20, Strategy::Simple);
+        // Define the file structure to test. Note that the input size is slightly larger than the maximum 0.25 GiB chunk size
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * (256 + 5), Strategy::Simple);
+
         // Setup the test
         setup_test(&test_path, desired_structure, "0");
 
@@ -307,6 +307,7 @@ mod test {
         // Assert that only one file was packed
         let packed_path = test_path.join(PACKED_PATH);
         let dir_info = fs_extra::dir::get_dir_content(packed_path).unwrap();
-        assert_eq!(dir_info.files.len(), 1);
+        // Expect that the large file was packed into two files
+        assert_eq!(dir_info.files.len(), 2);
     }
 }

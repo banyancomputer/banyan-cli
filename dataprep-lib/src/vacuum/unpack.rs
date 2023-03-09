@@ -1,79 +1,64 @@
 use age::Decryptor;
 use anyhow::{anyhow, Ok, Result};
-use flate2::write::GzDecoder;
 use printio as _;
-use std::{fs::File, io::BufReader, iter, path::PathBuf};
+use std::{fs::File, io::BufReader, iter, path::Path};
 
-use crate::types::{
-    pipeline::{CodablePipeline, DataProcess},
-    shared::CodableDataProcessDirective,
-};
+use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
 
-// Unpack a single file, directory, or symlink
-pub async fn do_file_pipeline(
-    CodablePipeline {
+/// Unpack a single file, directory, or symlink using an UnpackPipelinePlan and output directory.
+/// # Arguments
+/// * `UnpackPipelinePlan` - Specifies where to find and how to unpack the data requested.
+/// * `output_dir` - Specifies where to write the unpacked data.
+/// # Returns
+/// A `Result`, which can either succeed or fail. If it succeeds, it returns nothing. If it fails, it returns an error.
+pub async fn do_unpack_pipeline(
+    UnpackPipelinePlan {
         origin_data,
         data_processing,
-    }: CodablePipeline,
-    input_dir: PathBuf,
-    output_dir: PathBuf,
+    }: UnpackPipelinePlan,
+    output_dir: &Path,
 ) -> Result<()> {
+    // Construct the full relative output path by appending the subdirectory
+    let output_path = output_dir.join(origin_data.original_location);
+
     // Processing directives require different handling
     match data_processing {
-        CodableDataProcessDirective::File(DataProcess {
+        UnpackType::File(UnpackPlan {
             compression,
-            partition,
+            partition: _partition,
             encryption,
             writeout,
-            duplication,
         }) => {
-            // Determine the subdirectory based on the duplication status
-            let sub_path = if let Some(expected_location) = duplication.expected_location {
-                expected_location
-            } else {
-                origin_data.original_location
-            };
+            // If the file already exists, skip it- we've already processed it
+            if Path::exists(&output_path) {
+                // TODO make this a warning
+                println!("File already exists: {}", output_path.display());
+                return Ok(());
+            }
 
-            // Construct the output path
-            let output_path = output_dir.join(sub_path);
+            // Create directories so that writing can take place
+            std::fs::create_dir_all(output_path.parent().unwrap())?;
 
-            // TODO (laudiacay) async these reads. also is this buf setup right
+            // Otherwise make it
             let new_file_writer = File::create(output_path)?;
+
             // Ensure that our compression scheme is congruent with expectations
-            assert_eq!(compression.compression_info, "GZIP");
-            // Create a new file writer
-            let mut new_file_writer = GzDecoder::new(new_file_writer);
+            // TODO use fancy .get_decoder() method :3
+            assert_eq!(compression.compression_info, "ZSTD");
 
             // TODO (organizedgrime): switch back to iterating over chunks if use case arises
             // If there are chunks in the partition to process
-            if partition.num_chunks > 0 {
+            for chunk in writeout.chunk_locations.iter() {
                 // Ensure that there is only one chunk
-                assert_eq!(partition.num_chunks, 1);
+                // assert_eq!(partition.num_chunks, 1);
                 // Chunk is a constant for now
-                let chunk = 0;
-
-                // Construct the file path within the input directory
-                let subpath = writeout.chunk_locations.get(chunk as usize).ok_or(anyhow!(
-                    "could not find the chunk location for chunk {}!",
-                    chunk
-                ))?;
 
                 // Finish constructing the old file reader
-                let old_file_reader = BufReader::new(File::open(input_dir.join(subpath))?);
-
-                // Find the encrypted piece for this chunk
-                let encrypted_piece =
-                    encryption
-                        .encrypted_pieces
-                        .get(chunk as usize)
-                        .ok_or(anyhow!(
-                            "could not find the encrypted piece for chunk {}!",
-                            chunk
-                        ))?;
+                let old_file_reader = BufReader::new(File::open(chunk)?);
 
                 // TODO naughty clone
                 // Construct the old file reader by decrypting the encrypted piece
-                let mut old_file_reader = {
+                let old_file_reader = {
                     // Match decryptor type to ensure compatibility;
                     // use internal variable to construct the decryptor
                     let decryptor = match Decryptor::new(old_file_reader)? {
@@ -85,28 +70,29 @@ pub async fn do_file_pipeline(
 
                     // Use the decryptor to decrypt the encrypted piece; return result
                     decryptor.decrypt(iter::once(
-                        &encrypted_piece.identity.clone() as &dyn age::Identity
+                        &encryption.identity.clone() as &dyn age::Identity
                     ))?
                 };
 
                 // Copy the contents of the old reader into the new writer
-                std::io::copy(&mut old_file_reader, &mut new_file_writer)?;
-
-                // old_file_reader.finish()?;
-                // TODO check the encryption tag at the end of the file
+                compression.decode(old_file_reader, &new_file_writer)?
+                // TODO check the encryption tag at the end of the file?
             }
+
             // Return OK status
             Ok(())
         }
-        CodableDataProcessDirective::Directory => {
-            let loc = output_dir.join(origin_data.original_location);
+        UnpackType::Directory => {
             // TODO (laudiacay) set all the permissions and stuff right?
-            tokio::fs::create_dir_all(&loc).await.map_err(|e| e.into())
+            tokio::fs::create_dir_all(&output_path)
+                .await
+                .map_err(|e| e.into())
         }
-        CodableDataProcessDirective::Symlink => {
-            let loc = output_dir.join(origin_data.original_location);
+        UnpackType::Symlink(to) => {
             // TODO (laudiacay) set all the permissions and stuff right?
-            tokio::fs::create_dir_all(&loc).await.map_err(|e| e.into())
+            tokio::fs::symlink(output_path, to)
+                .await
+                .map_err(|e| e.into())
         }
     }
 }
