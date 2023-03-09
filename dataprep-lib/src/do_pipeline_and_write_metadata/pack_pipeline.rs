@@ -148,9 +148,9 @@ pub async fn pack_pipeline(
         .unwrap();
 
     // Construct the latest version of the ManifestData struct
-    let manifest_data = ManifestData { 
-        version: env!("CARGO_PKG_VERSION").to_string(), 
-        unpack_plans
+    let manifest_data = ManifestData {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        unpack_plans,
     };
 
     serde_json::to_writer_pretty(

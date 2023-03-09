@@ -370,7 +370,6 @@ fn unpack_benchmark(
             // The routine to benchmark
             |_| async {
                 unpack_pipeline(
-                    black_box(packed_path.clone()),
                     black_box(unpacked_path.clone()),
                     black_box(manifest_path.clone()),
                 )

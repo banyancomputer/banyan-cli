@@ -33,13 +33,10 @@ async fn main() {
             .unwrap();
         }
         cli::Commands::Unpack {
-            input_dir,
             manifest_file,
             output_dir,
         } => {
-            unpack_pipeline(input_dir, output_dir, manifest_file)
-                .await
-                .unwrap();
+            unpack_pipeline(output_dir, manifest_file).await.unwrap();
         }
     }
 }

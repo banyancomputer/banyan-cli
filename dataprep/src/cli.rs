@@ -26,10 +26,6 @@ pub enum Commands {
         // todo add support for GroupConfig::path_patterns/name_patterns
     },
     Unpack {
-        /// input file root
-        #[arg(short, long, help = "input directories and files")]
-        input_dir: PathBuf,
-
         /// where to get the manifest file
         #[arg(short, long, help = "manifest file location")]
         manifest_file: PathBuf,

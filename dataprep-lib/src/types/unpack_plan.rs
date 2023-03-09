@@ -93,5 +93,5 @@ impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {
 #[derive(Serialize, Deserialize)]
 pub struct ManifestData {
     pub version: String,
-    pub unpack_plans: Vec<UnpackPipelinePlan>
+    pub unpack_plans: Vec<UnpackPipelinePlan>,
 }

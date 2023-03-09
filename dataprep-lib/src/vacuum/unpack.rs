@@ -11,15 +11,16 @@ use std::{
 use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
 
 // Unpack a single file, directory, or symlink
-pub async fn do_file_pipeline(
+pub async fn do_unpack_pipeline(
     UnpackPipelinePlan {
         origin_data,
         data_processing,
     }: UnpackPipelinePlan,
-    // TODO (organizedgrime) why is this here? it's not used
-    _input_dir: PathBuf,
     output_dir: PathBuf,
 ) -> Result<()> {
+    // Construct the output path
+    let output_path = output_dir.join(origin_data.original_location);
+
     // Processing directives require different handling
     match data_processing {
         UnpackType::File(UnpackPlan {
@@ -28,9 +29,6 @@ pub async fn do_file_pipeline(
             encryption,
             writeout,
         }) => {
-            // Construct the output path
-            let output_path = output_dir.join(origin_data.original_location);
-
             // If the file already exists, skip it- we've already processed it
             if Path::exists(&output_path) {
                 // TODO make this a warning
@@ -85,16 +83,16 @@ pub async fn do_file_pipeline(
             Ok(())
         }
         UnpackType::Directory => {
-            // TODO naughty clone
-            let loc = output_dir.join(origin_data.original_location.clone());
             // TODO (laudiacay) set all the permissions and stuff right?
-            tokio::fs::create_dir_all(&loc).await.map_err(|e| e.into())
+            tokio::fs::create_dir_all(&output_path)
+                .await
+                .map_err(|e| e.into())
         }
         UnpackType::Symlink(to) => {
-            // TODO naughty clone
-            let loc = output_dir.join(origin_data.original_location.clone());
             // TODO (laudiacay) set all the permissions and stuff right?
-            tokio::fs::symlink(loc, to).await.map_err(|e| e.into())
+            tokio::fs::symlink(output_path, to)
+                .await
+                .map_err(|e| e.into())
         }
     }
 }

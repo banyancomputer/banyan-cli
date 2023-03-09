@@ -1,18 +1,22 @@
 use crate::{
     types::unpack_plan::{ManifestData, UnpackPipelinePlan},
-    vacuum::unpack::do_file_pipeline,
+    vacuum::unpack::do_unpack_pipeline,
 };
 use anyhow::Result;
 use std::path::PathBuf;
 use tokio_stream::StreamExt;
 
-/// Given the input directory, the output directory, and the manifest file
-/// unpack the input directory into the output directory
-pub async fn unpack_pipeline(
-    input_dir: PathBuf,
-    output_dir: PathBuf,
-    manifest_file: PathBuf,
-) -> Result<()> {
+/// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
+/// on the data referenced in the manifest.
+///
+/// # Arguments
+///
+/// * `output_dir` - PathBuf representing the absolute path of the output directory in which to unpack the data
+/// * `manifest_file` - PathBuf representing the absolute path of the manifest file
+/// 
+/// # Return Type
+/// Returns `Ok(())` on success, otherwise returns an error.
+pub async fn unpack_pipeline(output_dir: PathBuf, manifest_file: PathBuf) -> Result<()> {
     // parse manifest file into Vec<CodablePipeline>
     let reader = std::fs::File::open(manifest_file)?;
 
@@ -30,9 +34,7 @@ pub async fn unpack_pipeline(
 
     // Iterate over each pipeline
     tokio_stream::iter(unpack_plans)
-        .then(|pipeline_to_disk| {
-            do_file_pipeline(pipeline_to_disk, input_dir.clone(), output_dir.clone())
-        })
+        .then(|pipeline_to_disk| do_unpack_pipeline(pipeline_to_disk, output_dir.clone()))
         .collect::<Result<Vec<_>>>()
         .await?;
 

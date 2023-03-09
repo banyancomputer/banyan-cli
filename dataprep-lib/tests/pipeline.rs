@@ -55,13 +55,9 @@ async fn run_test(test_path: &Path) {
     .await
     .unwrap();
     // Unpack the output
-    unpack_pipeline(
-        packed_path.clone(),
-        unpacked_path.clone(),
-        manifest_path.clone(),
-    )
-    .await
-    .unwrap();
+    unpack_pipeline(unpacked_path.clone(), manifest_path.clone())
+        .await
+        .unwrap();
 
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
