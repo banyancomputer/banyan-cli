@@ -40,9 +40,15 @@
 
 
 ## What is Dataprep?
-Dataprep is a tool for encrypting and decrypting large files and directories.
-It is meant to be used as a tool for preparing large academic and enterprise datasets for storage on
-decentralized storage networks such as Filecoin.
+Dataprep is a speedy tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable files that don't leak information about the original filesystem, plus a reconstruction manifest.
+
+It takes in a path, and emits a directory full of encrypted 1GB-max chunk files for upload plus a manifest describing how to reconstruct the original filesystem. You'll want to package these into CAR files, compute a CommP, upload them to a few miners, and create storage deals for them. *We'll be adding this end-to-end functionality to this repository very soon.*
+
+The manifest can be imported into our file manager, [Tombolo](https://github.com/banyancomputer/tombolo-frontend), for sharing, deleting, and retrieving files that you uploaded using this tool.
+
+We plan to integrate this repository with [WNFS](https://github.com/wnfs-wg/rs-wnfs) soon to get awesome features like granular and feature-packed permissioning, and file version control.
+
+It is meant to be used as a tool for preparing extremely large quantities of academic and enterprise data for manageable archival storage on decentralized storage networks such as Filecoin. It's meant to run anywhere, and our intent is that this code never be the bottleneck of an ingestion pipeline.
 
 ## Installation
 
