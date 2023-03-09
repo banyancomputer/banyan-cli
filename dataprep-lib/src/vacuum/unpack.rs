@@ -5,7 +5,12 @@ use std::{fs::File, io::BufReader, iter, path::Path};
 
 use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
 
-// Unpack a single file, directory, or symlink
+/// Unpack a single file, directory, or symlink using an UnpackPipelinePlan and output directory.
+/// # Arguments
+/// * `UnpackPipelinePlan` - Specifies where to find and how to unpack the data requested.
+/// * `output_dir` - Specifies where to write the unpacked data.
+/// # Returns
+/// A `Result`, which can either succeed or fail. If it succeeds, it returns nothing. If it fails, it returns an error.
 pub async fn do_unpack_pipeline(
     UnpackPipelinePlan {
         origin_data,

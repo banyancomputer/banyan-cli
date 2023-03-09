@@ -1,31 +1,44 @@
 use anyhow::Result;
 use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
-use std::{fs::Metadata, path::PathBuf, time::SystemTime};
+use std::{fs::Metadata, path::{PathBuf, Path}, time::SystemTime};
 
 #[derive(Debug, Clone)]
+/// Metadata associated with a file, directory, or symlink that was processed by the spider
 pub struct SpiderMetadata {
-    /// this is the root of the backup
+    /// This is the root path from which all data is spidered
     pub original_root: PathBuf,
-    /// this is the path relative to the root of the backup
+    /// This is the path relative to the root of the backup
     pub original_location: PathBuf,
-    /// this is the canonicalized path of the original file
+    /// The full, absolute path of the file, directory, or symlink
     pub canonicalized_path: PathBuf,
     /// this is the metadata of the original file
     pub original_metadata: Metadata,
 }
 
-pub fn make_spider_metadata(entry: DirEntry<((), ())>, input_root: PathBuf) -> SpiderMetadata {
-    let original_root = input_root;
+/// Codable version of the SpiderMetadata struct which can be written to disk using `serde` when required
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodableSpiderMetadata {
+    /// This is the root path from which all data is spidered
+    pub original_root: PathBuf,
+    /// This is the path relative to the root of the backup
+    pub original_location: PathBuf,
+    /// The full, absolute path of the file, directory, or symlink
+    pub canonicalized_path: PathBuf,
+    /// The metadata we scraped from the file when it was first processed
+    pub original_metadata: CodableMetadata,
+}
+
+pub fn make_spider_metadata(entry: DirEntry<((), ())>, input_root: &Path) -> SpiderMetadata {
     let original_location = entry
         .path()
-        .strip_prefix(&original_root)
+        .strip_prefix(&input_root)
         .unwrap()
         .to_path_buf();
     let canonicalized_path = entry.path().canonicalize().unwrap();
     let original_metadata = entry.metadata().unwrap();
     SpiderMetadata {
-        original_root,
+        original_root: input_root.to_path_buf(),
         original_location,
         canonicalized_path,
         original_metadata,
@@ -73,16 +86,6 @@ impl TryFrom<&SpiderMetadata> for CodableMetadata {
     }
 }
 
-// This is a codable version of the SpiderMetadata struct
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CodableSpiderMetadata {
-    /// This is an absolute path
-    pub original_root: PathBuf,
-    /// This is the path relative to the root of the backup
-    pub original_location: PathBuf,
-    pub canonicalized_path: PathBuf,
-    pub original_metadata: CodableMetadata,
-}
 
 // Define how to construct a codable version of the SpiderMetadata struct
 impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {

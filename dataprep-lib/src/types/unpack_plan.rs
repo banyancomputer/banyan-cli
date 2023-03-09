@@ -92,6 +92,8 @@ impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {
 /// As well as any other fields we may add / remove in the future.
 #[derive(Serialize, Deserialize)]
 pub struct ManifestData {
+    /// The project version that was used to encode this ManifestData
     pub version: String,
+    /// Specification for how to unpack files back to their original locations
     pub unpack_plans: Vec<UnpackPipelinePlan>,
 }
