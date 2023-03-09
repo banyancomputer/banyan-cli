@@ -22,7 +22,6 @@ use std::{fs, path::Path};
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_dir(&path).unwrap();
 /// ```
-#[doc(hidden)]
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     if !path.exists() {
         // create path if it doesn't exist
@@ -50,7 +49,6 @@ pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_empty_dir(&path, false).unwrap();
 /// ```
-#[doc(hidden)]
 pub fn ensure_path_exists_and_is_empty_dir(path: &Path, force: bool) -> Result<()> {
     // Check the path exists and is a directory
     ensure_path_exists_and_is_dir(path)?;

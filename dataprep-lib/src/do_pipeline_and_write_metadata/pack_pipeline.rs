@@ -20,7 +20,8 @@ use crate::{
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
-/// pack the input directory into the output directory.
+/// pack the input directory into the output directory and store a record of how this 
+/// operation was performed in the manifest file.
 ///
 /// # Arguments
 ///

@@ -45,7 +45,6 @@ extern crate core;
 
 /// This module contains both the pack_pipeline and the unpack_pipeline, which allow the main CLI to run packing an unpacking pipelines.
 pub mod do_pipeline_and_write_metadata;
-mod plan_copy;
 mod spider;
 mod types;
 /// This module contains filesytem helper functions and hasher helper functions.
