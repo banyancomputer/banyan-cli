@@ -10,7 +10,7 @@
       <img src="https://codecov.io/gh/banyancomputer/dataprep/branch/master/graph/badge.svg?token=LQL6MA4KSI" alt="Code Coverage"/>
     </a>
     <a href="https://github.com/banyancomputer/dataprep/actions?query=">
-      <img src="https://github.com/banyancomputer/dataprep/actions/workflows/test_and_checks.yml/badge.svg" alt="Build Status">
+      <img src="https://github.com/banyancomputer/dataprep/actions/workflows/tests_and_checks.yml/badge.svg" alt="Build Status">
     </a>
     <a href="https://github.com/banyancomputer/dataprep/blob/main/LICENSE-MIT">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License-MIT">
