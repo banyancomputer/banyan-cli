@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/banyancomputer/dataprep" target="_blank">
-    <img src="https://raw.githubusercontent.com/banyancomputer/dataprep/main/assets/a_logo.png" alt="Banyan Logo" width="100"></img>
+    <img src=".github/logo.png" alt="Banyan Logo" width="100"></img>
   </a>
 
   <h1 align="center">Dataprep</h1>
@@ -40,7 +40,7 @@
 
 
 ## What is Dataprep?
-Dataprep is a speedy tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable files that don't leak information about the original filesystem, plus a reconstruction manifest.
+Dataprep is a tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable files that don't leak information about the original filesystem, plus a reconstruction manifest.
 
 It takes in a path, and emits a directory full of encrypted 1GB-max chunk files for upload plus a manifest describing how to reconstruct the original filesystem. You'll want to package these into CAR files, compute a CommP, upload them to a few miners, and create storage deals for them. *We'll be adding this end-to-end functionality to this repository very soon.*
 
@@ -71,8 +71,10 @@ The manifest file is a JSON file that contains the metadata for the encrypted fi
 
 To decrypt the same directory, run:
 ```console
-dataprep unpack --input-dir <PACKED_DIR>  --output-dir <UNPACKED_DIR> --manifest-file <MANIFEST_FILE>
+dataprep unpack --output-dir <UNPACKED_DIR> --manifest-file <MANIFEST_FILE>
 ```
+in the same directory as the manifest file and where you originally ran the `pack` command.
+
 `<UNPACKED_DIR>` will contain the original files from `<INPUT_DIR>` once the process is complete.
 
 ## Testing the Project
