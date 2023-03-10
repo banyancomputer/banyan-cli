@@ -27,13 +27,17 @@ pub enum Commands {
         // TODO add support for GroupConfig::path_patterns/name_patterns
     },
     Unpack {
-        /// Location of the manifest file.
-        #[arg(short, long, help = "manifest file location")]
-        manifest_file: PathBuf,
+        /// Input directory in which packed files are located.
+        #[arg(short, long, help = "input directory")]
+        input_dir: PathBuf,
 
         /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
+
+        /// Location of the manifest file.
+        #[arg(short, long, help = "manifest file location")]
+        manifest_file: PathBuf,
     },
 }
 

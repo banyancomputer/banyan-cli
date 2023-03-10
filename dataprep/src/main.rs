@@ -35,8 +35,9 @@ async fn main() {
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
-            manifest_file,
+            input_dir,
             output_dir,
+            manifest_file,
         } => {
             unpack_pipeline(&output_dir, &manifest_file).await.unwrap();
         }
