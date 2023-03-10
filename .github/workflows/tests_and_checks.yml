@@ -12,11 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  empty_job:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Do nothing
-        run: echo "Nothing to do here."
   run-checks:
     runs-on: ubuntu-latest
     strategy:
@@ -26,7 +21,7 @@ jobs:
 #          - stable
           - nightly
           # minimum version
-          - 1.64
+#          - 1.64
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3

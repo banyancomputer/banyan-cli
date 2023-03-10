@@ -12,11 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-#  empty_job:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Do nothing
-#        run: echo "Nothing to do here."
   coverage:
     runs-on: ubuntu-latest
 
