@@ -27,10 +27,6 @@ pub enum Commands {
         // TODO add support for GroupConfig::path_patterns/name_patterns
     },
     Unpack {
-        /// Input directory in which packed files are located.
-        #[arg(short, long, help = "input directory")]
-        input_dir: PathBuf,
-
         /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
