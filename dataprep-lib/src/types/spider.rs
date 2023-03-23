@@ -10,11 +10,9 @@ use std::{
 #[derive(Debug, Clone)]
 /// Metadata associated with a file, directory, or symlink that was processed by the spider
 pub struct SpiderMetadata {
-    /// This is the root path from which all data is spidered
-    pub original_root: PathBuf,
     /// This is the path relative to the root of the backup
     pub original_location: PathBuf,
-    /// The full, absolute path of the file, directory, or symlink
+    /// canonicalized path
     pub canonicalized_path: PathBuf,
     /// this is the metadata of the original file
     pub original_metadata: Metadata,
@@ -25,12 +23,8 @@ pub struct SpiderMetadata {
 /// Codable version of the SpiderMetadata struct which can be written to disk using `serde` when required
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodableSpiderMetadata {
-    /// This is the root path from which all data is spidered
-    pub original_root: PathBuf,
     /// This is the path relative to the root of the backup
     pub original_location: PathBuf,
-    /// The full, absolute path of the file, directory, or symlink
-    pub canonicalized_path: PathBuf,
     /// The metadata we scraped from the file when it was first processed
     pub original_metadata: CodableMetadata,
 }
@@ -49,7 +43,6 @@ impl SpiderMetadata {
         let original_metadata = entry.metadata().unwrap();
         // Return the SpiderMetadata
         SpiderMetadata {
-            original_root: path_root.to_path_buf(),
             original_location,
             canonicalized_path,
             original_metadata,
@@ -109,9 +102,7 @@ impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {
     type Error = anyhow::Error;
     fn try_from(value: &SpiderMetadata) -> Result<Self> {
         // Most values can be simply cloned
-        let original_root = value.original_root.clone();
         let original_location = value.original_location.clone();
-        let canonicalized_path = value.canonicalized_path.clone();
 
         // Construct the metadata using the entirety of SpiderMetaData struct.
         // Note that right now, not all of the information contained here is necessary to do this,
@@ -120,9 +111,7 @@ impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {
 
         // Construct and return
         Ok(CodableSpiderMetadata {
-            original_root,
             original_location,
-            canonicalized_path,
             original_metadata,
         })
     }
