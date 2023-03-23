@@ -9,6 +9,7 @@ use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
 use fs_extra::dir;
 use lazy_static::lazy_static;
+use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
 
@@ -92,15 +93,15 @@ fn get_desired_file_structures() -> Vec<Structure> {
     // Get the max depth of the file structures
     let max_depth = *BENCH_FILE_STRUCTURES_MAX_DEPTH;
 
-    println!("Declaring desired file structures:");
-    // Print the file structures we are testing
-    println!("-> Structures: {}", bench_file_structures);
-    // Print the size of the test
-    println!("-> Size: {}", bench_file_structure_size);
-    // Print the max width of the file structures
-    println!("-> Max Width: {}", max_width);
-    // Print the max depth of the file structures
-    println!("-> Max Depth: {}", max_depth);
+    info!("Declaring desired file structures:");
+    //  the file structures we are testing
+    info!("-> Structures: {}", bench_file_structures);
+    //  the size of the test
+    info!("-> Size: {}", bench_file_structure_size);
+    //  the max width of the file structures
+    info!("-> Max Width: {}", max_width);
+    //  the max depth of the file structures
+    info!("-> Max Depth: {}", max_depth);
 
     // Iterate through the list of file structures
     for file_structure in file_structures {
@@ -177,16 +178,16 @@ fn populate_input_dirs() {
 /// Makes sure the manifest file directory exists and is empty
 #[doc(hidden)]
 fn setup_bench() {
-    println!("Setting up benchmarking directories...");
-    println!("-> Bench Path: {}", BENCH_PATH.as_str());
-    println!("-> Input Path: {}", INPUT_PATH.as_str());
-    println!("-> Packed Path: {}", PACKED_PATH.as_str());
-    println!("-> Unpacked Path: {}", UNPACKED_PATH.as_str());
+    info!("Setting up benchmarking directories...");
+    info!("-> Bench Path: {}", BENCH_PATH.as_str());
+    info!("-> Input Path: {}", INPUT_PATH.as_str());
+    info!("-> Packed Path: {}", PACKED_PATH.as_str());
+    info!("-> Unpacked Path: {}", UNPACKED_PATH.as_str());
 
     // Make sure the bench directory exists
     ensure_path_exists_and_is_dir(&PathBuf::from(BENCH_PATH.as_str()))
         .map_err(|e| {
-            eprintln!("Error creating bench directory: {}", e);
+            error!("Error creating bench directory: {}", e);
             e
         })
         .unwrap();
@@ -194,7 +195,7 @@ fn setup_bench() {
     // Make sure the input directory exists
     ensure_path_exists_and_is_dir(&PathBuf::from(INPUT_PATH.as_str()))
         .map_err(|e| {
-            eprintln!("Error creating input directory: {}", e);
+            error!("Error creating input directory: {}", e);
             e
         })
         .unwrap();
@@ -204,7 +205,7 @@ fn setup_bench() {
     // Make sure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(PACKED_PATH.as_str()), true)
         .map_err(|e| {
-            eprintln!("Error creating packed directory: {}", e);
+            error!("Error creating packed directory: {}", e);
             e
         })
         .unwrap();
@@ -212,7 +213,7 @@ fn setup_bench() {
     // Make sure the unpacked directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(UNPACKED_PATH.as_str()), true)
         .map_err(|e| {
-            eprintln!("Error creating unpacked directory: {}", e);
+            error!("Error creating unpacked directory: {}", e);
             e
         })
         .unwrap();
@@ -220,7 +221,7 @@ fn setup_bench() {
     // Make sure the manifest directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(MANIFEST_PATH.as_str()), true)
         .map_err(|e| {
-            eprintln!("Error creating manifest directory: {}", e);
+            error!("Error creating manifest directory: {}", e);
             e
         })
         .unwrap();
@@ -229,11 +230,11 @@ fn setup_bench() {
 /// Make sure the packed and unpacked directories are empty, using the environment variables (or defaults) for the paths
 #[doc(hidden)]
 fn cleanup_bench() {
-    println!("Cleaning up benchmarking directories...");
+    info!("Cleaning up benchmarking directories...");
     // Make sure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(PACKED_PATH.as_str()), true)
         .map_err(|e| {
-            eprintln!("Error creating packed directory: {}", e);
+            error!("Error creating packed directory: {}", e);
             e
         })
         .unwrap();
@@ -241,7 +242,7 @@ fn cleanup_bench() {
     // Make sure the unpacked directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(UNPACKED_PATH.as_str()), true)
         .map_err(|e| {
-            eprintln!("Error creating unpacked directory: {}", e);
+            error!("Error creating unpacked directory: {}", e);
             e
         })
         .unwrap();
@@ -249,7 +250,7 @@ fn cleanup_bench() {
     // Make sure the manifest directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(MANIFEST_PATH.as_str()), true)
         .map_err(|e| {
-            eprintln!("Error creating manifest directory: {}", e);
+            error!("Error creating manifest directory: {}", e);
             e
         })
         .unwrap();
@@ -261,7 +262,7 @@ fn prep_pack(packed_path: &PathBuf, manifest_path: &PathBuf) {
     // Ensure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(packed_path, true)
         .map_err(|e| {
-            eprintln!("Error creating packed directory: {}", e);
+            error!("Error creating packed directory: {}", e);
             e
         })
         .unwrap();
@@ -278,7 +279,7 @@ fn prep_unpack(unpacked_path: &PathBuf, manifest_path: &PathBuf) {
     // Ensure the unpacked directory exists and is empty
     ensure_path_exists_and_is_empty_dir(unpacked_path, true)
         .map_err(|e| {
-            eprintln!("Error creating unpacked directory: {}", e);
+            error!("Error creating unpacked directory: {}", e);
             e
         })
         .unwrap();
@@ -368,7 +369,14 @@ fn unpack_benchmark(
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path, manifest_path),
             // The routine to benchmark
-            |_| async { unpack_pipeline(black_box(unpacked_path), black_box(manifest_path)).await },
+            |_| async {
+                unpack_pipeline(
+                    black_box(packed_path),
+                    black_box(unpacked_path),
+                    black_box(manifest_path),
+                )
+                .await
+            },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -417,14 +425,14 @@ pub fn pipeline_benchmark(c: &mut Criterion) {
 
         // If we have correctness testing enabled, run the correctness tests
         if *DO_CORRECTNESS_CHECK {
-            println!(
+            info!(
                 "Running correctness tests on {}",
                 entry_name.to_str().unwrap()
             );
             // Make sure they have the same contents
             assert_paths!(input_path, unpacked_path);
         }
-        println!("Finished benchmarking {}", entry_name.to_str().unwrap());
+        info!("Finished benchmarking {}", entry_name.to_str().unwrap());
         // Cleanup the bench
         cleanup_bench();
     }

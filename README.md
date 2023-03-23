@@ -27,13 +27,22 @@
 
 ## Outline
 
-- [What is Dataprep?](#dataprep)
+- [](#)
+- [Outline](#outline)
+- [What is Dataprep?](#what-is-dataprep)
 - [Installation](#installation)
+  - [Using `cargo`](#using-cargo)
 - [Usage](#usage)
 - [Testing the Project](#testing-the-project)
 - [Benchmarking the Project](#benchmarking-the-project)
+  - [Configuring the benchmarks](#configuring-the-benchmarks)
+  - [Running the benchmarks](#running-the-benchmarks)
+  - [Profiling the binary](#profiling-the-binary)
 - [Contributing](#contributing)
-- [Running dataprep on Docker](#running-dataprep-on-docker)
+  - [Formatting](#formatting)
+  - [Pre-commit Hook](#pre-commit-hook)
+  - [Recommended Development Flow](#recommended-development-flow)
+  - [Conventional Commits](#conventional-commits)
 - [Getting Help](#getting-help)
 - [External Resources](#external-resources)
 - [License](#license)
@@ -71,9 +80,8 @@ The manifest file is a JSON file that contains the metadata for the encrypted fi
 
 To decrypt the same directory, run:
 ```console
-dataprep unpack --output-dir <UNPACKED_DIR> --manifest-file <MANIFEST_FILE>
+dataprep unpack --input-dir <PACKED_DIR> --output-dir <UNPACKED_DIR> --manifest-file <MANIFEST_FILE>
 ```
-in the same directory as the manifest file and where you originally ran the `pack` command.
 
 `<UNPACKED_DIR>` will contain the original files from `<INPUT_DIR>` once the process is complete.
 

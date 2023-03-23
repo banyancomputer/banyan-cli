@@ -55,7 +55,7 @@ async fn run_test(test_path: &Path) {
     .await
     .unwrap();
     // Unpack the output
-    unpack_pipeline(&unpacked_path, &manifest_path)
+    unpack_pipeline(&packed_path, &unpacked_path, &manifest_path)
         .await
         .unwrap();
 

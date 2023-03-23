@@ -16,7 +16,6 @@ jwalk.workspace = true
 uuid.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-printio.workspace = true
 age.workspace = true
 # Dev-Dependencies: These should live under a different tag
 fake-file.workspace = true
@@ -26,6 +25,9 @@ criterion.workspace = true
 lazy_static.workspace = true
 zstd.workspace = true
 fclones.workspace = true
+indicatif = { version = "0.17.3", features = ["improved_unicode"] }
+log = "0.4.17"
+byte-unit = "4.0.19"
 
 # Benchmark for packing -> unpacking an input directory
 [[bench]]

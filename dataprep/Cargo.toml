@@ -10,3 +10,5 @@ repository.workspace = true
 dataprep-lib.workspace = true
 clap.workspace = true
 tokio.workspace = true
+env_logger = "0.10.0"
+log = "0.4.14"

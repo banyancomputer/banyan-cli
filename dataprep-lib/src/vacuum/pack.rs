@@ -3,9 +3,12 @@ use crate::types::{
     unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType, WriteoutLocations},
 };
 use anyhow::{anyhow, Result};
+use indicatif::ProgressBar;
 use std::{
     fs::File,
     io::{BufReader, Read},
+    path::PathBuf,
+    sync::{Arc, Mutex},
 };
 
 // TODO in the battle against repeated code... fn refresh_file_encryptor() ->
@@ -18,6 +21,7 @@ use std::{
 /// the file was chunked and compressed successfully, or an error if something went wrong.
 pub async fn do_pack_pipeline(
     pack_pipeline_plan: PackPipelinePlan,
+    progress_bar: Arc<Mutex<ProgressBar>>,
 ) -> Result<Vec<UnpackPipelinePlan>> {
     match pack_pipeline_plan {
         // If this is a FileGroup
@@ -27,6 +31,7 @@ pub async fn do_pack_pipeline(
                 partition,
                 encryption,
                 writeout,
+                size_in_bytes,
             } = pack_plan;
             // Open the original file (just the first one!)
             let file = File::open(&metadatas.get(0)
@@ -44,14 +49,14 @@ pub async fn do_pack_pipeline(
                 // New packed file name
                 let new_path = format!("{}{}", uuid::Uuid::new_v4(), ".packed");
                 // Location of this new packed file is also dependent on the writeout location
-                let new_file_loc = writeout.join(new_path);
+                let new_file_loc = writeout.join(new_path.clone());
 
                 // Create a new file writer at this location
                 let new_file_writer = File::create(&new_file_loc)
                     .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
 
                 // Append the writeout location
-                chunk_locations.push(new_file_loc);
+                chunk_locations.push(PathBuf::from(new_path));
 
                 // Create a new encryptor for this file
                 let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
@@ -78,6 +83,8 @@ pub async fn do_pack_pipeline(
                 new_file_encryptor
                     .finish()
                     .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
+
+                progress_bar.lock().unwrap().inc(1);
             }
 
             // Create a new UnpackType::File with the chunk locations constructed earlier
@@ -86,6 +93,7 @@ pub async fn do_pack_pipeline(
                 partition,
                 encryption,
                 writeout: WriteoutLocations { chunk_locations },
+                size_in_bytes,
             });
 
             // Return okay status with all UnpackPipelinePlans
@@ -107,6 +115,7 @@ pub async fn do_pack_pipeline(
         // If this is a directory or symlink
         d @ PackPipelinePlan::Directory(_) | d @ PackPipelinePlan::Symlink(..) => {
             // Directly convert into an UnpackPipelinePlan
+            progress_bar.lock().unwrap().inc(1);
             Ok(vec![d.try_into()?])
         }
     }

@@ -92,7 +92,9 @@ where
     D: serde::Deserializer<'de>,
 {
     // Deserialize the key
-    let key = String::deserialize(deserializer)?;
+    let key = String::deserialize(deserializer).map_err(|_| {
+        serde::de::Error::custom("failed to deserialize age encryption key as a string")
+    })?;
     // Construct from the string
     age::x25519::Identity::from_str(&key).map_err(serde::de::Error::custom)
 }
