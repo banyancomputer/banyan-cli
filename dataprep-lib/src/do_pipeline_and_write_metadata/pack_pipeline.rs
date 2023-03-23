@@ -81,7 +81,7 @@ pub async fn pack_pipeline(
     let total_units = packing_plan.iter().fold(0, |acc, x| acc + x.n_chunks()); // Total number of units of work to be processed
     // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to pack.", total_units);
     let total_size = packing_plan.iter().fold(0, |acc, x| acc + x.n_bytes()); // Total number of bytes to be processed
-    info!("💾 Total size of files to pack: {}", total_size);
+    info!("💾 Total size of files to pack: {}", byte_unit::Byte::from_bytes(total_size).to_string());
 
     info!(
         "🔐 Compressing and encrypting each file as it is copied to the new filesystem at {}",
