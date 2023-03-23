@@ -4,7 +4,7 @@ name: 📈 Benchmark
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
   pull_request:
     branches: [ '**' ]
@@ -59,7 +59,7 @@ jobs:
 #          tool: 'cargo'
 #          output-file-path: output.txt
 #          github-token: ${{ secrets.GITHUB_TOKEN }}
-#          auto-push: ${{ github.event_name == 'push' && github.repository == 'banyancomputer/dataprep' && github.ref == 'refs/heads/main' }}
+#          auto-push: ${{ github.event_name == 'push' && github.repository == 'banyancomputer/dataprep' && github.ref == 'refs/heads/master' }}
 #          alert-threshold: '200%'
 #          comment-on-alert: true
 #          fail-on-alert: true
