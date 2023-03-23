@@ -31,7 +31,7 @@ pub async fn do_unpack_pipeline(
             partition: _partition,
             encryption,
             writeout,
-        ..
+            ..
         }) => {
             // If the file already exists, skip it- we've already processed it
             if Path::exists(&output_path) {

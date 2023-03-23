@@ -56,9 +56,14 @@ pub async fn unpack_pipeline(
         output_dir.display()
     );
     let total_units = unpack_plans.iter().fold(0, |acc, x| acc + x.n_chunks()); // Total number of units of work to be processed
-    // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to unpack.", total_units);
+                                                                                // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to unpack.", total_units);
     let total_size = unpack_plans.iter().fold(0, |acc, x| acc + x.n_bytes()); // Total number of bytes to be processed
-    info!("💾 Total size of files to unpack: {}", byte_unit::Byte::from_bytes(total_size.into()).get_appropriate_unit(false).to_string());
+    info!(
+        "💾 Total size of files to unpack: {}",
+        byte_unit::Byte::from_bytes(total_size.into())
+            .get_appropriate_unit(false)
+            .to_string()
+    );
 
     let pb = ProgressBar::new(total_units.try_into()?);
     pb.set_style(ProgressStyle::default_bar().template(
