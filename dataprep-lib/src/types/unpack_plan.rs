@@ -27,6 +27,8 @@ pub struct UnpackPlan {
     pub encryption: EncryptionScheme,
     /// describes how/where we wrote the file out on the new filesystem
     pub writeout: WriteoutLocations,
+    /// file size in bytes before compression
+    pub size_in_bytes: u128,
 }
 
 // TODO i have questions about this
@@ -70,6 +72,23 @@ pub struct UnpackPipelinePlan {
     pub origin_data: CodableSpiderMetadata,
     /// Describes data processing, if any is needed
     pub data_processing: UnpackType,
+}
+
+impl UnpackPipelinePlan {
+    /// Returns the number of chunks that will be written out for this file
+    pub fn n_chunks(&self) -> u32 {
+        match &self.data_processing {
+            UnpackType::File(plan) => plan.writeout.chunk_locations.len().try_into().unwrap(),
+            _ => 0,
+        }
+    }
+    /// Returns the number of bytes that will be written out for this file
+    pub fn n_bytes(&self) -> u64 {
+        match &self.data_processing {
+            UnpackType::File(_) => self.origin_data.original_metadata.len,
+            _ => 0,
+        }
+    }
 }
 
 impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {

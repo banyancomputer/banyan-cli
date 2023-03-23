@@ -23,7 +23,6 @@ rand = "0.8.4"
 uuid = { version = "1.2.2", features = ["v4"]}
 serde ={version= "1.0.152", features = ["derive"]}
 serde_json = { version = "1.0.72", features = ["std"]}
-printio = "0.2.2" # TODO (laudiacay) eventually you want to use CBOR but debug with JSON
 futures = "0.3.0"
 age = {version = "0.9.0", features = ["async"]}
 # Dev dependencies
@@ -33,7 +32,7 @@ lazy_static = "1.4"
 criterion = {version = "0.4.0", features = ["async_tokio"]}
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
 zstd = "0.12.3"
-fclones = "0.29.3"
+fclones = "0.30.0"
 
 [patch]
 

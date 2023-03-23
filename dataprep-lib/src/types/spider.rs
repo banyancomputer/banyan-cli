@@ -73,7 +73,8 @@ pub enum FileType {
 /// containing more fields than are typically stored in Metadata.
 pub struct CodableMetadata {
     file_type: FileType,
-    len: u64,
+    /// The length of the file in bytes
+    pub len: u64,
     permissions: (), // TODO uuuugh permissions
     modified: SystemTime,
     accessed: SystemTime,
