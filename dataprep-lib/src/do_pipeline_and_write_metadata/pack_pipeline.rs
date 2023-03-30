@@ -1,10 +1,10 @@
 use anyhow::Result;
 use futures::{stream, StreamExt, TryStreamExt};
-use wnfs::common::DiskBlockStore;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
 };
+use wnfs::common::DiskBlockStore;
 
 use crate::{
     types::{

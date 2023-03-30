@@ -1,11 +1,17 @@
-use age::{Decryptor, stream};
-use anyhow::{anyhow, Ok, Result};
-use std::{io::Write, borrow::{Borrow, Cow}, str::FromStr};
-use wnfs::{common::{DiskBlockStore, BlockStore}, libipld::{IpldCodec, Cid, block}};
-use std::{fs::File, io::{BufReader, BufWriter}, iter, path::Path, sync::Mutex, os::unix::prelude::FileExt};
 use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
+use anyhow::{anyhow, Ok, Result};
 use indicatif::ProgressBar;
-use std::sync::Arc;
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
+use wnfs::{
+    common::{BlockStore, DiskBlockStore},
+    libipld::Cid,
+};
 
 /// Unpack a single file, directory, or symlink using an UnpackPipelinePlan and output directory.
 /// # Arguments
@@ -50,8 +56,10 @@ pub async fn do_unpack_pipeline(
             .map_err(|e| anyhow!("could not create parent directory for output file! {}", e))?;
 
             // Otherwise make it
-            let mut new_file_writer = BufWriter::new(File::create(output_path)
-                .map_err(|e| anyhow!("could not create new file for writing! {}", e))?);
+            let mut new_file_writer = BufWriter::new(
+                File::create(output_path)
+                    .map_err(|e| anyhow!("could not create new file for writing! {}", e))?,
+            );
 
             // Ensure that our compression scheme is congruent with expectations
             // TODO use fancy .get_decoder() method :3
@@ -67,7 +75,11 @@ pub async fn do_unpack_pipeline(
                 // Finish constructing the old file reader
                 let cid = Cid::from_str(chunk.file_name().unwrap().to_str().unwrap()).unwrap();
                 // Grab the bytes associated with this CID
-                let bytes: Vec<u8> = blockstore.get_deserializable(&cid).await.unwrap();
+                let compressed: Vec<u8> = blockstore.get_deserializable(&cid).await.unwrap();
+                // Create a buffer to hold the decompressed bytes
+                let mut bytes: Vec<u8> = vec![];
+                // Encode and compress the chunk
+                compression.decode(compressed.as_slice(), &mut bytes)?;
                 // Write these bytes to the new file writer
                 new_file_writer.write_all(&bytes).unwrap();
                 // Flush the new file writer

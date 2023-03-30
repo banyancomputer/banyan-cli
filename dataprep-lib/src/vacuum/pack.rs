@@ -4,12 +4,12 @@ use crate::types::{
 };
 use anyhow::{anyhow, Result};
 use indicatif::ProgressBar;
-use wnfs::common::{DiskBlockStore, BlockStore};
 use std::{
     fs::File,
     io::{BufReader, Read},
     sync::{Arc, Mutex},
 };
+use wnfs::common::{BlockStore, DiskBlockStore};
 
 // TODO in the battle against repeated code... fn refresh_file_encryptor() ->
 /// This function takes in a plan for how to process an individual file group, directory, or symlink,
@@ -48,25 +48,19 @@ pub async fn do_pack_pipeline(
             while remaining_bytes > 0 {
                 // Determine how much of the file we're going to read
                 let read_size = std::cmp::min(partition.chunk_size, remaining_bytes);
-
                 // Construct a reader that will prevent us from reading the entire file at once
                 // TODO (organizedgrime) something about inner vs outer chunking?
-                let mut chunk_reader = old_file_reader.get_ref().take(read_size);
-
-                // TODO (organizedgrime) this is the point at which we'd bring back compression
-
-                // Read the bytes into the appropriate buffer
+                let chunk_reader = old_file_reader.get_ref().take(read_size);
+                // Create a buffer to hold the compressed bytes
                 let mut bytes: Vec<u8> = vec![];
-                chunk_reader.read_to_end(&mut bytes)?;
-
-                // The bytes of the IPLD block
+                // Encode and compress the chunk
+                compression.encode(chunk_reader, &mut bytes)?;
+                // Put the bytes into the BlockStore and retrieve the associated CID
                 let cid = blockstore.put_serializable(&bytes).await.unwrap();
                 // Append the writeout location to the list of chunks
                 chunk_locations.push(blockstore.path.join(cid.to_string()));
-
                 // Determine how much of the file has yet to be written
                 remaining_bytes -= read_size;
-
                 // Denote progress
                 progress_bar.lock().unwrap().inc(1);
             }

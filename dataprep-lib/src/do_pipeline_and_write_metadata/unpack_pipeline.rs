@@ -3,9 +3,9 @@ use crate::{
     vacuum::unpack::do_unpack_pipeline,
 };
 use anyhow::Result;
-use wnfs::common::DiskBlockStore;
 use std::path::Path;
 use tokio_stream::StreamExt;
+use wnfs::common::DiskBlockStore;
 
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::{Arc, Mutex};
