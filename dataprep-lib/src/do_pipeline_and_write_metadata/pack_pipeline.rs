@@ -1,5 +1,6 @@
 use anyhow::Result;
 use futures::{stream, StreamExt, TryStreamExt};
+use wnfs::common::DiskBlockStore;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -53,7 +54,6 @@ pub async fn pack_pipeline(
         compression: CompressionScheme::new_zstd(),
         partition: PartitionScheme { chunk_size },
         encryption: EncryptionScheme::new_age(),
-        writeout: output_dir.to_path_buf(),
         size_in_bytes: 0,
     };
 
@@ -101,9 +101,12 @@ pub async fn pack_pipeline(
     )?);
     let shared_pb = Arc::new(Mutex::new(pb));
 
+    // Create a DiskBlockStore to store the packed data
+    let blockstore = DiskBlockStore::new(output_dir.to_path_buf());
+
     // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
     let unpack_plans: Vec<UnpackPipelinePlan> = stream::iter(packing_plan)
-        .then(|copy_plan| vacuum::pack::do_pack_pipeline(copy_plan, shared_pb.clone()))
+        .then(|copy_plan| vacuum::pack::do_pack_pipeline(&blockstore, copy_plan, shared_pb.clone()))
         .try_fold(
             Vec::new(),
             |mut acc: Vec<UnpackPipelinePlan>, item: Vec<UnpackPipelinePlan>| async move {

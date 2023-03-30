@@ -13,8 +13,6 @@ pub struct PackPlan {
     pub partition: PartitionScheme,
     /// Describes how we will encrypt the file (contains keys)
     pub encryption: EncryptionScheme,
-    /// describes what directory we will write packed files to
-    pub writeout: PathBuf,
     /// file size in bytes before compression
     pub size_in_bytes: u128,
 }

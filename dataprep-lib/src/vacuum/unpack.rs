@@ -1,7 +1,8 @@
-use age::Decryptor;
+use age::{Decryptor, stream};
 use anyhow::{anyhow, Ok, Result};
-use std::{fs::File, io::BufReader, iter, path::Path, sync::Mutex};
-
+use std::{io::Write, borrow::{Borrow, Cow}, str::FromStr};
+use wnfs::{common::{DiskBlockStore, BlockStore}, libipld::{IpldCodec, Cid, block}};
+use std::{fs::File, io::{BufReader, BufWriter}, iter, path::Path, sync::Mutex, os::unix::prelude::FileExt};
 use crate::types::unpack_plan::{UnpackPipelinePlan, UnpackPlan, UnpackType};
 use indicatif::ProgressBar;
 use std::sync::Arc;
@@ -13,7 +14,7 @@ use std::sync::Arc;
 /// # Returns
 /// A `Result`, which can either succeed or fail. If it succeeds, it returns nothing. If it fails, it returns an error.
 pub async fn do_unpack_pipeline(
-    input_dir: &Path,
+    blockstore: &DiskBlockStore,
     UnpackPipelinePlan {
         origin_data,
         data_processing,
@@ -29,7 +30,7 @@ pub async fn do_unpack_pipeline(
         UnpackType::File(UnpackPlan {
             compression,
             partition: _partition,
-            encryption,
+            encryption: _encryption,
             writeout,
             ..
         }) => {
@@ -49,8 +50,8 @@ pub async fn do_unpack_pipeline(
             .map_err(|e| anyhow!("could not create parent directory for output file! {}", e))?;
 
             // Otherwise make it
-            let new_file_writer = File::create(output_path)
-                .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
+            let mut new_file_writer = BufWriter::new(File::create(output_path)
+                .map_err(|e| anyhow!("could not create new file for writing! {}", e))?);
 
             // Ensure that our compression scheme is congruent with expectations
             // TODO use fancy .get_decoder() method :3
@@ -64,42 +65,14 @@ pub async fn do_unpack_pipeline(
                 // Chunk is a constant for now
 
                 // Finish constructing the old file reader
-                let old_file_path = input_dir.join(chunk);
-                let old_file_reader =
-                    BufReader::new(File::open(input_dir.join(chunk)).map_err(|e| {
-                        error!(
-                            "could not open old file for reading! {} at {}",
-                            e,
-                            old_file_path.display()
-                        );
-                        anyhow!(
-                            "could not open old file for reading! {} at {}",
-                            e,
-                            old_file_path.display()
-                        )
-                    })?);
-
-                // TODO naughty clone
-                // Construct the old file reader by decrypting the encrypted piece
-                let old_file_reader = {
-                    // Match decryptor type to ensure compatibility;
-                    // use internal variable to construct the decryptor
-                    let decryptor = match Decryptor::new(old_file_reader)? {
-                        Decryptor::Recipients(decryptor) => decryptor,
-                        Decryptor::Passphrase(_) => {
-                            return Err(anyhow!("Passphrase decryption not supported"))
-                        }
-                    };
-
-                    // Use the decryptor to decrypt the encrypted piece; return result
-                    decryptor.decrypt(iter::once(
-                        &encryption.identity.clone() as &dyn age::Identity
-                    ))?
-                };
-
-                // Copy the contents of the old reader into the new writer
-                compression.decode(old_file_reader, &new_file_writer)?;
-                // TODO check the encryption tag at the end of the file?
+                let cid = Cid::from_str(chunk.file_name().unwrap().to_str().unwrap()).unwrap();
+                // Grab the bytes associated with this CID
+                let bytes: Vec<u8> = blockstore.get_deserializable(&cid).await.unwrap();
+                // Write these bytes to the new file writer
+                new_file_writer.write_all(&bytes).unwrap();
+                // Flush the new file writer
+                new_file_writer.flush().unwrap();
+                // Update the progress bar
                 progress_bar.lock().unwrap().inc(1);
             }
             // Return OK status

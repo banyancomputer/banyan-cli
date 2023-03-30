@@ -4,10 +4,10 @@ use crate::types::{
 };
 use anyhow::{anyhow, Result};
 use indicatif::ProgressBar;
+use wnfs::common::{DiskBlockStore, BlockStore};
 use std::{
     fs::File,
     io::{BufReader, Read},
-    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -20,6 +20,7 @@ use std::{
 /// Returns a `Result<Vec<UnpackPipelinePlan>>`. Provides vector of plans for unpacking the newly created files in cases where
 /// the file was chunked and compressed successfully, or an error if something went wrong.
 pub async fn do_pack_pipeline(
+    blockstore: &DiskBlockStore,
     pack_pipeline_plan: PackPipelinePlan,
     progress_bar: Arc<Mutex<ProgressBar>>,
 ) -> Result<Vec<UnpackPipelinePlan>> {
@@ -30,7 +31,6 @@ pub async fn do_pack_pipeline(
                 compression,
                 partition,
                 encryption,
-                writeout,
                 size_in_bytes,
             } = pack_plan;
             // Open the original file (just the first one!)
@@ -46,44 +46,28 @@ pub async fn do_pack_pipeline(
 
             // While we've not yet seeked through the entirety of the file
             while remaining_bytes > 0 {
-                // New packed file name
-                let new_path = format!("{}{}", uuid::Uuid::new_v4(), ".packed");
-                // Location of this new packed file is also dependent on the writeout location
-                let new_file_loc = writeout.join(new_path.clone());
-
-                // Create a new file writer at this location
-                let new_file_writer = File::create(&new_file_loc)
-                    .map_err(|e| anyhow!("could not create new file for writing! {}", e))?;
-
-                // Append the writeout location
-                chunk_locations.push(PathBuf::from(new_path));
-
-                // Create a new encryptor for this file
-                let mut new_file_encryptor = age::Encryptor::with_recipients(vec![Box::new(
-                    encryption.identity.to_public(),
-                )])
-                .expect("could not create encryptor")
-                .wrap_output(new_file_writer)?;
-
                 // Determine how much of the file we're going to read
                 let read_size = std::cmp::min(partition.chunk_size, remaining_bytes);
 
                 // Construct a reader that will prevent us from reading the entire file at once
                 // TODO (organizedgrime) something about inner vs outer chunking?
-                let chunk_reader = old_file_reader.get_ref().take(read_size);
+                let mut chunk_reader = old_file_reader.get_ref().take(read_size);
 
-                // TODO (organizedgrime) maybe we can async these one day, a girl can dream
-                // Encode and compress the chunk
-                compression.encode(chunk_reader, &mut new_file_encryptor)?;
+                // TODO (organizedgrime) this is the point at which we'd bring back compression
+
+                // Read the bytes into the appropriate buffer
+                let mut bytes: Vec<u8> = vec![];
+                chunk_reader.read_to_end(&mut bytes)?;
+
+                // The bytes of the IPLD block
+                let cid = blockstore.put_serializable(&bytes).await.unwrap();
+                // Append the writeout location to the list of chunks
+                chunk_locations.push(blockstore.path.join(cid.to_string()));
 
                 // Determine how much of the file has yet to be written
                 remaining_bytes -= read_size;
 
-                // Close the previously written chunk
-                new_file_encryptor
-                    .finish()
-                    .map_err(|e| anyhow!("could not finish encryption! {}", e))?;
-
+                // Denote progress
                 progress_bar.lock().unwrap().inc(1);
             }
 

@@ -3,6 +3,7 @@ use crate::{
     vacuum::unpack::do_unpack_pipeline,
 };
 use anyhow::Result;
+use wnfs::common::DiskBlockStore;
 use std::path::Path;
 use tokio_stream::StreamExt;
 
@@ -71,10 +72,15 @@ pub async fn unpack_pipeline(
     )?);
     let shared_pb = Arc::new(Mutex::new(pb));
 
+    // Create a DiskBlockStore to store the packed data
+    let blockstore = DiskBlockStore::new(input_dir.to_path_buf());
+
+    // println!("blockstore is looking for files in {}", blockstore.path.display());
+
     // Iterate over each pipeline
     tokio_stream::iter(unpack_plans)
         .then(|pipeline_to_disk| {
-            do_unpack_pipeline(input_dir, pipeline_to_disk, output_dir, shared_pb.clone())
+            do_unpack_pipeline(&blockstore, pipeline_to_disk, output_dir, shared_pb.clone())
         })
         .collect::<Result<Vec<_>>>()
         .await?;
