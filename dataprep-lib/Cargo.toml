@@ -8,10 +8,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-futures.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
-tokio-stream.workspace = true
 jwalk.workspace = true
 
 serde.workspace = true
@@ -29,6 +27,8 @@ indicatif = { version = "0.17.3", features = ["improved_unicode"] }
 log = "0.4.17"
 byte-unit = "4.0.19"
 wnfs.workspace = true
+chrono.workspace = true
+rand.workspace = true
 
 # Benchmark for packing -> unpacking an input directory
 [[bench]]

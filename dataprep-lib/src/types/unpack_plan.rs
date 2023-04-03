@@ -6,6 +6,7 @@ use crate::types::{
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
+use wnfs::libipld::Ipld;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata that is emitted on successful write into new filesystem
@@ -118,5 +119,5 @@ pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,
     /// Specification for how to unpack files back to their original locations
-    pub unpack_plans: Vec<UnpackPipelinePlan>,
+    pub ipld: Ipld,
 }

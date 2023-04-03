@@ -1,14 +1,7 @@
-use crate::{
-    types::unpack_plan::{ManifestData, UnpackPipelinePlan},
-    vacuum::unpack::do_unpack_pipeline,
-};
+use crate::types::unpack_plan::ManifestData;
 use anyhow::Result;
 use std::path::Path;
-use tokio_stream::StreamExt;
-use wnfs::common::DiskBlockStore;
-
-use indicatif::{ProgressBar, ProgressStyle};
-use std::sync::{Arc, Mutex};
+use wnfs::libipld::Ipld;
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -21,7 +14,7 @@ use std::sync::{Arc, Mutex};
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(
-    input_dir: &Path,
+    _input_dir: &Path,
     output_dir: &Path,
     manifest_file: &Path,
 ) -> Result<()> {
@@ -49,42 +42,16 @@ pub async fn unpack_pipeline(
         panic!("Unsupported manifest version.");
     }
 
-    // Extract the unpacking plans
-    let unpack_plans: Vec<UnpackPipelinePlan> = manifest_data.unpack_plans;
+    // Extract the IPLD DAG
+    let _ipld: Ipld = manifest_data.ipld;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         output_dir.display()
     );
-    let total_units = unpack_plans.iter().fold(0, |acc, x| acc + x.n_chunks()); // Total number of units of work to be processed
-                                                                                // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to unpack.", total_units);
-    let total_size = unpack_plans.iter().fold(0, |acc, x| acc + x.n_bytes()); // Total number of bytes to be processed
-    info!(
-        "💾 Total size of files to unpack: {}",
-        byte_unit::Byte::from_bytes(total_size.into())
-            .get_appropriate_unit(false)
-            .to_string()
-    );
 
-    let pb = ProgressBar::new(total_units.try_into()?);
-    pb.set_style(ProgressStyle::default_bar().template(
-        "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-    )?);
-    let shared_pb = Arc::new(Mutex::new(pb));
-
-    // Create a DiskBlockStore to store the packed data
-    let blockstore = DiskBlockStore::new(input_dir.to_path_buf());
-
-    // println!("blockstore is looking for files in {}", blockstore.path.display());
-
-    // Iterate over each pipeline
-    tokio_stream::iter(unpack_plans)
-        .then(|pipeline_to_disk| {
-            do_unpack_pipeline(&blockstore, pipeline_to_disk, output_dir, shared_pb.clone())
-        })
-        .collect::<Result<Vec<_>>>()
-        .await?;
-
+    //TODO (organizedgrime) - deserialize the IPLD DAG and implement the unpacking pipeline
+    
     // If the async block returns, we're Ok.
     Ok(())
 }

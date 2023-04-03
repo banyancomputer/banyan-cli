@@ -1,19 +1,31 @@
-use anyhow::Result;
-use futures::{stream, StreamExt, TryStreamExt};
+use anyhow::{anyhow, Result};
+use chrono::Utc;
 use std::{
     collections::HashSet,
+    fs::File,
+    io::BufReader,
     path::{Path, PathBuf},
+    rc::Rc,
+    vec,
 };
-use wnfs::common::DiskBlockStore;
+use wnfs::{
+    common::{AsyncSerialize, DiskBlockStore},
+    libipld::Ipld,
+    namefilter::Namefilter,
+    private::{PrivateDirectory, PrivateForest},
+};
 
 use crate::{
     types::{
         pack_plan::{PackPipelinePlan, PackPlan},
         shared::{CompressionScheme, EncryptionScheme, PartitionScheme},
-        unpack_plan::{ManifestData, UnpackPipelinePlan},
+        unpack_plan::ManifestData
     },
-    utils::{fs as fsutil, grouper::grouper, spider},
-    vacuum::{self},
+    utils::{
+        fs as fsutil,
+        grouper::grouper,
+        spider::{self, path_to_segments},
+    }
 };
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -102,19 +114,68 @@ pub async fn pack_pipeline(
     let shared_pb = Arc::new(Mutex::new(pb));
 
     // Create a DiskBlockStore to store the packed data
-    let blockstore = DiskBlockStore::new(output_dir.to_path_buf());
+    let store = DiskBlockStore::new(output_dir.to_path_buf());
+    let mut rng = rand::thread_rng();
+    let mut directory = Rc::new(PrivateDirectory::new(
+        Namefilter::default(),
+        Utc::now(),
+        &mut rng,
+    ));
+    let mut forest = Rc::new(PrivateForest::new());
 
-    // TODO (laudiacay): For now we are doing compression in place, per-file. Make this better.
-    let unpack_plans: Vec<UnpackPipelinePlan> = stream::iter(packing_plan)
-        .then(|copy_plan| vacuum::pack::do_pack_pipeline(&blockstore, copy_plan, shared_pb.clone()))
-        .try_fold(
-            Vec::new(),
-            |mut acc: Vec<UnpackPipelinePlan>, item: Vec<UnpackPipelinePlan>| async move {
-                acc.extend(item);
-                Ok(acc)
-            },
-        )
-        .await?;
+    // TODO (organizedgrime) async these for real...
+    for pack_pipeline_plan in packing_plan {
+        match pack_pipeline_plan {
+            PackPipelinePlan::FileGroup(metadatas, pack_plan) => {
+                let PackPlan {
+                    compression,
+                    partition: _,
+                    encryption: _,
+                    size_in_bytes: _,
+                } = pack_plan;
+
+                // Open the original file (just the first one!)
+                let file = File::open(&metadatas.get(0)
+                    .expect("why is there nothing in metadatas").canonicalized_path)
+                    .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
+                // Create a reader for the original file
+                let file_reader = BufReader::new(file);
+                // Create a buffer to hold the compressed bytes
+                let mut compressed_bytes: Vec<u8> = vec![];
+                // Encode and compress the chunk
+                compression
+                    .encode(file_reader, &mut compressed_bytes)
+                    .unwrap();
+                // Turn the canonicalized path into a vector of segments
+                let path_segments =
+                    path_to_segments(metadatas.get(0).unwrap().canonicalized_path.clone()).unwrap();
+
+                // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
+                directory
+                    .write(
+                        &path_segments,
+                        false,
+                        Utc::now(),
+                        compressed_bytes,
+                        &mut forest,
+                        &store,
+                        &mut rng,
+                    )
+                    .await
+                    .unwrap();
+            }
+            // If this is a directory or symlink
+            _d @ PackPipelinePlan::Directory(_) | _d @ PackPipelinePlan::Symlink(..) => {
+                // TODO (organizedgrime) dont just do nothing
+            }
+        }
+
+        // Denote progress for each loop iteration
+        shared_pb.lock().unwrap().inc(1);
+    }
+
+    // Serialize the forest as an IPLD DAG
+    let ipld: Ipld = forest.async_serialize_ipld(&store).await.unwrap();
 
     info!(
         "📄 Writing out a data manifest file to {}",
@@ -146,7 +207,7 @@ pub async fn pack_pipeline(
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        unpack_plans,
+        ipld,
     };
 
     // Use serde to convert the ManifestData to JSON and write it to the path specified
