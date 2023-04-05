@@ -1,7 +1,12 @@
 use crate::types::unpack_plan::ManifestData;
 use anyhow::Result;
-use std::path::Path;
-use wnfs::libipld::Ipld;
+// use serde::{Deserialize, Serializer};
+use std::{path::Path, rc::Rc};
+use wnfs::{
+    common::{BlockStore, DiskBlockStore},
+    libipld::{serde as ipld_serde, Ipld},
+    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
+};
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -42,16 +47,36 @@ pub async fn unpack_pipeline(
         panic!("Unsupported manifest version.");
     }
 
-    // Extract the IPLD DAG
-    let _ipld: Ipld = manifest_data.ipld;
+    // Get the DiskBlockStore
+    let store: DiskBlockStore = manifest_data.store;
 
+    // Deserialize the PrivateRef
+    let dir_ref: PrivateRef = store
+        .get_deserializable(&manifest_data.ref_cid)
+        .await
+        .unwrap();
+
+    // Deserialize the IPLD DAG of the PrivateForest
+    let forest_ipld: Ipld = store
+        .get_deserializable(&manifest_data.ipld_cid)
+        .await
+        .unwrap();
+
+    // Create a PrivateForest from that IPLD DAG
+    let forest: PrivateForest = ipld_serde::from_ipld::<_>(forest_ipld)?;
+
+    // Load the PrivateDirectory from the PrivateForest
+    let _dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &store)
+        .await
+        .unwrap()
+        .as_dir()
+        .unwrap();
+    
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         output_dir.display()
     );
 
-    //TODO (organizedgrime) - deserialize the IPLD DAG and implement the unpacking pipeline
-    
-    // If the async block returns, we're Ok.
+    //TODO (organizedgrime) - implement the unpacking pipeline
     Ok(())
 }

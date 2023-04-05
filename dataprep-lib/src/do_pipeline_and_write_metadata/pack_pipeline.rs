@@ -9,23 +9,22 @@ use std::{
     vec,
 };
 use wnfs::{
-    common::{AsyncSerialize, DiskBlockStore},
-    libipld::Ipld,
+    common::{AsyncSerialize, BlockStore, DiskBlockStore},
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest},
+    private::{PrivateDirectory, PrivateForest, PrivateRef},
 };
 
 use crate::{
     types::{
         pack_plan::{PackPipelinePlan, PackPlan},
         shared::{CompressionScheme, EncryptionScheme, PartitionScheme},
-        unpack_plan::ManifestData
+        unpack_plan::ManifestData,
     },
     utils::{
         fs as fsutil,
         grouper::grouper,
         spider::{self, path_to_segments},
-    }
+    },
 };
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -90,9 +89,11 @@ pub async fn pack_pipeline(
         spider::spider(input_dir, follow_links, &default_pack_plan, &mut seen_files).await?;
     packing_plan.extend(spidered_files);
 
-    let total_units = packing_plan.iter().fold(0, |acc, x| acc + x.n_chunks()); // Total number of units of work to be processed
-                                                                                // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to pack.", total_units);
-    let total_size = packing_plan.iter().fold(0, |acc, x| acc + x.n_bytes()); // Total number of bytes to be processed
+    // Total number of units of work to be processed
+    let total_units = packing_plan.iter().fold(0, |acc, x| acc + x.n_chunks());
+    // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to pack.", total_units);
+    // Total number of bytes to be processed
+    let total_size = packing_plan.iter().fold(0, |acc, x| acc + x.n_bytes());
     info!(
         "💾 Total size of files to pack: {}",
         byte_unit::Byte::from_bytes(total_size)
@@ -116,7 +117,7 @@ pub async fn pack_pipeline(
     // Create a DiskBlockStore to store the packed data
     let store = DiskBlockStore::new(output_dir.to_path_buf());
     let mut rng = rand::thread_rng();
-    let mut directory = Rc::new(PrivateDirectory::new(
+    let mut root_dir = Rc::new(PrivateDirectory::new(
         Namefilter::default(),
         Utc::now(),
         &mut rng,
@@ -146,12 +147,13 @@ pub async fn pack_pipeline(
                 compression
                     .encode(file_reader, &mut compressed_bytes)
                     .unwrap();
+                
                 // Turn the canonicalized path into a vector of segments
                 let path_segments =
                     path_to_segments(metadatas.get(0).unwrap().canonicalized_path.clone()).unwrap();
 
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                directory
+                root_dir
                     .write(
                         &path_segments,
                         false,
@@ -165,8 +167,14 @@ pub async fn pack_pipeline(
                     .unwrap();
             }
             // If this is a directory or symlink
-            _d @ PackPipelinePlan::Directory(_) | _d @ PackPipelinePlan::Symlink(..) => {
-                // TODO (organizedgrime) dont just do nothing
+            PackPipelinePlan::Directory(metadata) | PackPipelinePlan::Symlink(metadata, _) => {
+                // Turn the canonicalized path into a vector of segments
+                let path_segments = path_to_segments(metadata.canonicalized_path.clone()).unwrap();
+                // Create the subdirectory
+                root_dir
+                    .mkdir(&path_segments, false, Utc::now(), &forest, &store, &mut rng)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -174,8 +182,14 @@ pub async fn pack_pipeline(
         shared_pb.lock().unwrap().inc(1);
     }
 
-    // Serialize the forest as an IPLD DAG
-    let ipld: Ipld = forest.async_serialize_ipld(&store).await.unwrap();
+    // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
+    let root_ref: PrivateRef = root_dir.store(&mut forest, &store, &mut rng).await.unwrap();
+    // Store it in the DiskBlockStore
+    let ref_cid = store.put_serializable(&root_ref).await.unwrap();
+    // Create an IPLD from the PrivateForest
+    let forest_ipld = forest.async_serialize_ipld(&store).await.unwrap();
+    // Store the PrivateForest's IPLD in the BlockStore
+    let ipld_cid = store.put_serializable(&forest_ipld).await.unwrap();
 
     info!(
         "📄 Writing out a data manifest file to {}",
@@ -207,7 +221,9 @@ pub async fn pack_pipeline(
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        ipld,
+        store,
+        ref_cid,
+        ipld_cid,
     };
 
     // Use serde to convert the ManifestData to JSON and write it to the path specified

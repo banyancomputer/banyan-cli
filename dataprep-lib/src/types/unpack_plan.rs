@@ -6,7 +6,7 @@ use crate::types::{
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
-use wnfs::libipld::Ipld;
+use wnfs::{common::DiskBlockStore, libipld::Cid};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 /// Metadata that is emitted on successful write into new filesystem
@@ -118,6 +118,10 @@ impl TryFrom<PackPipelinePlan> for UnpackPipelinePlan {
 pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,
-    /// Specification for how to unpack files back to their original locations
-    pub ipld: Ipld,
+    /// The BlockStore that holds all packed data
+    pub store: DiskBlockStore,
+    /// The store CID that points to the PrivateRef of the PrivateDirectory
+    pub ref_cid: Cid,
+    /// The store CID that points to the IPLD DAG representing the PrivateForest
+    pub ipld_cid: Cid,
 }
