@@ -147,10 +147,10 @@ pub async fn pack_pipeline(
                 compression
                     .encode(file_reader, &mut compressed_bytes)
                     .unwrap();
-                
+
                 // Turn the canonicalized path into a vector of segments
                 let path_segments =
-                    path_to_segments(metadatas.get(0).unwrap().canonicalized_path.clone()).unwrap();
+                    path_to_segments(metadatas.get(0).unwrap().original_location.clone()).unwrap();
 
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
                 root_dir
@@ -169,7 +169,7 @@ pub async fn pack_pipeline(
             // If this is a directory or symlink
             PackPipelinePlan::Directory(metadata) | PackPipelinePlan::Symlink(metadata, _) => {
                 // Turn the canonicalized path into a vector of segments
-                let path_segments = path_to_segments(metadata.canonicalized_path.clone()).unwrap();
+                let path_segments = path_to_segments(metadata.original_location.clone()).unwrap();
                 // Create the subdirectory
                 root_dir
                     .mkdir(&path_segments, false, Utc::now(), &forest, &store, &mut rng)

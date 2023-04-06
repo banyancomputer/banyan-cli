@@ -960,6 +960,7 @@ version = "1.0.0"
 dependencies = [
  "age",
  "anyhow",
+ "async-recursion",
  "byte-unit",
  "chrono",
  "criterion",

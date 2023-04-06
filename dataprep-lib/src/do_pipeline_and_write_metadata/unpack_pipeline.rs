@@ -1,7 +1,8 @@
-use crate::types::unpack_plan::ManifestData;
+use crate::types::{shared::CompressionScheme, unpack_plan::ManifestData};
 use anyhow::Result;
+use async_recursion::async_recursion;
 // use serde::{Deserialize, Serializer};
-use std::{path::Path, rc::Rc};
+use std::{fs::File, io::Write, path::Path, rc::Rc};
 use wnfs::{
     common::{BlockStore, DiskBlockStore},
     libipld::{serde as ipld_serde, Ipld},
@@ -66,16 +67,74 @@ pub async fn unpack_pipeline(
     let forest: PrivateForest = ipld_serde::from_ipld::<_>(forest_ipld)?;
 
     // Load the PrivateDirectory from the PrivateForest
-    let _dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &store)
+    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &store)
         .await
         .unwrap()
         .as_dir()
         .unwrap();
-    
+
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         output_dir.display()
     );
+
+    #[async_recursion(?Send)]
+    async fn process_node(
+        output_dir: &Path,
+        built_path: &Path,
+        node: &PrivateNode,
+        forest: &PrivateForest,
+        store: &impl BlockStore,
+    ) {
+        // If we are processing a directory
+        if node.is_dir() {
+            // Create the directory we are in
+            std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
+
+            let dir = node.as_dir().unwrap();
+            // List
+            let ls = dir.ls(&Vec::new(), false, forest, store).await.unwrap();
+            let node_names: Vec<String> = ls.into_iter().map(|(l, _)| l).collect();
+
+            for node_name in node_names {
+                let paths = &vec![node_name.clone()];
+                let node = dir
+                    .get_node(paths, false, forest, store)
+                    .await
+                    .unwrap()
+                    .unwrap();
+
+                // Recurse with newly found node
+                process_node(
+                    output_dir,
+                    built_path.join(node_name).as_path(),
+                    &node,
+                    forest,
+                    store,
+                )
+                .await;
+            }
+        }
+        // This implies node.is_file() == true
+        else {
+            let file = node.as_file().unwrap();
+            // Get the bytes associated with this file
+            let file_content = file.get_content(forest, store).await.unwrap();
+            // Create a buffer to hold the decompressed bytes
+            let mut decompressed_bytes: Vec<u8> = vec![];
+            // Encode and compress the chunk
+            CompressionScheme::new_zstd()
+                .decode(file_content.as_slice(), &mut decompressed_bytes)
+                .unwrap();
+            // Create the file at this location
+            let mut output_file = File::create(output_dir.join(built_path)).unwrap();
+            // Write the contents to the output file
+            output_file.write_all(&decompressed_bytes).unwrap();
+        }
+    }
+
+    // Run extraction on the base level with an empty built path
+    process_node(output_dir, Path::new(""), &dir.as_node(), &forest, &store).await;
 
     //TODO (organizedgrime) - implement the unpacking pipeline
     Ok(())

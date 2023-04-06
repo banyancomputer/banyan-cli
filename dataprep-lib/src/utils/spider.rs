@@ -81,7 +81,6 @@ pub async fn spider(
     Ok(packing_plan)
 }
 
-
 /// Converts a PathBuf into a vector of path segments for use in WNFS.
 pub fn path_to_segments(path: PathBuf) -> Result<Vec<String>> {
     let path = path
