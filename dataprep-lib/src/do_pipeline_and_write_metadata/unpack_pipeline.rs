@@ -8,6 +8,7 @@ use wnfs::{
     libipld::{serde as ipld_serde, Ipld},
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
 };
+use tokio as _;
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -20,7 +21,7 @@ use wnfs::{
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(
-    _input_dir: &Path,
+    input_dir: &Path,
     output_dir: &Path,
     manifest_file: &Path,
 ) -> Result<()> {
@@ -31,13 +32,16 @@ pub async fn unpack_pipeline(
     info!("🚀 Starting unpacking pipeline...");
 
     // Deserialize the data read as the latest version of manifestdata
-    let manifest_data: ManifestData = match serde_json::from_reader(reader) {
+    let mut manifest_data: ManifestData = match serde_json::from_reader(reader) {
         Ok(data) => data,
         Err(e) => {
             error!("Failed to deserialize manifest file: {}", e);
             panic!("Failed to deserialize manifest file: {e}");
         }
     };
+
+    // If the user specified a different location for their DiskBlockStore
+    manifest_data.store.path = input_dir.to_path_buf();
 
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()
