@@ -16,9 +16,8 @@ use wnfs::{
 
 use crate::{
     types::{
-        pack_plan::{PackPipelinePlan, PackPlan},
-        shared::{CompressionScheme, EncryptionScheme, PartitionScheme},
-        unpack_plan::ManifestData,
+        pack_plan::PackPipelinePlan,
+        unpack_plan::ManifestData, shared::CompressionScheme,
     },
     utils::{
         fs as fsutil,
@@ -49,24 +48,14 @@ pub async fn pack_pipeline(
     input_dir: &Path,
     output_dir: &Path,
     manifest_file: &Path,
-    chunk_size: u64,
+    // TODO implement a way to specify chunk size for WNFS
+    _chunk_size: u64,
     follow_links: bool,
 ) -> Result<()> {
     info!("🚀 Starting packing pipeline...");
     // Create the output directory
     fsutil::ensure_path_exists_and_is_empty_dir(output_dir, false)
         .expect("output directory must exist and be empty");
-
-    // This pack plan is used to construct FileGroup type PackPipelinePlans,
-    // but is not unique to any individual file / FileGroup.
-    // remember to set the size_in_bytes field before use
-    // prevents us from having to make a ton of new encryption keys (slow!!)
-    let default_pack_plan = PackPlan {
-        compression: CompressionScheme::new_zstd(),
-        partition: PartitionScheme { chunk_size },
-        encryption: EncryptionScheme::new_age(),
-        size_in_bytes: 0,
-    };
 
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
@@ -76,7 +65,7 @@ pub async fn pack_pipeline(
 
     /* Perform deduplication and plan how to copy the files */
     info!("🔍 Deduplicating the filesystem at {}", input_dir.display());
-    let group_plans = grouper(input_dir, follow_links, &default_pack_plan, &mut seen_files)?;
+    let group_plans = grouper(input_dir, follow_links, &mut seen_files)?;
     packing_plan.extend(group_plans);
 
     /* Spider all the files so we can figure out what directories and symlinks to handle */
@@ -86,19 +75,12 @@ pub async fn pack_pipeline(
         input_dir.display()
     );
     let spidered_files =
-        spider::spider(input_dir, follow_links, &default_pack_plan, &mut seen_files).await?;
+        spider::spider(input_dir, follow_links, &mut seen_files).await?;
     packing_plan.extend(spidered_files);
 
-    // Total number of units of work to be processed
-    let total_units = packing_plan.iter().fold(0, |acc, x| acc + x.n_chunks());
-    // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to pack.", total_units);
-    // Total number of bytes to be processed
-    let total_size = packing_plan.iter().fold(0, |acc, x| acc + x.n_bytes());
     info!(
-        "💾 Total size of files to pack: {}",
-        byte_unit::Byte::from_bytes(total_size)
-            .get_appropriate_unit(false)
-            .to_string()
+        "💾 Total number of files to pack: {}",
+        packing_plan.len()
     );
 
     info!(
@@ -108,7 +90,7 @@ pub async fn pack_pipeline(
     // Initialize the progress bar
     // TODO: optionally turn off the progress bar
     // compute the total number of units of work to be processed
-    let pb = ProgressBar::new(total_units.into());
+    let pb = ProgressBar::new(packing_plan.len() as u64);
     pb.set_style(ProgressStyle::default_bar().template(
         "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
     )?);
@@ -127,14 +109,7 @@ pub async fn pack_pipeline(
     // TODO (organizedgrime) async these for real...
     for pack_pipeline_plan in packing_plan {
         match pack_pipeline_plan {
-            PackPipelinePlan::FileGroup(metadatas, pack_plan) => {
-                let PackPlan {
-                    compression,
-                    partition: _,
-                    encryption: _,
-                    size_in_bytes: _,
-                } = pack_plan;
-
+            PackPipelinePlan::FileGroup(metadatas) => {
                 // Open the original file (just the first one!)
                 let file = File::open(&metadatas.get(0)
                     .expect("why is there nothing in metadatas").canonicalized_path)
@@ -145,7 +120,7 @@ pub async fn pack_pipeline(
                 // Create a buffer to hold the compressed bytes
                 let mut compressed_bytes: Vec<u8> = vec![];
                 // Encode and compress the chunk
-                compression
+                CompressionScheme::new_zstd()
                     .encode(file_reader, &mut compressed_bytes)
                     .unwrap();
 

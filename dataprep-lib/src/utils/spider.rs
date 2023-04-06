@@ -1,5 +1,5 @@
 use crate::types::{
-    pack_plan::{PackPipelinePlan, PackPlan},
+    pack_plan::PackPipelinePlan,
     spider::SpiderMetadata,
 };
 use anyhow::Result;
@@ -21,7 +21,6 @@ use std::{
 pub async fn spider(
     input_dir: &Path,
     _follow_links: bool,
-    default_pack_plan: &PackPlan,
     seen_files: &mut HashSet<PathBuf>,
 ) -> Result<Vec<PackPipelinePlan>> {
     // Canonicalize the path
@@ -72,10 +71,8 @@ pub async fn spider(
         }
         // If this is a file that was not in a group
         else {
-            let mut pack_plan = default_pack_plan.clone();
-            pack_plan.size_in_bytes = spidered.original_metadata.len().into();
             // Push a PackPipelinePlan using fake file group of singular spidered metadata
-            packing_plan.push(PackPipelinePlan::FileGroup(vec![origin_data], pack_plan));
+            packing_plan.push(PackPipelinePlan::FileGroup(vec![origin_data]));
         }
     }
     Ok(packing_plan)

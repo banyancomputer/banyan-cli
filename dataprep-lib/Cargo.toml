@@ -14,7 +14,6 @@ jwalk.workspace = true
 
 serde.workspace = true
 serde_json.workspace = true
-age.workspace = true
 # Dev-Dependencies: These should live under a different tag
 fake-file.workspace = true
 dir-assert.workspace = true
@@ -25,7 +24,6 @@ zstd.workspace = true
 fclones.workspace = true
 indicatif = { version = "0.17.3", features = ["improved_unicode"] }
 log = "0.4.17"
-byte-unit = "4.0.19"
 wnfs.workspace = true
 chrono.workspace = true
 rand.workspace = true

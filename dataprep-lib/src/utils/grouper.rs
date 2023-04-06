@@ -1,6 +1,6 @@
 use crate::types::{
-    pack_plan::{PackPipelinePlan, PackPlan},
-    spider::SpiderMetadata,
+    pack_plan::PackPipelinePlan,
+    spider::SpiderMetadata
 };
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
@@ -29,7 +29,6 @@ use super::custom_fclones_logger::CustomLogger;
 pub fn grouper(
     input_dir: &Path,
     follow_links: bool,
-    default_pack_plan: &PackPlan,
     seen_files: &mut HashSet<PathBuf>,
 ) -> Result<Vec<PackPipelinePlan>> {
     // Construct the group config
@@ -68,10 +67,8 @@ pub fn grouper(
             // Append the metadata
             metadatas.push(spider_metadata);
         }
-        let mut pack_plan = default_pack_plan.clone();
-        pack_plan.size_in_bytes = group.file_len.0.into();
         // Push a PackPipelinePlan with this file group
-        packing_plan.push(PackPipelinePlan::FileGroup(metadatas, pack_plan));
+        packing_plan.push(PackPipelinePlan::FileGroup(metadatas));
     }
     Ok(packing_plan)
 }
