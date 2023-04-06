@@ -82,8 +82,9 @@ pub async fn spider(
 }
 
 /// Converts a PathBuf into a vector of path segments for use in WNFS.
-pub fn path_to_segments(path: PathBuf) -> Result<Vec<String>> {
+pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
     let path = path
+        .to_path_buf()
         .into_os_string()
         .into_string()
         .map_err(|_| wnfs::error::FsError::InvalidPath)?;

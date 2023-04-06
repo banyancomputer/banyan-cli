@@ -149,31 +149,51 @@ pub async fn pack_pipeline(
                     .encode(file_reader, &mut compressed_bytes)
                     .unwrap();
 
-                // For each metadata identified with this file hash
-                for metadata in metadatas {
-                    // Turn the canonicalized path into a vector of segments
-                    let path_segments =
-                        path_to_segments(metadata.original_location.clone()).unwrap();
+                // Grab the metadata for the first occurrence of this file
+                let first = &metadatas.get(0).unwrap().original_location;
+                // Turn the canonicalized path into a vector of segments
+                let first_path_segments = path_to_segments(first).unwrap();
 
-                    // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                    root_dir
-                        .write(
-                            &path_segments,
-                            false,
-                            Utc::now(),
-                            compressed_bytes.clone(),
-                            &mut forest,
-                            &store,
-                            &mut rng,
-                        )
-                        .await
-                        .unwrap();
+                // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
+                root_dir
+                    .write(
+                        &first_path_segments,
+                        false,
+                        Utc::now(),
+                        compressed_bytes.clone(),
+                        &mut forest,
+                        &store,
+                        &mut rng,
+                    )
+                    .await
+                    .unwrap();
+
+                // For each duplicate
+                for metadata in &metadatas[1..] {
+                    // Grab the original location
+                    let dup = &metadata.original_location;
+                    let dup_path_segments = path_to_segments(dup).unwrap();
+
+                    // Remove the final element to represent the folder path
+                    let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
+                    // Create that folder
+                    root_dir.mkdir(folder_segments, false, Utc::now(), &forest, &store, &mut rng).await.unwrap();
+                    // Copy the file from the original path to the duplicate path
+                    root_dir.cp(
+                        &first_path_segments,
+                        &dup_path_segments,
+                        false,
+                        Utc::now(),
+                        &mut forest,
+                        &store,
+                        &mut rng,
+                    ).await.unwrap();
                 }
             }
             // If this is a directory or symlink
             PackPipelinePlan::Directory(metadata) | PackPipelinePlan::Symlink(metadata, _) => {
                 // Turn the canonicalized path into a vector of segments
-                let path_segments = path_to_segments(metadata.original_location.clone()).unwrap();
+                let path_segments = path_to_segments(&metadata.original_location).unwrap();
                 // Create the subdirectory
                 root_dir
                     .mkdir(&path_segments, false, Utc::now(), &forest, &store, &mut rng)
