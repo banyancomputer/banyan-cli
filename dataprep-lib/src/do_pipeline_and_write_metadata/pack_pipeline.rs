@@ -129,12 +129,14 @@ pub async fn pack_pipeline(
                 // Turn the canonicalized path into a vector of segments
                 let first_path_segments = path_to_segments(first).unwrap();
 
+                let time = Utc::now();
+
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
                 root_dir
                     .write(
                         &first_path_segments,
                         false,
-                        Utc::now(),
+                        time,
                         compressed_bytes.clone(),
                         &mut forest,
                         &store,
@@ -154,14 +156,12 @@ pub async fn pack_pipeline(
                     // Create that folder
                     root_dir.mkdir(folder_segments, false, Utc::now(), &forest, &store, &mut rng).await.unwrap();
                     // Copy the file from the original path to the duplicate path
-                    root_dir.cp(
+                    root_dir.cp_link(
                         &first_path_segments,
                         &dup_path_segments,
                         false,
-                        Utc::now(),
                         &mut forest,
-                        &store,
-                        &mut rng,
+                        &store
                     ).await.unwrap();
                 }
             }
