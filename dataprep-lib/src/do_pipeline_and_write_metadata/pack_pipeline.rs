@@ -139,6 +139,7 @@ pub async fn pack_pipeline(
                 let file = File::open(&metadatas.get(0)
                     .expect("why is there nothing in metadatas").canonicalized_path)
                     .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
+
                 // Create a reader for the original file
                 let file_reader = BufReader::new(file);
                 // Create a buffer to hold the compressed bytes
@@ -148,23 +149,26 @@ pub async fn pack_pipeline(
                     .encode(file_reader, &mut compressed_bytes)
                     .unwrap();
 
-                // Turn the canonicalized path into a vector of segments
-                let path_segments =
-                    path_to_segments(metadatas.get(0).unwrap().original_location.clone()).unwrap();
+                // For each metadata identified with this file hash
+                for metadata in metadatas {
+                    // Turn the canonicalized path into a vector of segments
+                    let path_segments =
+                        path_to_segments(metadata.original_location.clone()).unwrap();
 
-                // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                root_dir
-                    .write(
-                        &path_segments,
-                        false,
-                        Utc::now(),
-                        compressed_bytes,
-                        &mut forest,
-                        &store,
-                        &mut rng,
-                    )
-                    .await
-                    .unwrap();
+                    // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
+                    root_dir
+                        .write(
+                            &path_segments,
+                            false,
+                            Utc::now(),
+                            compressed_bytes.clone(),
+                            &mut forest,
+                            &store,
+                            &mut rng,
+                        )
+                        .await
+                        .unwrap();
+                }
             }
             // If this is a directory or symlink
             PackPipelinePlan::Directory(metadata) | PackPipelinePlan::Symlink(metadata, _) => {
