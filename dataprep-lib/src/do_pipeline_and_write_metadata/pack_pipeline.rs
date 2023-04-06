@@ -16,8 +16,8 @@ use wnfs::{
 
 use crate::{
     types::{
-        pack_plan::PackPipelinePlan,
-        unpack_plan::ManifestData, shared::CompressionScheme,
+        pipeline::{PackPipelinePlan, ManifestData}, 
+        shared::CompressionScheme
     },
     utils::{
         fs as fsutil,

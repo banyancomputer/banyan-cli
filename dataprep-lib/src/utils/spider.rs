@@ -1,5 +1,5 @@
 use crate::types::{
-    pack_plan::PackPipelinePlan,
+    pipeline::PackPipelinePlan,
     spider::SpiderMetadata,
 };
 use anyhow::Result;

@@ -1,4 +1,4 @@
-use crate::types::{shared::CompressionScheme, unpack_plan::ManifestData};
+use crate::types::{shared::CompressionScheme, pipeline::ManifestData};
 use anyhow::Result;
 use async_recursion::async_recursion;
 // use serde::{Deserialize, Serializer};
