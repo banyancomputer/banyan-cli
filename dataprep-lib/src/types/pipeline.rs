@@ -13,7 +13,9 @@ pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,
     /// The BlockStore that holds all packed data
-    pub store: DiskBlockStore,
+    pub content_store: DiskBlockStore,
+    /// The BlockStore that holds all Metadata
+    pub meta_store: DiskBlockStore,
     /// The store CID that points to the PrivateRef of the PrivateDirectory
     pub ref_cid: Cid,
     /// The store CID that points to the IPLD DAG representing the PrivateForest

@@ -21,7 +21,7 @@ use wnfs::{
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(
-    input_dir: &Path,
+    _input_dir: &Path,
     output_dir: &Path,
     manifest_file: &Path,
 ) -> Result<()> {
@@ -32,7 +32,7 @@ pub async fn unpack_pipeline(
     info!("🚀 Starting unpacking pipeline...");
 
     // Deserialize the data read as the latest version of manifestdata
-    let mut manifest_data: ManifestData = match serde_json::from_reader(reader) {
+    let manifest_data: ManifestData = match serde_json::from_reader(reader) {
         Ok(data) => data,
         Err(e) => {
             error!("Failed to deserialize manifest file: {}", e);
@@ -41,7 +41,7 @@ pub async fn unpack_pipeline(
     };
 
     // If the user specified a different location for their DiskBlockStore
-    manifest_data.store.path = input_dir.to_path_buf();
+    // manifest_data.content_store.path = input_dir.to_path_buf();
 
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()
@@ -52,17 +52,18 @@ pub async fn unpack_pipeline(
         panic!("Unsupported manifest version.");
     }
 
-    // Get the DiskBlockStore
-    let store: DiskBlockStore = manifest_data.store;
+    // Get the DiskBlockStores
+    let content_store: DiskBlockStore = manifest_data.content_store;
+    let meta_store: DiskBlockStore = manifest_data.meta_store;
 
     // Deserialize the PrivateRef
-    let dir_ref: PrivateRef = store
+    let dir_ref: PrivateRef = meta_store
         .get_deserializable(&manifest_data.ref_cid)
         .await
         .unwrap();
 
     // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = store
+    let forest_ipld: Ipld = meta_store
         .get_deserializable(&manifest_data.ipld_cid)
         .await
         .unwrap();
@@ -71,7 +72,7 @@ pub async fn unpack_pipeline(
     let forest: PrivateForest = ipld_serde::from_ipld::<_>(forest_ipld)?;
 
     // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &store)
+    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &content_store)
         .await
         .unwrap()
         .as_dir()
@@ -138,7 +139,7 @@ pub async fn unpack_pipeline(
     }
 
     // Run extraction on the base level with an empty built path
-    process_node(output_dir, Path::new(""), &dir.as_node(), &forest, &store).await;
+    process_node(output_dir, Path::new(""), &dir.as_node(), &forest, &content_store).await;
 
     //TODO (organizedgrime) - implement the unpacking pipeline
     Ok(())
