@@ -9,15 +9,15 @@ use std::{
     vec,
 };
 use wnfs::{
-    common::{AsyncSerialize, BlockStore, DiskBlockStore},
+    common::{AsyncSerialize, BlockStore, CarBlockStore},
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest, PrivateRef},
 };
 
 use crate::{
     types::{
-        pipeline::{PackPipelinePlan, ManifestData}, 
-        shared::CompressionScheme
+        pipeline::{ManifestData, PackPipelinePlan},
+        shared::CompressionScheme,
     },
     utils::{
         fs as fsutil,
@@ -74,14 +74,10 @@ pub async fn pack_pipeline(
         "📁 Finding directories and symlinks to back up starting at {}",
         input_dir.display()
     );
-    let spidered_files =
-        spider::spider(input_dir, follow_links, &mut seen_files).await?;
+    let spidered_files = spider::spider(input_dir, follow_links, &mut seen_files).await?;
     packing_plan.extend(spidered_files);
 
-    info!(
-        "💾 Total number of files to pack: {}",
-        packing_plan.len()
-    );
+    info!("💾 Total number of files to pack: {}", packing_plan.len());
 
     info!(
         "🔐 Compressing and encrypting each file as it is copied to the new filesystem at {}",
@@ -96,8 +92,8 @@ pub async fn pack_pipeline(
     )?);
     let shared_pb = Arc::new(Mutex::new(pb));
 
-    // Create a DiskBlockStore to store the packed data
-    let content_store = DiskBlockStore::new(output_dir.to_path_buf());
+    // Create a CarBlockStore to store the packed data
+    let content_store = CarBlockStore::new(output_dir.to_path_buf(), None);
     let mut rng = rand::thread_rng();
     let mut root_dir = Rc::new(PrivateDirectory::new(
         Namefilter::default(),
@@ -154,15 +150,28 @@ pub async fn pack_pipeline(
                     // Remove the final element to represent the folder path
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
-                    root_dir.mkdir(folder_segments, false, Utc::now(), &forest, &content_store, &mut rng).await.unwrap();
+                    root_dir
+                        .mkdir(
+                            folder_segments,
+                            false,
+                            Utc::now(),
+                            &forest,
+                            &content_store,
+                            &mut rng,
+                        )
+                        .await
+                        .unwrap();
                     // Copy the file from the original path to the duplicate path
-                    root_dir.cp_link(
-                        &first_path_segments,
-                        &dup_path_segments,
-                        false,
-                        &mut forest,
-                        &content_store
-                    ).await.unwrap();
+                    root_dir
+                        .cp_link(
+                            &first_path_segments,
+                            &dup_path_segments,
+                            false,
+                            &mut forest,
+                            &content_store,
+                        )
+                        .await
+                        .unwrap();
                 }
             }
             // If this is a directory or symlink
@@ -171,7 +180,14 @@ pub async fn pack_pipeline(
                 let path_segments = path_to_segments(&metadata.original_location).unwrap();
                 // Create the subdirectory
                 root_dir
-                    .mkdir(&path_segments, false, Utc::now(), &forest, &content_store, &mut rng)
+                    .mkdir(
+                        &path_segments,
+                        false,
+                        Utc::now(),
+                        &forest,
+                        &content_store,
+                        &mut rng,
+                    )
                     .await
                     .unwrap();
             }
@@ -181,10 +197,13 @@ pub async fn pack_pipeline(
         shared_pb.lock().unwrap().inc(1);
     }
 
-    let meta_store: DiskBlockStore = DiskBlockStore::new(output_dir.to_path_buf().join("meta"));
+    let meta_store: CarBlockStore = CarBlockStore::new(output_dir.to_path_buf().join("meta"), None);
     // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
-    let root_ref: PrivateRef = root_dir.store(&mut forest, &content_store, &mut rng).await.unwrap();
-    // Store it in the Metadata DiskBlockStore
+    let root_ref: PrivateRef = root_dir
+        .store(&mut forest, &content_store, &mut rng)
+        .await
+        .unwrap();
+    // Store it in the Metadata CarBlockStore
     let ref_cid = meta_store.put_serializable(&root_ref).await.unwrap();
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(&content_store).await.unwrap();

@@ -1,11 +1,11 @@
-use crate::types::{shared::CompressionScheme, pipeline::ManifestData};
+use crate::types::{pipeline::ManifestData, shared::CompressionScheme};
 use anyhow::Result;
 use async_recursion::async_recursion;
 // use serde::{Deserialize, Serializer};
 use std::{fs::File, io::Write, path::Path, rc::Rc};
 use tokio as _;
 use wnfs::{
-    common::{BlockStore, DiskBlockStore},
+    common::{BlockStore, CarBlockStore},
     libipld::{serde as ipld_serde, Ipld},
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
 };
@@ -40,7 +40,7 @@ pub async fn unpack_pipeline(
         }
     };
 
-    // If the user specified a different location for their DiskBlockStore
+    // If the user specified a different location for their CarBlockStore
     // manifest_data.content_store.path = input_dir.to_path_buf();
 
     // If the major version of the manifest is not the same as the major version of the program
@@ -53,8 +53,8 @@ pub async fn unpack_pipeline(
     }
 
     // Get the DiskBlockStores
-    let content_store: DiskBlockStore = manifest_data.content_store;
-    let meta_store: DiskBlockStore = manifest_data.meta_store;
+    let content_store: CarBlockStore = manifest_data.content_store;
+    let meta_store: CarBlockStore = manifest_data.meta_store;
 
     // Deserialize the PrivateRef
     let dir_ref: PrivateRef = meta_store
@@ -139,7 +139,14 @@ pub async fn unpack_pipeline(
     }
 
     // Run extraction on the base level with an empty built path
-    process_node(output_dir, Path::new(""), &dir.as_node(), &forest, &content_store).await;
+    process_node(
+        output_dir,
+        Path::new(""),
+        &dir.as_node(),
+        &forest,
+        &content_store,
+    )
+    .await;
 
     //TODO (organizedgrime) - implement the unpacking pipeline
     Ok(())

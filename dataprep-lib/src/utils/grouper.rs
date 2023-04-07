@@ -1,7 +1,4 @@
-use crate::types::{
-    pipeline::PackPipelinePlan,
-    spider::SpiderMetadata
-};
+use crate::types::{pipeline::PackPipelinePlan, spider::SpiderMetadata};
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
 use std::{
