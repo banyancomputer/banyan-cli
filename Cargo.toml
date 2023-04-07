@@ -32,7 +32,7 @@ dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch 
 zstd = "0.12.3"
 fclones = "0.30.0"
 base64 = "0.21.0"
-wnfs = { path = "../rs-wnfs/wnfs" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "laudiacay/refactor-blockstore" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [patch]
