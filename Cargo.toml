@@ -5,7 +5,7 @@ members = [
 ]
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
-version = "0.1.1"
+version = "1.0.0"
 license = "MIT"
 edition = "2021"
 repository = "https://github.com/banyancomputer/dataprep"
@@ -32,7 +32,7 @@ dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch 
 zstd = "0.12.3"
 fclones = "0.30.0"
 base64 = "0.21.0"
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "laudiacay/refactor-blockstore" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [patch]
