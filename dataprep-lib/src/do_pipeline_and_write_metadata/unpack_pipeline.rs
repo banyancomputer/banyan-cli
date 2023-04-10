@@ -21,7 +21,7 @@ use wnfs::{
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(
-    _input_dir: &Path,
+    input_dir: &Path,
     output_dir: &Path,
     manifest_file: &Path,
 ) -> Result<()> {
@@ -32,7 +32,7 @@ pub async fn unpack_pipeline(
     info!("🚀 Starting unpacking pipeline...");
 
     // Deserialize the data read as the latest version of manifestdata
-    let manifest_data: ManifestData = match serde_json::from_reader(reader) {
+    let mut manifest_data: ManifestData = match serde_json::from_reader(reader) {
         Ok(data) => data,
         Err(e) => {
             error!("Failed to deserialize manifest file: {}", e);
@@ -40,8 +40,9 @@ pub async fn unpack_pipeline(
         }
     };
 
-    // If the user specified a different location for their CarBlockStore
-    // manifest_data.content_store.path = input_dir.to_path_buf();
+    // If the user specified a different location for their CarBlockStores
+    manifest_data.content_store.change_dir(input_dir.to_path_buf())?;
+    manifest_data.meta_store.change_dir(input_dir.to_path_buf().join("meta"))?;
 
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()
