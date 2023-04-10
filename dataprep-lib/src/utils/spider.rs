@@ -1,7 +1,4 @@
-use crate::types::{
-    pack_plan::{PackPipelinePlan, PackPlan},
-    spider::SpiderMetadata,
-};
+use crate::types::{pipeline::PackPipelinePlan, spider::SpiderMetadata};
 use anyhow::Result;
 use jwalk::WalkDir;
 use std::{
@@ -21,7 +18,6 @@ use std::{
 pub async fn spider(
     input_dir: &Path,
     _follow_links: bool,
-    default_pack_plan: &PackPlan,
     seen_files: &mut HashSet<PathBuf>,
 ) -> Result<Vec<PackPipelinePlan>> {
     // Canonicalize the path
@@ -72,11 +68,24 @@ pub async fn spider(
         }
         // If this is a file that was not in a group
         else {
-            let mut pack_plan = default_pack_plan.clone();
-            pack_plan.size_in_bytes = spidered.original_metadata.len().into();
             // Push a PackPipelinePlan using fake file group of singular spidered metadata
-            packing_plan.push(PackPipelinePlan::FileGroup(vec![origin_data], pack_plan));
+            packing_plan.push(PackPipelinePlan::FileGroup(vec![origin_data]));
         }
     }
     Ok(packing_plan)
+}
+
+/// Converts a PathBuf into a vector of path segments for use in WNFS.
+pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
+    let path = path
+        .to_path_buf()
+        .into_os_string()
+        .into_string()
+        .map_err(|_| wnfs::error::FsError::InvalidPath)?;
+    let path_segments: Vec<String> = path
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    Ok(path_segments)
 }

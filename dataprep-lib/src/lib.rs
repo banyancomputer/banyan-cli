@@ -52,5 +52,3 @@ pub mod do_pipeline_and_write_metadata;
 pub mod types;
 /// This module contains filesytem helper functions and hasher helper functions.
 pub mod utils;
-/// This module contains the packing pipeline.
-pub mod vacuum;

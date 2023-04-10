@@ -1,13 +1,14 @@
-use crate::{
-    types::unpack_plan::{ManifestData, UnpackPipelinePlan},
-    vacuum::unpack::do_unpack_pipeline,
-};
+use crate::types::{pipeline::ManifestData, shared::CompressionScheme};
 use anyhow::Result;
-use std::path::Path;
-use tokio_stream::StreamExt;
-
-use indicatif::{ProgressBar, ProgressStyle};
-use std::sync::{Arc, Mutex};
+use async_recursion::async_recursion;
+// use serde::{Deserialize, Serializer};
+use std::{fs::File, io::Write, path::Path, rc::Rc};
+use tokio as _;
+use wnfs::{
+    common::{BlockStore, CarBlockStore},
+    libipld::{serde as ipld_serde, Ipld},
+    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
+};
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -31,13 +32,17 @@ pub async fn unpack_pipeline(
     info!("🚀 Starting unpacking pipeline...");
 
     // Deserialize the data read as the latest version of manifestdata
-    let manifest_data: ManifestData = match serde_json::from_reader(reader) {
+    let mut manifest_data: ManifestData = match serde_json::from_reader(reader) {
         Ok(data) => data,
         Err(e) => {
             error!("Failed to deserialize manifest file: {}", e);
             panic!("Failed to deserialize manifest file: {e}");
         }
     };
+
+    // If the user specified a different location for their CarBlockStores
+    manifest_data.content_store.change_dir(input_dir.to_path_buf())?;
+    manifest_data.meta_store.change_dir(input_dir.to_path_buf().join("meta"))?;
 
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()
@@ -48,37 +53,102 @@ pub async fn unpack_pipeline(
         panic!("Unsupported manifest version.");
     }
 
-    // Extract the unpacking plans
-    let unpack_plans: Vec<UnpackPipelinePlan> = manifest_data.unpack_plans;
+    // Get the DiskBlockStores
+    let content_store: CarBlockStore = manifest_data.content_store;
+    let meta_store: CarBlockStore = manifest_data.meta_store;
+
+    // Deserialize the PrivateRef
+    let dir_ref: PrivateRef = meta_store
+        .get_deserializable(&manifest_data.ref_cid)
+        .await
+        .unwrap();
+
+    // Deserialize the IPLD DAG of the PrivateForest
+    let forest_ipld: Ipld = meta_store
+        .get_deserializable(&manifest_data.ipld_cid)
+        .await
+        .unwrap();
+
+    // Create a PrivateForest from that IPLD DAG
+    let forest: PrivateForest = ipld_serde::from_ipld::<_>(forest_ipld)?;
+
+    // Load the PrivateDirectory from the PrivateForest
+    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &content_store)
+        .await
+        .unwrap()
+        .as_dir()
+        .unwrap();
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         output_dir.display()
     );
-    let total_units = unpack_plans.iter().fold(0, |acc, x| acc + x.n_chunks()); // Total number of units of work to be processed
-                                                                                // TODO buggy computation of n_chunks info!("🔧 Found {} file chunks, symlinks, and directories to unpack.", total_units);
-    let total_size = unpack_plans.iter().fold(0, |acc, x| acc + x.n_bytes()); // Total number of bytes to be processed
-    info!(
-        "💾 Total size of files to unpack: {}",
-        byte_unit::Byte::from_bytes(total_size.into())
-            .get_appropriate_unit(false)
-            .to_string()
-    );
 
-    let pb = ProgressBar::new(total_units.try_into()?);
-    pb.set_style(ProgressStyle::default_bar().template(
-        "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-    )?);
-    let shared_pb = Arc::new(Mutex::new(pb));
+    #[async_recursion(?Send)]
+    async fn process_node(
+        output_dir: &Path,
+        built_path: &Path,
+        node: &PrivateNode,
+        forest: &PrivateForest,
+        store: &impl BlockStore,
+    ) {
+        // If we are processing a directory
+        if node.is_dir() {
+            // Create the directory we are in
+            std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
 
-    // Iterate over each pipeline
-    tokio_stream::iter(unpack_plans)
-        .then(|pipeline_to_disk| {
-            do_unpack_pipeline(input_dir, pipeline_to_disk, output_dir, shared_pb.clone())
-        })
-        .collect::<Result<Vec<_>>>()
-        .await?;
+            let dir = node.as_dir().unwrap();
+            // List
+            let ls = dir.ls(&Vec::new(), false, forest, store).await.unwrap();
+            let node_names: Vec<String> = ls.into_iter().map(|(l, _)| l).collect();
 
-    // If the async block returns, we're Ok.
+            for node_name in node_names {
+                let paths = &vec![node_name.clone()];
+                let node = dir
+                    .get_node(paths, false, forest, store)
+                    .await
+                    .unwrap()
+                    .unwrap();
+
+                // Recurse with newly found node
+                process_node(
+                    output_dir,
+                    built_path.join(node_name).as_path(),
+                    &node,
+                    forest,
+                    store,
+                )
+                .await;
+            }
+        }
+        // This implies node.is_file() == true
+        else {
+            let file = node.as_file().unwrap();
+            // Get the bytes associated with this file
+            let file_content = file.get_content(forest, store).await.unwrap();
+            // Create a buffer to hold the decompressed bytes
+            let mut decompressed_bytes: Vec<u8> = vec![];
+            // Encode and compress the chunk
+            CompressionScheme::new_zstd()
+                .decode(file_content.as_slice(), &mut decompressed_bytes)
+                .unwrap();
+            // Create the file at this location
+            let mut output_file = File::create(output_dir.join(built_path)).unwrap();
+            // Write the contents to the output file
+            output_file.write_all(&decompressed_bytes).unwrap();
+        }
+    }
+
+    // Run extraction on the base level with an empty built path
+    process_node(
+        output_dir,
+        Path::new(""),
+        &dir.as_node(),
+        &forest,
+        &content_store,
+    )
+    .await;
+
+    //TODO (organizedgrime) - implement the unpacking pipeline
     Ok(())
 }

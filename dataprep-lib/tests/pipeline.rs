@@ -44,16 +44,9 @@ async fn run_test(test_path: &Path) {
     let manifest_path = test_path.join(MANIFEST_PATH);
 
     // Pack the input
-    pack_pipeline(
-        &input_path,
-        &packed_path,
-        &manifest_path,
-        // 0.25 GiB Chunk size because large files take too long to make
-        1074000000 / 4,
-        true,
-    )
-    .await
-    .unwrap();
+    pack_pipeline(&input_path, &packed_path, &manifest_path, 262144, true)
+        .await
+        .unwrap();
     // Unpack the output
     unpack_pipeline(&packed_path, &unpacked_path, &manifest_path)
         .await
@@ -171,7 +164,7 @@ mod test {
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("big_file");
         // Define the file structure to test
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 1024, Strategy::Simple);
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 100, Strategy::Simple);
         // Setup the test
         setup_test(&test_path, desired_structure, "test_big_file");
         // Run the test
@@ -288,7 +281,7 @@ mod test {
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("deduplication_large");
         // Define the file structure to test. Note that the input size is slightly larger than the maximum 0.25 GiB chunk size
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * (256 + 5), Strategy::Simple);
+        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 100, Strategy::Simple);
 
         // Setup the test
         setup_test(&test_path, desired_structure, "0");
