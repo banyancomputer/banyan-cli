@@ -6,7 +6,7 @@ use dataprep_lib::{
 };
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
-use std::{fs::remove_file, path::Path, process::Command};
+use std::{path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
@@ -28,7 +28,6 @@ fn setup_test(test_path: &Path, structure: Structure, test_name: &str) {
     structure.generate(&input_path).unwrap();
     ensure_path_exists_and_is_empty_dir(&packed_path, true).unwrap();
     ensure_path_exists_and_is_empty_dir(&unpacked_path, true).unwrap();
-    remove_file(packed_path.with_file_name(".manifest")).unwrap_or_default();
 }
 
 /// Helper function to run a test end to end
@@ -46,9 +45,7 @@ async fn run_test(test_path: &Path) {
         .unwrap();
 
     // Unpack the output
-    unpack_pipeline(&packed_path, &unpacked_path)
-        .await
-        .unwrap();
+    unpack_pipeline(&packed_path, &unpacked_path).await.unwrap();
 
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();

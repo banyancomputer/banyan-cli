@@ -39,23 +39,16 @@ async fn main() {
             chunk_size,
             follow_links,
         } => {
-            pack_pipeline(
-                &input_dir,
-                &output_dir,
-                chunk_size,
-                follow_links,
-            )
-            .await
-            .unwrap();
+            pack_pipeline(&input_dir, &output_dir, chunk_size, follow_links)
+                .await
+                .unwrap();
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
             input_dir,
             output_dir,
         } => {
-            unpack_pipeline(&input_dir, &output_dir)
-                .await
-                .unwrap();
+            unpack_pipeline(&input_dir, &output_dir).await.unwrap();
         }
     }
 }

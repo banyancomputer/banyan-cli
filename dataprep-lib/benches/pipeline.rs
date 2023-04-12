@@ -250,7 +250,7 @@ fn prep_pack(packed_path: &PathBuf) {
         .unwrap();
 
     // if the manifest file exists, remove it
-    let manifest_path = packed_path.with_file_name(".manifest");
+    let manifest_path = packed_path.with_file_name("manifest.json");
     if manifest_path.exists() {
         fs::remove_file(manifest_path).unwrap();
     }
@@ -275,11 +275,7 @@ fn prep_unpack(unpacked_path: &PathBuf) {
 /// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `result_path` - Path to the results directory to use for the benchmark. This will change for each benchmark
 /// * `timestamp` - Timestamp to use for the benchmark
-fn pack_benchmark(
-    c: &mut Criterion,
-    input_path: &PathBuf,
-    packed_path: &PathBuf,
-) {
+fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf) {
     // Get the filename of the input directory
     let input_name = input_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
@@ -322,11 +318,7 @@ fn pack_benchmark(
 /// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `unpacked_path` - Path to the unpacked directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `manifest_path` - Path to the manifest file to use for the benchmark. This will probably be the same as every other benchmark, until need is demonstrated to keep these.
-fn unpack_benchmark(
-    c: &mut Criterion,
-    packed_path: &PathBuf,
-    unpacked_path: &PathBuf
-) {
+fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &PathBuf) {
     // Get the filename of the input directory
     let input_name = unpacked_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
@@ -346,13 +338,7 @@ fn unpack_benchmark(
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path),
             // The routine to benchmark
-            |_| async {
-                unpack_pipeline(
-                    black_box(packed_path),
-                    black_box(unpacked_path),
-                )
-                .await
-            },
+            |_| async { unpack_pipeline(black_box(packed_path), black_box(unpacked_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

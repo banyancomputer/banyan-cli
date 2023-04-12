@@ -20,7 +20,7 @@ use crate::{
         shared::CompressionScheme,
     },
     utils::{
-        fs as fsutil,
+        fs::{self as fsutil, ensure_path_exists_and_is_empty_dir},
         grouper::grouper,
         spider::{self, path_to_segments},
     },
@@ -196,9 +196,13 @@ pub async fn pack_pipeline(
         shared_pb.lock().unwrap().inc(1);
     }
 
-    let meta_path = output_dir.to_path_buf().join("meta");
-    let manifest_file = meta_path.join(".manifest");
-    let meta_store: CarBlockStore = CarBlockStore::new(meta_path, None);
+    let meta_path = input_dir.join(".meta");
+
+    // TODO actually read the data and parse it to prevent double packing
+    ensure_path_exists_and_is_empty_dir(&meta_path, true)?;
+
+    let manifest_file = meta_path.join("manifest.json");
+    let meta_store: CarBlockStore = CarBlockStore::new(meta_path.clone(), None);
     // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
     let root_ref: PrivateRef = root_dir
         .store(&mut forest, &content_store, &mut rng)
@@ -249,5 +253,13 @@ pub async fn pack_pipeline(
 
     // Use serde to convert the ManifestData to JSON and write it to the path specified
     // Return the result of this operation
-    serde_json::to_writer_pretty(manifest_writer, &manifest_data).map_err(|e| anyhow::anyhow!(e))
+    serde_json::to_writer_pretty(manifest_writer, &manifest_data)
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    fs_extra::copy_items(&[meta_path], output_dir, &fs_extra::dir::CopyOptions::new())
+        .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
+
+    // std::fs::rename(output_dir.join(".meta"), output_dir.join("meta"))?;
+
+    Ok(())
 }

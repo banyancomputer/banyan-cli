@@ -20,16 +20,13 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn unpack_pipeline(
-    input_dir: &Path,
-    output_dir: &Path
-) -> Result<()> {
+pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Paths representing metadata and content
-    let meta_path = input_dir.join("meta");
+    let meta_path = input_dir.join(".meta");
     let content_path = input_dir.join("content");
 
     // Read in the manifest file from the metadata path
-    let reader = std::fs::File::open(meta_path.join(".manifest"))
+    let reader = std::fs::File::open(meta_path.join("manifest.json"))
         .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
 
     // Announce that we're starting
@@ -46,7 +43,7 @@ pub async fn unpack_pipeline(
 
     // If the user specified a different location for their CarBlockStores
     manifest_data.content_store.change_dir(content_path)?;
-    manifest_data.meta_store.change_dir(meta_path)?;
+    manifest_data.meta_store.change_dir(meta_path.clone())?;
 
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()
@@ -152,6 +149,9 @@ pub async fn unpack_pipeline(
         &content_store,
     )
     .await;
+
+    fs_extra::copy_items(&[meta_path], output_dir, &fs_extra::dir::CopyOptions::new())
+        .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
 
     //TODO (organizedgrime) - implement the unpacking pipeline
     Ok(())
