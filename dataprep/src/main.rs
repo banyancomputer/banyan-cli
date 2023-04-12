@@ -36,14 +36,12 @@ async fn main() {
         cli::Commands::Pack {
             input_dir,
             output_dir,
-            manifest_file,
             chunk_size,
             follow_links,
         } => {
             pack_pipeline(
                 &input_dir,
                 &output_dir,
-                &manifest_file,
                 chunk_size,
                 follow_links,
             )
@@ -54,9 +52,8 @@ async fn main() {
         cli::Commands::Unpack {
             input_dir,
             output_dir,
-            manifest_file,
         } => {
-            unpack_pipeline(&input_dir, &output_dir, &manifest_file)
+            unpack_pipeline(&input_dir, &output_dir)
                 .await
                 .unwrap();
         }

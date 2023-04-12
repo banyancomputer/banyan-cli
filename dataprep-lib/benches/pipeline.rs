@@ -24,8 +24,6 @@ lazy_static! {
     static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "target/bench/packed".to_string());
     // Path we will use to hold unpacked data we build from packed data for benchmarking
     static ref UNPACKED_PATH: String = env::var("UNPACKED_PATH").unwrap_or_else(|_| "target/bench/unpacked".to_string());
-    // Path we will use to hold the manifest files generated during benchmarking
-    static ref MANIFEST_PATH: String = env::var("MANIFEST_PATH").unwrap_or_else(|_| "target/bench/manifest".to_string());
 
     // Test Set Generation configuration
     // Defaults to a simple 4x4 file structure with 1Mb of data
@@ -217,14 +215,6 @@ fn setup_bench() {
             e
         })
         .unwrap();
-
-    // Make sure the manifest directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(&PathBuf::from(MANIFEST_PATH.as_str()), true)
-        .map_err(|e| {
-            error!("Error creating manifest directory: {}", e);
-            e
-        })
-        .unwrap();
 }
 
 /// Make sure the packed and unpacked directories are empty, using the environment variables (or defaults) for the paths
@@ -246,19 +236,11 @@ fn cleanup_bench() {
             e
         })
         .unwrap();
-
-    // Make sure the manifest directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(&PathBuf::from(MANIFEST_PATH.as_str()), true)
-        .map_err(|e| {
-            error!("Error creating manifest directory: {}", e);
-            e
-        })
-        .unwrap();
 }
 
-/// Make sure packed directory and manifest file are empty for packing
+/// Make sure packed directory is empty for packing
 #[doc(hidden)]
-fn prep_pack(packed_path: &PathBuf, manifest_path: &PathBuf) {
+fn prep_pack(packed_path: &PathBuf) {
     // Ensure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(packed_path, true)
         .map_err(|e| {
@@ -268,6 +250,7 @@ fn prep_pack(packed_path: &PathBuf, manifest_path: &PathBuf) {
         .unwrap();
 
     // if the manifest file exists, remove it
+    let manifest_path = packed_path.with_file_name(".manifest");
     if manifest_path.exists() {
         fs::remove_file(manifest_path).unwrap();
     }
@@ -275,7 +258,7 @@ fn prep_pack(packed_path: &PathBuf, manifest_path: &PathBuf) {
 
 /// Make sure the unpacked directory is empty for unpacking and that the manifest file exists
 #[doc(hidden)]
-fn prep_unpack(unpacked_path: &PathBuf, manifest_path: &PathBuf) {
+fn prep_unpack(unpacked_path: &PathBuf) {
     // Ensure the unpacked directory exists and is empty
     ensure_path_exists_and_is_empty_dir(unpacked_path, true)
         .map_err(|e| {
@@ -283,8 +266,6 @@ fn prep_unpack(unpacked_path: &PathBuf, manifest_path: &PathBuf) {
             e
         })
         .unwrap();
-    // Make sure the manifest file exists
-    assert!(manifest_path.exists());
 }
 
 /// Benchmark packing - relies on input_path being populated!
@@ -292,14 +273,12 @@ fn prep_unpack(unpacked_path: &PathBuf, manifest_path: &PathBuf) {
 /// * `c` - Criterion object
 /// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark
 /// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
-/// * `manifest_path` - Path to the manifest file to use for the benchmark. This will probably be the same as every other benchmark, until need is demonstrated to keep these.
 /// * `result_path` - Path to the results directory to use for the benchmark. This will change for each benchmark
 /// * `timestamp` - Timestamp to use for the benchmark
 fn pack_benchmark(
     c: &mut Criterion,
     input_path: &PathBuf,
     packed_path: &PathBuf,
-    manifest_path: &PathBuf,
 ) {
     // Get the filename of the input directory
     let input_name = input_path.file_name().unwrap().to_str().unwrap();
@@ -317,13 +296,12 @@ fn pack_benchmark(
     group.bench_function(bench_id, |b| {
         b.to_async(&rt).iter_batched(
             // Operation needed to make sure pack doesn't fail
-            || prep_pack(packed_path, manifest_path),
+            || prep_pack(packed_path),
             // The routine to benchmark
             |_| async {
                 pack_pipeline(
                     black_box(input_path),
                     black_box(packed_path),
-                    black_box(manifest_path),
                     // TODO (amiller68) - make this configurable
                     black_box(1073741824),
                     black_box(false),
@@ -347,8 +325,7 @@ fn pack_benchmark(
 fn unpack_benchmark(
     c: &mut Criterion,
     packed_path: &PathBuf,
-    unpacked_path: &PathBuf,
-    manifest_path: &PathBuf,
+    unpacked_path: &PathBuf
 ) {
     // Get the filename of the input directory
     let input_name = unpacked_path.file_name().unwrap().to_str().unwrap();
@@ -367,13 +344,12 @@ fn unpack_benchmark(
     group.bench_function(bench_id, |b| {
         b.to_async(&rt).iter_batched(
             // Operation needed to make sure unpack doesn't fail
-            || prep_unpack(unpacked_path, manifest_path),
+            || prep_unpack(unpacked_path),
             // The routine to benchmark
             |_| async {
                 unpack_pipeline(
                     black_box(packed_path),
                     black_box(unpacked_path),
-                    black_box(manifest_path),
                 )
                 .await
             },
@@ -405,7 +381,6 @@ pub fn pipeline_benchmark(c: &mut Criterion) {
         // Paths we will have to mutate
         let mut input_path = PathBuf::from(INPUT_PATH.as_str());
         let mut unpacked_path = PathBuf::from(UNPACKED_PATH.as_str());
-        let mut manifest_path = PathBuf::from(MANIFEST_PATH.as_str());
 
         // Get the names of the input entry
         let entry_name = entry.unwrap().file_name();
@@ -413,15 +388,12 @@ pub fn pipeline_benchmark(c: &mut Criterion) {
         input_path.push(entry_name.clone());
         // Mutate the unpacked path so we can use it in the benchmark
         unpacked_path.push(entry_name.clone());
-        // Mutate the manifest path so we can use it in the benchmark. Append .json to the end
-        manifest_path.push(entry_name.clone());
-        manifest_path.set_extension("json");
 
         // Run the pack benchmark
-        pack_benchmark(c, &input_path, &packed_path, &manifest_path);
+        pack_benchmark(c, &input_path, &packed_path);
 
         // Run the unpack benchmark
-        unpack_benchmark(c, &packed_path, &unpacked_path, &manifest_path);
+        unpack_benchmark(c, &packed_path, &unpacked_path);
 
         // If we have correctness testing enabled, run the correctness tests
         if *DO_CORRECTNESS_CHECK {

@@ -47,7 +47,6 @@ use std::sync::{Arc, Mutex};
 pub async fn pack_pipeline(
     input_dir: &Path,
     output_dir: &Path,
-    manifest_file: &Path,
     // TODO implement a way to specify chunk size for WNFS
     _chunk_size: u64,
     follow_links: bool,
@@ -93,7 +92,7 @@ pub async fn pack_pipeline(
     let shared_pb = Arc::new(Mutex::new(pb));
 
     // Create a CarBlockStore to store the packed data
-    let content_store = CarBlockStore::new(output_dir.to_path_buf(), None);
+    let content_store = CarBlockStore::new(output_dir.to_path_buf().join("content"), None);
     let mut rng = rand::thread_rng();
     let mut root_dir = Rc::new(PrivateDirectory::new(
         Namefilter::default(),
@@ -197,7 +196,9 @@ pub async fn pack_pipeline(
         shared_pb.lock().unwrap().inc(1);
     }
 
-    let meta_store: CarBlockStore = CarBlockStore::new(output_dir.to_path_buf().join("meta"), None);
+    let meta_path = output_dir.to_path_buf().join("meta");
+    let manifest_file = meta_path.join(".manifest");
+    let meta_store: CarBlockStore = CarBlockStore::new(meta_path, None);
     // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
     let root_ref: PrivateRef = root_dir
         .store(&mut forest, &content_store, &mut rng)
@@ -219,7 +220,7 @@ pub async fn pack_pipeline(
     let manifest_writer = match std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(manifest_file)
+        .open(&manifest_file)
     {
         Ok(f) => f,
         Err(e) => {

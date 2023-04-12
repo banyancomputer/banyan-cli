@@ -11,7 +11,6 @@ use std::{fs::remove_file, path::Path, process::Command};
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
 const UNPACKED_PATH: &str = "unpacked";
-const MANIFEST_PATH: &str = "manifest.json";
 
 /// Helper function to setup a test
 /// # Arguments
@@ -23,14 +22,13 @@ fn setup_test(test_path: &Path, structure: Structure, test_name: &str) {
     let mut input_path = test_path.join(INPUT_PATH);
     let packed_path = test_path.join(PACKED_PATH);
     let unpacked_path = test_path.join(UNPACKED_PATH);
-    let manifest_path = test_path.join(MANIFEST_PATH);
     // Prepare the test structure
     ensure_path_exists_and_is_empty_dir(&input_path, true).unwrap();
     input_path.push(test_name);
     structure.generate(&input_path).unwrap();
     ensure_path_exists_and_is_empty_dir(&packed_path, true).unwrap();
     ensure_path_exists_and_is_empty_dir(&unpacked_path, true).unwrap();
-    remove_file(manifest_path).unwrap_or_default();
+    remove_file(packed_path.with_file_name(".manifest")).unwrap_or_default();
 }
 
 /// Helper function to run a test end to end
@@ -41,14 +39,14 @@ async fn run_test(test_path: &Path) {
     let input_path = test_path.join(INPUT_PATH);
     let packed_path = test_path.join(PACKED_PATH);
     let unpacked_path = test_path.join(UNPACKED_PATH);
-    let manifest_path = test_path.join(MANIFEST_PATH);
 
     // Pack the input
-    pack_pipeline(&input_path, &packed_path, &manifest_path, 262144, true)
+    pack_pipeline(&input_path, &packed_path, 262144, true)
         .await
         .unwrap();
+
     // Unpack the output
-    unpack_pipeline(&packed_path, &unpacked_path, &manifest_path)
+    unpack_pipeline(&packed_path, &unpacked_path)
         .await
         .unwrap();
 

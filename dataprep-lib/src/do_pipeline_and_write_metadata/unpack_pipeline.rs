@@ -22,13 +22,17 @@ use wnfs::{
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(
     input_dir: &Path,
-    output_dir: &Path,
-    manifest_file: &Path,
+    output_dir: &Path
 ) -> Result<()> {
-    // parse manifest file into Vec<CodablePipeline>
-    let reader = std::fs::File::open(manifest_file)
+    // Paths representing metadata and content
+    let meta_path = input_dir.join("meta");
+    let content_path = input_dir.join("content");
+
+    // Read in the manifest file from the metadata path
+    let reader = std::fs::File::open(meta_path.join(".manifest"))
         .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
 
+    // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
     // Deserialize the data read as the latest version of manifestdata
@@ -41,8 +45,8 @@ pub async fn unpack_pipeline(
     };
 
     // If the user specified a different location for their CarBlockStores
-    manifest_data.content_store.change_dir(input_dir.to_path_buf())?;
-    manifest_data.meta_store.change_dir(input_dir.to_path_buf().join("meta"))?;
+    manifest_data.content_store.change_dir(content_path)?;
+    manifest_data.meta_store.change_dir(meta_path)?;
 
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()

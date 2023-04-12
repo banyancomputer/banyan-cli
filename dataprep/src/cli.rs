@@ -14,10 +14,6 @@ pub(crate) enum Commands {
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
 
-        /// Location in which the manifest file will be written.
-        #[arg(short, long, help = "manifest file location")]
-        manifest_file: PathBuf,
-
         /// Maximum size for each chunk, defaults to 1GiB.
         #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
         chunk_size: u64,
@@ -35,10 +31,6 @@ pub(crate) enum Commands {
         /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
-
-        /// Location of the manifest file.
-        #[arg(short, long, help = "manifest file location")]
-        manifest_file: PathBuf,
     },
 }
 
