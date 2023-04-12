@@ -22,6 +22,7 @@ use crate::{
     utils::{
         fs::{self as fsutil, ensure_path_exists_and_is_empty_dir},
         grouper::grouper,
+        pipeline::{load_forest_dir, load_manifest_data},
         spider::{self, path_to_segments},
     },
 };
@@ -91,8 +92,10 @@ pub async fn pack_pipeline(
     )?);
     let shared_pb = Arc::new(Mutex::new(pb));
 
+    let content_path = output_dir.to_path_buf().join("content");
+    let content_store: CarBlockStore = CarBlockStore::new(content_path.clone(), None);
+
     // Create a CarBlockStore to store the packed data
-    let content_store = CarBlockStore::new(output_dir.to_path_buf().join("content"), None);
     let mut rng = rand::thread_rng();
     let mut root_dir = Rc::new(PrivateDirectory::new(
         Namefilter::default(),
@@ -100,6 +103,19 @@ pub async fn pack_pipeline(
         &mut rng,
     ));
     let mut forest = Rc::new(PrivateForest::new());
+
+    let meta_path = input_dir.join(".meta");
+    // If we've already packed this directory before
+    if meta_path.exists() {
+        let manifest_data = load_manifest_data(&meta_path).await.unwrap();
+        info!("This directory has already been packed before! We're scanning it for duplicates");
+
+        let result = load_forest_dir(&manifest_data).await.unwrap();
+
+        // Update the forest and root directory
+        forest = Rc::new(result.0);
+        root_dir = result.1;
+    }
 
     // TODO (organizedgrime) async these for real...
     for pack_pipeline_plan in packing_plan {
@@ -196,8 +212,6 @@ pub async fn pack_pipeline(
         shared_pb.lock().unwrap().inc(1);
     }
 
-    let meta_path = input_dir.join(".meta");
-
     // TODO actually read the data and parse it to prevent double packing
     ensure_path_exists_and_is_empty_dir(&meta_path, true)?;
 
@@ -210,7 +224,7 @@ pub async fn pack_pipeline(
         .unwrap();
     // Store it in the Metadata CarBlockStore
     let ref_cid = meta_store.put_serializable(&root_ref).await.unwrap();
-    // Create an IPLD from the PrivateForest
+    // Crea2te an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(&content_store).await.unwrap();
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = meta_store.put_serializable(&forest_ipld).await.unwrap();

@@ -4,5 +4,7 @@ pub mod custom_fclones_logger;
 pub mod fs;
 /// This module contains code designed to traverse directory structure and get a packing plan for files, including deduplication
 pub mod grouper;
+/// This module contains coode designed to assist in pipelilne functions
+pub mod pipeline;
 /// This module contains code designed to traverse directory structure and get a packing plan for directories and symlinks.
 pub mod spider;

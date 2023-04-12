@@ -1,13 +1,15 @@
-use crate::types::{pipeline::ManifestData, shared::CompressionScheme};
+use crate::{
+    types::shared::CompressionScheme,
+    utils::pipeline::{load_forest_dir, load_manifest_data},
+};
 use anyhow::Result;
 use async_recursion::async_recursion;
 // use serde::{Deserialize, Serializer};
-use std::{fs::File, io::Write, path::Path, rc::Rc};
+use std::{fs::File, io::Write, path::Path};
 use tokio as _;
 use wnfs::{
-    common::{BlockStore, CarBlockStore},
-    libipld::{serde as ipld_serde, Ipld},
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
+    common::BlockStore,
+    private::{PrivateForest, PrivateNode},
 };
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
@@ -25,60 +27,15 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
     let meta_path = input_dir.join(".meta");
     let content_path = input_dir.join("content");
 
-    // Read in the manifest file from the metadata path
-    let reader = std::fs::File::open(meta_path.join("manifest.json"))
-        .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
-
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
-    // Deserialize the data read as the latest version of manifestdata
-    let mut manifest_data: ManifestData = match serde_json::from_reader(reader) {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to deserialize manifest file: {}", e);
-            panic!("Failed to deserialize manifest file: {e}");
-        }
-    };
-
-    // If the user specified a different location for their CarBlockStores
+    // Load in the Private Forest and the PrivateDirectory from the metadata directory
+    let mut manifest_data = load_manifest_data(meta_path.as_path()).await.unwrap();
+    // Update the directories
     manifest_data.content_store.change_dir(content_path)?;
     manifest_data.meta_store.change_dir(meta_path.clone())?;
-
-    // If the major version of the manifest is not the same as the major version of the program
-    if manifest_data.version.split('.').next().unwrap()
-        != env!("CARGO_PKG_VERSION").split('.').next().unwrap()
-    {
-        // Panic if it's not
-        error!("Unsupported manifest version.");
-        panic!("Unsupported manifest version.");
-    }
-
-    // Get the DiskBlockStores
-    let content_store: CarBlockStore = manifest_data.content_store;
-    let meta_store: CarBlockStore = manifest_data.meta_store;
-
-    // Deserialize the PrivateRef
-    let dir_ref: PrivateRef = meta_store
-        .get_deserializable(&manifest_data.ref_cid)
-        .await
-        .unwrap();
-
-    // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = meta_store
-        .get_deserializable(&manifest_data.ipld_cid)
-        .await
-        .unwrap();
-
-    // Create a PrivateForest from that IPLD DAG
-    let forest: PrivateForest = ipld_serde::from_ipld::<_>(forest_ipld)?;
-
-    // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &content_store)
-        .await
-        .unwrap()
-        .as_dir()
-        .unwrap();
+    let (forest, dir) = load_forest_dir(&manifest_data).await.unwrap();
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -146,7 +103,7 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
         Path::new(""),
         &dir.as_node(),
         &forest,
-        &content_store,
+        &manifest_data.content_store,
     )
     .await;
 
