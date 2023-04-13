@@ -9,9 +9,9 @@ use wnfs::{
 use crate::types::pipeline::ManifestData;
 
 /// Deserializes the ManifestData struct from a given .meta dir
-pub async fn load_manifest_data(meta_path: &Path) -> Result<ManifestData> {
-    println!("loading manifest data in {}", meta_path.display());
-    let meta_file_path = meta_path.join("manifest.json");
+pub async fn load_manifest_data(input_meta_path: &Path) -> Result<ManifestData> {
+    println!("loading manifest data in {}", input_meta_path.display());
+    let meta_file_path = input_meta_path.join("manifest.json");
     println!(
         "attempting to open the file at {}, which exists: {}",
         meta_file_path.display(),
@@ -34,7 +34,7 @@ pub async fn load_manifest_data(meta_path: &Path) -> Result<ManifestData> {
 }
 
 /// Loads in the PrivateForest and PrivateDirectory from a given ManifestData
-pub async fn load_forest_dir(
+pub async fn load_forest_and_dir(
     manifest_data: &ManifestData,
 ) -> Result<(Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     // If the major version of the manifest is not the same as the major version of the program
