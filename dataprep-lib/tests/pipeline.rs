@@ -201,6 +201,7 @@ mod test {
     async fn test_deduplication_size() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH).join("deduplication_size");
+
         // Empty that test directory! Because we're doing setup a little bit differently here,
         // it seems that my OSX machine occasionally generates metadata files that cause the test to fail.
         // Emptying this directory each time prevents this.
@@ -213,8 +214,6 @@ mod test {
         // Define the file structure to test in both cases
         let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
 
-        // let dup_root = twin_dups.join("input");
-        
         // Setup the duplicates directory
         setup_test(&twin_dups, structure.clone(), "duplicate_directory");
         // Duplicate the test file
@@ -222,8 +221,7 @@ mod test {
         // Copy $input_path/test_duplicate to $input_path/encloser
         let original_path = input_path.join("duplicate_directory");
         // Enclose the duplicate in a parent directory
-        let root_path = input_path.join("root");
-        let encloser_path = root_path.join("encloser");
+        let encloser_path = input_path.join("encloser");
         // Create the directory
         ensure_path_exists_and_is_dir(&encloser_path).unwrap();
         // Copy the contents of the original directory into the new directory
@@ -234,15 +232,10 @@ mod test {
         )
         .unwrap();
 
-        fs_extra::dir::move_dir(original_path, root_path, &fs_extra::dir::CopyOptions::new()).unwrap();
-
-
-        /* 
         // Setup the first unique directory
         setup_test(&twin_unique, structure.clone(), "unique1");
-
         // Duplicate the test file
-        let input_path = twin_unique.join(INPUT_PATH).join("root");
+        let input_path = twin_unique.join(INPUT_PATH);
         // The directory that will contain the other unique directory
         let mut encloser_path = input_path.join("encloser");
         // Create the directory
@@ -257,23 +250,22 @@ mod test {
         let twin_dups_size = compute_directory_size(&twin_dups).unwrap();
         let twin_unique_size = compute_directory_size(&twin_unique).unwrap();
         assert_eq!(twin_dups_size, twin_unique_size);
-        */
 
         // Run the pipelines on both directories, also ensuring output = input
         run_test(&twin_dups).await;
-        // run_test(&twin_unique).await;
+        run_test(&twin_unique).await;
 
         // Write out the paths to both packed directories
         let packed_dups_path = twin_dups.join(PACKED_PATH);
-        // let packed_unique_path = twin_unique.join(PACKED_PATH);
+        let packed_unique_path = twin_unique.join(PACKED_PATH);
         // Compute the sizes of these directories
-        // let packed_dups_size = compute_directory_size(&packed_dups_path).unwrap() as f32;
-        // let packed_unique_size = compute_directory_size(&packed_unique_path).unwrap() as f32;
-        // // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
-        // // TODO (organizedgrime) determine the threshold for this test that is most appropriate
-        // assert!(packed_unique_size / packed_dups_size >= 1.8);
+        let packed_dups_size = compute_directory_size(&packed_dups_path).unwrap() as f32;
+        let packed_unique_size = compute_directory_size(&packed_unique_path).unwrap() as f32;
+        // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
+        // TODO (organizedgrime) determine the threshold for this test that is most appropriate
+        assert!(packed_unique_size / packed_dups_size >= 1.8);
     }
-
+    
     /// Ensure that deduplication is equally effective in the case of large files
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.

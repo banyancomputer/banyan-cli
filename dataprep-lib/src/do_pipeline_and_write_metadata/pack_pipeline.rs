@@ -12,7 +12,7 @@ use std::{
 use wnfs::{
     common::{AsyncSerialize, BlockStore, CarBlockStore},
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateFile, PrivateForest, PrivateNode, PrivateRef},
+    private::{PrivateDirectory, PrivateFile, PrivateForest, PrivateRef},
 };
 
 use crate::{
@@ -170,79 +170,63 @@ pub async fn pack_pipeline(
                 let time = Utc::now();
 
                 // Search through the PrivateDirectory for a Node that matches the path provided
-                match root_dir
+                let result = root_dir
                     .get_node(&first_path_segments, true, &forest, &content_store)
-                    .await
-                {
-                    // If no errors occurred while searching
-                    Ok(file_query) => {
-                        // Match the query result
-                        match file_query {
-                            // If the file exists in the PrivateForest
-                            Some(node) => {
-                                // Forcibly cast because we know this is a file
-                                let _file: Rc<PrivateFile> = node.as_file().unwrap();
-                                println!("this file already exists");
-                            }
-                            // If the file does not exist in the PrivateForest
-                            None => {
-                                // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                                root_dir
-                                    .write(
-                                        &first_path_segments,
-                                        false,
-                                        time,
-                                        compressed_bytes.clone(),
-                                        &mut forest,
-                                        &content_store,
-                                        &mut rng,
-                                    )
-                                    .await
-                                    .unwrap();
+                    .await;
 
-                                // For each duplicate
-                                for metadata in &metadatas[1..] {
-                                    println!("packing a duplicate!");
-                                    // Grab the original location
-                                    let dup = &metadata.original_location;
-                                    let dup_path_segments = path_to_segments(dup).unwrap();
+                // If the file does not exist in the PrivateForest or an error occurred in searching for it
+                if result.is_err() || result.as_ref().unwrap().is_none() {
+                    // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
+                    root_dir
+                        .write(
+                            &first_path_segments,
+                            false,
+                            time,
+                            compressed_bytes.clone(),
+                            &mut forest,
+                            &content_store,
+                            &mut rng,
+                        )
+                        .await
+                        .unwrap();
 
-                                    // Remove the final element to represent the folder path
-                                    let folder_segments =
-                                        &dup_path_segments[..&dup_path_segments.len() - 1];
-                                    // Create that folder
-                                    root_dir
-                                        .mkdir(
-                                            folder_segments,
-                                            false,
-                                            Utc::now(),
-                                            &forest,
-                                            &content_store,
-                                            &mut rng,
-                                        )
-                                        .await
-                                        .unwrap();
-                                    // Copy the file from the original path to the duplicate path
-                                    root_dir
-                                        .cp_link(
-                                            &first_path_segments,
-                                            &dup_path_segments,
-                                            false,
-                                            &mut forest,
-                                            &content_store,
-                                        )
-                                        .await
-                                        .unwrap();
-                                }
-                            }
-                        }
+                    // For each duplicate
+                    for metadata in &metadatas[1..] {
+                        // Grab the original location
+                        let dup = &metadata.original_location;
+                        let dup_path_segments = path_to_segments(dup).unwrap();
+                        // Remove the final element to represent the folder path
+                        let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
+                        // Create that folder
+                        root_dir
+                            .mkdir(
+                                folder_segments,
+                                false,
+                                Utc::now(),
+                                &forest,
+                                &content_store,
+                                &mut rng,
+                            )
+                            .await
+                            .unwrap();
+                        // Copy the file from the original path to the duplicate path
+                        root_dir
+                            .cp_link(
+                                &first_path_segments,
+                                &dup_path_segments,
+                                false,
+                                &mut forest,
+                                &content_store,
+                            )
+                            .await
+                            .unwrap();
                     }
-                    Err(_) => {
-                        println!(
-                            "unexpected error occurred while searching for {:?}",
-                            first_path_segments
-                        );
-                    }
+                }
+                // If the file exists in the PrivateForest
+                else {
+                    // Forcibly cast because we know this is a file
+                    let _file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
+                    // TODO (organizedgrime) - actually check if the file is identical or a new version
                 }
             }
             // If this is a directory or symlink
@@ -252,43 +236,31 @@ pub async fn pack_pipeline(
 
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 if !path_segments.is_empty() {
-                    println!("attempting to query {:?}", path_segments);
-
                     // Search through the PrivateDirectory for a Node that matches the path provided
                     let result = root_dir
                         .get_node(&path_segments, false, &forest, &content_store)
                         .await;
 
-                    match result {
-                        Ok(dir_query) => {
-                            match dir_query {
-                                Some(dir) => {
-                                    // Forcibly cast because we know this is a dir
-                                    let _dir: Rc<PrivateDirectory> = dir.as_dir().unwrap();
-                                    // TODO(organizedgrime): determine if this node has been modified and needs rewriting
-                                    println!("this directory already exists");
-                                }
-                                None => {
-                                    println!("None found!");
-                                    // println!("this directory doesnt already exist");
-                                    // Create the subdirectory
-                                    root_dir
-                                        .mkdir(
-                                            &path_segments,
-                                            false,
-                                            Utc::now(),
-                                            &forest,
-                                            &content_store,
-                                            &mut rng,
-                                        )
-                                        .await
-                                        .unwrap();
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            println!("error occurred: {}", e);
-                        }
+                    if result.is_err() || result.as_ref().unwrap().is_none() {
+                        println!("None found!");
+                        // println!("this directory doesnt already exist");
+                        // Create the subdirectory
+                        root_dir
+                            .mkdir(
+                                &path_segments,
+                                false,
+                                Utc::now(),
+                                &forest,
+                                &content_store,
+                                &mut rng,
+                            )
+                            .await
+                            .unwrap();
+                    }
+                    else {
+                        // Forcibly cast because we know this is a dir
+                        let _dir: Rc<PrivateDirectory> = result.unwrap().unwrap().as_dir().unwrap();
+                        // TODO(organizedgrime): determine if this node has been modified and needs rewriting
                     }
                 }
             }

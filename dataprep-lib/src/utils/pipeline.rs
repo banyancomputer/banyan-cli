@@ -46,8 +46,6 @@ pub async fn load_forest_and_dir(
         panic!("Unsupported manifest version.");
     }
 
-    info!("version is fine");
-
     // Get the DiskBlockStores
     let content_store: &CarBlockStore = &manifest_data.content_store;
     let meta_store: &CarBlockStore = &manifest_data.meta_store;
@@ -58,21 +56,15 @@ pub async fn load_forest_and_dir(
         .await
         .unwrap();
 
-    info!("dir ref is fine");
-
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = meta_store
         .get_deserializable(&manifest_data.ipld_cid)
         .await
         .unwrap();
 
-    info!("forest ipld is fine");
-
     // Create a PrivateForest from that IPLD DAG
     let forest: Rc<PrivateForest> =
         Rc::new(ipld_serde::from_ipld::<PrivateForest>(forest_ipld).unwrap());
-
-    info!("forest is fine");
 
     // Load the PrivateDirectory from the PrivateForest
     let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, content_store)
@@ -80,8 +72,6 @@ pub async fn load_forest_and_dir(
         .unwrap()
         .as_dir()
         .unwrap();
-
-    info!("dir is fine");
 
     Ok((forest, dir))
 }
