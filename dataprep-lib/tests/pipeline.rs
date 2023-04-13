@@ -85,7 +85,7 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::path::Path;
+    use std::{io::Write, path::Path};
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -265,7 +265,7 @@ mod test {
         // TODO (organizedgrime) determine the threshold for this test that is most appropriate
         assert!(packed_unique_size / packed_dups_size >= 1.8);
     }
-    
+
     /// Ensure that deduplication is equally effective in the case of large files
     /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
     /// as well as ensuring that deduplication works when both files are in the same directory.
@@ -300,7 +300,6 @@ mod test {
     }
 
     #[tokio::test]
-    /// The way we were running tests prior was incompatible
     async fn test_double_packing() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -320,6 +319,43 @@ mod test {
 
         // Run the test twice
         run_test(&test_path).await;
+        run_test(&test_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_versioning() {
+        // Create a new path for this test
+        let test_path = Path::new(TEST_PATH);
+        let test_path = test_path.join("versioning");
+        let test_name = "versioning";
+
+        // Define the file structure to test
+        let desired_structure = Structure::new(
+            2, // width
+            2, // depth
+            TEST_INPUT_SIZE,
+            Strategy::Simple,
+        );
+
+        // Setup the test once
+        setup_test(&test_path, desired_structure, test_name);
+        // Run the test
+        run_test(&test_path).await;
+
+        // Come up with some new content for a single file
+        let content = "this is the new content of a file".to_string();
+        // Construct the path of the file we're going to modify
+        let file = test_path
+            .join("input")
+            .join("versioning")
+            .join("0")
+            .join("0");
+
+        // Overwrite the content of the file
+        let mut file = std::fs::File::create(file).unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+
+        // Run the test again with the new version of the file in the filesystem
         run_test(&test_path).await;
     }
 }

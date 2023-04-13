@@ -189,44 +189,64 @@ pub async fn pack_pipeline(
                         )
                         .await
                         .unwrap();
-
-                    // For each duplicate
-                    for metadata in &metadatas[1..] {
-                        // Grab the original location
-                        let dup = &metadata.original_location;
-                        let dup_path_segments = path_to_segments(dup).unwrap();
-                        // Remove the final element to represent the folder path
-                        let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
-                        // Create that folder
+                }
+                // If the file exists in the PrivateForest
+                else {
+                    // Forcibly cast because we know this is a file
+                    let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
+                    // Grab the content that already exists in the PrivateFile at this path
+                    let existing_file_content = file.get_content(&forest, &content_store).await?;
+                    // If the file has been modified since the last time it was packed
+                    if compressed_bytes != existing_file_content {
+                        println!("The file at {:?} has changed between the previous packing and now, rewriting", first_path_segments);
+                        // Write the new bytes to the path where the file was originally
+                        // TODO (organizedgrime) - Here we need to do something with versioning!
                         root_dir
-                            .mkdir(
-                                folder_segments,
+                            .write(
+                                &first_path_segments,
                                 false,
-                                Utc::now(),
-                                &forest,
+                                time,
+                                compressed_bytes.clone(),
+                                &mut forest,
                                 &content_store,
                                 &mut rng,
                             )
                             .await
                             .unwrap();
-                        // Copy the file from the original path to the duplicate path
-                        root_dir
-                            .cp_link(
-                                &first_path_segments,
-                                &dup_path_segments,
-                                false,
-                                &mut forest,
-                                &content_store,
-                            )
-                            .await
-                            .unwrap();
                     }
-                }
-                // If the file exists in the PrivateForest
-                else {
-                    // Forcibly cast because we know this is a file
-                    let _file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
                     // TODO (organizedgrime) - actually check if the file is identical or a new version
+                }
+
+                // Duplicates need to be linked no matter what
+                for metadata in &metadatas[1..] {
+                    // Grab the original location
+                    let dup = &metadata.original_location;
+                    let dup_path_segments = path_to_segments(dup).unwrap();
+                    // Remove the final element to represent the folder path
+                    let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
+                    // Create that folder
+                    root_dir
+                        .mkdir(
+                            folder_segments,
+                            false,
+                            Utc::now(),
+                            &forest,
+                            &content_store,
+                            &mut rng,
+                        )
+                        .await
+                        .unwrap();
+                    // Copy the file from the original path to the duplicate path
+                    root_dir
+                        .cp_link(
+                            &first_path_segments,
+                            &dup_path_segments,
+                            false,
+                            &mut forest,
+                            &content_store,
+                        )
+                        .await
+                        .unwrap();
                 }
             }
             // If this is a directory or symlink
@@ -241,9 +261,8 @@ pub async fn pack_pipeline(
                         .get_node(&path_segments, false, &forest, &content_store)
                         .await;
 
+                    // If there was an error searching for the Node or
                     if result.is_err() || result.as_ref().unwrap().is_none() {
-                        println!("None found!");
-                        // println!("this directory doesnt already exist");
                         // Create the subdirectory
                         root_dir
                             .mkdir(
@@ -257,11 +276,7 @@ pub async fn pack_pipeline(
                             .await
                             .unwrap();
                     }
-                    else {
-                        // Forcibly cast because we know this is a dir
-                        let _dir: Rc<PrivateDirectory> = result.unwrap().unwrap().as_dir().unwrap();
-                        // TODO(organizedgrime): determine if this node has been modified and needs rewriting
-                    }
+                    // We don't need an else here, directories don't actually contain any data
                 }
             }
         }
