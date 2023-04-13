@@ -201,7 +201,7 @@ fn setup_bench() {
     populate_input_dirs();
 
     // Make sure the packed directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(&PathBuf::from(PACKED_PATH.as_str()), true)
+    ensure_path_exists_and_is_dir(&PathBuf::from(PACKED_PATH.as_str()))
         .map_err(|e| {
             error!("Error creating packed directory: {}", e);
             e
@@ -209,7 +209,7 @@ fn setup_bench() {
         .unwrap();
 
     // Make sure the unpacked directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(&PathBuf::from(UNPACKED_PATH.as_str()), true)
+    ensure_path_exists_and_is_dir(&PathBuf::from(UNPACKED_PATH.as_str()))
         .map_err(|e| {
             error!("Error creating unpacked directory: {}", e);
             e

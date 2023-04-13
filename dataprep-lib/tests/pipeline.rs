@@ -298,4 +298,28 @@ mod test {
         // Expect that the large file was packed into two files
         assert_eq!(dir_info.files.len(), 2);
     }
+
+    #[tokio::test]
+    /// The way we were running tests prior was incompatible
+    async fn test_double_packing() {
+        // Create a new path for this test
+        let test_path = Path::new(TEST_PATH);
+        let test_path = test_path.join("double_pack");
+        let test_name = "double_pack";
+
+        // Define the file structure to test
+        let desired_structure = Structure::new(
+            TEST_MAX_WIDTH, // width
+            TEST_MAX_DEPTH, // depth
+            TEST_INPUT_SIZE,
+            Strategy::Simple,
+        );
+
+        // Setup the test once
+        setup_test(&test_path, desired_structure, test_name);
+
+        // Run the test twice
+        run_test(&test_path).await;
+        run_test(&test_path).await;
+    }
 }

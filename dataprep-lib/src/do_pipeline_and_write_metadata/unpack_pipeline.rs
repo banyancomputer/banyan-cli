@@ -107,6 +107,11 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
     )
     .await;
 
+    let output_meta_path = output_dir.join(".meta");
+    if output_meta_path.exists() {
+        std::fs::remove_dir_all(output_meta_path)?;
+    }
+
     fs_extra::copy_items(&[meta_path], output_dir, &fs_extra::dir::CopyOptions::new())
         .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
 
