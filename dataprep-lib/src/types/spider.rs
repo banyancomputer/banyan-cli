@@ -2,7 +2,7 @@ use anyhow::Result;
 use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{self, Metadata},
+    fs::Metadata,
     path::{Path, PathBuf},
     time::SystemTime,
 };

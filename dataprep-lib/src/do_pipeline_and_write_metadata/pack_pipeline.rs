@@ -144,9 +144,24 @@ pub async fn pack_pipeline(
         meta_store = CarBlockStore::new(&input_meta_path, None);
     }
 
-    // TODO (organizedgrime) async these for real...
+    let mut direct_plans: Vec<PackPipelinePlan> = Vec::new();
+    let mut symlink_plans: Vec<PackPipelinePlan> = Vec::new();
+
+    // Sort the packing plans into plans which correspond to real data and those which are symlinks
     for pack_pipeline_plan in packing_plan {
-        match pack_pipeline_plan {
+        match pack_pipeline_plan.clone() {
+            PackPipelinePlan::FileGroup(_) | PackPipelinePlan::Directory(_) => {
+                direct_plans.push(pack_pipeline_plan);
+            }
+            PackPipelinePlan::Symlink(_, _) => {
+                symlink_plans.push(pack_pipeline_plan);
+            }
+        }
+    }
+
+    // First, write data which corresponds to real data
+    for direct_plan in direct_plans {
+        match direct_plan {
             PackPipelinePlan::FileGroup(metadatas) => {
                 // Open the original file (just the first one!)
                 let file = File::open(&metadatas.get(0)
@@ -165,13 +180,13 @@ pub async fn pack_pipeline(
                 // Grab the metadata for the first occurrence of this file
                 let first = &metadatas.get(0).unwrap().original_location;
                 // Turn the relative path into a vector of segments
-                let first_path_segments = path_to_segments(first).unwrap();
+                let path_segments = path_to_segments(first).unwrap();
                 // Grab the current time
                 let time = Utc::now();
 
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&first_path_segments, true, &forest, &content_store)
+                    .get_node(&path_segments, true, &forest, &content_store)
                     .await;
 
                 // If the file does not exist in the PrivateForest or an error occurred in searching for it
@@ -179,7 +194,7 @@ pub async fn pack_pipeline(
                     // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
                     root_dir
                         .write(
-                            &first_path_segments,
+                            &path_segments,
                             true,
                             time,
                             compressed_bytes.clone(),
@@ -198,12 +213,12 @@ pub async fn pack_pipeline(
                     let existing_file_content = file.get_content(&forest, &content_store).await?;
                     // If the file has been modified since the last time it was packed
                     if compressed_bytes != existing_file_content {
-                        println!("The file at {:?} has changed between the previous packing and now, rewriting", first_path_segments);
+                        println!("The file at {:?} has changed between the previous packing and now, rewriting", path_segments);
                         // Write the new bytes to the path where the file was originally
                         // TODO (organizedgrime) - Here we need to do something with versioning!
                         root_dir
                             .write(
-                                &first_path_segments,
+                                &path_segments,
                                 true,
                                 time,
                                 compressed_bytes.clone(),
@@ -239,7 +254,7 @@ pub async fn pack_pipeline(
                     // Copy the file from the original path to the duplicate path
                     root_dir
                         .cp_link(
-                            &first_path_segments,
+                            &path_segments,
                             &dup_path_segments,
                             true,
                             &mut forest,
@@ -250,52 +265,70 @@ pub async fn pack_pipeline(
                 }
             }
             // If this is a directory or symlink
-            PackPipelinePlan::Directory(metadata) | PackPipelinePlan::Symlink(metadata, _) => {
+            PackPipelinePlan::Directory(metadata) => {
                 // Turn the canonicalized path into a vector of segments
                 let path_segments = path_to_segments(&metadata.original_location).unwrap();
 
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, false, &forest, &content_store)
+                    .get_node(&path_segments, true, &forest, &content_store)
                     .await;
 
                 // If there was an error searching for the Node or
                 if result.is_err() || result.as_ref().unwrap().is_none() {
-                    if metadata.canonicalized_path.is_symlink() {
-                        // Determine where this symlink points to, an operation that should never fail
-                        let symlink_target = fs::read_link(&metadata.canonicalized_path).unwrap();
-                        let symlink_target_segments = path_to_segments(&symlink_target).unwrap();
-                        // Link the file / folder
-                        root_dir
-                            .cp_link(
-                                &path_segments,
-                                &symlink_target_segments,
-                                false,
-                                &mut forest,
-                                &content_store,
-                            )
-                            .await
-                            .unwrap();
-                    } else {
-                        // Create the subdirectory
-                        root_dir
-                            .mkdir(
-                                &path_segments,
-                                false,
-                                Utc::now(),
-                                &forest,
-                                &content_store,
-                                &mut rng,
-                            )
-                            .await
-                            .unwrap();
-                    }
+                    // Create the subdirectory
+                    root_dir
+                        .mkdir(
+                            &path_segments,
+                            true,
+                            Utc::now(),
+                            &forest,
+                            &content_store,
+                            &mut rng,
+                        )
+                        .await
+                        .unwrap();
                 }
                 // We don't need an else here, directories don't actually contain any data
-            } // PackPipelinePlan::Symlink(metadata, path) => {
+            }
+            PackPipelinePlan::Symlink(_, _) => todo!(),
+        }
 
-              // }
+        // Denote progress for each loop iteration
+        progress_bar.lock().unwrap().inc(1);
+    }
+
+    root_dir
+        .store(&mut forest, &content_store, &mut rng)
+        .await
+        .unwrap();
+
+    // Now that the data exists, we can symlink to it
+    for symlink_plan in symlink_plans {
+        match symlink_plan {
+            PackPipelinePlan::Symlink(metadata, _) => {
+                // The path where the symlink will be placed
+                let symlink_segments = path_to_segments(&metadata.original_location).unwrap();
+                // The path where the symlink will actually reference / point to
+                let original_location = fs::read_link(&metadata.canonicalized_path).unwrap();
+
+                // TODO - do this in a way that is not hardcoded
+                let original_segments = &path_to_segments(&original_location).unwrap()[3..];
+
+                // Link the file / folder
+                root_dir
+                    .cp_link(
+                        original_segments,
+                        &symlink_segments,
+                        true,
+                        &mut forest,
+                        &content_store,
+                    )
+                    .await
+                    .unwrap();
+            }
+            PackPipelinePlan::Directory(_) | PackPipelinePlan::FileGroup(_) => todo!(),
         }
 
         // Denote progress for each loop iteration

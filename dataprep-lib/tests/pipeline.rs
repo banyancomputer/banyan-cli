@@ -84,12 +84,21 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 /// Small Input End to End Integration Tests for the Pipeline
 #[cfg(test)]
 mod test {
-    use chrono::Utc;
-    use dataprep_lib::{utils::{pipeline::{load_manifest_data, load_forest_and_dir}, spider::path_to_segments}, types::pipeline::ManifestData};
-    use rand::thread_rng;
-    use wnfs::private::PrivateNodeOnPathHistory;
     use super::*;
-    use std::{io::Write, path::{Path, PathBuf}, rc::Rc};
+    use chrono::Utc;
+    use dataprep_lib::{
+        types::pipeline::ManifestData,
+        utils::{
+            pipeline::{load_forest_and_dir, load_manifest_data},
+            spider::path_to_segments,
+        },
+    };
+    use rand::thread_rng;
+    use std::{
+        path::{Path, PathBuf},
+        rc::Rc,
+    };
+    use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -352,31 +361,56 @@ mod test {
         let output_meta_path = &test_path.join("unpacked").join(".meta");
         let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
         let (mut forest, mut root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
-        root_dir.store(&mut forest, &manifest_data.content_store, &mut rng).await.unwrap();
+        root_dir
+            .store(&mut forest, &manifest_data.content_store, &mut rng)
+            .await
+            .unwrap();
         // Extract the ratchet before any writes occur
         let past_ratchet = root_dir.header.ratchet.clone();
 
         // Represent the file we're writing as it is understood by the PrivateDirectory
         let dir_file_path = PathBuf::from("versioning").join("0").join("X");
-        let dir_file_segments = &path_to_segments(&dir_file_path).unwrap(); 
+        let dir_file_segments = &path_to_segments(&dir_file_path).unwrap();
 
         // Write "Hello World!" to "/versioning/0/X"
         root_dir
-            .write(&dir_file_segments, true, Utc::now(), b"Hello World!".to_vec(), &mut forest, &manifest_data.content_store, &mut rng)
+            .write(
+                &dir_file_segments,
+                true,
+                Utc::now(),
+                b"Hello World!".to_vec(),
+                &mut forest,
+                &manifest_data.content_store,
+                &mut rng,
+            )
             .await
             .unwrap();
 
         // Store.
-        root_dir.store(&mut forest, &manifest_data.content_store, &mut rng).await.unwrap();
+        root_dir
+            .store(&mut forest, &manifest_data.content_store, &mut rng)
+            .await
+            .unwrap();
 
         // Write "Goodbye World!" to "/versioning/0/X"
         root_dir
-            .write(&dir_file_segments, true, Utc::now(), b"Goodbye World!".to_vec(), &mut forest, &manifest_data.content_store, &mut rng)
+            .write(
+                &dir_file_segments,
+                true,
+                Utc::now(),
+                b"Goodbye World!".to_vec(),
+                &mut forest,
+                &manifest_data.content_store,
+                &mut rng,
+            )
             .await
             .unwrap();
 
         // Store.
-        root_dir.store(&mut forest, &manifest_data.content_store, &mut rng).await.unwrap();        
+        root_dir
+            .store(&mut forest, &manifest_data.content_store, &mut rng)
+            .await
+            .unwrap();
 
         // Create a history of the Node at this path
         let mut iterator: PrivateNodeOnPathHistory = PrivateNodeOnPathHistory::of(
@@ -386,8 +420,10 @@ mod test {
             dir_file_segments,
             true,
             Rc::clone(&forest),
-            &manifest_data.content_store
-        ).await.unwrap();
+            &manifest_data.content_store,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(
             iterator
