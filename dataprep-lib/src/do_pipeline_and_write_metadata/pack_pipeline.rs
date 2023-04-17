@@ -180,7 +180,7 @@ pub async fn pack_pipeline(
                     root_dir
                         .write(
                             &first_path_segments,
-                            false,
+                            true,
                             time,
                             compressed_bytes.clone(),
                             &mut forest,
@@ -204,7 +204,7 @@ pub async fn pack_pipeline(
                         root_dir
                             .write(
                                 &first_path_segments,
-                                false,
+                                true,
                                 time,
                                 compressed_bytes.clone(),
                                 &mut forest,
@@ -228,7 +228,7 @@ pub async fn pack_pipeline(
                     root_dir
                         .mkdir(
                             folder_segments,
-                            false,
+                            true,
                             Utc::now(),
                             &forest,
                             &content_store,
@@ -241,7 +241,7 @@ pub async fn pack_pipeline(
                         .cp_link(
                             &first_path_segments,
                             &dup_path_segments,
-                            false,
+                            true,
                             &mut forest,
                             &content_store,
                         )
@@ -255,14 +255,29 @@ pub async fn pack_pipeline(
                 let path_segments = path_to_segments(&metadata.original_location).unwrap();
 
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
-                if !path_segments.is_empty() {
-                    // Search through the PrivateDirectory for a Node that matches the path provided
-                    let result = root_dir
-                        .get_node(&path_segments, false, &forest, &content_store)
-                        .await;
+                // Search through the PrivateDirectory for a Node that matches the path provided
+                let result = root_dir
+                    .get_node(&path_segments, false, &forest, &content_store)
+                    .await;
 
-                    // If there was an error searching for the Node or
-                    if result.is_err() || result.as_ref().unwrap().is_none() {
+                // If there was an error searching for the Node or
+                if result.is_err() || result.as_ref().unwrap().is_none() {
+                    if metadata.canonicalized_path.is_symlink() {
+                        // Determine where this symlink points to, an operation that should never fail
+                        let symlink_target = fs::read_link(&metadata.canonicalized_path).unwrap();
+                        let symlink_target_segments = path_to_segments(&symlink_target).unwrap();
+                        // Link the file / folder
+                        root_dir
+                            .cp_link(
+                                &path_segments,
+                                &symlink_target_segments,
+                                false,
+                                &mut forest,
+                                &content_store,
+                            )
+                            .await
+                            .unwrap();
+                    } else {
                         // Create the subdirectory
                         root_dir
                             .mkdir(
@@ -276,9 +291,11 @@ pub async fn pack_pipeline(
                             .await
                             .unwrap();
                     }
-                    // We don't need an else here, directories don't actually contain any data
                 }
-            }
+                // We don't need an else here, directories don't actually contain any data
+            } // PackPipelinePlan::Symlink(metadata, path) => {
+
+              // }
         }
 
         // Denote progress for each loop iteration

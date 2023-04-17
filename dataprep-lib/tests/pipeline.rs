@@ -6,7 +6,7 @@ use dataprep_lib::{
 };
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
-use std::{path::Path, process::Command};
+use std::{os::unix::fs, path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
@@ -84,8 +84,12 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 /// Small Input End to End Integration Tests for the Pipeline
 #[cfg(test)]
 mod test {
+    use chrono::Utc;
+    use dataprep_lib::{utils::{pipeline::{load_manifest_data, load_forest_and_dir}, spider::path_to_segments}, types::pipeline::ManifestData};
+    use rand::thread_rng;
+    use wnfs::private::PrivateNodeOnPathHistory;
     use super::*;
-    use std::{io::Write, path::Path};
+    use std::{io::Write, path::{Path, PathBuf}, rc::Rc};
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -342,20 +346,88 @@ mod test {
         // Run the test
         run_test(&test_path).await;
 
-        // Come up with some new content for a single file
-        let content = "this is the new content of a file".to_string();
+        let mut rng = thread_rng();
+
+        // Load data
+        let output_meta_path = &test_path.join("unpacked").join(".meta");
+        let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
+        let (mut forest, mut root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
+        root_dir.store(&mut forest, &manifest_data.content_store, &mut rng).await.unwrap();
+        // Extract the ratchet before any writes occur
+        let past_ratchet = root_dir.header.ratchet.clone();
+
+        // Represent the file we're writing as it is understood by the PrivateDirectory
+        let dir_file_path = PathBuf::from("versioning").join("0").join("X");
+        let dir_file_segments = &path_to_segments(&dir_file_path).unwrap(); 
+
+        // Write "Hello World!" to "/versioning/0/X"
+        root_dir
+            .write(&dir_file_segments, true, Utc::now(), b"Hello World!".to_vec(), &mut forest, &manifest_data.content_store, &mut rng)
+            .await
+            .unwrap();
+
+        // Store.
+        root_dir.store(&mut forest, &manifest_data.content_store, &mut rng).await.unwrap();
+
+        // Write "Goodbye World!" to "/versioning/0/X"
+        root_dir
+            .write(&dir_file_segments, true, Utc::now(), b"Goodbye World!".to_vec(), &mut forest, &manifest_data.content_store, &mut rng)
+            .await
+            .unwrap();
+
+        // Store.
+        root_dir.store(&mut forest, &manifest_data.content_store, &mut rng).await.unwrap();        
+
+        // Create a history of the Node at this path
+        let mut iterator: PrivateNodeOnPathHistory = PrivateNodeOnPathHistory::of(
+            root_dir,
+            &past_ratchet,
+            1_000_000,
+            dir_file_segments,
+            true,
+            Rc::clone(&forest),
+            &manifest_data.content_store
+        ).await.unwrap();
+
+        assert_eq!(
+            iterator
+                .get_previous(&manifest_data.content_store)
+                .await
+                .unwrap()
+                .unwrap()
+                .as_file()
+                .unwrap()
+                .get_content(&forest, &manifest_data.content_store)
+                .await
+                .unwrap(),
+            b"Hello World!".to_vec()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_symlinks() {
+        // Create a new path for this test
+        let test_path = Path::new(TEST_PATH);
+        let test_path = test_path.join("symlinks");
+        // Define the file structure to test
+        let desired_structure = Structure::new(
+            2, // width
+            2, // depth
+            TEST_INPUT_SIZE,
+            Strategy::Simple,
+        );
+
+        // Setup the test
+        setup_test(&test_path, desired_structure, "symlinks");
+
+        // Create a symlink in the file stucture
         // Construct the path of the file we're going to modify
-        let file = test_path
-            .join("input")
-            .join("versioning")
-            .join("0")
-            .join("0");
+        let sym_root = test_path.join("input").join("symlinks").join("0");
 
-        // Overwrite the content of the file
-        let mut file = std::fs::File::create(file).unwrap();
-        file.write_all(content.as_bytes()).unwrap();
+        // Create a symbolic link in the filesystem
+        fs::symlink(sym_root.join("0"), sym_root.join("X")).unwrap();
 
-        // Run the test again with the new version of the file in the filesystem
+        // Run the test
         run_test(&test_path).await;
     }
 }

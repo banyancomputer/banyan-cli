@@ -2,7 +2,7 @@ use anyhow::Result;
 use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::Metadata,
+    fs::{self, Metadata},
     path::{Path, PathBuf},
     time::SystemTime,
 };
@@ -37,8 +37,12 @@ impl SpiderMetadata {
     pub fn new(path_root: &Path, entry: DirEntry<((), ())>) -> Self {
         // Determine the location of the entry by stripping the root path from it
         let original_location = entry.path().strip_prefix(path_root).unwrap().to_path_buf();
-        // Represent this entry location canonically as an absolute path
-        let canonicalized_path = entry.path().canonicalize().unwrap();
+        // Don't try to canonicalize if this is a symlink
+        let canonicalized_path: PathBuf = if entry.path_is_symlink() {
+            entry.path()
+        } else {
+            entry.path().canonicalize().unwrap()
+        };
         // Grab the metadata of the entry
         let original_metadata = entry.metadata().unwrap();
         // Return the SpiderMetadata
