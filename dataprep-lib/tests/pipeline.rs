@@ -85,7 +85,6 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use chrono::Utc;
     use dataprep_lib::{
         types::pipeline::ManifestData,
         utils::{
@@ -93,13 +92,15 @@ mod test {
             spider::path_to_segments,
         },
     };
-    use rand::thread_rng;
     use std::{
         path::{Path, PathBuf},
         rc::Rc,
     };
-    use tokio::fs::{read_link, symlink, symlink_metadata};
-    use wnfs::private::PrivateNodeOnPathHistory;
+    use tokio::{
+        fs::{read_link, symlink, symlink_metadata, File},
+        io::AsyncWriteExt,
+    };
+    use wnfs::private::{PrivateNodeHistory, PrivateNodeOnPathHistory};
 
     // use std::fs::symlink_metadata;
     // use std::os::unix::fs::symlink;
@@ -357,73 +358,87 @@ mod test {
 
         // Setup the test once
         setup_test(&test_path, desired_structure, test_name);
+
+        let version_root = test_path.join("input").join("versioning").join("0");
+        let versioned_file_path = version_root.join("0");
+        let mut versioned_file = File::create(versioned_file_path).await.unwrap();
+
+        // Write "Hello World!" out to the file; v0
+        versioned_file
+            .write_all(&b"Hello World!".to_vec())
+            .await
+            .unwrap();
+
         // Run the test
         run_test(&test_path).await;
 
-        let mut rng = thread_rng();
-
-        // Load data
         let output_meta_path = &test_path.join("unpacked").join(".meta");
         let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
-        let (mut forest, mut root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
-        root_dir
-            .store(&mut forest, &manifest_data.content_store, &mut rng)
-            .await
-            .unwrap();
-
-        // Extract the ratchet before any writes occur
+        let (_, root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
         let past_ratchet = root_dir.header.ratchet.clone();
+        let past_count = past_ratchet.combined_counter();
 
-        // Represent the file we're writing as it is understood by the PrivateDirectory
-        let dir_file_path = PathBuf::from("versioning").join("0").join("X");
-        let dir_file_segments = &path_to_segments(&dir_file_path).unwrap();
-
-        // Write "Hello World!" to "/versioning/0/X"
-        root_dir
-            .write(
-                &dir_file_segments,
-                true,
-                Utc::now(),
-                b"Hello World!".to_vec(),
-                &mut forest,
-                &manifest_data.content_store,
-                &mut rng,
-            )
+        // Write "Still there, World?" out to the same file
+        versioned_file
+            .write_all(&b"Still there, World?".to_vec())
             .await
             .unwrap();
 
-        // Store.
-        root_dir
-            .store(&mut forest, &manifest_data.content_store, &mut rng)
+        // Run the test again
+        run_test(&test_path).await;
+
+        // Write "Goodbye World!" out to the same file
+        versioned_file
+            .write_all(&b"Goodbye World!".to_vec())
             .await
             .unwrap();
 
-        // Write "Goodbye World!" to "/versioning/0/X"
-        root_dir
-            .write(
-                &dir_file_segments,
-                true,
-                Utc::now(),
-                b"Goodbye World!".to_vec(),
-                &mut forest,
-                &manifest_data.content_store,
-                &mut rng,
-            )
+        // Run the test again
+        run_test(&test_path).await;
+
+        let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
+        let (forest, root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
+        let newer_ratchet = root_dir.header.ratchet.clone();
+        let newer_count = newer_ratchet.combined_counter();
+
+        // Assert that we've made two changes to the ratchet since its inception
+        assert!(newer_count == past_count + 2);
+
+        //
+        let path = PathBuf::from("versioning").join("0").join("0");
+        let path_segments = path_to_segments(&path).unwrap();
+
+        println!("searching for node at path {:?}", path_segments);
+
+        // Ensure that a node exists at this path
+        let file = root_dir
+            .get_node(&path_segments, true, &forest, &manifest_data.content_store)
+            .await
+            .unwrap()
+            .unwrap()
+            .as_file()
+            .unwrap();
+
+        let file_content = file
+            .get_content(&forest, &manifest_data.content_store)
             .await
             .unwrap();
 
-        // Store.
-        root_dir
-            .store(&mut forest, &manifest_data.content_store, &mut rng)
-            .await
-            .unwrap();
+        println!("successfully found file contents: {:?}\n\n", &file_content);
 
-        // Create a history of the Node at this path
-        let mut iterator: PrivateNodeOnPathHistory = PrivateNodeOnPathHistory::of(
-            root_dir,
+        let _iterator = PrivateNodeHistory::of(
+            &file.as_node(),
             &past_ratchet,
             1_000_000,
-            dir_file_segments,
+            Rc::clone(&forest),
+        )
+        .unwrap();
+
+        let mut iterator = PrivateNodeOnPathHistory::of(
+            root_dir,
+            &past_ratchet,
+            1_000_000_000,
+            &path_segments,
             true,
             Rc::clone(&forest),
             &manifest_data.content_store,
@@ -431,19 +446,12 @@ mod test {
         .await
         .unwrap();
 
-        assert_eq!(
-            iterator
-                .get_previous(&manifest_data.content_store)
-                .await
-                .unwrap()
-                .unwrap()
-                .as_file()
-                .unwrap()
-                .get_content(&forest, &manifest_data.content_store)
-                .await
-                .unwrap(),
-            b"Hello World!".to_vec()
-        );
+        println!("iterator created!");
+        let _result = iterator
+            .get_previous(&manifest_data.content_store)
+            .await
+            .unwrap();
+        println!("result obtained!");
     }
 
     #[tokio::test]

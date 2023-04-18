@@ -56,7 +56,7 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
                 std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
                 // Obtain a list of this Node's children
                 let node_names: Vec<String> = dir
-                    .ls(&Vec::new(), false, forest, store)
+                    .ls(&Vec::new(), true, forest, store)
                     .await
                     .unwrap()
                     .into_iter()
@@ -67,7 +67,7 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
                 for node_name in node_names {
                     // Fetch the Node with the given name
                     let node = dir
-                        .get_node(&[node_name.clone()], false, forest, store)
+                        .get_node(&[node_name.clone()], true, forest, store)
                         .await
                         .unwrap()
                         .unwrap();
@@ -86,15 +86,10 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
             PrivateNode::File(file) => {
                 // This is where the file will be unpacked no matter what
                 let file_path = output_dir.join(built_path);
-
                 // If this file is a symlink
                 if let Some(path) = file.symlink_origin() {
-                    println!("unpacking symlink w og {} and output {}", output_dir.join(&path).display(), file_path.display());
-                    
                     // Write out the symlink
-                    symlink(output_dir.join(path), file_path)
-                        .await
-                        .unwrap();
+                    symlink(output_dir.join(path), file_path).await.unwrap();
                 }
                 // If this is a real file
                 else {

@@ -1,8 +1,9 @@
 use anyhow::Result;
+use rand::thread_rng;
 use std::{path::Path, rc::Rc};
 use wnfs::{
-    common::{BlockStore, CarBlockStore},
-    libipld::{serde as ipld_serde, Ipld},
+    common::{AsyncSerialize, BlockStore, CarBlockStore},
+    libipld::{serde as ipld_serde, Cid, Ipld},
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
 };
 
@@ -10,13 +11,9 @@ use crate::types::pipeline::ManifestData;
 
 /// Deserializes the ManifestData struct from a given .meta dir
 pub async fn load_manifest_data(input_meta_path: &Path) -> Result<ManifestData> {
-    println!("loading manifest data in {}", input_meta_path.display());
+    info!("Loading in cached metadata...");
+    // The path in which we expect to find the Manifest JSON file
     let meta_file_path = input_meta_path.join("manifest.json");
-    println!(
-        "attempting to open the file at {}, which exists: {}",
-        meta_file_path.display(),
-        meta_file_path.exists()
-    );
     // Read in the manifest file from the metadata path
     let reader = std::fs::File::open(meta_file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
@@ -30,13 +27,6 @@ pub async fn load_manifest_data(input_meta_path: &Path) -> Result<ManifestData> 
         }
     };
 
-    Ok(manifest_data)
-}
-
-/// Loads in the PrivateForest and PrivateDirectory from a given ManifestData
-pub async fn load_forest_and_dir(
-    manifest_data: &ManifestData,
-) -> Result<(Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     // If the major version of the manifest is not the same as the major version of the program
     if manifest_data.version.split('.').next().unwrap()
         != env!("CARGO_PKG_VERSION").split('.').next().unwrap()
@@ -45,6 +35,15 @@ pub async fn load_forest_and_dir(
         error!("Unsupported manifest version.");
         panic!("Unsupported manifest version.");
     }
+
+    Ok(manifest_data)
+}
+
+/// Loads in the PrivateForest and PrivateDirectory from a given ManifestData
+pub async fn load_forest_and_dir(
+    manifest_data: &ManifestData,
+) -> Result<(Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+    info!("Loading in BlockStores and WNFS from metadata...");
 
     // Get the DiskBlockStores
     let content_store: &CarBlockStore = &manifest_data.content_store;
@@ -74,4 +73,26 @@ pub async fn load_forest_and_dir(
         .unwrap();
 
     Ok((forest, dir))
+}
+
+/// Store the PrivateForest and PrivateDirectory in the content BlockStore
+/// Return the CIDs of the references to those objects, which can be looked up in the Metadata BlockStore
+pub async fn store_forest_and_dir(
+    content_store: &CarBlockStore,
+    meta_store: &CarBlockStore,
+    forest: &mut Rc<PrivateForest>,
+    root_dir: &Rc<PrivateDirectory>,
+) -> Result<(Cid, Cid)> {
+    // Random number generator
+    let rng = &mut thread_rng();
+    // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
+    let root_ref: PrivateRef = root_dir.store(forest, content_store, rng).await?;
+    // Store it in the Metadata CarBlockStore
+    let ref_cid = meta_store.put_serializable(&root_ref).await?;
+    // Create an IPLD from the PrivateForest
+    let forest_ipld = forest.async_serialize_ipld(content_store).await?;
+    // Store the PrivateForest's IPLD in the BlockStore
+    let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
+    // Return OK with CIDs
+    Ok((ref_cid, ipld_cid))
 }

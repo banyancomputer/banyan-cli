@@ -10,9 +10,9 @@ use std::{
     vec,
 };
 use wnfs::{
-    common::{AsyncSerialize, BlockStore, CarBlockStore},
+    common::CarBlockStore,
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateFile, PrivateForest, PrivateRef},
+    private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
 
 use crate::{
@@ -23,7 +23,7 @@ use crate::{
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
-        pipeline::{load_forest_and_dir, load_manifest_data},
+        pipeline::{load_forest_and_dir, load_manifest_data, store_forest_and_dir},
         spider::{self, path_to_segments},
     },
 };
@@ -207,6 +207,10 @@ pub async fn pack_pipeline(
                 }
                 // If the file exists in the PrivateForest
                 else {
+                    println!(
+                        "a file at this path ({:?}) already exists in this forest",
+                        &path_segments
+                    );
                     // Forcibly cast because we know this is a file
                     let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
                     // Grab the content that already exists in the PrivateFile at this path
@@ -299,19 +303,12 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
-    root_dir
-        .store(&mut forest, &content_store, &mut rng)
-        .await
-        .unwrap();
-
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
         match symlink_plan {
             PackPipelinePlan::Symlink(metadata, symlink_target) => {
                 // The path where the symlink will be placed
                 let symlink_segments = path_to_segments(&metadata.original_location).unwrap();
-
-                println!("packing symsegs: {:?} with target: {}", symlink_segments, symlink_target.display());
 
                 // Link the file or folder
                 root_dir
@@ -320,7 +317,7 @@ pub async fn pack_pipeline(
                         &symlink_segments,
                         true,
                         Utc::now(),
-                        &mut forest,
+                        &forest,
                         &content_store,
                         &mut rng,
                     )
@@ -334,23 +331,8 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
+    // Construct output path for manifest data
     let manifest_file = input_meta_path.join("manifest.json");
-    // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
-    let root_ref: PrivateRef = root_dir
-        .store(&mut forest, &content_store, &mut rng)
-        .await
-        .unwrap();
-    // Store it in the Metadata CarBlockStore
-    let ref_cid = meta_store.put_serializable(&root_ref).await.unwrap();
-    // Create an IPLD from the PrivateForest
-    let forest_ipld = forest.async_serialize_ipld(&content_store).await.unwrap();
-    // Store the PrivateForest's IPLD in the BlockStore
-    let ipld_cid = meta_store.put_serializable(&forest_ipld).await.unwrap();
-
-    info!(
-        "📄 Writing out a data manifest file to {}",
-        manifest_file.display()
-    );
     // For now just write out the content of compressed_and_encrypted to a file.
     // make sure the manifest file doesn't exist
     let manifest_writer = match std::fs::OpenOptions::new()
@@ -374,6 +356,12 @@ pub async fn pack_pipeline(
         }
     };
 
+    // Store Forest and Dir in BlockStores and retrieve CIDs
+    let (ref_cid, ipld_cid) =
+        store_forest_and_dir(&content_store, &meta_store, &mut forest, &root_dir)
+            .await
+            .unwrap();
+
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -382,6 +370,11 @@ pub async fn pack_pipeline(
         ref_cid,
         ipld_cid,
     };
+
+    info!(
+        "📄 Writing out a data manifest file to {}",
+        manifest_file.display()
+    );
 
     // Use serde to convert the ManifestData to JSON and write it to the path specified
     serde_json::to_writer_pretty(manifest_writer, &manifest_data)
