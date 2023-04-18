@@ -29,7 +29,7 @@ criterion = {version = "0.4.0", features = ["async_tokio"]}
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
 zstd = "0.12.3"
 fclones = "0.30.0"
-wnfs = { path = "../rs-wnfs/wnfs" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "symlinks" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]

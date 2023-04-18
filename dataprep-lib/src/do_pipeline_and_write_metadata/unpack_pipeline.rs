@@ -6,7 +6,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 // use serde::{Deserialize, Serializer};
 use std::{fs::File, io::Write, path::Path};
-use tokio as _;
+use tokio::{self as _, fs::symlink};
 use wnfs::{
     common::BlockStore,
     private::{PrivateForest, PrivateNode},
@@ -50,7 +50,7 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
         forest: &PrivateForest,
         store: &impl BlockStore,
     ) {
-        match node {
+        match &node {
             PrivateNode::Dir(dir) => {
                 // Create the directory we are in
                 std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
@@ -84,18 +84,33 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
                 }
             }
             PrivateNode::File(file) => {
-                // Get the bytes associated with this file
-                let file_content = file.get_content(forest, store).await.unwrap();
-                // Create a buffer to hold the decompressed bytes
-                let mut decompressed_bytes: Vec<u8> = vec![];
-                // Decompress the chunk before writing to disk
-                CompressionScheme::new_zstd()
-                    .decode(file_content.as_slice(), &mut decompressed_bytes)
-                    .unwrap();
-                // Create the file at the desired location
-                let mut output_file = File::create(output_dir.join(built_path)).unwrap();
-                // Write all contents to the output file
-                output_file.write_all(&decompressed_bytes).unwrap();
+                // This is where the file will be unpacked no matter what
+                let file_path = output_dir.join(built_path);
+
+                // If this file is a symlink
+                if let Some(path) = file.symlink_origin() {
+                    println!("unpacking symlink w og {} and output {}", output_dir.join(&path).display(), file_path.display());
+                    
+                    // Write out the symlink
+                    symlink(output_dir.join(path), file_path)
+                        .await
+                        .unwrap();
+                }
+                // If this is a real file
+                else {
+                    // Get the bytes associated with this file
+                    let file_content = file.get_content(forest, store).await.unwrap();
+                    // Create a buffer to hold the decompressed bytes
+                    let mut decompressed_bytes: Vec<u8> = vec![];
+                    // Decompress the chunk before writing to disk
+                    CompressionScheme::new_zstd()
+                        .decode(file_content.as_slice(), &mut decompressed_bytes)
+                        .unwrap();
+                    // Create the file at the desired location
+                    let mut output_file = File::create(file_path).unwrap();
+                    // Write all contents to the output file
+                    output_file.write_all(&decompressed_bytes).unwrap();
+                }
             }
         }
     }

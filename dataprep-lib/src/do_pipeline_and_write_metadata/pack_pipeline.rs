@@ -307,23 +307,22 @@ pub async fn pack_pipeline(
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
         match symlink_plan {
-            PackPipelinePlan::Symlink(metadata, _) => {
+            PackPipelinePlan::Symlink(metadata, symlink_target) => {
                 // The path where the symlink will be placed
                 let symlink_segments = path_to_segments(&metadata.original_location).unwrap();
-                // The path where the symlink will actually reference / point to
-                let original_location = fs::read_link(&metadata.canonicalized_path).unwrap();
 
-                // TODO - do this in a way that is not hardcoded
-                let original_segments = &path_to_segments(&original_location).unwrap()[3..];
+                println!("packing symsegs: {:?} with target: {}", symlink_segments, symlink_target.display());
 
-                // Link the file / folder
+                // Link the file or folder
                 root_dir
-                    .cp_link(
-                        original_segments,
+                    .write_symlink(
+                        symlink_target.to_str().unwrap().to_string(),
                         &symlink_segments,
                         true,
+                        Utc::now(),
                         &mut forest,
                         &content_store,
+                        &mut rng,
                     )
                     .await
                     .unwrap();

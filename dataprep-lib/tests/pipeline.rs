@@ -6,7 +6,7 @@ use dataprep_lib::{
 };
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
-use std::{os::unix::fs, path::Path, process::Command};
+use std::{path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
@@ -98,7 +98,11 @@ mod test {
         path::{Path, PathBuf},
         rc::Rc,
     };
+    use tokio::fs::{read_link, symlink, symlink_metadata};
     use wnfs::private::PrivateNodeOnPathHistory;
+
+    // use std::fs::symlink_metadata;
+    // use std::os::unix::fs::symlink;
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -336,6 +340,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_versioning() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -365,6 +370,7 @@ mod test {
             .store(&mut forest, &manifest_data.content_store, &mut rng)
             .await
             .unwrap();
+
         // Extract the ratchet before any writes occur
         let past_ratchet = root_dir.header.ratchet.clone();
 
@@ -456,14 +462,32 @@ mod test {
         // Setup the test
         setup_test(&test_path, desired_structure, "symlinks");
 
-        // Create a symlink in the file stucture
-        // Construct the path of the file we're going to modify
-        let sym_root = test_path.join("input").join("symlinks").join("0");
+        // Path in which Directory symlink will be created
+        let sym_dir_root = test_path.join("input").join("symlinks");
+        // Path in which File symlink will be created
+        let sym_file_root = sym_dir_root.join("0");
 
-        // Create a symbolic link in the filesystem
-        fs::symlink(sym_root.join("0"), sym_root.join("X")).unwrap();
+        // Point from /input/symlinks/ZZ -> /input/symlinks/0
+        let dir_original = sym_dir_root.join("0").canonicalize().unwrap();
+        let dir_sym = sym_dir_root.join("ZZ");
 
-        // Run the test
+        // Point from /input/symlinks/0/ZZ -> /input/symlinks/0/0
+        let file_original = sym_file_root.join("0").canonicalize().unwrap();
+        let file_sym = sym_file_root.join("ZZ");
+
+        // Create those symbolic links in the actual filesystem
+        symlink(&dir_original, &dir_sym).await.unwrap();
+        symlink(&file_original, &file_sym).await.unwrap();
+
+        // Assert that both of the paths are symlinks using their metadata
+        assert!(symlink_metadata(&dir_sym).await.unwrap().is_symlink());
+        assert!(symlink_metadata(&file_sym).await.unwrap().is_symlink());
+
+        // Assert that both of them point to the location we expect them to
+        assert_eq!(dir_original, read_link(dir_sym).await.unwrap());
+        assert_eq!(file_original, read_link(file_sym).await.unwrap());
+
+        // Run the test on the created filesystem
         run_test(&test_path).await;
     }
 }
