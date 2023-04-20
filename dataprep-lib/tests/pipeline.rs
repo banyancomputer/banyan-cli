@@ -87,20 +87,17 @@ mod test {
     use super::*;
     use dataprep_lib::{
         types::pipeline::ManifestData,
-        utils::{
-            pipeline::{load_forest_and_dir, load_manifest_data},
-            spider::path_to_segments,
-        },
+        utils::pipeline::{load_forest_and_dir, load_manifest_data}
     };
     use std::{
-        path::{Path, PathBuf},
+        path::Path,
         rc::Rc,
     };
     use tokio::{
-        fs::{read_link, symlink, symlink_metadata, File, OpenOptions},
+        fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
-    use wnfs::private::{PrivateNodeHistory, PrivateNodeOnPathHistory};
+    use wnfs::private::{PrivateNodeOnPathHistory};
 
     // use std::fs::symlink_metadata;
     // use std::os::unix::fs::symlink;
@@ -359,15 +356,22 @@ mod test {
         // Setup the test once
         setup_test(&test_path, desired_structure, test_name);
 
-        // Path for the actual file on disk that we'll be writing 
-        let versioned_file_path = test_path.join("input").join("versioning").join("0").join("0");
+        // Path for the actual file on disk that we'll be writing
+        let versioned_file_path = test_path
+            .join("input")
+            .join("versioning")
+            .join("0")
+            .join("0");
 
         // Define bytes for each message
         let hello_bytes = "Hello World!".as_bytes();
         let still_bytes = "Still there, World?".as_bytes();
         let goodbye_bytes = "Goodbye World!".as_bytes();
 
-        println!("hb: {:?}\nsb: {:?}\ngb: {:?}", hello_bytes, still_bytes, goodbye_bytes);
+        println!(
+            "hb: {:?}\nsb: {:?}\ngb: {:?}",
+            hello_bytes, still_bytes, goodbye_bytes
+        );
 
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)
@@ -392,7 +396,7 @@ mod test {
 
         // Run the test again
         run_test(&test_path).await;
-        
+
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)
             .await
@@ -400,7 +404,7 @@ mod test {
             .write_all(goodbye_bytes)
             .await
             .unwrap();
-        
+
         // Run the test again
         run_test(&test_path).await;
 
@@ -417,8 +421,7 @@ mod test {
         assert!(manifest_data
             .original_ratchet
             .compare(&newest_ratchet, 1_000_000)
-            .is_ok()
-        );
+            .is_ok());
 
         let mut iterator = PrivateNodeOnPathHistory::of(
             root_dir,
@@ -428,7 +431,9 @@ mod test {
             true,
             Rc::clone(&forest),
             &manifest_data.content_store,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
@@ -440,11 +445,8 @@ mod test {
             .unwrap();
 
         // Describe path of the PrivateFile relative to the root directory
-        let path_segments: Vec<String> = vec![
-            "versioning".to_string(), 
-            "0".to_string(), 
-            "0".to_string()
-        ];
+        let path_segments: Vec<String> =
+            vec!["versioning".to_string(), "0".to_string(), "0".to_string()];
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
@@ -490,9 +492,13 @@ mod test {
 
         // Assert that the previous version of the file was retrieved correctly
         assert!(original_content != goodbye_bytes);
-        
+
         // Assert that there are no more previous versions to find
-        assert!(iterator.get_previous(&manifest_data.content_store).await.unwrap().is_none());
+        assert!(iterator
+            .get_previous(&manifest_data.content_store)
+            .await
+            .unwrap()
+            .is_none());
     }
 
     #[tokio::test]
