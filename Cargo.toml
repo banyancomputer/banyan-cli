@@ -6,9 +6,29 @@ members = [
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
 version = "1.0.0"
-license = "MIT"
 edition = "2021"
+
+# Cargo publication necessities
+license = "MIT"
+description = "Dataprep compresses and encrypts data for Filecoin"
+homepage = "https://banyan.computer"
 repository = "https://github.com/banyancomputer/dataprep"
+readme = "README.md"
+# Cargo publication optionals
+keywords = [
+    "banyan", 
+    "dataprep", 
+    "filecoin", 
+    "ipfs", 
+    "decentralisation"
+]
+categories = [
+  "compression",
+  "cryptography",
+  "encoding",
+  "filesystem"
+]
+# End cargo publication
 
 [workspace.dependencies]
 # Our core library -- is a dependency of the binary
@@ -29,7 +49,9 @@ criterion = {version = "0.4.0", features = ["async_tokio"]}
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
 zstd = "0.12.3"
 fclones = "0.30.0"
+# For local dev if needed..
 wnfs = { path = "../rs-wnfs/wnfs" }
+#wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "symlinks" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]

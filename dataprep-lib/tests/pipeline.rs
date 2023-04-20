@@ -97,7 +97,7 @@ mod test {
         rc::Rc,
     };
     use tokio::{
-        fs::{read_link, symlink, symlink_metadata, File},
+        fs::{read_link, symlink, symlink_metadata, File, OpenOptions},
         io::AsyncWriteExt,
     };
     use wnfs::private::{PrivateNodeHistory, PrivateNodeOnPathHistory};
@@ -341,7 +341,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore]
+    // #[ignore]
     async fn test_versioning() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
@@ -359,59 +359,95 @@ mod test {
         // Setup the test once
         setup_test(&test_path, desired_structure, test_name);
 
-        let version_root = test_path.join("input").join("versioning").join("0");
-        let versioned_file_path = version_root.join("0");
-        let mut versioned_file = File::create(versioned_file_path).await.unwrap();
+        // Path for the actual file on disk that we'll be writing 
+        let versioned_file_path = test_path.join("input").join("versioning").join("0").join("0");
+
+        // Define bytes for each message
+        let hello_bytes = "Hello World!".as_bytes();
+        let still_bytes = "Still there, World?".as_bytes();
+        let goodbye_bytes = "Goodbye World!".as_bytes();
+
+        println!("hb: {:?}\nsb: {:?}\ngb: {:?}", hello_bytes, still_bytes, goodbye_bytes);
 
         // Write "Hello World!" out to the file; v0
-        versioned_file
-            .write_all(&b"Hello World!".to_vec())
+        File::create(&versioned_file_path)
+            .await
+            .unwrap()
+            .write_all(hello_bytes)
             .await
             .unwrap();
+
+        println!("running for the first time...");
 
         // Run the test
         run_test(&test_path).await;
 
-        let output_meta_path = &test_path.join("unpacked").join(".meta");
-        let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
-        let (_, root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
-        let past_ratchet = root_dir.header.ratchet.clone();
-        let past_count = past_ratchet.combined_counter();
-
         // Write "Still there, World?" out to the same file
-        versioned_file
-            .write_all(&b"Still there, World?".to_vec())
+        File::create(&versioned_file_path)
+            .await
+            .unwrap()
+            .write_all(still_bytes)
             .await
             .unwrap();
 
         // Run the test again
         run_test(&test_path).await;
-
+        
         // Write "Goodbye World!" out to the same file
-        versioned_file
-            .write_all(&b"Goodbye World!".to_vec())
+        File::create(&versioned_file_path)
+            .await
+            .unwrap()
+            .write_all(goodbye_bytes)
             .await
             .unwrap();
-
+        
         // Run the test again
         run_test(&test_path).await;
 
+        // The path in which we expect to find metadata
+        let output_meta_path = &test_path.join("unpacked").join(".meta");
+        // Load in the metadata
         let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
+        // Load in the PrivateForest and PrivateDirectory
         let (forest, root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
-        let newer_ratchet = root_dir.header.ratchet.clone();
-        let newer_count = newer_ratchet.combined_counter();
+        // Grab the newest ratchet from the most recent run of dataprep
+        let newest_ratchet = root_dir.header.ratchet.clone();
 
-        // Assert that we've made two changes to the ratchet since its inception
-        assert!(newer_count == past_count + 2);
+        // Assert that the original Ratchet is the ancestor of the new ratchet
+        assert!(manifest_data
+            .original_ratchet
+            .compare(&newest_ratchet, 1_000_000)
+            .is_ok()
+        );
 
-        //
-        let path = PathBuf::from("versioning").join("0").join("0");
-        let path_segments = path_to_segments(&path).unwrap();
+        let mut iterator = PrivateNodeOnPathHistory::of(
+            root_dir,
+            &manifest_data.original_ratchet,
+            1_000_000,
+            &[],
+            true,
+            Rc::clone(&forest),
+            &manifest_data.content_store,
+        ).await.unwrap();
 
-        println!("searching for node at path {:?}", path_segments);
+        // Get the previous version of the root of the PrivateDirectory
+        let previous_root = iterator
+            .get_previous(&manifest_data.content_store)
+            .await
+            .unwrap()
+            .unwrap()
+            .as_dir()
+            .unwrap();
 
-        // Ensure that a node exists at this path
-        let file = root_dir
+        // Describe path of the PrivateFile relative to the root directory
+        let path_segments: Vec<String> = vec![
+            "versioning".to_string(), 
+            "0".to_string(), 
+            "0".to_string()
+        ];
+
+        // Grab the previous version of the PrivateFile
+        let previous_file = previous_root
             .get_node(&path_segments, true, &forest, &manifest_data.content_store)
             .await
             .unwrap()
@@ -419,39 +455,44 @@ mod test {
             .as_file()
             .unwrap();
 
-        let file_content = file
+        // Grab the previous version of the PrivateFile content
+        let previous_content = previous_file
             .get_content(&forest, &manifest_data.content_store)
             .await
             .unwrap();
 
-        println!("successfully found file contents: {:?}\n\n", &file_content);
+        // Assert that the previous version of the file was retrieved correctly
+        assert!(previous_content != goodbye_bytes);
 
-        let _iterator = PrivateNodeHistory::of(
-            &file.as_node(),
-            &past_ratchet,
-            1_000_000,
-            Rc::clone(&forest),
-        )
-        .unwrap();
-
-        let mut iterator = PrivateNodeOnPathHistory::of(
-            root_dir,
-            &past_ratchet,
-            1_000_000_000,
-            &path_segments,
-            true,
-            Rc::clone(&forest),
-            &manifest_data.content_store,
-        )
-        .await
-        .unwrap();
-
-        println!("iterator created!");
-        let _result = iterator
+        // Get the original version of the root of the PrivateDirectory
+        let original_root = iterator
             .get_previous(&manifest_data.content_store)
             .await
+            .unwrap()
+            .unwrap()
+            .as_dir()
             .unwrap();
-        println!("result obtained!");
+
+        // Grab the original version of the PrivateFile
+        let original_file = original_root
+            .get_node(&path_segments, true, &forest, &manifest_data.content_store)
+            .await
+            .unwrap()
+            .unwrap()
+            .as_file()
+            .unwrap();
+
+        // Grab the previous version of the PrivateFile content
+        let original_content = original_file
+            .get_content(&forest, &manifest_data.content_store)
+            .await
+            .unwrap();
+
+        // Assert that the previous version of the file was retrieved correctly
+        assert!(original_content != goodbye_bytes);
+        
+        // Assert that there are no more previous versions to find
+        assert!(iterator.get_previous(&manifest_data.content_store).await.unwrap().is_none());
     }
 
     #[tokio::test]

@@ -1,5 +1,6 @@
 use crate::types::spider::SpiderMetadata;
 use serde::{Deserialize, Serialize};
+use skip_ratchet::Ratchet;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 use wnfs::{common::CarBlockStore, libipld::Cid};
 
@@ -11,6 +12,8 @@ use wnfs::{common::CarBlockStore, libipld::Cid};
 pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,
+    /// The ratchet of the original Filesystem, the first time it is packed
+    pub original_ratchet: Ratchet,
     /// The BlockStore that holds all packed data
     pub content_store: CarBlockStore,
     /// The BlockStore that holds all Metadata

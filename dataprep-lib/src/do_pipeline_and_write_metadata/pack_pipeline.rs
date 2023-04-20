@@ -105,6 +105,8 @@ pub async fn pack_pipeline(
         Utc::now(),
         &mut rng,
     ));
+    // Extract the original ratchet before any writes occur
+    let mut original_ratchet = root_dir.header.ratchet.clone();
     // Create the PrivateForest from which Nodes will be queried
     let mut forest = Rc::new(PrivateForest::new());
 
@@ -116,19 +118,22 @@ pub async fn pack_pipeline(
 
     // If we've already packed this filesystem before
     if input_meta_path.exists() {
-        info!("You've run dataprep on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
+        println!("You've run dataprep on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
         // Load in the ManifestData
         let manifest_data: ManifestData = load_manifest_data(&input_meta_path).await.unwrap();
         // Load in both CarBlockStores
         match load_forest_and_dir(&manifest_data).await {
             // If the load was successful
             Ok((new_forest, new_dir)) => {
+                // Update the original ratchet
+                original_ratchet = manifest_data.original_ratchet;
                 // Update the BlockStores
                 meta_store = manifest_data.meta_store;
                 content_store = manifest_data.content_store;
                 // Update the forest and root directory
                 forest = new_forest;
                 root_dir = new_dir;
+                println!("root dir and forest and original ratchet loaded from disk...");
             }
             // If the load was unsuccessful
             Err(_) => {
@@ -371,6 +376,7 @@ pub async fn pack_pipeline(
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
+        original_ratchet,
         content_store,
         meta_store,
         ref_cid,
