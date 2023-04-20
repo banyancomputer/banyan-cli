@@ -1,20 +1,3 @@
-use anyhow::{anyhow, Result};
-use chrono::Utc;
-use fs_extra::dir;
-use std::{
-    collections::HashSet,
-    fs::{self, File},
-    io::BufReader,
-    path::{Path, PathBuf},
-    rc::Rc,
-    vec,
-};
-use wnfs::{
-    common::CarBlockStore,
-    namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateFile, PrivateForest},
-};
-
 use crate::{
     types::{
         pipeline::{ManifestData, PackPipelinePlan},
@@ -27,10 +10,26 @@ use crate::{
         spider::{self, path_to_segments},
     },
 };
-
+use anyhow::{anyhow, Result};
+use blake2::{Blake2b512, Digest};
+use chrono::Utc;
+use fs_extra::dir;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashSet,
+    fs::{self, File},
+    io::BufReader,
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::{Arc, Mutex},
+    vec,
+};
+use wnfs::{
+    common::CarBlockStore,
+    namefilter::Namefilter,
+    private::{PrivateDirectory, PrivateFile, PrivateForest},
+};
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
 /// pack the input directory into the output directory and store a record of how this
@@ -215,8 +214,15 @@ pub async fn pack_pipeline(
                     let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
                     // Grab the content that already exists in the PrivateFile at this path
                     let existing_file_content = file.get_content(&forest, &content_store).await?;
+
+                    // Create Hashers for both the new content and the old content
+                    let mut h1 = Blake2b512::new();
+                    let mut h2 = Blake2b512::new();
+                    h1.update(&compressed_bytes);
+                    h2.update(&existing_file_content);
+
                     // If the file has been modified since the last time it was packed
-                    if compressed_bytes != existing_file_content {
+                    if h1.finalize() != h2.finalize() {
                         println!("The file at {:?} has changed between the previous packing and now, rewriting", path_segments);
                         // Write the new bytes to the path where the file was originally
                         // TODO (organizedgrime) - Here we need to do something with versioning!
