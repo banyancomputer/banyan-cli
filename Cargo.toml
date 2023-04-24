@@ -5,7 +5,7 @@ members = [
 ]
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 
 # Cargo publication necessities
@@ -50,8 +50,8 @@ dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch 
 zstd = "0.12.3"
 fclones = "0.30.0"
 # For local dev if needed..
-wnfs = { path = "../rs-wnfs/wnfs" }
-#wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "symlinks" }
+#wnfs = { path = "../rs-wnfs/wnfs" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "symlinks" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]
