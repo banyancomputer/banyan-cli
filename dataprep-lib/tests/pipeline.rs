@@ -87,17 +87,14 @@ mod test {
     use super::*;
     use dataprep_lib::{
         types::pipeline::ManifestData,
-        utils::pipeline::{load_forest_and_dir, load_manifest_data}
+        utils::pipeline::{load_forest_and_dir, load_manifest_data},
     };
-    use std::{
-        path::Path,
-        rc::Rc,
-    };
+    use std::{path::Path, rc::Rc};
     use tokio::{
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
-    use wnfs::private::{PrivateNodeOnPathHistory};
+    use wnfs::private::PrivateNodeOnPathHistory;
 
     // use std::fs::symlink_metadata;
     // use std::os::unix::fs::symlink;
@@ -337,7 +334,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code. 
+    /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
     async fn test_versioning() {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
