@@ -2,6 +2,9 @@ use clap::{Parser, Subcommand};
 use log::LevelFilter;
 use std::path::PathBuf;
 
+// TODO add support for https://docs.rs/keyring/latest/keyring/
+// TODO what's going on with buckets? these are URLs right?
+
 #[derive(Subcommand, Clone, Debug)]
 pub(crate) enum PathConfigSubCommands {
     Metadata{
