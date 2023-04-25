@@ -3,7 +3,7 @@
     <img src=".github/logo.png" alt="Banyan Logo" width="100"></img>
   </a>
 
-  <h1 align="center">Dataprep</h1>
+  <h1 align="center">Tomb (the artist formerly known as dataprep)</h1>
 
   <p>
     <a href="https://codecov.io/gh/banyancomputer/dataprep">
@@ -29,7 +29,7 @@
 
 - [](#)
 - [Outline](#outline)
-- [What is Dataprep?](#what-is-dataprep)
+- [What is Tomb?](#what-is-dataprep)
 - [Installation](#installation)
   - [Using `cargo`](#using-cargo)
 - [Usage](#usage)
@@ -48,16 +48,18 @@
 - [License](#license)
 
 
-## What is Dataprep?
-Dataprep is a tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable files that don't leak information about the original filesystem, plus a reconstruction manifest.
+## What is Tomb?
+Tomb is a tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable files that don't leak information about the original filesystem, plus a reconstruction manifest.
 
 It takes in a path, and emits a directory full of encrypted 1GB-max chunk files for upload plus a manifest describing how to reconstruct the original filesystem. You'll want to package these into CAR files, compute a CommP, upload them to a few miners, and create storage deals for them. *We'll be adding this end-to-end functionality to this repository very soon.*
 
 The manifest can be imported into our file manager, [Tombolo](https://github.com/banyancomputer/tombolo-frontend), for sharing, deleting, and retrieving files that you uploaded using this tool.
 
-We plan to integrate this repository with [WNFS](https://github.com/wnfs-wg/rs-wnfs) soon to get awesome features like granular and feature-packed permissioning, and file version control.
+We integrated this repository with [WNFS](https://github.com/wnfs-wg/rs-wnfs) to get awesome features like granular and feature-packed permissioning, and file version control.
 
 It is meant to be used as a tool for preparing extremely large quantities of academic and enterprise data for manageable archival storage on decentralized storage networks such as Filecoin. It's meant to run anywhere, and our intent is that this code never be the bottleneck of an ingestion pipeline.
+
+It also uploads data to our decentralized infrastructure for onboarding to Filecoin-based cold storage and IPFS-based hot storage. Think like AWS CLI (this functionality is under construction!!).
 
 ## Installation
 
@@ -71,16 +73,16 @@ cargo install --path dataprep
 [//]: # (TODO: Add more installation instructions here as we add more ways to install the project.)
 
 ## Usage
-Dataprep is easy to use. To encrypt a directory, run:
+Tomb is easy to use. To encrypt a directory, run:
 ```console
-dataprep pack --input-dir <INPUT_DIR> --output-dir <PACKED_DIR> --manifest-file <MANIFEST_FILE>
+tomb pack --input-dir <INPUT_DIR> --output-dir <PACKED_DIR> --manifest-file <MANIFEST_FILE>
 ```
 Where `<INPUT_DIR>` is the directory you want to encrypt, `<PACKED_DIR>` is the directory you want to store the encrypted files in, and `<MANIFEST_FILE>` is the file you want to store the manifest in.
 The manifest file is a JSON file that contains the metadata for the encrypted files, including the file names, keys, and how to inflate the packed files back to the original files.
 
 To decrypt the same directory, run:
 ```console
-dataprep unpack --input-dir <PACKED_DIR> --output-dir <UNPACKED_DIR> --manifest-file <MANIFEST_FILE>
+tomb unpack --input-dir <PACKED_DIR> --output-dir <UNPACKED_DIR> --manifest-file <MANIFEST_FILE>
 ```
 
 `<UNPACKED_DIR>` will contain the original files from `<INPUT_DIR>` once the process is complete.
@@ -122,8 +124,8 @@ Use this if you are trying to figure out where bottlenecks exist in `dataprep-li
 Example of profiling the benchmarks:
 ```console
 cargo install flamegraph
-cargo install --path dataprep
-cargo flamegraph -- dataprep ...
+cargo install --path tomb
+cargo flamegraph -- tomb ...
 ```
 You may have to run `flamegraph` as `sudo`.
 
@@ -131,7 +133,7 @@ See the [flamegraph crate][flamegraph] Github page for more information on how t
 and resources on interpreting the results.
 
 [//]: # (TODO: Implement Docker for this project.)
-[//]: # (## Running dataprep on Docker)
+[//]: # (## Running tomb on Docker)
 
 [//]: # ()
 [//]: # (We recommend setting your [Docker Engine][docker-engine] configuration)
@@ -173,7 +175,7 @@ and resources on interpreting the results.
 [//]: # ()
 [//]: # (  ```console)
 
-[//]: # (  docker buildx build --platform=linux/amd64,linux/arm64 -t dataprep --progress=plain .)
+[//]: # (  docker buildx build --platform=linux/amd64,linux/arm64 -t tomb --progress=plain .)
 
 [//]: # (  ```)
 
@@ -183,7 +185,7 @@ and resources on interpreting the results.
 [//]: # ()
 [//]: # (  ```console)
 
-[//]: # (  docker run --platform=linux/amd64 -t dataprep)
+[//]: # (  docker run --platform=linux/amd64 -t tomb)
 
 [//]: # (  ```)
 
