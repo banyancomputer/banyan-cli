@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "tomb",
-    "dataprep-lib"
+    "tomb-lib"
 ]
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
@@ -10,14 +10,14 @@ edition = "2021"
 
 # Cargo publication necessities
 license = "MIT"
-description = "Dataprep compresses and encrypts data for Filecoin"
+description = "tomb compresses and encrypts data for Filecoin"
 homepage = "https://banyan.computer"
-repository = "https://github.com/banyancomputer/dataprep"
+repository = "https://github.com/banyancomputer/tomb"
 readme = "README.md"
 # Cargo publication optionals
 keywords = [
     "banyan", 
-    "dataprep", 
+    "tomb", 
     "filecoin", 
     "ipfs", 
     "decentralisation"
@@ -32,7 +32,7 @@ categories = [
 
 [workspace.dependencies]
 # Our core library -- is a dependency of the binary
-dataprep-lib = { path = "dataprep-lib" }
+tomb-lib = { path = "tomb-lib" }
 # Dependencies
 clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
@@ -51,7 +51,7 @@ zstd = "0.12.3"
 fclones = "0.30.0"
 # For local dev if needed..
 #wnfs = { path = "../rs-wnfs/wnfs" }
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "symlinks" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "carblockstore_refactor" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]

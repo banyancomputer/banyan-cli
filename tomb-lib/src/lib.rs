@@ -20,7 +20,7 @@
 // TODO (laudiacay): Can / Should we include an option to pack chunks into a CAR file? Look into this.
 // TODO (laudiacay) : Handle pinning threads to CPU cores (with tokio localsets and runtimes?) correctly so that disk throughput is maximized
 
-/* Dataprep:
+/* tomb:
 * 1. Copy files to scratch space from `input` directories to 'output-dir' directory
 * 2. Partition files into chunks of max size `target-chunk-size`
 * 3. Compress and encrypt each chunk in place. These chunks should be randomly named.

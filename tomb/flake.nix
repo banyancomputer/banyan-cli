@@ -1,6 +1,6 @@
-# TODO: nix flake for dataprep cli
+# TODO: nix flake for tomb cli
 #{
-#  description = "dataprep";
+#  description = "tomb";
 #
 #  inputs = {
 #    nixpkgs.url = "nixpkgs/nixos-22.11";
@@ -48,7 +48,7 @@
 #      in rec
 #      {
 #        devShells.default = pkgs.mkShell {
-#          name = "dataprep";
+#          name = "tomb";
 #          nativeBuildInputs = with pkgs;
 #            [
 #              # The ordering of these two items is important. For nightly rustfmt to be used instead of

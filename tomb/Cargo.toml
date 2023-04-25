@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-dataprep-lib.workspace = true
+tomb-lib.workspace = true
 clap.workspace = true
 tokio.workspace = true
 env_logger = "0.10.0"

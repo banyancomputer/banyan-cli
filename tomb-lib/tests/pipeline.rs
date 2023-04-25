@@ -1,12 +1,12 @@
-use dataprep_lib::{
+use dir_assert::assert_paths;
+use fake_file::{Strategy, Structure};
+use std::{path::Path, process::Command};
+use tomb_lib::{
     do_pipeline_and_write_metadata::{
         pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
     },
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
-use dir_assert::assert_paths;
-use fake_file::{Strategy, Structure};
-use std::{path::Path, process::Command};
 
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
@@ -85,14 +85,14 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use dataprep_lib::{
-        types::pipeline::ManifestData,
-        utils::pipeline::{load_forest_and_dir, load_manifest_data},
-    };
     use std::{path::Path, rc::Rc};
     use tokio::{
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
+    };
+    use tomb_lib::{
+        types::pipeline::ManifestData,
+        utils::pipeline::{load_forest_and_dir, load_manifest_data},
     };
     use wnfs::private::PrivateNodeOnPathHistory;
 
@@ -410,7 +410,7 @@ mod test {
         let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
         // Load in the PrivateForest and PrivateDirectory
         let (forest, root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
-        // Grab the newest ratchet from the most recent run of dataprep
+        // Grab the newest ratchet from the most recent run of tomb
         let newest_ratchet = root_dir.header.ratchet.clone();
 
         // Assert that the original Ratchet is the ancestor of the new ratchet

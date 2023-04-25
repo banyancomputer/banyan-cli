@@ -1,4 +1,4 @@
-# TODO: docker build for Dataprep cli
+# TODO: docker build for tomb cli
 ## syntax=docker/dockerfile:1
 #ARG RUST_BUILD_IMG=rust:1.65-slim-bullseye
 #ARG DEBIAN_TAG=bullseye-slim
@@ -15,13 +15,13 @@
 #
 #FROM builder-$TARGETARCH as builder
 #
-#RUN adduser --disabled-password --disabled-login --gecos "" --no-create-home dataprep
+#RUN adduser --disabled-password --disabled-login --gecos "" --no-create-home tomb
 #RUN apt update && apt install -y g++
 #RUN rustup target add $TARGET
 #
-#RUN cargo init dataprep
+#RUN cargo init tomb
 #
-#WORKDIR /dataprep
+#WORKDIR /tomb
 #
 ## touch lib.rs as we combine both
 #Run touch src/lib.rs
@@ -39,7 +39,7 @@
 #RUN cargo vendor > .cargo/config
 #RUN --mount=type=cache,target=$CARGO_HOME/registry \
 #    --mount=type=cache,target=$CARGO_HOME/.git \
-#    --mount=type=cache,target=dataprep/target,sharing=locked \
+#    --mount=type=cache,target=tomb/target,sharing=locked \
 #    cargo build --target $TARGET --release
 #
 #COPY src ./src
@@ -49,14 +49,14 @@
 #COPY benches ./benches
 #
 ## final build for release
-#RUN rm ./target/$TARGET/release/deps/*dataprep*
+#RUN rm ./target/$TARGET/release/deps/*tomb*
 #RUN --mount=type=cache,target=$CARGO_HOME/registry \
 #    --mount=type=cache,target=$CARGO_HOME/.git \
-#    --mount=type=cache,target=dataprep/target,sharing=locked \
-#    cargo build --target $TARGET --bin dataprep --release
+#    --mount=type=cache,target=tomb/target,sharing=locked \
+#    cargo build --target $TARGET --bin tomb --release
 #
-#RUN strip ./target/$TARGET/release/dataprep
-#RUN mv ./target/$TARGET/release/dataprep* /usr/local/bin
+#RUN strip ./target/$TARGET/release/tomb
+#RUN mv ./target/$TARGET/release/tomb* /usr/local/bin
 #
 #FROM debian:${DEBIAN_TAG}
 #
@@ -66,9 +66,9 @@
 #ENV RUST_BACKTRACE=${backtrace} \
 #    RUST_LOG=${log_level}
 #
-#COPY --from=builder /usr/local/bin/dataprep* .
+#COPY --from=builder /usr/local/bin/tomb* .
 #COPY --from=builder /etc/passwd /etc/passwd
 #COPY --from=builder /etc/group /etc/group
 #
-#USER dataprep:dataprep
-#ENTRYPOINT ["./dataprep"]
+#USER tomb:tomb
+#ENTRYPOINT ["./tomb"]

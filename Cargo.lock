@@ -859,32 +859,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dataprep-lib"
-version = "1.1.0"
-dependencies = [
- "anyhow",
- "async-recursion",
- "blake2",
- "chrono",
- "criterion",
- "dir-assert",
- "fake-file",
- "fclones",
- "fs_extra",
- "indicatif",
- "jwalk",
- "lazy_static",
- "log",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "skip_ratchet",
- "tokio",
- "wnfs",
- "zstd",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2765,10 +2739,36 @@ name = "tomb"
 version = "1.1.0"
 dependencies = [
  "clap 4.2.4",
- "dataprep-lib",
  "env_logger",
  "log",
  "tokio",
+ "tomb-lib",
+]
+
+[[package]]
+name = "tomb-lib"
+version = "1.1.0"
+dependencies = [
+ "anyhow",
+ "async-recursion",
+ "blake2",
+ "chrono",
+ "criterion",
+ "dir-assert",
+ "fake-file",
+ "fclones",
+ "fs_extra",
+ "indicatif",
+ "jwalk",
+ "lazy_static",
+ "log",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "skip_ratchet",
+ "tokio",
+ "wnfs",
+ "zstd",
 ]
 
 [[package]]
@@ -3206,7 +3206,7 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 [[package]]
 name = "wnfs"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=symlinks#8ed1f59944db65380c6bf6eb2a98baad27f13e00"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "aes-gcm",
  "aes-kw",
@@ -3237,7 +3237,7 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=symlinks#8ed1f59944db65380c6bf6eb2a98baad27f13e00"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3257,7 +3257,7 @@ dependencies = [
 [[package]]
 name = "wnfs-hamt"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=symlinks#8ed1f59944db65380c6bf6eb2a98baad27f13e00"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3281,7 +3281,7 @@ dependencies = [
 [[package]]
 name = "wnfs-namefilter"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=symlinks#8ed1f59944db65380c6bf6eb2a98baad27f13e00"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "anyhow",
  "async-once-cell",

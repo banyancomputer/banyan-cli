@@ -1,6 +1,6 @@
 [package]
-name = "dataprep-lib"
-description = "Where shared types and functions should live for the Dataprep project"
+name = "tomb-lib"
+description = "Where shared types and functions should live for the tomb project"
 # These are locked across the repository for now
 version.workspace = true
 edition.workspace = true

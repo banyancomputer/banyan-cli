@@ -6,13 +6,13 @@
 #![deny(private_in_public)]
 #![deny(unreachable_pub)]
 
-//! this crate is the binary for the dataprep project. It contains the main function and the command line interface.
+//! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
-use dataprep_lib::do_pipeline_and_write_metadata::{
+use std::io::Write;
+use tomb_lib::do_pipeline_and_write_metadata::{
     pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
 };
-use std::io::Write;
 
 mod cli;
 
@@ -52,20 +52,20 @@ async fn main() {
         }
         cli::Commands::Init => unimplemented!("todo... create the tombolo file in the current directory"),
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
-        cli::Commands::Register { bucket_name } => 
+        cli::Commands::Register { bucket_name: _ } =>
             unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
         cli::Commands::Configure { subcommand } => {
             match subcommand {
-                cli::ConfigSubCommands::ContentScratchPath { path } => {
+                cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
                     unimplemented!("todo... change where we stage content locally");
                 }
-                cli::ConfigSubCommands::SetUrl { bucket_name } => {
+                cli::ConfigSubCommands::SetUrl { bucket_name: _ } => {
                     unimplemented!("todo... change bucket location... maybe maybe danger if unrelated version history");
                 }
             }
         },
-        cli::Pull => unimplemented!("todo... pull all the diffs? we might not support that yet."),
-        cli::Push => unimplemented!("todo... push all the diffs"),
-        cli::Daemon => unimplemented!("todo... omg fun... cronjob"),
+        cli::Commands::Pull => unimplemented!("todo... pull all the diffs? we might not support that yet."),
+        cli::Commands::Push => unimplemented!("todo... push all the diffs"),
+        cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
     }
 }

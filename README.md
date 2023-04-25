@@ -1,18 +1,18 @@
 <div align="center">
-  <a href="https://github.com/banyancomputer/dataprep" target="_blank">
+  <a href="https://github.com/banyancomputer/tomb" target="_blank">
     <img src=".github/logo.png" alt="Banyan Logo" width="100"></img>
   </a>
 
-  <h1 align="center">Tomb (the artist formerly known as dataprep)</h1>
+  <h1 align="center">Tomb (the artist formerly known as tomb)</h1>
 
   <p>
-    <a href="https://codecov.io/gh/banyancomputer/dataprep">
-      <img src="https://codecov.io/gh/banyancomputer/dataprep/branch/master/graph/badge.svg?token=LQL6MA4KSI" alt="Code Coverage"/>
+    <a href="https://codecov.io/gh/banyancomputer/tomb">
+      <img src="https://codecov.io/gh/banyancomputer/tomb/branch/master/graph/badge.svg?token=LQL6MA4KSI" alt="Code Coverage"/>
     </a>
-    <a href="https://github.com/banyancomputer/dataprep/actions?query=">
-      <img src="https://github.com/banyancomputer/dataprep/actions/workflows/tests_and_checks.yml/badge.svg" alt="Build Status">
+    <a href="https://github.com/banyancomputer/tomb/actions?query=">
+      <img src="https://github.com/banyancomputer/tomb/actions/workflows/tests_and_checks.yml/badge.svg" alt="Build Status">
     </a>
-    <a href="https://github.com/banyancomputer/dataprep/blob/main/LICENSE-MIT">
+    <a href="https://github.com/banyancomputer/tomb/blob/main/LICENSE-MIT">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License-MIT">
     </a>
     <a href="https://discord.gg/aHaSw9zgwV">
@@ -29,7 +29,7 @@
 
 - [](#)
 - [Outline](#outline)
-- [What is Tomb?](#what-is-dataprep)
+- [What is Tomb?](#what-is-tomb)
 - [Installation](#installation)
   - [Using `cargo`](#using-cargo)
 - [Usage](#usage)
@@ -67,7 +67,7 @@ It also uploads data to our decentralized infrastructure for onboarding to Filec
 
 To install our CLI tool using `cargo`, run:
 ```console
-cargo install --path dataprep
+cargo install --path tomb
 ```
 
 [//]: # (TODO: Add more installation instructions here as we add more ways to install the project.)
@@ -119,7 +119,7 @@ for more information on how to best configure the benchmarks, as well as info on
 At the moment, profiling is not built into the benchmarks. However, we do support and recommend using the `flamegraph` crate
 for profiling the binary.
 It is unclear whether this provides accurate readings with our Async code, but it is a good starting point for profiling.
-Use this if you are trying to figure out where bottlenecks exist in `dataprep-lib`.
+Use this if you are trying to figure out where bottlenecks exist in `tomb-lib`.
 
 Example of profiling the benchmarks:
 ```console

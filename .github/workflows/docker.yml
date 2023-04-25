@@ -49,8 +49,8 @@ jobs:
 #          build-args: |
 #            RUST_BUILD_IMG=rust:1.65-slim-bullseye
 #            DEBIAN_TAG=bullseye-slim
-#          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/dataprep:latest
-#          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/dataprep:latest,mode=max
+#          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tomb:latest
+#          cache-to: type=registry,ref=ghcr.io/${{ github.repository_owner }}/tomb:latest,mode=max
 #          context: .
 #          # We don't add `linux/arm64` here, as it can cause GitHub runners to
 #          # stall for too long.
@@ -58,4 +58,4 @@ jobs:
 #
 #          push: false
 #          tags: |
-#            ${{ github.repository_owner }}/dataprep:latest
+#            ${{ github.repository_owner }}/tomb:latest

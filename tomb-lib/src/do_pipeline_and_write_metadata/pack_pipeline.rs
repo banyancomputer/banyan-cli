@@ -118,7 +118,7 @@ pub async fn pack_pipeline(
 
     // If we've already packed this filesystem before
     if input_meta_path.exists() {
-        println!("You've run dataprep on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
+        println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
         // Load in the ManifestData
         let manifest_data: ManifestData = load_manifest_data(&input_meta_path).await.unwrap();
         // Load in both CarBlockStores
@@ -144,7 +144,7 @@ pub async fn pack_pipeline(
     }
     // If this filesystem has never been packed
     else {
-        info!("Dataprep has not seen this filesystem before, starting from scratch! 💖");
+        info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         meta_store = CarBlockStore::new(&input_meta_path, None);
     }
 

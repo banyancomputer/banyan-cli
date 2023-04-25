@@ -13,5 +13,5 @@ Github respository's [security portal][sec-advisories] and the
 [RustSec advisory database][rustsec-db].
 
 [rustsec-db]: https://github.com/RustSec/advisory-db
-[sec-advisories]: https://github.com/banyancomputer/dataprep/security/advisories
+[sec-advisories]: https://github.com/banyancomputer/tomb/security/advisories
 [support-email]: mailto:c@banyan.computer

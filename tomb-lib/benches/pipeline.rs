@@ -1,10 +1,4 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
-use dataprep_lib::{
-    do_pipeline_and_write_metadata::{
-        pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
-    },
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
-};
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
 use fs_extra::dir;
@@ -12,6 +6,12 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
+use tomb_lib::{
+    do_pipeline_and_write_metadata::{
+        pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
+    },
+    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
+};
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
