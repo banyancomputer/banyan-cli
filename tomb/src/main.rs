@@ -50,6 +50,22 @@ async fn main() {
         } => {
             unpack_pipeline(&input_dir, &output_dir).await.unwrap();
         }
-        _ => unimplemented!("todo...")
+        cli::Commands::Init => unimplemented!("todo... create the tombolo file in the current directory"),
+        cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
+        cli::Commands::Register { bucket_name } => {
+            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this.");
+        cli::Commands::Configure { subcommand } => {
+            match subcommand {
+                cli::ConfigSubCommands::ContentScratchPath { path } => {
+                    unimplemented!("todo... change where we stage content locally");
+                }
+                cli::ConfigSubCommands::SetUrl { bucket_name } => {
+                    unimplemented!("todo... change bucket location... maybe maybe danger if unrelated version history");
+                }
+            }
+        },
+        cli::Pull => unimplemented!("todo... pull all the diffs? we might not support that yet."),
+        cli::Push => unimplemented!("todo... push all the diffs"),
+        cli::Daemon => unimplemented!("todo... omg fun... cronjob"),
     }
 }

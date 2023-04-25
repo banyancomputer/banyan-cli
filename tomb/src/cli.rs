@@ -6,44 +6,25 @@ use std::path::PathBuf;
 // TODO what's going on with buckets? these are URLs right?
 
 #[derive(Subcommand, Clone, Debug)]
-pub(crate) enum PathConfigSubCommands {
-    Metadata{
-        /// new metadata path
-        #[arg(short, long, help = "new metadata path")]
-        path: PathBuf,
-    },
-    Content{
-        /// new content path
-        #[arg(short, long, help = "new content path")]
-        path: PathBuf,
-    },
-    Bucket{
-        /// new bucket path
-        #[arg(short, long, help = "new bucket path")]
-        path: PathBuf,
-    },
-    Index{
-        /// new index path
-        #[arg(short, long, help = "new index path")]
-        path: PathBuf,
-    },
-}
-
-#[derive(Subcommand, Clone, Debug)]
-pub(crate) enum TomboloConfigSubCommands {
-    SetKey{
-        /// new tombolo api key
-        #[arg(short, long, help = "new key")]
-        key: String,
-    },
-}
-
-#[derive(Subcommand, Clone, Debug)]
 pub(crate) enum ConfigSubCommands {
-    #[command(subcommand)]
-    Path(PathConfigSubCommands),
-    #[command(subcommand)]
-    Tombolo(TomboloConfigSubCommands),
+        /// new content scratch path
+    ContentScratchPath {
+        #[arg(
+            short,
+            long,
+            help = "content scratch path- should be a disk of decent size where we can use it as a scratch space to build car files en route to filecoin"
+        )]
+        path: PathBuf,
+    },
+    /// tomb seturl - Set the ID for this tomb's bucket - MAY BREAK YOUR EVERYTHING!!!
+    SetUrl {
+        #[arg(
+            short,
+            long,
+            help = "set the ID for this tomb's bucket- MAY BREAK THINGS!!!"
+        )]
+        bucket_name: String,
+    },
 }
 
 /// Defines the types of commands that can be executed from the CLI.
@@ -86,33 +67,25 @@ pub(crate) enum Commands {
     //    - `index_path: ~/.tomb/index`
     /// tomb init - create a new .tomb file and populate it.
     Init,
+    /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
+    Login,
+        /// tomb register <bucket_name> - Register a new bucket on the tombolo service for this data. then you can push to it. MUST be called before push.
+        Register {
+            /// Name of the bucket to create
+            #[arg(short, long, help = "bucket name")]
+            bucket_name: String,
+        },
     /// tomb config <subcommand> - Configure Tombolo
     Configure {
         #[clap(subcommand)]
         subcommand: ConfigSubCommands,
     },
-    /// tomb new <bucket_name> -p <path_to_master> - Create a new bucket
-    New {
-        /// Name of the bucket to create
-        #[arg(short, long, help = "bucket name")]
-        bucket_name: String,
 
-        /// Path to master
-        #[arg(short, long, help = "path to master")]
-        master_path: PathBuf,
-    },
-    /// tomb update <bucket_name> - Update a bucket from master. 
-    Update {
-        /// Name of the bucket to update
-        #[arg(short, long, help = "bucket name")]
-        bucket_name: String,
-    },
-    /// tomb push <bucket_name>- Push changes to a bucket to Tombolo
-    Push {
-        /// Name of the bucket to push
-        #[arg(short, long, help = "bucket name")]
-        bucket_name: String,
-    },
+    /// tomb pull - Update local from the bucket- determined by CWD
+    Pull,
+    /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
+    Push,
+    Daemon,
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
