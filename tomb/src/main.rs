@@ -52,8 +52,8 @@ async fn main() {
         }
         cli::Commands::Init => unimplemented!("todo... create the tombolo file in the current directory"),
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
-        cli::Commands::Register { bucket_name } => {
-            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this.");
+        cli::Commands::Register { bucket_name } => 
+            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
         cli::Commands::Configure { subcommand } => {
             match subcommand {
                 cli::ConfigSubCommands::ContentScratchPath { path } => {
