@@ -1,6 +1,6 @@
 [package]
-name = "dataprep"
-description = "Command line interface for preparing data"
+name = "tomb"
+description = "Command line interface for preparing data, managing synced data, and uploading it to banyan's decentralized cloud infrastructure"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

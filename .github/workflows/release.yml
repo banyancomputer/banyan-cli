@@ -96,7 +96,7 @@ jobs:
       - name: Upload release binaries
         uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: dataprep
+          bin: tomb 
           ref: refs/tags/${{ needs.release-please.outputs.tag }}
           include: LICENSE,README.md
           archive: $bin-$tag-$target
