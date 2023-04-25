@@ -114,7 +114,7 @@ pub async fn pack_pipeline(
     let input_meta_path = input_dir.join(".meta");
 
     // Declare the MetaData store
-    let meta_store: CarBlockStore;
+    let mut meta_store: CarBlockStore;
 
     // If we've already packed this filesystem before
     if input_meta_path.exists() {
@@ -368,19 +368,14 @@ pub async fn pack_pipeline(
     };
 
     // Store Forest and Dir in BlockStores and retrieve CIDs
-    let (ref_cid, ipld_cid) =
-        store_forest_and_dir(&content_store, &meta_store, &mut forest, &root_dir)
-            .await
-            .unwrap();
+    store_forest_and_dir(&mut content_store, &mut meta_store, &mut forest, &root_dir).await.unwrap();
 
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
         original_ratchet,
         content_store,
-        meta_store,
-        ref_cid,
-        ipld_cid,
+        meta_store
     };
 
     info!(

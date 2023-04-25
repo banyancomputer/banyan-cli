@@ -489,9 +489,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.23"
+version = "3.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71655c45cb9845d3270c9d6df84ebe72b4dad3c2ba3f7023ad47c144e4e473a5"
+checksum = "eef2b3ded6a26dfaec672a742c93c8cf6b689220324da509ec5caa20de55dc83"
 dependencies = [
  "bitflags",
  "clap_lex 0.2.4",
@@ -639,7 +639,7 @@ dependencies = [
  "atty",
  "cast",
  "ciborium",
- "clap 3.2.23",
+ "clap 3.2.24",
  "criterion-plot",
  "futures",
  "itertools",
@@ -2706,9 +2706,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.27.0"
+version = "1.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0de47a4eecbe11f498978a9b29d792f0d2692d1dd003650c24c76510e3bc001"
+checksum = "c3c786bf8134e5a3a166db9b29ab8f48134739014a3eca7bc6bfa95d673b136f"
 dependencies = [
  "autocfg 1.1.0",
  "bytes",
@@ -2720,14 +2720,14 @@ dependencies = [
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
- "windows-sys 0.45.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
 name = "tokio-macros"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61a573bdc87985e9d6ddeed1b3d864e8a302c847e40d647746df2f1de209d1ce"
+checksum = "630bdcf245f78637c13ec01ffae6187cca34625e8c63150d424b59e55af2675e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2782,11 +2782,10 @@ dependencies = [
 
 [[package]]
 name = "tracing"
-version = "0.1.37"
+version = "0.1.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
+checksum = "cf9cf6a813d3f40c88b0b6b6f29a5c95c6cdbf97c1f9cc53fb820200f5ad814d"
 dependencies = [
- "cfg-if",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
@@ -3206,7 +3205,6 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 [[package]]
 name = "wnfs"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "aes-gcm",
  "aes-kw",
@@ -3237,7 +3235,6 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3257,7 +3254,6 @@ dependencies = [
 [[package]]
 name = "wnfs-hamt"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3281,7 +3277,6 @@ dependencies = [
 [[package]]
 name = "wnfs-namefilter"
 version = "0.1.19"
-source = "git+https://github.com/banyancomputer/rs-wnfs?branch=carblockstore_refactor#ab170f1ce4e652a4dd0e22579b30d41c86f6d9d6"
 dependencies = [
  "anyhow",
  "async-once-cell",

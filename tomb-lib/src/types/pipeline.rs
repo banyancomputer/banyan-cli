@@ -2,7 +2,7 @@ use crate::types::spider::SpiderMetadata;
 use serde::{Deserialize, Serialize};
 use skip_ratchet::Ratchet;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use wnfs::{common::CarBlockStore, libipld::Cid};
+use wnfs::{common::CarBlockStore};
 
 /// This is the struct that becomes the contents of the manifest file.
 /// It may seem silly to have a struct that has only one field, but in
@@ -18,18 +18,12 @@ pub struct ManifestData {
     pub content_store: CarBlockStore,
     /// The BlockStore that holds all Metadata
     pub meta_store: CarBlockStore,
-    /// The store CID that points to the PrivateRef of the PrivateDirectory
-    pub ref_cid: Cid,
-    /// The store CID that points to the IPLD DAG representing the PrivateForest
-    pub ipld_cid: Cid,
 }
 
 impl Debug for ManifestData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ManifestData")
             .field("version", &self.version)
-            .field("ref_cid", &self.ref_cid)
-            .field("ipld_cid", &self.ipld_cid)
             .finish()
     }
 }

@@ -48,16 +48,16 @@ pub async fn load_forest_and_dir(
     // Get the DiskBlockStores
     let content_store: &CarBlockStore = &manifest_data.content_store;
     let meta_store: &CarBlockStore = &manifest_data.meta_store;
-
+    // Get all the root CIDs from metadata store
+    let roots: Vec<Cid> = meta_store.get_roots();
     // Deserialize the PrivateRef
     let dir_ref: PrivateRef = meta_store
-        .get_deserializable(&manifest_data.ref_cid)
+        .get_deserializable(&roots[0])
         .await
         .unwrap();
-
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = meta_store
-        .get_deserializable(&manifest_data.ipld_cid)
+        .get_deserializable(&roots[1])
         .await
         .unwrap();
 
@@ -78,21 +78,26 @@ pub async fn load_forest_and_dir(
 /// Store the PrivateForest and PrivateDirectory in the content BlockStore
 /// Return the CIDs of the references to those objects, which can be looked up in the Metadata BlockStore
 pub async fn store_forest_and_dir(
-    content_store: &CarBlockStore,
-    meta_store: &CarBlockStore,
+    content_store: &mut CarBlockStore,
+    meta_store: &mut CarBlockStore,
     forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-) -> Result<(Cid, Cid)> {
+) -> Result<()> {
     // Random number generator
     let rng = &mut thread_rng();
     // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
     let root_ref: PrivateRef = root_dir.store(forest, content_store, rng).await?;
+    // Determine the CID of the root directory, append it
+    content_store.add_root(&root_ref.content_cid);
     // Store it in the Metadata CarBlockStore
     let ref_cid = meta_store.put_serializable(&root_ref).await?;
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(content_store).await?;
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
-    // Return OK with CIDs
-    Ok((ref_cid, ipld_cid))
+    // Add roots to meta store
+    meta_store.add_root(&ref_cid);
+    meta_store.add_root(&ipld_cid);
+    // Return OK
+    Ok(())
 }
