@@ -61,8 +61,30 @@ pub async fn spider(
         }
         // If this is a symlink
         else if spidered.original_metadata.is_symlink() {
+            // The canon path, as a String
+            let canon_path = origin_data.canonicalized_path.to_str().unwrap();
+            // The suffix of the canon path we'd like to drop
+            let canon_ignored_suffix = origin_data.original_location.to_str().unwrap();
+            // The new canon path has the suffix removed
+            let canon_path = canon_path.strip_suffix(canon_ignored_suffix).unwrap();
+
+            // A portion of this canon path will be prefixes of the symlink target that need to be removed
+            // Transform the canon path into a set of prefixes
+            let prefixes: Vec<String> = canon_path.split('/').map(|x| format!("{}/", x)).collect();
+
             // Determine where this symlink points to, an operation that should never fail
-            let symlink_target = fs::read_link(&spidered.canonicalized_path).unwrap();
+            let mut symlink_target = fs::read_link(&spidered.canonicalized_path).unwrap();
+
+            // For each real prefix (first and last are empty)
+            for prefix in &prefixes[1..prefixes.len() - 1] {
+                // If we can actually strip that prefix from the symlink target
+                if let Ok(new_path) = symlink_target.strip_prefix(prefix) {
+                    // Do so
+                    symlink_target = new_path.to_path_buf();
+                }
+                // Otherwise this isn't a prefix anyway, nothing needs to happen
+            }
+
             // Push a PackPipelinePlan with this origin data and symlink
             packing_plan.push(PackPipelinePlan::Symlink(origin_data, symlink_target));
         }
@@ -87,5 +109,12 @@ pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
         .collect();
+
+    // if path_segments.len() == 1 {
+    //     let mut tmp = vec!["".to_string()];
+    //     tmp.extend(path_segments);
+    //     path_segments = tmp;
+    // }
+
     Ok(path_segments)
 }

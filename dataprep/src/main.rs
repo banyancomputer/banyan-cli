@@ -36,29 +36,19 @@ async fn main() {
         cli::Commands::Pack {
             input_dir,
             output_dir,
-            manifest_file,
             chunk_size,
             follow_links,
         } => {
-            pack_pipeline(
-                &input_dir,
-                &output_dir,
-                &manifest_file,
-                chunk_size,
-                follow_links,
-            )
-            .await
-            .unwrap();
+            pack_pipeline(&input_dir, &output_dir, chunk_size, follow_links)
+                .await
+                .unwrap();
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
             input_dir,
             output_dir,
-            manifest_file,
         } => {
-            unpack_pipeline(&input_dir, &output_dir, &manifest_file)
-                .await
-                .unwrap();
+            unpack_pipeline(&input_dir, &output_dir).await.unwrap();
         }
     }
 }

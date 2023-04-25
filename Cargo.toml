@@ -5,10 +5,30 @@ members = [
 ]
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
-version = "1.0.0"
-license = "MIT"
+version = "1.1.0"
 edition = "2021"
+
+# Cargo publication necessities
+license = "MIT"
+description = "Dataprep compresses and encrypts data for Filecoin"
+homepage = "https://banyan.computer"
 repository = "https://github.com/banyancomputer/dataprep"
+readme = "README.md"
+# Cargo publication optionals
+keywords = [
+    "banyan", 
+    "dataprep", 
+    "filecoin", 
+    "ipfs", 
+    "decentralisation"
+]
+categories = [
+  "compression",
+  "cryptography",
+  "encoding",
+  "filesystem"
+]
+# End cargo publication
 
 [workspace.dependencies]
 # Our core library -- is a dependency of the binary
@@ -17,12 +37,10 @@ dataprep-lib = { path = "dataprep-lib" }
 clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
 tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
-tokio-stream = { version = "0.1.11", features = ["fs"]}
 jwalk = "0.8.1"
 rand = "0.8.4"
 serde ={version= "1.0.152", features = ["derive"]}
 serde_json = { version = "1.0.72", features = ["std"]}
-futures = "0.3.0"
 # Dev dependencies
 fs_extra = "1.3.0"
 fake-file = "0.1.0"
@@ -31,13 +49,10 @@ criterion = {version = "0.4.0", features = ["async_tokio"]}
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
 zstd = "0.12.3"
 fclones = "0.30.0"
-base64 = "0.21.0"
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs" }
+# For local dev if needed..
+#wnfs = { path = "../rs-wnfs/wnfs" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "symlinks" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-
-[patch]
 
 [profile.dev]
 split-debuginfo = "unpacked"
-
-[profile.release]

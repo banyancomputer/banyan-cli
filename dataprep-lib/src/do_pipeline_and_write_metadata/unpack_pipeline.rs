@@ -1,13 +1,15 @@
-use crate::types::{pipeline::ManifestData, shared::CompressionScheme};
+use crate::{
+    types::shared::CompressionScheme,
+    utils::pipeline::{load_forest_and_dir, load_manifest_data},
+};
 use anyhow::Result;
 use async_recursion::async_recursion;
 // use serde::{Deserialize, Serializer};
-use std::{fs::File, io::Write, path::Path, rc::Rc};
-use tokio as _;
+use std::{fs::File, io::Write, path::Path};
+use tokio::{self as _, fs::symlink};
 use wnfs::{
-    common::{BlockStore, CarBlockStore},
-    libipld::{serde as ipld_serde, Ipld},
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
+    common::BlockStore,
+    private::{PrivateForest, PrivateNode},
 };
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
@@ -20,64 +22,20 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn unpack_pipeline(
-    input_dir: &Path,
-    output_dir: &Path,
-    manifest_file: &Path,
-) -> Result<()> {
-    // parse manifest file into Vec<CodablePipeline>
-    let reader = std::fs::File::open(manifest_file)
-        .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
+pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
+    // Paths representing metadata and content
+    let input_meta_path = input_dir.join(".meta");
+    let content_path = input_dir.join("content");
 
+    // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
-    // Deserialize the data read as the latest version of manifestdata
-    let mut manifest_data: ManifestData = match serde_json::from_reader(reader) {
-        Ok(data) => data,
-        Err(e) => {
-            error!("Failed to deserialize manifest file: {}", e);
-            panic!("Failed to deserialize manifest file: {e}");
-        }
-    };
-
-    // If the user specified a different location for their CarBlockStores
-    manifest_data.content_store.change_dir(input_dir.to_path_buf())?;
-    manifest_data.meta_store.change_dir(input_dir.to_path_buf().join("meta"))?;
-
-    // If the major version of the manifest is not the same as the major version of the program
-    if manifest_data.version.split('.').next().unwrap()
-        != env!("CARGO_PKG_VERSION").split('.').next().unwrap()
-    {
-        // Panic if it's not
-        error!("Unsupported manifest version.");
-        panic!("Unsupported manifest version.");
-    }
-
-    // Get the DiskBlockStores
-    let content_store: CarBlockStore = manifest_data.content_store;
-    let meta_store: CarBlockStore = manifest_data.meta_store;
-
-    // Deserialize the PrivateRef
-    let dir_ref: PrivateRef = meta_store
-        .get_deserializable(&manifest_data.ref_cid)
-        .await
-        .unwrap();
-
-    // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = meta_store
-        .get_deserializable(&manifest_data.ipld_cid)
-        .await
-        .unwrap();
-
-    // Create a PrivateForest from that IPLD DAG
-    let forest: PrivateForest = ipld_serde::from_ipld::<_>(forest_ipld)?;
-
-    // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, &content_store)
-        .await
-        .unwrap()
-        .as_dir()
-        .unwrap();
+    // Load in the Private Forest and the PrivateDirectory from the metadata directory
+    let mut manifest_data = load_manifest_data(input_meta_path.as_path()).await.unwrap();
+    // Update the directories
+    manifest_data.content_store.change_dir(&content_path)?;
+    manifest_data.meta_store.change_dir(&input_meta_path)?;
+    let (forest, dir) = load_forest_and_dir(&manifest_data).await.unwrap();
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -92,50 +50,63 @@ pub async fn unpack_pipeline(
         forest: &PrivateForest,
         store: &impl BlockStore,
     ) {
-        // If we are processing a directory
-        if node.is_dir() {
-            // Create the directory we are in
-            std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
-
-            let dir = node.as_dir().unwrap();
-            // List
-            let ls = dir.ls(&Vec::new(), false, forest, store).await.unwrap();
-            let node_names: Vec<String> = ls.into_iter().map(|(l, _)| l).collect();
-
-            for node_name in node_names {
-                let paths = &vec![node_name.clone()];
-                let node = dir
-                    .get_node(paths, false, forest, store)
+        match &node {
+            PrivateNode::Dir(dir) => {
+                // Create the directory we are in
+                std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
+                // Obtain a list of this Node's children
+                let node_names: Vec<String> = dir
+                    .ls(&Vec::new(), true, forest, store)
                     .await
                     .unwrap()
-                    .unwrap();
+                    .into_iter()
+                    .map(|(l, _)| l)
+                    .collect();
 
-                // Recurse with newly found node
-                process_node(
-                    output_dir,
-                    built_path.join(node_name).as_path(),
-                    &node,
-                    forest,
-                    store,
-                )
-                .await;
+                // For each of those children
+                for node_name in node_names {
+                    // Fetch the Node with the given name
+                    let node = dir
+                        .get_node(&[node_name.clone()], true, forest, store)
+                        .await
+                        .unwrap()
+                        .unwrap();
+
+                    // Recurse with newly found node and await
+                    process_node(
+                        output_dir,
+                        &built_path.join(node_name),
+                        &node,
+                        forest,
+                        store,
+                    )
+                    .await;
+                }
             }
-        }
-        // This implies node.is_file() == true
-        else {
-            let file = node.as_file().unwrap();
-            // Get the bytes associated with this file
-            let file_content = file.get_content(forest, store).await.unwrap();
-            // Create a buffer to hold the decompressed bytes
-            let mut decompressed_bytes: Vec<u8> = vec![];
-            // Encode and compress the chunk
-            CompressionScheme::new_zstd()
-                .decode(file_content.as_slice(), &mut decompressed_bytes)
-                .unwrap();
-            // Create the file at this location
-            let mut output_file = File::create(output_dir.join(built_path)).unwrap();
-            // Write the contents to the output file
-            output_file.write_all(&decompressed_bytes).unwrap();
+            PrivateNode::File(file) => {
+                // This is where the file will be unpacked no matter what
+                let file_path = output_dir.join(built_path);
+                // If this file is a symlink
+                if let Some(path) = file.symlink_origin() {
+                    // Write out the symlink
+                    symlink(output_dir.join(path), file_path).await.unwrap();
+                }
+                // If this is a real file
+                else {
+                    // Get the bytes associated with this file
+                    let file_content = file.get_content(forest, store).await.unwrap();
+                    // Create a buffer to hold the decompressed bytes
+                    let mut decompressed_bytes: Vec<u8> = vec![];
+                    // Decompress the chunk before writing to disk
+                    CompressionScheme::new_zstd()
+                        .decode(file_content.as_slice(), &mut decompressed_bytes)
+                        .unwrap();
+                    // Create the file at the desired location
+                    let mut output_file = File::create(file_path).unwrap();
+                    // Write all contents to the output file
+                    output_file.write_all(&decompressed_bytes).unwrap();
+                }
+            }
         }
     }
 
@@ -145,10 +116,19 @@ pub async fn unpack_pipeline(
         Path::new(""),
         &dir.as_node(),
         &forest,
-        &content_store,
+        &manifest_data.content_store,
     )
     .await;
 
-    //TODO (organizedgrime) - implement the unpacking pipeline
+    // Remove the .meta directory from the output path if it is already there
+    let _ = std::fs::remove_dir_all(output_dir.join(".meta"));
+    // Copy the cached metadata into the output directory
+    fs_extra::copy_items(
+        &[input_meta_path],
+        output_dir,
+        &fs_extra::dir::CopyOptions::new(),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
+
     Ok(())
 }
