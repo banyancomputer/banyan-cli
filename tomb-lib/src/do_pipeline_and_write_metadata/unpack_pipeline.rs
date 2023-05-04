@@ -24,7 +24,7 @@ use wnfs::{
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Paths representing metadata and content
-    let input_meta_path = input_dir.join(".meta");
+    let input_meta_path = input_dir.join(".tomb");
     let content_path = input_dir.join("content");
 
     // Announce that we're starting
@@ -120,8 +120,8 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
     )
     .await;
 
-    // Remove the .meta directory from the output path if it is already there
-    let _ = std::fs::remove_dir_all(output_dir.join(".meta"));
+    // Remove the .tomb directory from the output path if it is already there
+    let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the cached metadata into the output directory
     fs_extra::copy_items(
         &[input_meta_path],

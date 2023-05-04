@@ -111,7 +111,7 @@ pub async fn pack_pipeline(
     let mut forest = Rc::new(PrivateForest::new());
 
     // This is the path in which we might find metadata from previous runs
-    let input_meta_path = input_dir.join(".meta");
+    let input_meta_path = input_dir.join(".tomb");
 
     // Declare the MetaData store
     let mut meta_store: CarBlockStore;
@@ -387,8 +387,8 @@ pub async fn pack_pipeline(
     serde_json::to_writer_pretty(manifest_writer, &manifest_data)
         .map_err(|e| anyhow::anyhow!(e))?;
 
-    // Remove the .meta directory from the output path if it is already there
-    let _ = fs::remove_dir_all(output_dir.join(".meta"));
+    // Remove the .tomb directory from the output path if it is already there
+    let _ = fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the generated metadata into the output directory
     fs_extra::copy_items(
         &[input_meta_path],

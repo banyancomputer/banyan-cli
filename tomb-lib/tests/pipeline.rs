@@ -405,7 +405,7 @@ mod test {
         run_test(&test_path).await;
 
         // The path in which we expect to find metadata
-        let output_meta_path = &test_path.join("unpacked").join(".meta");
+        let output_meta_path = &test_path.join("unpacked").join(".tomb");
         // Load in the metadata
         let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
         // Load in the PrivateForest and PrivateDirectory

@@ -9,7 +9,7 @@ use wnfs::{
 
 use crate::types::pipeline::ManifestData;
 
-/// Deserializes the ManifestData struct from a given .meta dir
+/// Deserializes the ManifestData struct from a given .tomb dir
 pub async fn load_manifest_data(input_meta_path: &Path) -> Result<ManifestData> {
     info!("Loading in cached metadata...");
     // The path in which we expect to find the Manifest JSON file
