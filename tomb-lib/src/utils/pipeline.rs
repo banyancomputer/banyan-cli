@@ -51,15 +51,9 @@ pub async fn load_forest_and_dir(
     // Get all the root CIDs from metadata store
     let roots: Vec<Cid> = meta_store.get_roots();
     // Deserialize the PrivateRef
-    let dir_ref: PrivateRef = meta_store
-        .get_deserializable(&roots[0])
-        .await
-        .unwrap();
+    let dir_ref: PrivateRef = meta_store.get_deserializable(&roots[0]).await.unwrap();
     // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = meta_store
-        .get_deserializable(&roots[1])
-        .await
-        .unwrap();
+    let forest_ipld: Ipld = meta_store.get_deserializable(&roots[1]).await.unwrap();
 
     // Create a PrivateForest from that IPLD DAG
     let forest: Rc<PrivateForest> =

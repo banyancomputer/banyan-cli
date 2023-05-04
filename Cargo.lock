@@ -96,9 +96,9 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
 name = "anstream"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6342bd4f5a1205d7f41e94a41a901f5647c938cdfa96036338e8533c9d6c2450"
+checksum = "0ca84f3628370c59db74ee214b3263d58f9aadd9b4fe7e711fd87dc452b7f163"
 dependencies = [
  "anstyle",
  "anstyle-parse",
@@ -145,9 +145,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.70"
+version = "1.0.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7de8ce5e0f9f8d88245311066a578d72b7af3e7088f32783804676302df237e4"
+checksum = "9c7d0618f0e0b7e8ff11427422b64564d5fb0be1940354bfe2e0529b18a9d9b8"
 dependencies = [
  "backtrace",
 ]
@@ -489,9 +489,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.24"
+version = "3.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eef2b3ded6a26dfaec672a742c93c8cf6b689220324da509ec5caa20de55dc83"
+checksum = "4ea181bf566f71cb9a5d17a59e1871af638180a18fb0035c92ae62b705207123"
 dependencies = [
  "bitflags",
  "clap_lex 0.2.4",
@@ -501,9 +501,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.2.4"
+version = "4.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "956ac1f6381d8d82ab4684768f89c0ea3afe66925ceadb4eeb3fc452ffc55d62"
+checksum = "34d21f9bf1b425d2968943631ec91202fe5e837264063503708b83013f8fc938"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -512,9 +512,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.2.4"
+version = "4.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84080e799e54cff944f4b4a4b0e71630b0e0443b25b985175c7dddc1a859b749"
+checksum = "914c8c79fb560f238ef6429439a30023c862f7a28e688c58f7203f12b29970bd"
 dependencies = [
  "anstream",
  "anstyle",
@@ -639,7 +639,7 @@ dependencies = [
  "atty",
  "cast",
  "ciborium",
- "clap 3.2.24",
+ "clap 3.2.25",
  "criterion-plot",
  "futures",
  "itertools",
@@ -965,7 +965,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "663339239058603a3a657842111ed6986a5d84bdbff7c0b5fba93b8f70bd63b3"
 dependencies = [
  "anyhow",
- "clap 4.2.4",
+ "clap 4.2.7",
  "rand 0.8.5",
  "serde",
  "strum",
@@ -1001,7 +1001,7 @@ dependencies = [
  "byteorder",
  "bytesize",
  "chrono",
- "clap 4.2.4",
+ "clap 4.2.7",
  "console",
  "crossbeam-utils",
  "csv",
@@ -1465,9 +1465,9 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3afef3b6eff9ce9d8ff9b3601125eec7f0c8cbac7abd14f355d053fa56c98768"
+checksum = "8f6d5ed8676d904364de097082f4e7d240b571b67989ced0240f08b7f966f940"
 dependencies = [
  "cpufeatures",
 ]
@@ -1591,9 +1591,9 @@ dependencies = [
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.3.4"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36eb31c1778188ae1e64398743890d0877fef36d11521ac60406b42016e8c2cf"
+checksum = "ece97ea872ece730aed82664c424eb4c8291e1ff2480247ccf7409044bc6479f"
 
 [[package]]
 name = "lock_api"
@@ -1952,9 +1952,9 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pkg-config"
-version = "0.3.26"
+version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ac9a59f73473f1b8d852421e59e64809f025994837ef743615c6d0c5b305160"
+checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "plotters"
@@ -2738,7 +2738,7 @@ dependencies = [
 name = "tomb"
 version = "1.1.0"
 dependencies = [
- "clap 4.2.4",
+ "clap 4.2.7",
  "env_logger",
  "log",
  "tokio",
@@ -2765,7 +2765,6 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "skip_ratchet",
  "tokio",
  "wnfs",
  "zstd",
@@ -2782,10 +2781,11 @@ dependencies = [
 
 [[package]]
 name = "tracing"
-version = "0.1.38"
+version = "0.1.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf9cf6a813d3f40c88b0b6b6f29a5c95c6cdbf97c1f9cc53fb820200f5ad814d"
+checksum = "8ce8c33a8d48bd45d624a6e523445fd21ec13d3653cd51f681abf67418f54eb8"
 dependencies = [
+ "cfg-if",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
@@ -2910,9 +2910,9 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 
 [[package]]
 name = "uuid"
-version = "1.3.1"
+version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b55a3fef2a1e3b3a00ce878640918820d3c51081576ac657d23af9fc7928fdb"
+checksum = "4dad5567ad0cf5b760e5665964bec1b47dfd077ba8a2544b513f3556d3d239a2"
 dependencies = [
  "getrandom",
 ]
@@ -3205,6 +3205,7 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 [[package]]
 name = "wnfs"
 version = "0.1.19"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=versioning_and_carblockstore#238cd9091dd40b3e0a8fade5fc5883248cf3dd5a"
 dependencies = [
  "aes-gcm",
  "aes-kw",
@@ -3235,6 +3236,7 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.19"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=versioning_and_carblockstore#238cd9091dd40b3e0a8fade5fc5883248cf3dd5a"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3254,6 +3256,7 @@ dependencies = [
 [[package]]
 name = "wnfs-hamt"
 version = "0.1.19"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=versioning_and_carblockstore#238cd9091dd40b3e0a8fade5fc5883248cf3dd5a"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3277,6 +3280,7 @@ dependencies = [
 [[package]]
 name = "wnfs-namefilter"
 version = "0.1.19"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=versioning_and_carblockstore#238cd9091dd40b3e0a8fade5fc5883248cf3dd5a"
 dependencies = [
  "anyhow",
  "async-once-cell",

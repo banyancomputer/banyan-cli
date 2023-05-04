@@ -85,19 +85,8 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::{path::Path, rc::Rc};
-    use tokio::{
-        fs::{read_link, symlink, symlink_metadata, File},
-        io::AsyncWriteExt,
-    };
-    use tomb_lib::{
-        types::pipeline::ManifestData,
-        utils::pipeline::{load_forest_and_dir, load_manifest_data},
-    };
-    use wnfs::private::PrivateNodeOnPathHistory;
-
-    // use std::fs::symlink_metadata;
-    // use std::os::unix::fs::symlink;
+    use std::path::Path;
+    use tokio::fs::{read_link, symlink, symlink_metadata};
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -332,6 +321,8 @@ mod test {
         run_test(&test_path).await;
     }
 
+    // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
+    /*
     #[tokio::test]
     #[ignore]
     /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
@@ -496,6 +487,7 @@ mod test {
             .unwrap()
             .is_none());
     }
+    */
 
     #[tokio::test]
     async fn test_symlinks() {

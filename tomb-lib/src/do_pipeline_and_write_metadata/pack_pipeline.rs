@@ -105,8 +105,6 @@ pub async fn pack_pipeline(
         Utc::now(),
         &mut rng,
     ));
-    // Extract the original ratchet before any writes occur
-    let mut original_ratchet = root_dir.header.ratchet.clone();
     // Create the PrivateForest from which Nodes will be queried
     let mut forest = Rc::new(PrivateForest::new());
 
@@ -125,8 +123,6 @@ pub async fn pack_pipeline(
         match load_forest_and_dir(&manifest_data).await {
             // If the load was successful
             Ok((new_forest, new_dir)) => {
-                // Update the original ratchet
-                original_ratchet = manifest_data.original_ratchet;
                 // Update the BlockStores
                 meta_store = manifest_data.meta_store;
                 content_store = manifest_data.content_store;
@@ -368,14 +364,15 @@ pub async fn pack_pipeline(
     };
 
     // Store Forest and Dir in BlockStores and retrieve CIDs
-    store_forest_and_dir(&mut content_store, &mut meta_store, &mut forest, &root_dir).await.unwrap();
+    store_forest_and_dir(&mut content_store, &mut meta_store, &mut forest, &root_dir)
+        .await
+        .unwrap();
 
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        original_ratchet,
         content_store,
-        meta_store
+        meta_store,
     };
 
     info!(

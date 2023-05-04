@@ -1,8 +1,7 @@
 use crate::types::spider::SpiderMetadata;
 use serde::{Deserialize, Serialize};
-use skip_ratchet::Ratchet;
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use wnfs::{common::CarBlockStore};
+use wnfs::common::CarBlockStore;
 
 /// This is the struct that becomes the contents of the manifest file.
 /// It may seem silly to have a struct that has only one field, but in
@@ -12,8 +11,9 @@ use wnfs::{common::CarBlockStore};
 pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,
-    /// The ratchet of the original Filesystem, the first time it is packed
-    pub original_ratchet: Ratchet,
+    /// TODO (organizedgrime): this is where we would encode some
+    /// data about the original filesystem packed so that interpolation
+    /// between past and current filesystems can occur.
     /// The BlockStore that holds all packed data
     pub content_store: CarBlockStore,
     /// The BlockStore that holds all Metadata

@@ -50,8 +50,8 @@ dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch 
 zstd = "0.12.3"
 fclones = "0.30.0"
 # For local dev if needed..
-wnfs = { path = "../rs-wnfs/wnfs" }
-#wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "carblockstore_refactor" }
+#wnfs = { path = "../rs-wnfs/wnfs" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "versioning_and_carblockstore" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]
