@@ -9,9 +9,13 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
-use std::io::Write;
-use tomb_lib::do_pipeline_and_write_metadata::{
-    pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline,
+use std::{io::Write, net::Ipv4Addr};
+use tomb_lib::{
+    pipelines::{
+        pack_pipeline::pack_pipeline, push_pipeline::push_pipeline,
+        unpack_pipeline::unpack_pipeline,
+    },
+    types::networkblockstore::NetworkBlockStore,
 };
 
 mod cli;
@@ -65,7 +69,23 @@ async fn main() {
             }
         },
         cli::Commands::Pull => unimplemented!("todo... pull all the diffs? we might not support that yet."),
-        cli::Commands::Push => unimplemented!("todo... push all the diffs"),
+        cli::Commands::Push {
+            input_dir,
+            address,
+            port
+        } => {
+            let numbers: [u8; 4] = address
+                .split(".")
+                .map(|s| s.parse::<u8>().unwrap())
+                .collect::<Vec<u8>>()
+                .as_slice()
+                .try_into()
+                .unwrap();
+            
+            let ip = Ipv4Addr::from(numbers);
+            let store = NetworkBlockStore::new(ip, port);
+            push_pipeline(&input_dir, &store).await.unwrap();
+        },
         cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
     }
 }

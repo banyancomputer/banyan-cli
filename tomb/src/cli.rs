@@ -80,11 +80,22 @@ pub(crate) enum Commands {
         #[clap(subcommand)]
         subcommand: ConfigSubCommands,
     },
-
     /// tomb pull - Update local from the bucket- determined by CWD
     Pull,
     /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
-    Push,
+    Push {
+        /// Input directory in which packed files are stored.
+        #[arg(short, long, help = "input directory")]
+        input_dir: PathBuf,
+
+        /// Server address
+        #[arg(short, long, help = "remote IPv4 address")]
+        address: String,
+
+        /// Server port
+        #[arg(short, long, help = "remote address port")]
+        port: u16,
+    },
     Daemon,
 }
 

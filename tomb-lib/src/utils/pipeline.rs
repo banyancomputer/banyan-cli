@@ -51,9 +51,9 @@ pub async fn load_forest_and_dir(
     // Get all the root CIDs from metadata store
     let roots: Vec<Cid> = meta_store.get_roots();
     // Deserialize the PrivateRef
-    let dir_ref: PrivateRef = meta_store.get_deserializable(&roots[0]).await.unwrap();
+    let dir_ref: PrivateRef = meta_store.get_deserializable(&roots[0]).await?;
     // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = meta_store.get_deserializable(&roots[1]).await.unwrap();
+    let forest_ipld: Ipld = meta_store.get_deserializable(&roots[1]).await?;
 
     // Create a PrivateForest from that IPLD DAG
     let forest: Rc<PrivateForest> =
@@ -63,8 +63,7 @@ pub async fn load_forest_and_dir(
     let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, content_store)
         .await
         .unwrap()
-        .as_dir()
-        .unwrap();
+        .as_dir()?;
 
     Ok((forest, dir))
 }
@@ -79,7 +78,7 @@ pub async fn store_forest_and_dir(
 ) -> Result<()> {
     // Random number generator
     let rng = &mut thread_rng();
-    // Store the root of the PrivateDirectory in the BlockStore, retrieving a PrivateRef to it
+    // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
     let root_ref: PrivateRef = root_dir.store(forest, content_store, rng).await?;
     // Determine the CID of the root directory, append it
     content_store.add_root(&root_ref.content_cid);

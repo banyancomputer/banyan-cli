@@ -29,6 +29,8 @@ chrono.workspace = true
 rand.workspace = true
 async-recursion = "1.0.4"
 blake2 = "0.10.6"
+async-trait = "0.1.68"
+reqwest = { version = "0.11.17", features = ["blocking", "multipart", "json"] }
 
 # Benchmark for packing -> unpacking an input directory
 [[bench]]

@@ -4,7 +4,6 @@ use crate::{
 };
 use anyhow::Result;
 use async_recursion::async_recursion;
-// use serde::{Deserialize, Serializer};
 use std::{fs::File, io::Write, path::Path};
 use tokio::{self as _, fs::symlink};
 use wnfs::{
