@@ -6,7 +6,7 @@ use crate::{
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
-        pipeline::{load_forest_and_dir, load_manifest_data, store_forest_and_dir},
+        pipeline::{load_forest_and_dir, load_manifest_and_key, store_forest_and_dir},
         spider::{self, path_to_segments},
     },
 };
@@ -16,10 +16,11 @@ use chrono::Utc;
 use fs_extra::dir;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
+use serde::Serialize;
 use std::{
     collections::HashSet,
     fs::{self, File},
-    io::BufReader,
+    io::{BufReader, Write},
     path::{Path, PathBuf},
     rc::Rc,
     sync::{Arc, Mutex},
@@ -28,7 +29,7 @@ use std::{
 use wnfs::{
     common::CarBlockStore,
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateFile, PrivateForest},
+    private::{PrivateDirectory, PrivateFile, PrivateForest, TemporalKey},
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -118,9 +119,9 @@ pub async fn pack_pipeline(
     if input_meta_path.exists() {
         println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
         // Load in the ManifestData
-        let manifest_data: ManifestData = load_manifest_data(&input_meta_path).await.unwrap();
+        let (key, manifest_data) = load_manifest_and_key(&input_meta_path).await?;
         // Load in both CarBlockStores
-        match load_forest_and_dir(&manifest_data).await {
+        match load_forest_and_dir(key, &manifest_data).await {
             // If the load was successful
             Ok((new_forest, new_dir)) => {
                 // Update the BlockStores
@@ -338,8 +339,32 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
+    
+    let key_file = input_meta_path.join("root.key");
+
+    // Store Forest and Dir in BlockStores and retrieve CIDs
+    let key: TemporalKey =
+        store_forest_and_dir(&mut content_store, &mut meta_store, &mut forest, &root_dir).await?;
+
+    let mut key_writer = match std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&key_file)
+    {
+        Ok(f) => f,
+        Err(e) => Err(anyhow::anyhow!(
+            "Failed to create key file at {}: {}",
+            key_file.display(),
+            e
+        ))?,
+    };
+
+    // Write the key
+    key_writer.write(key.0.as_bytes())?;
+
     // Construct output path for manifest data
     let manifest_file = input_meta_path.join("manifest.json");
+
     // For now just write out the content of compressed_and_encrypted to a file.
     // make sure the manifest file doesn't exist
     let manifest_writer = match std::fs::OpenOptions::new()
@@ -348,25 +373,12 @@ pub async fn pack_pipeline(
         .open(&manifest_file)
     {
         Ok(f) => f,
-        Err(e) => {
-            error!(
-                "Failed to create manifest file at {}: {}",
-                manifest_file.display(),
-                e
-            );
-            Err(anyhow::anyhow!(
-                "Failed to create manifest file at {}: {}",
-                manifest_file.display(),
-                e
-            ))
-            .unwrap()
-        }
+        Err(e) => Err(anyhow::anyhow!(
+            "Failed to create manifest file at {}: {}",
+            manifest_file.display(),
+            e
+        ))?,
     };
-
-    // Store Forest and Dir in BlockStores and retrieve CIDs
-    store_forest_and_dir(&mut content_store, &mut meta_store, &mut forest, &root_dir)
-        .await
-        .unwrap();
 
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {

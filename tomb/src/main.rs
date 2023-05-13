@@ -74,16 +74,19 @@ async fn main() {
             address,
             port
         } => {
+            // Represent the string as an array of four numbers exactly
             let numbers: [u8; 4] = address
-                .split(".")
+                .split('.')
                 .map(|s| s.parse::<u8>().unwrap())
                 .collect::<Vec<u8>>()
                 .as_slice()
                 .try_into()
                 .unwrap();
-            
+            // Construct the IP Address from these numbers
             let ip = Ipv4Addr::from(numbers);
+            // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip, port);
+            // Start the Push pipeline
             push_pipeline(&input_dir, &store).await.unwrap();
         },
         cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),

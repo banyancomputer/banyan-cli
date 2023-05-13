@@ -1,28 +1,36 @@
 use anyhow::Result;
 use rand::thread_rng;
-use std::{path::Path, rc::Rc};
+use std::{path::Path, rc::Rc, io::Read};
 use wnfs::{
-    common::{AsyncSerialize, BlockStore, CarBlockStore},
+    common::{AsyncSerialize, BlockStore, CarBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
+    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey, AesKey},
 };
 
 use crate::types::pipeline::ManifestData;
 
 /// Deserializes the ManifestData struct from a given .tomb dir
-pub async fn load_manifest_data(input_meta_path: &Path) -> Result<ManifestData> {
+pub async fn load_manifest_and_key(input_meta_path: &Path) -> Result<(TemporalKey, ManifestData)> {
     info!("Loading in cached metadata...");
     // The path in which we expect to find the Manifest JSON file
+    let key_file_path = input_meta_path.join("root.key");
     let meta_file_path = input_meta_path.join("manifest.json");
-    // Read in the manifest file from the metadata path
-    let reader = std::fs::File::open(meta_file_path)
-        .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
 
+    // Read in the key file from the key path
+    let mut key_reader = std::fs::File::open(key_file_path)
+        .map_err(|e| anyhow::anyhow!("Failed to open key file: {}", e))?;
     // Deserialize the data read as the latest version of manifestdata
-    let manifest_data: ManifestData = match serde_json::from_reader(reader) {
+    let mut key_data: [u8; 32] = [0; 32];
+    key_reader.read_exact(&mut key_data)?;
+    let key: TemporalKey = TemporalKey(AesKey::new(key_data));
+
+    // Read in the manifest file from the metadata path
+    let manifest_reader = std::fs::File::open(meta_file_path)
+        .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
+    // Deserialize the data read as the latest version of manifestdata
+    let manifest_data: ManifestData = match serde_json::from_reader(manifest_reader) {
         Ok(data) => data,
         Err(e) => {
-            error!("Failed to deserialize manifest file: {}", e);
             panic!("Failed to deserialize manifest file: {e}");
         }
     };
@@ -32,28 +40,39 @@ pub async fn load_manifest_data(input_meta_path: &Path) -> Result<ManifestData> 
         != env!("CARGO_PKG_VERSION").split('.').next().unwrap()
     {
         // Panic if it's not
-        error!("Unsupported manifest version.");
         panic!("Unsupported manifest version.");
     }
 
-    Ok(manifest_data)
+    println!("loade: the key is {:?} and the roots are {:?}", key, manifest_data.meta_store.get_roots());
+
+    Ok((key, manifest_data))
 }
 
 /// Loads in the PrivateForest and PrivateDirectory from a given ManifestData
 pub async fn load_forest_and_dir(
+    key: TemporalKey,
     manifest_data: &ManifestData,
 ) -> Result<(Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-    info!("Loading in BlockStores and WNFS from metadata...");
+    info!("Loading in Key, BlockStores, & WNFS from metadata...");
 
     // Get the DiskBlockStores
     let content_store: &CarBlockStore = &manifest_data.content_store;
     let meta_store: &CarBlockStore = &manifest_data.meta_store;
     // Get all the root CIDs from metadata store
     let roots: Vec<Cid> = meta_store.get_roots();
-    // Deserialize the PrivateRef
-    let dir_ref: PrivateRef = meta_store.get_deserializable(&roots[0]).await?;
+
+    // Construct the saturated name hash
+    let saturated_name_hash: HashOutput = meta_store.get_deserializable::<HashOutput>(&roots[0]).await?;
+
+    println!("\nSHr: {:?}", saturated_name_hash);
+
+    // Reconstruct the PrivateRef
+    let dir_ref: PrivateRef = PrivateRef::with_temporal_key(saturated_name_hash, key, roots[1]);
+
+    println!("reconstructed ref: {:?}", dir_ref);
+
     // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = meta_store.get_deserializable(&roots[1]).await?;
+    let forest_ipld: Ipld = meta_store.get_deserializable(&roots[2]).await?;
 
     // Create a PrivateForest from that IPLD DAG
     let forest: Rc<PrivateForest> =
@@ -75,22 +94,38 @@ pub async fn store_forest_and_dir(
     meta_store: &mut CarBlockStore,
     forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-) -> Result<()> {
+) -> Result<TemporalKey> {
     // Random number generator
     let rng = &mut thread_rng();
     // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
     let root_ref: PrivateRef = root_dir.store(forest, content_store, rng).await?;
-    // Determine the CID of the root directory, append it
-    content_store.add_root(&root_ref.content_cid);
+
+    println!("pre-serial ref: {:?}", root_ref);
+
+    // Extract the component fields of the PrivateDirectory's PrivateReference
+    let PrivateRef {
+        saturated_name_hash,
+        temporal_key,
+        content_cid,
+    } = root_ref;
+
+    println!("\nSHp: {:?}", saturated_name_hash);
+
     // Store it in the Metadata CarBlockStore
-    let ref_cid = meta_store.put_serializable(&root_ref).await?;
+    let hash_cid = meta_store.put_serializable::<HashOutput>(&saturated_name_hash).await?;
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(content_store).await?;
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
-    // Add roots to meta store
-    meta_store.add_root(&ref_cid);
+
+    // Add PrivateDirectory associated roots to meta store
+    meta_store.add_root(&hash_cid);
+    meta_store.add_root(&content_cid);
+    // Add PrivateForest associated roots to meta store
     meta_store.add_root(&ipld_cid);
+
+    println!("store: the key is {:?} and the roots are {:?}", temporal_key, meta_store.get_roots());
+
     // Return OK
-    Ok(())
+    Ok(temporal_key)
 }

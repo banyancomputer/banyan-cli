@@ -60,7 +60,7 @@ impl BlockStore for NetworkBlockStore {
         // Represent these bytes as a plaintext response
         let plain: &str = std::str::from_utf8(&bytes)?;
         // Represent this as data traversable by serde
-        let root: Value = serde_json::from_str(&plain)?;
+        let root: Value = serde_json::from_str(plain)?;
         // Expect to find the Key and Size keys in this json
         root.get("Key")
             .and(root.get("Size"))
@@ -89,7 +89,7 @@ impl BlockStore for NetworkBlockStore {
         // If this is not a large response, it might be an error
         if bytes.len() < 300 {
             // If the Type field of the utf8 json response given was that of an error
-            if serde_json::from_str(&from_utf8(&bytes).unwrap_or("null"))
+            if serde_json::from_str(from_utf8(&bytes).unwrap_or("null"))
                 .unwrap_or(Value::Null)
                 .get("Type")
                 .unwrap_or(&Value::Null)

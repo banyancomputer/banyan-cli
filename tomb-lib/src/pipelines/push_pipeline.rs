@@ -1,17 +1,17 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::{path::Path, sync::{Arc, Mutex}};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 use wnfs::{common::BlockStore, libipld::Cid};
 
-use crate::{
-    types::{networkblockstore::NetworkBlockStore, pipeline::ManifestData},
-    utils::pipeline::load_manifest_data,
-};
+use crate::{types::networkblockstore::NetworkBlockStore, utils::pipeline::load_manifest_and_key};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn push_pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     let input_meta_path = input_dir.join(".tomb");
-    let manifest_data: ManifestData = load_manifest_data(&input_meta_path).await?;
+    let (_, manifest_data) = load_manifest_and_key(&input_meta_path).await?;
     let children: Vec<Cid> = manifest_data.content_store.get_all_cids();
 
     // TODO: optionally turn off the progress bar
