@@ -133,7 +133,7 @@ pub async fn pack_pipeline(
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_forest) = load_forest(&manifest_data).await &&
-           let Ok(new_dir) = load_dir(&manifest_data, key, &forest).await {
+           let Ok(new_dir) = load_dir(&manifest_data, &key, &new_forest, "current_root").await {
             // Update the BlockStores
             meta_store = manifest_data.meta_store;
             content_store = manifest_data.content_store;
@@ -350,6 +350,10 @@ pub async fn pack_pipeline(
         content_store,
         meta_store,
     };
+
+    if first_run {
+        let _ = store_dir(&manifest_data, &mut forest, &root_dir, "original_root").await?;
+    }
 
     // Store Forest and Dir in BlockStores and retrieve Key
     let _ = store_pipeline(&input_meta_path, &manifest_data, &mut forest, &root_dir).await?;

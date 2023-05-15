@@ -24,13 +24,12 @@ use wnfs::{
 pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Paths representing metadata and content
     let tomb_path = input_dir.join(".tomb");
-    let content_path = input_dir.join("content");
 
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
     // Load
-    let (manifest_data, forest, dir) = load_pipeline(&tomb_path).await?;
+    let (_, manifest_data, forest, dir) = load_pipeline(&tomb_path).await?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",

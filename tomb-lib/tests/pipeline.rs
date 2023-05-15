@@ -83,11 +83,14 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::path::Path;
+    use anyhow::Result;
+    use wnfs::private::PrivateNodeOnPathHistory;
+    use std::{path::Path, rc::Rc};
     use tokio::{
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
+    use tomb_lib::utils::pipeline::{load_pipeline, load_dir};
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -322,11 +325,10 @@ mod test {
         run_test(&test_path).await;
     }
 
-    /*
     // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     #[tokio::test]
     /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
-    async fn test_versioning() {
+    async fn test_versioning() -> Result<()> {
         // Create a new path for this test
         let test_path = Path::new(TEST_PATH);
         let test_path = test_path.join("versioning");
@@ -396,18 +398,13 @@ mod test {
         run_test(&test_path).await;
 
         // The path in which we expect to find metadata
-        let output_meta_path = &test_path.join("unpacked").join(".tomb");
-        // Load in the metadata
-        let (key, manifest_data) = load_manifest_and_key(output_meta_path).await.unwrap();
-        // Load in the PrivateForest and PrivateDirectory
-        let (forest, root_dir) = load_forest_and_dir(key, &manifest_data).await.unwrap();
-
-        //
-        // let original_dir = load_original_dir(key, &manifest_data).await.unwrap();
+        let tomb_path = &test_path.join("unpacked").join(".tomb");
+        let (key, manifest_data, mut forest, dir) = load_pipeline(tomb_path).await?;
+        let past_dir = load_dir(&manifest_data, &key, &mut forest, "original_root").await?;
 
         let mut iterator = PrivateNodeOnPathHistory::of(
-            root_dir,
-            &manifest_data.original_ratchet,
+            dir,
+            past_dir,
             1_000_000,
             &[],
             true,
@@ -481,8 +478,9 @@ mod test {
             .await
             .unwrap()
             .is_none());
+
+        Ok(())
     }
-     */
 
     #[tokio::test]
     async fn test_symlinks() {

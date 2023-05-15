@@ -154,6 +154,7 @@ pub async fn store_dir(
     manifest_data: &ManifestData,
     forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
+    cid_key: &str
 ) -> Result<TemporalKey> {
     // Extract BlockStores
     let content_store = &manifest_data.content_store;
@@ -165,8 +166,6 @@ pub async fn store_dir(
     // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
     let dir_ref: PrivateRef = dir.store(forest, content_store, rng).await?;
 
-    println!("pre_serial ref: {:?}", dir_ref);
-
     // Extract the component fields of the PrivateDirectory's PrivateReference
     let PrivateRef {
         saturated_name_hash,
@@ -174,16 +173,14 @@ pub async fn store_dir(
         content_cid,
     } = dir_ref;
 
-    println!("\nSHp: {:?}", saturated_name_hash);
-
     // Store it in the Metadata CarBlockStore
     let ref_cid = meta_store
         .put_serializable::<(HashOutput, Cid)>(&(saturated_name_hash, content_cid))
         .await?;
 
     // Add PrivateDirectory associated roots to meta store
-    meta_store.insert_root("ref_cid", ref_cid);
-    println!("store: the key is {:?}", temporal_key);
+    meta_store.insert_root(cid_key, ref_cid);
+
     // Return OK
     Ok(temporal_key)
 }
@@ -191,27 +188,24 @@ pub async fn store_dir(
 /// Load dir
 pub async fn load_dir(
     manifest_data: &ManifestData,
-    key: TemporalKey,
+    key: &TemporalKey,
     forest: &Rc<PrivateForest>,
+    cid_key: &str
 ) -> Result<Rc<PrivateDirectory>> {
     // Extract BlockStores
     let content_store = &manifest_data.content_store;
     let meta_store = &manifest_data.meta_store;
 
     // Get the PrivateRef CID
-    let ref_cid = meta_store.get_root("ref_cid")?;
+    let ref_cid = meta_store.get_root(cid_key)?;
 
     // Construct the saturated name hash
     let (saturated_name_hash, content_cid): (HashOutput, Cid) = meta_store
         .get_deserializable::<(HashOutput, Cid)>(&ref_cid)
         .await?;
 
-    println!("\nSHr: {:?}", saturated_name_hash);
-
     // Reconstruct the PrivateRef
-    let dir_ref: PrivateRef = PrivateRef::with_temporal_key(saturated_name_hash, key, content_cid);
-
-    println!("reconstructed ref: {:?}", dir_ref);
+    let dir_ref: PrivateRef = PrivateRef::with_temporal_key(saturated_name_hash, key.clone(), content_cid);
 
     // Load the PrivateDirectory from the PrivateForest
     let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, content_store)
@@ -230,7 +224,7 @@ pub async fn store_pipeline(
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     // Store the dir, then the forest, then the manifest and key
-    let temporal_key = store_dir(manifest_data, forest, root_dir).await?;
+    let temporal_key = store_dir(manifest_data, forest, root_dir, "current_root").await?;
     store_forest(manifest_data, forest).await?;
     store_manifest_and_key(&tomb_path, &temporal_key, &manifest_data).await?;
     Ok(temporal_key)
@@ -239,11 +233,11 @@ pub async fn store_pipeline(
 ///
 pub async fn load_pipeline(
     tomb_path: &Path,
-) -> Result<(ManifestData, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+) -> Result<(TemporalKey, ManifestData, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     let (key, manifest) = load_manifest_and_key(&tomb_path).await?;
     let forest = load_forest(&manifest).await?;
-    let dir = load_dir(&manifest, key, &forest).await?;
-    Ok((manifest, forest, dir))
+    let dir = load_dir(&manifest, &key, &forest, "current_root").await?;
+    Ok((key, manifest, forest, dir))
 }
 
 /*
