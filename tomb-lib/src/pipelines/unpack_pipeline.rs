@@ -1,7 +1,4 @@
-use crate::{
-    types::shared::CompressionScheme,
-    utils::pipeline::{load_dir, load_forest, load_manifest_and_key, load_pipeline},
-};
+use crate::{types::shared::CompressionScheme, utils::pipeline::load_pipeline};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{fs::File, io::Write, path::Path};
@@ -29,7 +26,7 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
     info!("🚀 Starting unpacking pipeline...");
 
     // Load
-    let (_, manifest_data, forest, dir) = load_pipeline(&tomb_path).await?;
+    let (_, manifest, forest, dir) = load_pipeline(&tomb_path).await?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -110,19 +107,15 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
         Path::new(""),
         &dir.as_node(),
         &forest,
-        &manifest_data.content_store,
+        &manifest.content_store,
     )
     .await;
 
     // Remove the .tomb directory from the output path if it is already there
     let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the cached metadata into the output directory
-    fs_extra::copy_items(
-        &[tomb_path],
-        output_dir,
-        &fs_extra::dir::CopyOptions::new(),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
+    fs_extra::copy_items(&[tomb_path], output_dir, &fs_extra::dir::CopyOptions::new())
+        .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
 
     Ok(())
 }

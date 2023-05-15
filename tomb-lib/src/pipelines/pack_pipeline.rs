@@ -1,15 +1,14 @@
 use crate::{
     types::{
         blockstore::carblockstore::CarBlockStore,
-        pipeline::{ManifestData, PackPipelinePlan},
+        pipeline::{Manifest, PackPipelinePlan},
         shared::CompressionScheme,
     },
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
         pipeline::{
-            load_dir, load_forest, load_manifest_and_key, store_dir, store_forest,
-            store_manifest_and_key, store_pipeline,
+            load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
         spider::{self, path_to_segments},
     },
@@ -23,7 +22,7 @@ use log::info;
 use std::{
     collections::HashSet,
     fs::{self, File},
-    io::{BufReader, Write},
+    io::BufReader,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{Arc, Mutex},
@@ -31,7 +30,7 @@ use std::{
 };
 use wnfs::{
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateFile, PrivateForest, TemporalKey},
+    private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -112,40 +111,41 @@ pub async fn pack_pipeline(
     let mut forest = Rc::new(PrivateForest::new());
 
     // This is the path in which we might find metadata from previous runs
-    let input_meta_path = input_dir.join(".tomb");
+    let tomb_path = input_dir.join(".tomb");
 
     // Declare the MetaData store
     let meta_store: CarBlockStore;
 
     // Determine if this is the first time pack is being run on this filesystem
-    let first_run = !input_meta_path.exists();
+    let first_run = !tomb_path.exists();
 
     // If this filesystem has never been packed
     if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        meta_store = CarBlockStore::new(&input_meta_path, None);
+        meta_store = CarBlockStore::new(&tomb_path, None);
     }
     // If we've already packed this filesystem before
     else {
         println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
-        // Load in the ManifestData
-        let (key, manifest_data) = load_manifest_and_key(&input_meta_path).await?;
+        // Load in the Manifest
+        let key = load_key(&tomb_path, "root").await?;
+        let manifest = load_manifest(&tomb_path).await?;
 
         // Load in the PrivateForest and PrivateDirectory
-        if let Ok(new_forest) = load_forest(&manifest_data).await &&
-           let Ok(new_dir) = load_dir(&manifest_data, &key, &new_forest, "current_root").await {
+        if let Ok(new_forest) = load_forest(&manifest).await &&
+           let Ok(new_dir) = load_dir(&manifest, &key, &new_forest, "current_root").await {
             // Update the BlockStores
-            meta_store = manifest_data.meta_store;
-            content_store = manifest_data.content_store;
+            meta_store = manifest.meta_store;
+            content_store = manifest.content_store;
             // Update the forest and 
             forest = new_forest;
             root_dir = new_dir;
             println!("root dir and forest and original ratchet loaded from disk...");
-        }   
+        }
         // If the load was unsuccessful
         else {
             info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-            meta_store = CarBlockStore::new(&input_meta_path, None);
+            meta_store = CarBlockStore::new(&tomb_path, None);
         }
     }
 
@@ -213,10 +213,6 @@ pub async fn pack_pipeline(
                 }
                 // If the file exists in the PrivateForest
                 else {
-                    println!(
-                        "a file at this path ({:?}) already exists in this forest",
-                        &path_segments
-                    );
                     // Forcibly cast because we know this is a file
                     let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
                     // Grab the content that already exists in the PrivateFile at this path
@@ -344,24 +340,26 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
-    // Construct the latest version of the ManifestData struct
-    let manifest_data = ManifestData {
+    // Construct the latest version of the Manifest struct
+    let manifest = Manifest {
         version: env!("CARGO_PKG_VERSION").to_string(),
         content_store,
         meta_store,
     };
 
     if first_run {
-        let _ = store_dir(&manifest_data, &mut forest, &root_dir, "original_root").await?;
+        let original_key = store_dir(&manifest, &mut forest, &root_dir, "original_root").await?;
+
+        store_key(&tomb_path, &original_key, "original").await?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_pipeline(&input_meta_path, &manifest_data, &mut forest, &root_dir).await?;
+    let _ = store_pipeline(&tomb_path, &manifest, &mut forest, &root_dir).await?;
     // Remove the .tomb directory from the output path if it is already there
     let _ = fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the generated metadata into the output directory
     fs_extra::copy_items(
-        &[input_meta_path],
+        &[tomb_path],
         output_dir,
         &dir::CopyOptions::new().overwrite(true),
     )

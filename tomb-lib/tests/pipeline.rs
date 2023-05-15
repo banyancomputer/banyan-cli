@@ -84,13 +84,13 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 mod test {
     use super::*;
     use anyhow::Result;
-    use wnfs::private::PrivateNodeOnPathHistory;
     use std::{path::Path, rc::Rc};
     use tokio::{
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
-    use tomb_lib::utils::pipeline::{load_pipeline, load_dir};
+    use tomb_lib::utils::pipeline::{load_dir, load_key, load_pipeline};
+    use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -399,37 +399,39 @@ mod test {
 
         // The path in which we expect to find metadata
         let tomb_path = &test_path.join("unpacked").join(".tomb");
-        let (key, manifest_data, mut forest, dir) = load_pipeline(tomb_path).await?;
-        let past_dir = load_dir(&manifest_data, &key, &mut forest, "original_root").await?;
+        let (_, manifest, mut forest, dir) = load_pipeline(tomb_path).await?;
+
+        let original_key = load_key(tomb_path, "original").await?;
+        let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;
 
         let mut iterator = PrivateNodeOnPathHistory::of(
             dir,
-            past_dir,
+            original_dir,
             1_000_000,
             &[],
             true,
             Rc::clone(&forest),
-            &manifest_data.content_store,
+            &manifest.content_store,
         )
         .await
         .unwrap();
 
+        // Describe path of the PrivateFile relative to the root directory
+        let path_segments: Vec<String> =
+            vec!["versioning".to_string(), "0".to_string(), "0".to_string()];
+
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
-            .get_previous(&manifest_data.content_store)
+            .get_previous(&manifest.content_store)
             .await
             .unwrap()
             .unwrap()
             .as_dir()
             .unwrap();
 
-        // Describe path of the PrivateFile relative to the root directory
-        let path_segments: Vec<String> =
-            vec!["versioning".to_string(), "0".to_string(), "0".to_string()];
-
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, &forest, &manifest_data.content_store)
+            .get_node(&path_segments, true, &forest, &manifest.content_store)
             .await
             .unwrap()
             .unwrap()
@@ -438,7 +440,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&forest, &manifest_data.content_store)
+            .get_content(&forest, &manifest.content_store)
             .await
             .unwrap();
 
@@ -447,7 +449,7 @@ mod test {
 
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
-            .get_previous(&manifest_data.content_store)
+            .get_previous(&manifest.content_store)
             .await
             .unwrap()
             .unwrap()
@@ -456,7 +458,7 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, true, &forest, &manifest_data.content_store)
+            .get_node(&path_segments, true, &forest, &manifest.content_store)
             .await
             .unwrap()
             .unwrap()
@@ -465,7 +467,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(&forest, &manifest_data.content_store)
+            .get_content(&forest, &manifest.content_store)
             .await
             .unwrap();
 
@@ -474,7 +476,7 @@ mod test {
 
         // Assert that there are no more previous versions to find
         assert!(iterator
-            .get_previous(&manifest_data.content_store)
+            .get_previous(&manifest.content_store)
             .await
             .unwrap()
             .is_none());

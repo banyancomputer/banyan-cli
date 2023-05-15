@@ -106,15 +106,3 @@ impl BlockStore for NetworkBlockStore {
         return Ok(Cow::Owned(bytes));
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::types::blockstore::networkblockstore::NetworkBlockStore;
-    use std::net::Ipv4Addr;
-
-    #[tokio::test]
-    async fn network_blockstore() {
-        // Connect to the local IPFS kubo node running on this address and port
-        let store = &NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
-    }
-}

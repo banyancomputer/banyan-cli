@@ -14,7 +14,7 @@ use std::{
 };
 use wnfs::{
     common::BlockStore,
-    libipld::{cbor::DagCborCodec, ipld, prelude::Codec, Cid, Ipld, IpldCodec},
+    libipld::{Cid, IpldCodec},
 };
 
 /// BlockStore implmentation which stores its data locally on disk in CAR format

@@ -7,8 +7,8 @@ use std::{fmt::Debug, path::PathBuf, sync::Arc};
 /// versioning this struct, we can also version its children identically.
 /// As well as any other fields we may add / remove in the future.
 #[derive(Serialize, Deserialize)]
-pub struct ManifestData {
-    /// The project version that was used to encode this ManifestData
+pub struct Manifest {
+    /// The project version that was used to encode this Manifest
     pub version: String,
     /// The BlockStore that holds all packed data
     pub content_store: CarBlockStore,
@@ -16,9 +16,9 @@ pub struct ManifestData {
     pub meta_store: CarBlockStore,
 }
 
-impl Debug for ManifestData {
+impl Debug for Manifest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ManifestData")
+        f.debug_struct("Manifest")
             .field("version", &self.version)
             .finish()
     }
