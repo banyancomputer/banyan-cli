@@ -1,5 +1,6 @@
 //! This crate contains all modules in our project. TODO(organizedgrime) write something useful here.
 #![feature(io_error_more)]
+#![feature(let_chains)]
 #![feature(buf_read_has_data_left)]
 #![deny(unused_crate_dependencies)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

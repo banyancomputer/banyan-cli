@@ -52,68 +52,58 @@ pub async fn load_manifest_and_key(input_meta_path: &Path) -> Result<(TemporalKe
     Ok((key, manifest_data))
 }
 
-/// Loads in the PrivateForest and PrivateDirectory from a given ManifestData
-pub async fn load_forest_and_dir(
-    key: TemporalKey,
-    manifest_data: &ManifestData,
-) -> Result<(Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-    info!("Loading in Key, BlockStores, & WNFS from metadata...");
-
-    // Get the DiskBlockStores
-    let content_store: &CarBlockStore = &manifest_data.content_store;
-    let meta_store: &CarBlockStore = &manifest_data.meta_store;
-    // Get all the root CIDs from metadata store
-    let roots: Vec<Cid> = meta_store.get_roots();
-
-    // Construct the saturated name hash
-    let saturated_name_hash: HashOutput = meta_store
-        .get_deserializable::<HashOutput>(&roots[0])
-        .await?;
-
-    println!("\nSHr: {:?}", saturated_name_hash);
-
-    // Reconstruct the PrivateRef
-    let dir_ref: PrivateRef = PrivateRef::with_temporal_key(saturated_name_hash, key, roots[1]);
-
-    println!("reconstructed ref: {:?}", dir_ref);
-
-    // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = meta_store.get_deserializable(&roots[2]).await?;
-
-    // Create a PrivateForest from that IPLD DAG
-    let forest: Rc<PrivateForest> =
-        Rc::new(ipld_serde::from_ipld::<PrivateForest>(forest_ipld).unwrap());
-
-    // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, content_store)
-        .await
-        .unwrap()
-        .as_dir()?;
-
-    Ok((forest, dir))
-}
-
 /// Store the PrivateForest and PrivateDirectory in the content BlockStore
 /// Return the CIDs of the references to those objects, which can be looked up in the Metadata BlockStore
-pub async fn store_forest_and_dir(
-    content_store: &mut CarBlockStore,
-    meta_store: &mut CarBlockStore,
+pub async fn store_forest(
+    meta_store: &CarBlockStore,
     forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
+) -> Result<()> {
+    // Create an IPLD from the PrivateForest
+    let forest_ipld = forest.async_serialize_ipld(meta_store).await?;
+    // Store the PrivateForest's IPLD in the BlockStore
+    let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
+    // Add PrivateForest associated roots to meta store
+    meta_store.add_root(&ipld_cid);
+    // Return Ok
+    Ok(())
+}
+
+/// Loads in the PrivateForest and PrivateDirectory from a given ManifestData
+pub async fn load_forest(
+    manifest_data: &ManifestData,
+) -> Result<Rc<PrivateForest>> {
+    info!("Loading in Key, BlockStores, & WNFS from metadata...");
+    // Get the DiskBlockStores
+    let meta_store: &CarBlockStore = &manifest_data.meta_store;
+    // Deserialize the IPLD DAG of the PrivateForest
+    let forest_ipld: Ipld = meta_store.get_deserializable(&meta_store.get_roots()[0]).await?;
+    // Create a PrivateForest from that IPLD DAG
+    let forest: Rc<PrivateForest> = Rc::new(ipld_serde::from_ipld::<PrivateForest>(forest_ipld).unwrap());
+    // Return both
+    Ok(forest)
+}
+
+/// Store dir
+pub async fn store_dir(
+    meta_store: &CarBlockStore,
+    forest: &mut Rc<PrivateForest>,
+    dir: &Rc<PrivateDirectory>
 ) -> Result<TemporalKey> {
     // Random number generator
     let rng = &mut thread_rng();
-    // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
-    let root_ref: PrivateRef = root_dir.store(forest, content_store, rng).await?;
 
-    println!("pre-serial ref: {:?}", root_ref);
+    // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
+    let dir_ref: PrivateRef = dir.store(forest, meta_store, rng).await?;
+
+    println!("pre_serial ref: {:?}", dir_ref);
 
     // Extract the component fields of the PrivateDirectory's PrivateReference
     let PrivateRef {
         saturated_name_hash,
         temporal_key,
         content_cid,
-    } = root_ref;
+    } = dir_ref;
 
     println!("\nSHp: {:?}", saturated_name_hash);
 
@@ -121,16 +111,10 @@ pub async fn store_forest_and_dir(
     let hash_cid = meta_store
         .put_serializable::<HashOutput>(&saturated_name_hash)
         .await?;
-    // Create an IPLD from the PrivateForest
-    let forest_ipld = forest.async_serialize_ipld(content_store).await?;
-    // Store the PrivateForest's IPLD in the BlockStore
-    let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
 
     // Add PrivateDirectory associated roots to meta store
     meta_store.add_root(&hash_cid);
     meta_store.add_root(&content_cid);
-    // Add PrivateForest associated roots to meta store
-    meta_store.add_root(&ipld_cid);
 
     println!(
         "store: the key is {:?} and the roots are {:?}",
@@ -140,4 +124,37 @@ pub async fn store_forest_and_dir(
 
     // Return OK
     Ok(temporal_key)
+
+}
+
+/// Load dir
+pub async fn load_dir(
+    key: TemporalKey,
+    forest: &Rc<PrivateForest>,
+    meta_store: &CarBlockStore
+) -> Result<Rc<PrivateDirectory>> {
+    info!("Loading in Key, BlockStores, & WNFS from metadata...");
+
+    // Get all the root CIDs from metadata store
+    let roots: Vec<Cid> = meta_store.get_roots();
+
+    // Construct the saturated name hash
+    let saturated_name_hash: HashOutput = meta_store
+        .get_deserializable::<HashOutput>(&roots[1])
+        .await?;
+
+    println!("\nSHr: {:?}", saturated_name_hash);
+
+    // Reconstruct the PrivateRef
+    let dir_ref: PrivateRef = PrivateRef::with_temporal_key(saturated_name_hash, key, roots[2]);
+
+    println!("reconstructed ref: {:?}", dir_ref);
+
+    // Load the PrivateDirectory from the PrivateForest
+    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, &forest, meta_store)
+        .await
+        .unwrap()
+        .as_dir()?;
+
+    Ok(dir)
 }

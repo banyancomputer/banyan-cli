@@ -84,8 +84,7 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 mod test {
     use super::*;
     use std::path::Path;
-    use tokio::fs::{read_link, symlink, symlink_metadata};
-    use tomb_lib::utils::pipeline::{load_forest_and_dir, load_manifest_and_key};
+    use tokio::{fs::{read_link, symlink, symlink_metadata, File}, io::AsyncWriteExt};
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -400,8 +399,8 @@ mod test {
         // Load in the PrivateForest and PrivateDirectory
         let (forest, root_dir) = load_forest_and_dir(key, &manifest_data).await.unwrap();
 
-        let previous = root_dir.as_node().get_previous();
-        // previous.
+        //
+        // let original_dir = load_original_dir(key, &manifest_data).await.unwrap();
 
         let mut iterator = PrivateNodeOnPathHistory::of(
             root_dir,
@@ -480,7 +479,7 @@ mod test {
             .unwrap()
             .is_none());
     }
-    */
+     */
 
     #[tokio::test]
     async fn test_symlinks() {

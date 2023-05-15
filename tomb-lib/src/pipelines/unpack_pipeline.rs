@@ -1,6 +1,6 @@
 use crate::{
     types::shared::CompressionScheme,
-    utils::pipeline::{load_forest_and_dir, load_manifest_and_key},
+    utils::pipeline::{load_dir, load_forest, load_manifest_and_key},
 };
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -36,7 +36,9 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
     // Update the directories
     manifest_data.content_store.change_dir(&content_path)?;
     manifest_data.meta_store.change_dir(&input_meta_path)?;
-    let (forest, dir) = load_forest_and_dir(key, &manifest_data).await.unwrap();
+
+    let forest = load_forest(&manifest_data).await?;
+    let dir = load_dir(key, &forest, &manifest_data.meta_store).await?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",

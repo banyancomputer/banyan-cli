@@ -10,9 +10,6 @@ use std::{fmt::Debug, path::PathBuf, sync::Arc};
 pub struct ManifestData {
     /// The project version that was used to encode this ManifestData
     pub version: String,
-    /// TODO (organizedgrime): this is where we would encode some
-    /// data about the original filesystem packed so that interpolation
-    /// between past and current filesystems can occur.
     /// The BlockStore that holds all packed data
     pub content_store: CarBlockStore,
     /// The BlockStore that holds all Metadata

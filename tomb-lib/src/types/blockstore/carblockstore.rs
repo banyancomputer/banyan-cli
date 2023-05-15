@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
     sync::RwLock,
-    vec,
+    vec, cell::RefCell,
 };
 use wnfs::{
     common::BlockStore,
@@ -116,13 +116,19 @@ impl CarBlockStore {
     }
 
     /// Adds a root CID to the CAR header
-    pub fn add_root(&mut self, cid: &Cid) {
-        self.carhead.roots.push(*cid);
+    pub fn add_root(&self, cid: &Cid) {
+        self.carhead.roots.borrow_mut().push(*cid);
+    }
+
+    /// Empty root vec
+    pub fn clear_roots(&self) {
+        let mut roots = self.carhead.roots.borrow_mut();
+        roots.retain(|_| false);
     }
 
     /// Gets all root CIDs from the CAR header
     pub fn get_roots(&self) -> Vec<Cid> {
-        self.carhead.roots.clone()
+        self.carhead.roots.borrow().clone()
     }
 
     /// Gets a list of all Block CIDs inserted into this BlockStore
@@ -248,19 +254,19 @@ impl BlockStore for CarBlockStore {
 #[derive(Debug, Serialize, Deserialize)]
 struct CarHeader {
     version: i128,
-    roots: Vec<Cid>,
+    roots: RefCell<Vec<Cid>>,
 }
 
 impl CarHeader {
     pub(crate) fn new() -> Self {
         Self {
             version: 1,
-            roots: Vec::new(),
+            roots: RefCell::new(Vec::new()),
         }
     }
 
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let roots = Ipld::List(self.roots.clone().into_iter().map(Ipld::Link).collect());
+        let roots = Ipld::List(self.roots.borrow().clone().into_iter().map(Ipld::Link).collect());
         let header_ipld: Ipld = ipld!({
           "version": self.version,
           "roots": roots,
@@ -283,7 +289,7 @@ impl CarHeader {
 
         CarHeader {
             version: *version,
-            roots,
+            roots: RefCell::new(roots),
         }
     }
 }

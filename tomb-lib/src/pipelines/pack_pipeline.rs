@@ -7,7 +7,7 @@ use crate::{
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
-        pipeline::{load_forest_and_dir, load_manifest_and_key, store_forest_and_dir},
+        pipeline::{load_forest, store_forest, load_dir, store_dir, load_manifest_and_key},
         spider::{self, path_to_segments},
     },
 };
@@ -112,38 +112,41 @@ pub async fn pack_pipeline(
     let input_meta_path = input_dir.join(".tomb");
 
     // Declare the MetaData store
-    let mut meta_store: CarBlockStore;
+    let meta_store: CarBlockStore;
 
-    // If we've already packed this filesystem before
-    if input_meta_path.exists() {
-        println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
-        // Load in the ManifestData
-        let (key, manifest_data) = load_manifest_and_key(&input_meta_path).await?;
-        // Load in both CarBlockStores
-        match load_forest_and_dir(key, &manifest_data).await {
-            // If the load was successful
-            Ok((new_forest, new_dir)) => {
-                // Update the BlockStores
-                meta_store = manifest_data.meta_store;
-                content_store = manifest_data.content_store;
-                // Update the forest and root directory
-                forest = new_forest;
-                root_dir = new_dir;
-                println!("root dir and forest and original ratchet loaded from disk...");
-            }
-            // If the load was unsuccessful
-            Err(_) => {
-                info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-                meta_store = CarBlockStore::new(&input_meta_path, None);
-            }
-        }
-    }
+    // Determine if this is the first time pack is being run on this filesystem
+    let first_run = !input_meta_path.exists();
+
     // If this filesystem has never been packed
-    else {
+    if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         meta_store = CarBlockStore::new(&input_meta_path, None);
     }
+    // If we've already packed this filesystem before
+    else {
+        println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
+        // Load in the ManifestData
+        let (key, manifest_data) = load_manifest_and_key(&input_meta_path).await?;
 
+        // Load in the PrivateForest and PrivateDirectory
+        if let Ok(new_forest) = load_forest(&manifest_data).await &&
+           let Ok(new_dir) = load_dir(key, &forest, &manifest_data.meta_store).await {
+            // Update the BlockStores
+            meta_store = manifest_data.meta_store;
+            content_store = manifest_data.content_store;
+            // Update the forest and 
+            forest = new_forest;
+            root_dir = new_dir;
+            println!("root dir and forest and original ratchet loaded from disk...");
+        }   
+        // If the load was unsuccessful
+        else {
+            info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
+            meta_store = CarBlockStore::new(&input_meta_path, None);
+        }
+    }
+
+    // Create vectors of direct and indirect plans
     let mut direct_plans: Vec<PackPipelinePlan> = Vec::new();
     let mut symlink_plans: Vec<PackPipelinePlan> = Vec::new();
 
@@ -338,11 +341,12 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
-    let key_file = input_meta_path.join("root.key");
+    // Store Forest and Dir in BlockStores and retrieve Key
+    store_forest(&meta_store, &mut forest, &root_dir).await?;
+    let key: TemporalKey = store_dir(&meta_store, &mut forest, &root_dir).await?;
 
-    // Store Forest and Dir in BlockStores and retrieve CIDs
-    let key: TemporalKey =
-        store_forest_and_dir(&mut content_store, &mut meta_store, &mut forest, &root_dir).await?;
+    // Construct the path for the key to be written
+    let key_file = input_meta_path.join("root.key");
 
     let mut key_writer = match std::fs::OpenOptions::new()
         .write(true)
