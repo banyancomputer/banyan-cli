@@ -1,7 +1,6 @@
-use crate::types::spider::SpiderMetadata;
+use crate::types::{blockstore::carblockstore::CarBlockStore, spider::SpiderMetadata};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
-use wnfs::common::CarBlockStore;
 
 /// This is the struct that becomes the contents of the manifest file.
 /// It may seem silly to have a struct that has only one field, but in

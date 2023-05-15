@@ -15,7 +15,7 @@ use tomb_lib::{
         pack_pipeline::pack_pipeline, push_pipeline::push_pipeline,
         unpack_pipeline::unpack_pipeline,
     },
-    types::networkblockstore::NetworkBlockStore,
+    types::blockstore::networkblockstore::NetworkBlockStore,
 };
 
 mod cli;
@@ -68,27 +68,42 @@ async fn main() {
                 }
             }
         },
-        cli::Commands::Pull => unimplemented!("todo... pull all the diffs? we might not support that yet."),
+        cli::Commands::Pull => unimplemented!("fasdfas"),
+        // cli::Commands::Pull => {
+        //     output_dir,
+        //     address,
+        //     port
+        // } => {
+        //     // Construct the NetworkBlockStore from this IP and Port combination
+        //     let store = NetworkBlockStore::new(ip_from_string(address), port);
+        //     // Start the Push pipeline
+        //     pull_pipeline(&output_dir, &store).await.unwrap();
+        // },
         cli::Commands::Push {
             input_dir,
             address,
             port
         } => {
-            // Represent the string as an array of four numbers exactly
-            let numbers: [u8; 4] = address
-                .split('.')
-                .map(|s| s.parse::<u8>().unwrap())
-                .collect::<Vec<u8>>()
-                .as_slice()
-                .try_into()
-                .unwrap();
-            // Construct the IP Address from these numbers
-            let ip = Ipv4Addr::from(numbers);
             // Construct the NetworkBlockStore from this IP and Port combination
-            let store = NetworkBlockStore::new(ip, port);
+            let store = NetworkBlockStore::new(ip_from_string(address), port);
             // Start the Push pipeline
             push_pipeline(&input_dir, &store).await.unwrap();
         },
         cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
     }
+}
+
+// Helper function for creating the required type
+fn ip_from_string(address: String) -> Ipv4Addr {
+    // Represent the string as an array of four numbers exactly
+    let numbers: [u8; 4] = address
+        .split('.')
+        .map(|s| s.parse::<u8>().unwrap())
+        .collect::<Vec<u8>>()
+        .as_slice()
+        .try_into()
+        .expect("IP Address was not formatted correctly");
+
+    // Construct the IP Address from these numbers
+    Ipv4Addr::from(numbers)
 }

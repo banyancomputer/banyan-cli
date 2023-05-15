@@ -1,13 +1,13 @@
 use anyhow::Result;
 use rand::thread_rng;
-use std::{path::Path, rc::Rc, io::Read};
+use std::{io::Read, path::Path, rc::Rc};
 use wnfs::{
-    common::{AsyncSerialize, BlockStore, CarBlockStore, HashOutput},
+    common::{AsyncSerialize, BlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey, AesKey},
+    private::{AesKey, PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey},
 };
 
-use crate::types::pipeline::ManifestData;
+use crate::types::{blockstore::carblockstore::CarBlockStore, pipeline::ManifestData};
 
 /// Deserializes the ManifestData struct from a given .tomb dir
 pub async fn load_manifest_and_key(input_meta_path: &Path) -> Result<(TemporalKey, ManifestData)> {
@@ -43,7 +43,11 @@ pub async fn load_manifest_and_key(input_meta_path: &Path) -> Result<(TemporalKe
         panic!("Unsupported manifest version.");
     }
 
-    println!("loade: the key is {:?} and the roots are {:?}", key, manifest_data.meta_store.get_roots());
+    println!(
+        "loade: the key is {:?} and the roots are {:?}",
+        key,
+        manifest_data.meta_store.get_roots()
+    );
 
     Ok((key, manifest_data))
 }
@@ -62,7 +66,9 @@ pub async fn load_forest_and_dir(
     let roots: Vec<Cid> = meta_store.get_roots();
 
     // Construct the saturated name hash
-    let saturated_name_hash: HashOutput = meta_store.get_deserializable::<HashOutput>(&roots[0]).await?;
+    let saturated_name_hash: HashOutput = meta_store
+        .get_deserializable::<HashOutput>(&roots[0])
+        .await?;
 
     println!("\nSHr: {:?}", saturated_name_hash);
 
@@ -112,7 +118,9 @@ pub async fn store_forest_and_dir(
     println!("\nSHp: {:?}", saturated_name_hash);
 
     // Store it in the Metadata CarBlockStore
-    let hash_cid = meta_store.put_serializable::<HashOutput>(&saturated_name_hash).await?;
+    let hash_cid = meta_store
+        .put_serializable::<HashOutput>(&saturated_name_hash)
+        .await?;
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(content_store).await?;
     // Store the PrivateForest's IPLD in the BlockStore
@@ -124,7 +132,11 @@ pub async fn store_forest_and_dir(
     // Add PrivateForest associated roots to meta store
     meta_store.add_root(&ipld_cid);
 
-    println!("store: the key is {:?} and the roots are {:?}", temporal_key, meta_store.get_roots());
+    println!(
+        "store: the key is {:?} and the roots are {:?}",
+        temporal_key,
+        meta_store.get_roots()
+    );
 
     // Return OK
     Ok(temporal_key)

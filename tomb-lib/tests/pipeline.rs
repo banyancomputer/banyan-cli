@@ -85,6 +85,7 @@ mod test {
     use super::*;
     use std::path::Path;
     use tokio::fs::{read_link, symlink, symlink_metadata};
+    use tomb_lib::utils::pipeline::{load_forest_and_dir, load_manifest_and_key};
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";
@@ -319,10 +320,9 @@ mod test {
         run_test(&test_path).await;
     }
 
-    // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     /*
+    // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     #[tokio::test]
-    #[ignore]
     /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
     async fn test_versioning() {
         // Create a new path for this test
@@ -396,17 +396,12 @@ mod test {
         // The path in which we expect to find metadata
         let output_meta_path = &test_path.join("unpacked").join(".tomb");
         // Load in the metadata
-        let manifest_data: ManifestData = load_manifest_data(output_meta_path).await.unwrap();
+        let (key, manifest_data) = load_manifest_and_key(output_meta_path).await.unwrap();
         // Load in the PrivateForest and PrivateDirectory
-        let (forest, root_dir) = load_forest_and_dir(&manifest_data).await.unwrap();
-        // Grab the newest ratchet from the most recent run of tomb
-        let newest_ratchet = root_dir.header.ratchet.clone();
+        let (forest, root_dir) = load_forest_and_dir(key, &manifest_data).await.unwrap();
 
-        // Assert that the original Ratchet is the ancestor of the new ratchet
-        assert!(manifest_data
-            .original_ratchet
-            .compare(&newest_ratchet, 1_000_000)
-            .is_ok());
+        let previous = root_dir.as_node().get_previous();
+        // previous.
 
         let mut iterator = PrivateNodeOnPathHistory::of(
             root_dir,

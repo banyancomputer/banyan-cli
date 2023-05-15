@@ -109,7 +109,7 @@ impl BlockStore for NetworkBlockStore {
 
 #[cfg(test)]
 mod test {
-    use crate::types::networkblockstore::NetworkBlockStore;
+    use crate::types::blockstore::networkblockstore::NetworkBlockStore;
     use std::net::Ipv4Addr;
 
     #[tokio::test]

@@ -1,5 +1,6 @@
 use crate::{
     types::{
+        blockstore::carblockstore::CarBlockStore,
         pipeline::{ManifestData, PackPipelinePlan},
         shared::CompressionScheme,
     },
@@ -16,7 +17,6 @@ use chrono::Utc;
 use fs_extra::dir;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
-use serde::Serialize;
 use std::{
     collections::HashSet,
     fs::{self, File},
@@ -27,7 +27,6 @@ use std::{
     vec,
 };
 use wnfs::{
-    common::CarBlockStore,
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateFile, PrivateForest, TemporalKey},
 };
@@ -339,7 +338,6 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
-    
     let key_file = input_meta_path.join("root.key");
 
     // Store Forest and Dir in BlockStores and retrieve CIDs
@@ -360,7 +358,7 @@ pub async fn pack_pipeline(
     };
 
     // Write the key
-    key_writer.write(key.0.as_bytes())?;
+    key_writer.write_all(key.0.as_bytes())?;
 
     // Construct output path for manifest data
     let manifest_file = input_meta_path.join("manifest.json");

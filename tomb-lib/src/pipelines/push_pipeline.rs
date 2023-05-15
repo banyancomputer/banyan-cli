@@ -6,7 +6,9 @@ use std::{
 };
 use wnfs::{common::BlockStore, libipld::Cid};
 
-use crate::{types::networkblockstore::NetworkBlockStore, utils::pipeline::load_manifest_and_key};
+use crate::{
+    types::blockstore::networkblockstore::NetworkBlockStore, utils::pipeline::load_manifest_and_key,
+};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn push_pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()> {
