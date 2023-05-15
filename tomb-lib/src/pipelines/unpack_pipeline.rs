@@ -1,6 +1,6 @@
 use crate::{
     types::shared::CompressionScheme,
-    utils::pipeline::{load_dir, load_forest, load_manifest_and_key},
+    utils::pipeline::{load_dir, load_forest, load_manifest_and_key, load_pipeline},
 };
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -23,22 +23,14 @@ use wnfs::{
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Paths representing metadata and content
-    let input_meta_path = input_dir.join(".tomb");
+    let tomb_path = input_dir.join(".tomb");
     let content_path = input_dir.join("content");
 
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
-    // Load in the Private Forest and the PrivateDirectory from the metadata directory
-    let (key, mut manifest_data) = load_manifest_and_key(input_meta_path.as_path())
-        .await
-        .unwrap();
-    // Update the directories
-    manifest_data.content_store.change_dir(&content_path)?;
-    manifest_data.meta_store.change_dir(&input_meta_path)?;
-
-    let forest = load_forest(&manifest_data).await?;
-    let dir = load_dir(key, &forest, &manifest_data.meta_store).await?;
+    // Load
+    let (manifest_data, forest, dir) = load_pipeline(&tomb_path).await?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -127,7 +119,7 @@ pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> 
     let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the cached metadata into the output directory
     fs_extra::copy_items(
-        &[input_meta_path],
+        &[tomb_path],
         output_dir,
         &fs_extra::dir::CopyOptions::new(),
     )

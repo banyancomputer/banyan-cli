@@ -84,7 +84,10 @@ fn compute_directory_size(path: &Path) -> Result<usize, ()> {
 mod test {
     use super::*;
     use std::path::Path;
-    use tokio::{fs::{read_link, symlink, symlink_metadata, File}, io::AsyncWriteExt};
+    use tokio::{
+        fs::{read_link, symlink, symlink_metadata, File},
+        io::AsyncWriteExt,
+    };
 
     // Configure where tests are run
     const TEST_PATH: &str = "test";

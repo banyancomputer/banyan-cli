@@ -7,7 +7,10 @@ use crate::{
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
-        pipeline::{load_forest, store_forest, load_dir, store_dir, load_manifest_and_key},
+        pipeline::{
+            load_dir, load_forest, load_manifest_and_key, store_dir, store_forest,
+            store_manifest_and_key, store_pipeline,
+        },
         spider::{self, path_to_segments},
     },
 };
@@ -130,7 +133,7 @@ pub async fn pack_pipeline(
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_forest) = load_forest(&manifest_data).await &&
-           let Ok(new_dir) = load_dir(key, &forest, &manifest_data.meta_store).await {
+           let Ok(new_dir) = load_dir(&manifest_data, key, &forest).await {
             // Update the BlockStores
             meta_store = manifest_data.meta_store;
             content_store = manifest_data.content_store;
@@ -341,47 +344,6 @@ pub async fn pack_pipeline(
         progress_bar.lock().unwrap().inc(1);
     }
 
-    // Store Forest and Dir in BlockStores and retrieve Key
-    store_forest(&meta_store, &mut forest, &root_dir).await?;
-    let key: TemporalKey = store_dir(&meta_store, &mut forest, &root_dir).await?;
-
-    // Construct the path for the key to be written
-    let key_file = input_meta_path.join("root.key");
-
-    let mut key_writer = match std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&key_file)
-    {
-        Ok(f) => f,
-        Err(e) => Err(anyhow::anyhow!(
-            "Failed to create key file at {}: {}",
-            key_file.display(),
-            e
-        ))?,
-    };
-
-    // Write the key
-    key_writer.write_all(key.0.as_bytes())?;
-
-    // Construct output path for manifest data
-    let manifest_file = input_meta_path.join("manifest.json");
-
-    // For now just write out the content of compressed_and_encrypted to a file.
-    // make sure the manifest file doesn't exist
-    let manifest_writer = match std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&manifest_file)
-    {
-        Ok(f) => f,
-        Err(e) => Err(anyhow::anyhow!(
-            "Failed to create manifest file at {}: {}",
-            manifest_file.display(),
-            e
-        ))?,
-    };
-
     // Construct the latest version of the ManifestData struct
     let manifest_data = ManifestData {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -389,15 +351,8 @@ pub async fn pack_pipeline(
         meta_store,
     };
 
-    info!(
-        "📄 Writing out a data manifest file to {}",
-        manifest_file.display()
-    );
-
-    // Use serde to convert the ManifestData to JSON and write it to the path specified
-    serde_json::to_writer_pretty(manifest_writer, &manifest_data)
-        .map_err(|e| anyhow::anyhow!(e))?;
-
+    // Store Forest and Dir in BlockStores and retrieve Key
+    let _ = store_pipeline(&input_meta_path, &manifest_data, &mut forest, &root_dir).await?;
     // Remove the .tomb directory from the output path if it is already there
     let _ = fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the generated metadata into the output directory

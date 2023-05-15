@@ -3,13 +3,14 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
     borrow::Cow,
+    cell::RefCell,
     collections::HashMap,
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     str::FromStr,
     sync::RwLock,
-    vec, cell::RefCell,
+    vec,
 };
 use wnfs::{
     common::BlockStore,
@@ -34,7 +35,6 @@ impl Serialize for CarBlockStore {
     where
         S: Serializer,
     {
-        let header_bytes = self.carhead.to_bytes();
         let mut string_keyed_index: HashMap<String, &LocationInCar> = HashMap::new();
         let binding = self.index.read().unwrap();
         for (k, v) in binding.iter() {
@@ -42,7 +42,7 @@ impl Serialize for CarBlockStore {
         }
 
         (
-            header_bytes,
+            self.carhead.clone(),
             self.max_size,
             &string_keyed_index,
             &self.car_factory,
@@ -57,14 +57,13 @@ impl<'de> Deserialize<'de> for CarBlockStore {
         D: serde::Deserializer<'de>,
     {
         // Deserialize the path
-        let (header_bytes, max_size, string_keyed_index, car_factory) =
+        let (carhead, max_size, string_keyed_index, car_factory) =
             <(
-                Vec<u8>,
+                CarHeader,
                 Option<usize>,
                 HashMap<String, LocationInCar>,
                 RwLock<DiskCarFactory>,
             )>::deserialize(deserializer)?;
-        let carhead = CarHeader::from_bytes(&header_bytes);
         let mut index: HashMap<Cid, LocationInCar> = HashMap::new();
         for (k, v) in string_keyed_index.into_iter() {
             let cid = Cid::from_str(&k).unwrap();
@@ -116,19 +115,13 @@ impl CarBlockStore {
     }
 
     /// Adds a root CID to the CAR header
-    pub fn add_root(&self, cid: &Cid) {
-        self.carhead.roots.borrow_mut().push(*cid);
-    }
-
-    /// Empty root vec
-    pub fn clear_roots(&self) {
-        let mut roots = self.carhead.roots.borrow_mut();
-        roots.retain(|_| false);
+    pub fn insert_root(&self, key: &str, cid: Cid) {
+        self.carhead.roots.borrow_mut().insert(key.to_string(), cid);
     }
 
     /// Gets all root CIDs from the CAR header
-    pub fn get_roots(&self) -> Vec<Cid> {
-        self.carhead.roots.borrow().clone()
+    pub fn get_root(&self, key: &str) -> Result<Cid> {
+        Ok(*self.carhead.roots.borrow().get(key).unwrap())
     }
 
     /// Gets a list of all Block CIDs inserted into this BlockStore
@@ -251,45 +244,17 @@ impl BlockStore for CarBlockStore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct CarHeader {
     version: i128,
-    roots: RefCell<Vec<Cid>>,
+    roots: RefCell<HashMap<String, Cid>>,
 }
 
 impl CarHeader {
     pub(crate) fn new() -> Self {
         Self {
             version: 1,
-            roots: RefCell::new(Vec::new()),
-        }
-    }
-
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let roots = Ipld::List(self.roots.borrow().clone().into_iter().map(Ipld::Link).collect());
-        let header_ipld: Ipld = ipld!({
-          "version": self.version,
-          "roots": roots,
-        });
-        DagCborCodec.encode(&header_ipld).unwrap()
-    }
-
-    pub(crate) fn from_bytes(bytes: &[u8]) -> Self {
-        let header_ipld: Ipld = DagCborCodec.decode(bytes).unwrap();
-        let Ipld::Integer(version) = header_ipld.get("version").unwrap() else { panic!() };
-        let Ipld::List(roots) = header_ipld.get("roots").unwrap() else { panic!() };
-
-        let roots: Vec<Cid> = roots
-            .iter()
-            .map(|ipld| {
-                let Ipld::Link(cid) = ipld else { panic!() };
-                *cid
-            })
-            .collect();
-
-        CarHeader {
-            version: *version,
-            roots: RefCell::new(roots),
+            roots: RefCell::new(HashMap::new()),
         }
     }
 }
