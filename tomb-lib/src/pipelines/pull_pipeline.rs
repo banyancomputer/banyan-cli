@@ -1,22 +1,18 @@
 use anyhow::Result;
-use std::{collections::HashSet, path::Path, rc::Rc};
-use wnfs::private::PrivateForest;
+use std::path::Path;
 
-use crate::{
-    types::blockstore::networkblockstore::NetworkBlockStore,
-    utils::pipeline::{load_forest, load_manifest},
-};
+use crate::types::blockstore::networkblockstore::NetworkBlockStore;
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pull_pipeline(
-    tomb_path: &Path,
-    output_dir: &Path,
-    store: &NetworkBlockStore,
+    _tomb_path: &Path,
+    _output_dir: &Path,
+    _store: &NetworkBlockStore,
 ) -> Result<()> {
     info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
 
-    let manifest = load_manifest(tomb_path).await?;
-    let forest = load_forest(&manifest).await?;
+    // let manifest = load_manifest(tomb_path).await?;
+    // let forest = load_forest(&manifest).await?;
 
     // let empty_forest = Rc::new(PrivateForest::new());
     // let differences = forest.diff(&empty_forest, &manifest.content_store).await?;

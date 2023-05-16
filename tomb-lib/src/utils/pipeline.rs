@@ -252,8 +252,8 @@ mod test {
         utils::{
             fs::ensure_path_exists_and_is_dir,
             pipeline::{
-                load_dir, load_forest, load_key, load_manifest, store_dir, store_forest, store_key,
-                store_manifest, store_pipeline, load_pipeline,
+                load_dir, load_forest, load_key, load_manifest, load_pipeline, store_dir,
+                store_forest, store_key, store_manifest, store_pipeline,
             },
         },
     };
@@ -361,7 +361,13 @@ mod test {
         let new_forest = load_forest(&manifest).await?;
 
         // Assert equality
-        assert_eq!(new_forest.diff(&forest, &manifest.content_store).await?.len(), 0);
+        assert_eq!(
+            new_forest
+                .diff(&forest, &manifest.content_store)
+                .await?
+                .len(),
+            0
+        );
 
         // Teardown
         teardown().await
@@ -397,7 +403,13 @@ mod test {
         // Assert equality
         assert_eq!(new_key, key);
         assert_eq!(new_manifest, manifest);
-        assert_eq!(new_forest.diff(&forest, &new_manifest.content_store).await?.len(), 0);
+        assert_eq!(
+            new_forest
+                .diff(&forest, &new_manifest.content_store)
+                .await?
+                .len(),
+            0
+        );
         assert_eq!(new_dir, dir);
 
         // Teardown

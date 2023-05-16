@@ -21,12 +21,17 @@ use wnfs::{
 pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Paths representing metadata and content
     let tomb_path = input_dir.join(".tomb");
+    let content_path = input_dir.join("content");
 
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
     // Load
-    let (_, manifest, forest, dir) = load_pipeline(&tomb_path).await?;
+    let (_, mut manifest, forest, dir) = load_pipeline(&tomb_path).await?;
+
+    // Update the locations of the CarBlockStores to be relative to the input path
+    manifest.meta_store.change_dir(&tomb_path)?;
+    manifest.content_store.change_dir(&content_path)?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",

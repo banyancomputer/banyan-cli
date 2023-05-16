@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    borrow::{Cow, Borrow},
+    borrow::Cow,
     cell::RefCell,
     collections::{HashMap, HashSet},
     fs::File,
@@ -144,10 +144,10 @@ impl BlockStore for CarBlockStore {
         {
             // Grab read-only
             let factory = self.car_factory.read().unwrap();
+            // Construct the path of the file
             let car_path = factory
                 .directory
                 .join(format!("{}.car", location.car_number));
-            println!("attempting to open {}", car_path.display());
             // Open the CAR file using the CAR number as the filename
             car_file = File::open(car_path)?;
         }
@@ -248,8 +248,9 @@ impl PartialEq for CarBlockStore {
     fn eq(&self, other: &Self) -> bool {
         self.carhead.roots == other.carhead.roots
             && self.max_size == other.max_size
-            && HashSet::<Cid>::from_iter(self.get_all_cids().into_iter()) == HashSet::from_iter(other.get_all_cids().into_iter())
-            // && self.car_factory == other.car_factory
+            && HashSet::<Cid>::from_iter(self.get_all_cids().into_iter())
+                == HashSet::from_iter(other.get_all_cids().into_iter())
+        // && self.car_factory == other.car_factory
     }
 }
 
