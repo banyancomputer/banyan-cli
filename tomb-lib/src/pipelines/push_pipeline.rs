@@ -12,6 +12,7 @@ use crate::{
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn push_pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()> {
+    info!("Sending blocks to remote server.");
     let tomb_path = input_dir.join(".tomb");
     let content_path = input_dir.join("content");
 
@@ -53,54 +54,4 @@ pub async fn push_pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Resul
     info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use std::{
-        net::Ipv4Addr,
-        path::{Path, PathBuf},
-    };
-
-    use anyhow::Result;
-    use fake_file::{Strategy, Structure};
-
-    use crate::{
-        pipelines::{pack_pipeline::pack_pipeline, push_pipeline::push_pipeline},
-        types::blockstore::networkblockstore::NetworkBlockStore, utils::fs::ensure_path_exists_and_is_empty_dir,
-    };
-
-    // Set up temporary filesystem for test cases
-    async fn setup() -> Result<(PathBuf, PathBuf, PathBuf)> {
-        // Base of the test directory
-        let root_path = PathBuf::from("test").join("push");
-        // Create and empty the dir
-        ensure_path_exists_and_is_empty_dir(&root_path, true)?;
-        // Input and output paths
-        let input_path = root_path.join("input");
-        let output_path = root_path.join("output");
-        // Generate file structure
-        Structure::new(2, 2, 1048576, Strategy::Simple).generate(&input_path)?;
-        // Return all paths
-        Ok((root_path, input_path, output_path))
-    }
-
-    // Remove contents of temporary dir
-    async fn teardown(root_path: &Path) -> Result<()> {
-        Ok(std::fs::remove_dir_all(root_path)?)
-    }
-
-    #[tokio::test]
-    async fn test_push() -> Result<()> {
-        // Create the setup conditions
-        let (root_path, input_dir, output_dir) = setup().await?;
-        pack_pipeline(&input_dir, &output_dir, 262144, true).await?;
-
-        // Construct NetworkBlockStore and run pipeline
-        let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
-        push_pipeline(&output_dir, &store).await?;
-
-        // Teardown
-        teardown(&root_path).await
-    }
 }

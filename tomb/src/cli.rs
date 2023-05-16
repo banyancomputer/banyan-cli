@@ -60,12 +60,8 @@ pub(crate) enum Commands {
     /// tomb pull - Update local from the bucket- determined by CWD
     Pull {
         /// Input directory in which packed files are stored.
-        #[arg(short, long, help = "tomb directory")]
-        tomb_path: PathBuf,
-
-        /// Directory that either does not exist or is empty; this is where packed data will go.
-        #[arg(short, long, help = "output directory")]
-        output_dir: PathBuf,
+        #[arg(short, long, help = "directory")]
+        dir: PathBuf,
 
         /// Server address
         #[arg(short, long, help = "remote IPv4 address")]

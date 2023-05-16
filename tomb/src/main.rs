@@ -69,15 +69,14 @@ async fn main() {
             }
         },
         cli::Commands::Pull {
-            tomb_path,
-            output_dir,
+            dir,
             address,
             port
         } => {
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(address), port);
             // Start the Pull pipeline
-            pull_pipeline(&tomb_path, &output_dir, &store).await.unwrap();
+            pull_pipeline(&dir, &store).await.unwrap();
         },
         cli::Commands::Push {
             input_dir,
