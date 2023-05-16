@@ -2,9 +2,9 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize, Serializer};
 use std::{
-    borrow::Cow,
+    borrow::{Cow, Borrow},
     cell::RefCell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::File,
     io::{BufWriter, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -144,12 +144,12 @@ impl BlockStore for CarBlockStore {
         {
             // Grab read-only
             let factory = self.car_factory.read().unwrap();
+            let car_path = factory
+                .directory
+                .join(format!("{}.car", location.car_number));
+            println!("attempting to open {}", car_path.display());
             // Open the CAR file using the CAR number as the filename
-            car_file = File::open(
-                factory
-                    .directory
-                    .join(format!("{}.car", location.car_number)),
-            )?;
+            car_file = File::open(car_path)?;
         }
         // Drop the read lock on the CAR Factory
 
@@ -241,6 +241,15 @@ impl BlockStore for CarBlockStore {
 
         // Return generated CID for future retrieval
         Ok(cid)
+    }
+}
+
+impl PartialEq for CarBlockStore {
+    fn eq(&self, other: &Self) -> bool {
+        self.carhead.roots == other.carhead.roots
+            && self.max_size == other.max_size
+            && HashSet::<Cid>::from_iter(self.get_all_cids().into_iter()) == HashSet::from_iter(other.get_all_cids().into_iter())
+            // && self.car_factory == other.car_factory
     }
 }
 

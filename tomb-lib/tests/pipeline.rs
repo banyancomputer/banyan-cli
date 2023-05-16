@@ -1,5 +1,6 @@
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
+use serial_test as _;
 use std::{path::Path, process::Command};
 use tomb_lib::{
     pipelines::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},

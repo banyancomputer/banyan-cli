@@ -12,7 +12,7 @@ use clap::Parser;
 use std::{io::Write, net::Ipv4Addr};
 use tomb_lib::{
     pipelines::{
-        pack_pipeline::pack_pipeline, push_pipeline::push_pipeline,
+        pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline, push_pipeline::push_pipeline,
         unpack_pipeline::unpack_pipeline,
     },
     types::blockstore::networkblockstore::NetworkBlockStore,
@@ -68,17 +68,17 @@ async fn main() {
                 }
             }
         },
-        cli::Commands::Pull => unimplemented!("fasdfas"),
-        // cli::Commands::Pull => {
-        //     output_dir,
-        //     address,
-        //     port
-        // } => {
-        //     // Construct the NetworkBlockStore from this IP and Port combination
-        //     let store = NetworkBlockStore::new(ip_from_string(address), port);
-        //     // Start the Push pipeline
-        //     pull_pipeline(&output_dir, &store).await.unwrap();
-        // },
+        cli::Commands::Pull {
+            tomb_path,
+            output_dir,
+            address,
+            port
+        } => {
+            // Construct the NetworkBlockStore from this IP and Port combination
+            let store = NetworkBlockStore::new(ip_from_string(address), port);
+            // Start the Pull pipeline
+            pull_pipeline(&tomb_path, &output_dir, &store).await.unwrap();
+        },
         cli::Commands::Push {
             input_dir,
             address,

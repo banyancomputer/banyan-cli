@@ -57,6 +57,38 @@ pub(crate) enum Commands {
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
     },
+    /// tomb pull - Update local from the bucket- determined by CWD
+    Pull {
+        /// Input directory in which packed files are stored.
+        #[arg(short, long, help = "tomb directory")]
+        tomb_path: PathBuf,
+
+        /// Directory that either does not exist or is empty; this is where packed data will go.
+        #[arg(short, long, help = "output directory")]
+        output_dir: PathBuf,
+
+        /// Server address
+        #[arg(short, long, help = "remote IPv4 address")]
+        address: String,
+
+        /// Server port
+        #[arg(short, long, help = "remote address port")]
+        port: u16,
+    },
+    /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
+    Push {
+        /// Input directory in which packed files are stored.
+        #[arg(short, long, help = "input directory")]
+        input_dir: PathBuf,
+
+        /// Server address
+        #[arg(short, long, help = "remote IPv4 address")]
+        address: String,
+
+        /// Server port
+        #[arg(short, long, help = "remote address port")]
+        port: u16,
+    },
     ///- Initialize Tomb - Abort if the `~/.tomb` path already exists
     //- Create a new directory at `~/.tomb`
     //- Create a new config file at `~/.tomb/config`:
@@ -79,22 +111,6 @@ pub(crate) enum Commands {
     Configure {
         #[clap(subcommand)]
         subcommand: ConfigSubCommands,
-    },
-    /// tomb pull - Update local from the bucket- determined by CWD
-    Pull,
-    /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
-    Push {
-        /// Input directory in which packed files are stored.
-        #[arg(short, long, help = "input directory")]
-        input_dir: PathBuf,
-
-        /// Server address
-        #[arg(short, long, help = "remote IPv4 address")]
-        address: String,
-
-        /// Server port
-        #[arg(short, long, help = "remote address port")]
-        port: u16,
     },
     Daemon,
 }

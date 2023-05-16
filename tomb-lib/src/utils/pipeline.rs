@@ -1,5 +1,6 @@
 use anyhow::Result;
 use rand::thread_rng;
+use serial_test as _;
 use std::{
     io::{Read, Write},
     path::Path,
@@ -12,7 +13,6 @@ use wnfs::{
 };
 
 use crate::types::pipeline::Manifest;
-use tempfile as _;
 
 /// Store a Manifest
 pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()> {
@@ -47,6 +47,7 @@ pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()>
 
 /// Deserializes the Manifest struct from a given .tomb dir
 pub async fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
+    info!("Loading in Manifest from disk");
     let manifest_file = tomb_path.join("manifest.json");
 
     // Read in the manifest file from the metadata path
@@ -67,6 +68,8 @@ pub async fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
         // Panic if it's not
         panic!("Unsupported manifest version.");
     }
+
+    // println!("the paths associated with these blockstores: {}");
 
     Ok(manifest)
 }
@@ -96,6 +99,7 @@ pub async fn store_key(tomb_path: &Path, temporal_key: &TemporalKey, label: &str
 
 /// Load a TemporalKey
 pub async fn load_key(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
+    info!("Loading in {} Key from disk", label);
     // The path in which we expect to find the Manifest JSON file
     let key_file = tomb_path.join(format!("{}.key", label));
 
@@ -127,7 +131,7 @@ pub async fn store_forest(manifest: &Manifest, forest: &mut Rc<PrivateForest>) -
 
 /// Load a PrivateForest
 pub async fn load_forest(manifest: &Manifest) -> Result<Rc<PrivateForest>> {
-    info!("Loading in Key, BlockStores, & WNFS from metadata...");
+    info!("Loading in PrivateForest from disk");
 
     let ipld_cid = &manifest.meta_store.get_root("ipld_cid")?;
 
@@ -184,6 +188,7 @@ pub async fn load_dir(
     forest: &Rc<PrivateForest>,
     cid_key: &str,
 ) -> Result<Rc<PrivateDirectory>> {
+    info!("Loading in PrivateDirectory from disk");
     // Extract BlockStores
     let content_store = &manifest.content_store;
     let meta_store = &manifest.meta_store;
@@ -238,4 +243,164 @@ pub async fn load_pipeline(
     let forest = load_forest(&manifest).await?;
     let dir = load_dir(&manifest, &key, &forest, "current_root").await?;
     Ok((key, manifest, forest, dir))
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest},
+        utils::{
+            fs::ensure_path_exists_and_is_dir,
+            pipeline::{
+                load_dir, load_forest, load_key, load_manifest, store_dir, store_forest, store_key,
+                store_manifest, store_pipeline, load_pipeline,
+            },
+        },
+    };
+    use anyhow::Result;
+    use chrono::Utc;
+    use rand::thread_rng;
+    use serial_test::serial;
+    use std::{fs, path::PathBuf, rc::Rc};
+    use wnfs::{
+        namefilter::Namefilter,
+        private::{PrivateDirectory, PrivateForest},
+    };
+
+    // Create all of the relevant objects, using real CarBlockStores and real data
+    async fn setup() -> Result<(PathBuf, Manifest, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+        let path = PathBuf::from("serialtest");
+        ensure_path_exists_and_is_dir(&path)?;
+
+        let content_path = path.join("content");
+        let tomb_path = path.join(".tomb");
+
+        let content_store = CarBlockStore::new(&content_path, None);
+        let meta_store = CarBlockStore::new(&tomb_path, None);
+
+        let rng = &mut thread_rng();
+        let mut root_dir = Rc::new(PrivateDirectory::new(
+            Namefilter::default(),
+            Utc::now(),
+            rng,
+        ));
+        let mut forest = Rc::new(PrivateForest::new());
+        root_dir
+            .write(
+                &["cats".to_string()],
+                true,
+                Utc::now(),
+                b"Hello kitty cat!".to_vec(),
+                &mut forest,
+                &content_store,
+                rng,
+            )
+            .await?;
+
+        let manifest_data = Manifest {
+            version: "1.1.0".to_string(),
+            content_store,
+            meta_store,
+        };
+
+        Ok((tomb_path, manifest_data, forest, root_dir))
+    }
+
+    // Delete the temporary directory
+    async fn teardown() -> Result<()> {
+        let path = PathBuf::from("serialtest");
+        fs::remove_dir_all(path)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_serial_key() -> Result<()> {
+        // Start er up!
+        let (tomb_path, manifest, mut forest, dir) = setup().await?;
+
+        // Generate key for this directory
+        let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
+
+        // Store and load
+        store_key(&tomb_path, &key, "root").await?;
+        let new_key = load_key(&tomb_path, "root").await?;
+
+        // Assert equality
+        assert_eq!(key, new_key);
+
+        // Teardown
+        teardown().await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_serial_manifest() -> Result<()> {
+        // Start er up!
+        let (tomb_path, manifest, _, _) = setup().await?;
+
+        // Store and load
+        store_manifest(&tomb_path, &manifest).await?;
+        let new_manifest = load_manifest(&tomb_path).await?;
+
+        // Assert equality
+        assert_eq!(manifest, new_manifest);
+
+        // Teardown
+        teardown().await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_serial_forest() -> Result<()> {
+        // Start er up!
+        let (_, manifest, mut forest, _) = setup().await?;
+
+        // Store and load
+        store_forest(&manifest, &mut forest).await?;
+        let new_forest = load_forest(&manifest).await?;
+
+        // Assert equality
+        assert_eq!(new_forest.diff(&forest, &manifest.content_store).await?.len(), 0);
+
+        // Teardown
+        teardown().await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_serial_dir() -> Result<()> {
+        // Start er up!
+        let (_, manifest, mut forest, dir) = setup().await?;
+
+        let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
+        store_forest(&manifest, &mut forest).await?;
+        let new_forest = load_forest(&manifest).await?;
+        let new_dir = load_dir(&manifest, &key, &new_forest, "dir").await?;
+        // Assert equality
+        assert_eq!(dir, new_dir);
+
+        // Teardown
+        teardown().await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_serial_pipeline() -> Result<()> {
+        // Start er up!
+        let (tomb_path, manifest, mut forest, dir) = setup().await?;
+
+        // Store and load
+        let key = store_pipeline(&tomb_path, &manifest, &mut forest, &dir).await?;
+        let (new_key, new_manifest, new_forest, new_dir) = load_pipeline(&tomb_path).await?;
+
+        // Assert equality
+        assert_eq!(new_key, key);
+        assert_eq!(new_manifest, manifest);
+        assert_eq!(new_forest.diff(&forest, &new_manifest.content_store).await?.len(), 0);
+        assert_eq!(new_dir, dir);
+
+        // Teardown
+        teardown().await
+    }
 }

@@ -6,7 +6,7 @@ use std::{fmt::Debug, path::PathBuf, sync::Arc};
 /// It may seem silly to have a struct that has only one field, but in
 /// versioning this struct, we can also version its children identically.
 /// As well as any other fields we may add / remove in the future.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq)]
 pub struct Manifest {
     /// The project version that was used to encode this Manifest
     pub version: String,
