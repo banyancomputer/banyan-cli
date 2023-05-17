@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "tomb",
-    "tomb-cli"
+    "tomb-cli",
+    "tomb-common",
+    "tomb-wasm"
 ]
 [workspace.package]
 # All packages in the workspace will have the same version (for now)

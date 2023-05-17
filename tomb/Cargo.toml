@@ -39,5 +39,5 @@ name = "pipeline"
 harness = false
 
 [lib]
-name = "tomb"
+crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
