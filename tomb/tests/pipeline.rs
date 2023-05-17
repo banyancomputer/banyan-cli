@@ -2,7 +2,7 @@ use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
 use serial_test as _;
 use std::{path::Path, process::Command};
-use tomb_lib::{
+use tomb::{
     pipelines::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
@@ -90,7 +90,7 @@ mod test {
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
-    use tomb_lib::utils::pipeline::{load_dir, load_key, load_pipeline};
+    use tomb::utils::pipeline::{load_dir, load_key, load_pipeline};
     use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run
@@ -401,10 +401,13 @@ mod test {
 
         // The path in which we expect to find metadata
         let tomb_path = &test_path.join("unpacked").join(".tomb");
-        let (_, manifest, mut forest, dir) = load_pipeline(tomb_path).await?;
+        let (key, manifest, mut forest, dir) = load_pipeline(tomb_path).await?;
 
         let original_key = load_key(tomb_path, "original").await?;
         let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;
+
+        assert_ne!(key, original_key);
+        assert_ne!(dir, original_dir);
 
         let mut iterator = PrivateNodeOnPathHistory::of(
             dir,
@@ -475,6 +478,14 @@ mod test {
 
         // Assert that the previous version of the file was retrieved correctly
         assert!(original_content != goodbye_bytes);
+
+        unsafe {
+            println!("oc: {:?}", String::from_utf8_unchecked(original_content.clone()));
+            println!("pc: {:?}", String::from_utf8_unchecked(previous_content.clone()));
+        }
+        
+        assert_eq!(original_content, hello_bytes);
+        assert_eq!(previous_content, still_bytes);
 
         // Assert that there are no more previous versions to find
         assert!(iterator

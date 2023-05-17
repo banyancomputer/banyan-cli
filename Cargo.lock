@@ -3123,17 +3123,6 @@ dependencies = [
 name = "tomb"
 version = "1.1.0"
 dependencies = [
- "clap 4.2.7",
- "env_logger",
- "log",
- "tokio",
- "tomb-lib",
-]
-
-[[package]]
-name = "tomb-lib"
-version = "1.1.0"
-dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
@@ -3156,6 +3145,17 @@ dependencies = [
  "tokio",
  "wnfs",
  "zstd",
+]
+
+[[package]]
+name = "tomb-cli"
+version = "1.1.0"
+dependencies = [
+ "clap 4.2.7",
+ "env_logger",
+ "log",
+ "tokio",
+ "tomb",
 ]
 
 [[package]]

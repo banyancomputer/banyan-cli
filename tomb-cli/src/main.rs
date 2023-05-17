@@ -10,7 +10,7 @@
 
 use clap::Parser;
 use std::{io::Write, net::Ipv4Addr};
-use tomb_lib::{
+use tomb::{
     pipelines::{
         pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline, push_pipeline::push_pipeline,
         unpack_pipeline::unpack_pipeline,

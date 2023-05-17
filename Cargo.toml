@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "tomb",
-    "tomb-lib"
+    "tomb-cli"
 ]
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
@@ -32,7 +32,7 @@ categories = [
 
 [workspace.dependencies]
 # Our core library -- is a dependency of the binary
-tomb-lib = { path = "tomb-lib" }
+tomb = { path = "tomb" }
 # Dependencies
 clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }

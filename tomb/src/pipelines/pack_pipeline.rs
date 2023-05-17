@@ -348,8 +348,8 @@ pub async fn pack_pipeline(
     };
 
     if first_run {
+        println!("storing original dir and key");
         let original_key = store_dir(&manifest, &mut forest, &root_dir, "original_root").await?;
-
         store_key(&tomb_path, &original_key, "original").await?;
     }
 

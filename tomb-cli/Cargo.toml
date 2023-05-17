@@ -1,0 +1,14 @@
+[package]
+name = "tomb-cli"
+description = "Command line interface for preparing data, managing synced data, and uploading it to banyan's decentralized cloud infrastructure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+tomb.workspace = true
+clap.workspace = true
+tokio.workspace = true
+env_logger = "0.10.0"
+log = "0.4.14"
