@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 use wnfs::{
-    common::{AsyncSerialize, BlockStore, HashOutput},
+    common::{dagcbor, AsyncSerialize, BlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
     private::{AesKey, PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey},
 };
@@ -17,11 +17,11 @@ use crate::types::pipeline::Manifest;
 /// Store a Manifest
 pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()> {
     // The path in which we expect to find the Manifest JSON file
-    let manifest_file = tomb_path.join("manifest.json");
+    let manifest_file = tomb_path.join("manifest.cbor");
 
     // For now just write out the content of compressed_and_encrypted to a file.
     // make sure the manifest file doesn't exist
-    let manifest_writer = match std::fs::OpenOptions::new()
+    let mut manifest_writer = match std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .open(&manifest_file)
@@ -39,22 +39,26 @@ pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()>
         manifest_file.display()
     );
 
-    // Use serde to convert the Manifest to JSON and write it to the path specified
-    serde_json::to_writer_pretty(manifest_writer, &manifest).map_err(|e| anyhow::anyhow!(e))?;
-
-    Ok(())
+    // Write the manifest in DAG CBOR
+    manifest_writer
+        .write_all(&dagcbor::encode(&manifest)?)
+        .map_err(anyhow::Error::new)
 }
 
 /// Deserializes the Manifest struct from a given .tomb dir
 pub async fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
     info!("Loading in Manifest from disk");
-    let manifest_file = tomb_path.join("manifest.json");
+    let manifest_file = tomb_path.join("manifest.cbor");
 
     // Read in the manifest file from the metadata path
-    let manifest_reader = std::fs::File::open(manifest_file)
+    let mut manifest_reader = std::fs::File::open(manifest_file)
         .map_err(|e| anyhow::anyhow!("Failed to open manifest file: {}", e))?;
+
+    let mut manifest_buf: Vec<u8> = Vec::new();
+    manifest_reader.read_to_end(&mut manifest_buf)?;
+
     // Deserialize the data read as the latest version of manifestdata
-    let manifest: Manifest = match serde_json::from_reader(manifest_reader) {
+    let manifest: Manifest = match dagcbor::decode(&manifest_buf) {
         Ok(data) => data,
         Err(e) => {
             panic!("Failed to deserialize manifest file: {e}");

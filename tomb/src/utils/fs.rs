@@ -15,7 +15,7 @@ use std::{fs, path::Path};
 ///
 /// # Examples
 /// ```no_run
-/// use tomb_lib::utils::fs::ensure_path_exists_and_is_dir;
+/// use tomb::utils::fs::ensure_path_exists_and_is_dir;
 /// use std::path::PathBuf;
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_dir(&path).unwrap();
@@ -44,7 +44,7 @@ pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
 /// Returns a `Result<()>` with no value if operation was successful, or an Error if something went wrong.
 /// # Examples
 /// ```no_run
-/// use tomb_lib::utils::fs::ensure_path_exists_and_is_empty_dir;
+/// use tomb::utils::fs::ensure_path_exists_and_is_empty_dir;
 /// use std::path::PathBuf;
 /// let path = PathBuf::from("test");
 /// ensure_path_exists_and_is_empty_dir(&path, false).unwrap();

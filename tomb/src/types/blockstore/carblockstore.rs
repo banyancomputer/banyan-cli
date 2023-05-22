@@ -256,7 +256,7 @@ impl PartialEq for CarBlockStore {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct CarHeader {
-    version: i128,
+    version: i64,
     roots: RefCell<HashMap<String, Cid>>,
 }
 

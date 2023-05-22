@@ -412,6 +412,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
+name = "cbor4ii"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b544cf8c89359205f4f990d0e6f3828db42df85b5dac95d09157a250eb0749c4"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -493,13 +502,27 @@ dependencies = [
 
 [[package]]
 name = "cid"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6ed9c8b2d17acb8110c46f1da5bf4a696d745e1474a16db0cd2b49cd0249bf2"
+dependencies = [
+ "core2",
+ "multibase",
+ "multihash 0.16.3",
+ "serde",
+ "serde_bytes",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "cid"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd94671561e36e4e7de75f753f577edafb0e7c05d6e4547229fdf7938fbcd2c3"
 dependencies = [
  "core2",
  "multibase",
- "multihash",
+ "multihash 0.18.1",
  "serde",
  "serde_bytes",
  "unsigned-varint",
@@ -616,16 +639,6 @@ dependencies = [
  "libc",
  "unicode-width",
  "windows-sys 0.42.0",
-]
-
-[[package]]
-name = "console_error_panic_hook"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
-dependencies = [
- "cfg-if",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1309,10 +1322,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c85e1d9ab2eadba7e5040d4e09cbd6d072b76a557ad64e797c2cb9d4da21d7e4"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -1693,7 +1704,7 @@ dependencies = [
  "libipld-macro",
  "libipld-pb",
  "log",
- "multihash",
+ "multihash 0.18.1",
  "thiserror",
 ]
 
@@ -1728,10 +1739,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5acd707e8d8b092e967b2af978ed84709eaded82b75effe6cb6f6cc797ef8158"
 dependencies = [
  "anyhow",
- "cid",
+ "cid 0.10.1",
  "core2",
  "multibase",
- "multihash",
+ "multihash 0.18.1",
  "serde",
  "thiserror",
 ]
@@ -1743,7 +1754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25856def940047b07b25c33d4e66d248597049ab0202085215dc4dca0487731c"
 dependencies = [
  "libipld-core",
- "multihash",
+ "multihash 0.18.1",
  "serde",
  "serde_json",
 ]
@@ -1906,6 +1917,19 @@ dependencies = [
  "base-x",
  "data-encoding",
  "data-encoding-macro",
+]
+
+[[package]]
+name = "multihash"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c346cf9999c631f002d8f977c4eaeaa0e6386f16007202308d0b3757522c2cc"
+dependencies = [
+ "core2",
+ "multihash-derive",
+ "serde",
+ "serde-big-array",
+ "unsigned-varint",
 ]
 
 [[package]]
@@ -2815,6 +2839,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_ipld_dagcbor"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2433e94ffb5977e67afbd75733abd6ada1c4f497125894a8c89b3fdc5fd6a058"
+dependencies = [
+ "cbor4ii",
+ "cid 0.8.6",
+ "scopeguard",
+ "serde",
+]
+
+[[package]]
 name = "serde_json"
 version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3274,8 +3310,6 @@ dependencies = [
  "tomb-common",
  "wasm-streams 0.3.0",
  "web-sys",
- "wnfs",
- "wnfs-wasm",
  "worker",
 ]
 
@@ -3539,8 +3573,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31f8dcbc21f30d9b8f2ea926ecb58f6b91192c17e9d33594b3df58b2007ca53b"
 dependencies = [
  "cfg-if",
- "serde",
- "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -3835,6 +3867,7 @@ dependencies = [
 [[package]]
 name = "wnfs"
 version = "0.1.20"
+source = "git+https://github.com/banyancomputer/rs-wnfs#d73a84c846350da095e53d8ac6e671215252abe9"
 dependencies = [
  "aes-gcm",
  "aes-kw",
@@ -3844,15 +3877,14 @@ dependencies = [
  "async-stream",
  "async-trait",
  "chrono",
- "dashmap",
  "futures",
  "libipld",
- "multihash",
+ "multihash 0.18.1",
  "once_cell",
- "rand 0.8.5",
  "rand_core 0.6.4",
  "semver",
  "serde",
+ "serde_ipld_dagcbor",
  "sha3",
  "skip_ratchet",
  "thiserror",
@@ -3865,6 +3897,7 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.20"
+source = "git+https://github.com/banyancomputer/rs-wnfs#d73a84c846350da095e53d8ac6e671215252abe9"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3872,18 +3905,17 @@ dependencies = [
  "chrono",
  "futures",
  "libipld",
- "multihash",
+ "multihash 0.18.1",
  "once_cell",
  "rand_core 0.6.4",
  "serde",
- "serde_json",
- "tempfile",
  "thiserror",
 ]
 
 [[package]]
 name = "wnfs-hamt"
 version = "0.1.20"
+source = "git+https://github.com/banyancomputer/rs-wnfs#d73a84c846350da095e53d8ac6e671215252abe9"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3894,7 +3926,7 @@ dependencies = [
  "either",
  "futures",
  "libipld",
- "multihash",
+ "multihash 0.18.1",
  "once_cell",
  "rand_core 0.6.4",
  "semver",
@@ -3907,6 +3939,7 @@ dependencies = [
 [[package]]
 name = "wnfs-namefilter"
 version = "0.1.20"
+source = "git+https://github.com/banyancomputer/rs-wnfs#d73a84c846350da095e53d8ac6e671215252abe9"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3915,30 +3948,13 @@ dependencies = [
  "chrono",
  "futures",
  "libipld",
- "multihash",
+ "multihash 0.18.1",
  "rand_core 0.6.4",
  "serde",
  "sha3",
  "thiserror",
  "wnfs-common",
  "xxhash-rust",
-]
-
-[[package]]
-name = "wnfs-wasm"
-version = "0.1.20"
-dependencies = [
- "anyhow",
- "async-trait",
- "cfg-if",
- "chrono",
- "console_error_panic_hook",
- "getrandom",
- "js-sys",
- "rand_core 0.6.4",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wnfs",
 ]
 
 [[package]]

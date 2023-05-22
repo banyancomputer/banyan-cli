@@ -10,8 +10,7 @@ web-sys = "0.3.54"
 worker = "0.0.16"
 tomb-common = { path = "../tomb-common" }
 wasm-streams = "0.3.0"
-wnfs.workspace = true
-wnfs-wasm = { path = "../../rs-wnfs/wnfs-wasm" }
+#wnfs-wasm = { path = "../../rs-wnfs/wnfs-wasm" }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
