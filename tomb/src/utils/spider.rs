@@ -1,4 +1,4 @@
-use crate::types::{pipeline::PackPipelinePlan, spider::SpiderMetadata};
+use crate::types::{spider::PackPipelinePlan, spider::SpiderMetadata};
 use anyhow::Result;
 use jwalk::WalkDir;
 use std::{

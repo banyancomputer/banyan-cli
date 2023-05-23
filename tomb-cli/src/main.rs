@@ -9,13 +9,11 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use std::{io::Write, net::Ipv4Addr};
-use tomb::{
-    pipelines::{
-        pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline, push_pipeline::push_pipeline,
-        unpack_pipeline::unpack_pipeline,
-    },
-    types::blockstore::networkblockstore::NetworkBlockStore,
+use tomb::pipelines::{
+    pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline, push_pipeline::push_pipeline,
+    unpack_pipeline::unpack_pipeline,
 };
 
 mod cli;

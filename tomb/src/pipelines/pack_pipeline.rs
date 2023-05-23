@@ -1,8 +1,7 @@
 use crate::{
     types::{
-        blockstore::carblockstore::CarBlockStore,
-        pipeline::{Manifest, PackPipelinePlan},
         shared::CompressionScheme,
+        spider::PackPipelinePlan
     },
     utils::{
         fs::{self as fsutil},
@@ -12,6 +11,10 @@ use crate::{
         },
         spider::{self, path_to_segments},
     },
+};
+use tomb_common::types::{
+    blockstore::carblockstore::CarBlockStore,
+    pipeline::Manifest
 };
 use anyhow::{anyhow, Result};
 use blake2::{Blake2b512, Digest};

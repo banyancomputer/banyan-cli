@@ -6,6 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde.workspace = true
+wnfs.workspace = true
+anyhow.workspace = true
+async-trait = "0.1.68"
+serde_json.workspace = true
+reqwest = { version = "0.11.18", features = ["blocking", "multipart", "json"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

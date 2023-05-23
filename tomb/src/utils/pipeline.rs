@@ -12,7 +12,7 @@ use wnfs::{
     private::{AesKey, PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey},
 };
 
-use crate::types::pipeline::Manifest;
+use tomb_common::types::pipeline::Manifest;
 
 /// Store a Manifest
 pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()> {
@@ -251,16 +251,14 @@ pub async fn load_pipeline(
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest},
-        utils::{
-            fs::ensure_path_exists_and_is_dir,
-            pipeline::{
-                load_dir, load_forest, load_key, load_manifest, load_pipeline, store_dir,
-                store_forest, store_key, store_manifest, store_pipeline,
-            },
+    use crate::utils::{
+        fs::ensure_path_exists_and_is_dir,
+        pipeline::{
+            load_dir, load_forest, load_key, load_manifest, load_pipeline, store_dir,
+            store_forest, store_key, store_manifest, store_pipeline,
         },
     };
+    use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;

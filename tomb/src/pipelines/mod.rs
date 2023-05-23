@@ -14,13 +14,13 @@ mod test {
     use anyhow::Result;
     use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
     use serial_test::serial;
+    use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
     use crate::{
         pipelines::{
             pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline,
             push_pipeline::push_pipeline,
         },
-        types::blockstore::networkblockstore::NetworkBlockStore,
         utils::pipeline::load_manifest,
     };
 

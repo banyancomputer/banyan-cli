@@ -1,14 +1,13 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
 };
 use wnfs::{common::BlockStore, libipld::Cid};
 
-use crate::{
-    types::blockstore::networkblockstore::NetworkBlockStore, utils::pipeline::load_manifest,
-};
+use crate::utils::pipeline::load_manifest;
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn push_pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()> {

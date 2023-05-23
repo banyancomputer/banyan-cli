@@ -6,11 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-web-sys = "0.3.54"
-worker = "0.0.16"
+anyhow.workspace = true
+serde.workspace = true
+async-trait = "0.1.68"
 tomb-common = { path = "../tomb-common" }
+wasm-bindgen = "0.2.86"
 wasm-streams = "0.3.0"
-#wnfs-wasm = { path = "../../rs-wnfs/wnfs-wasm" }
+wnfs = { git = "https://github.com/wnfs-wg/rs-wnfs", features = ["wasm"] }
+wnfs-wasm = "0.1.20"
+web-sys = { version = "0.3.63", features = ["FormData", "HtmlFormElement"] }
+reqwest = "0.11.18"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

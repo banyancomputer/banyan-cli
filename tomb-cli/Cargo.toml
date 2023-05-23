@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+tomb-common = { path = "../tomb-common" }
 tomb.workspace = true
 clap.workspace = true
 tokio.workspace = true
