@@ -9,13 +9,13 @@ use std::{
 };
 use wnfs::{common::BlockStore, private::PrivateForest};
 
-use crate::{
-    utils::{
-        fs::ensure_path_exists_and_is_empty_dir,
-        pipeline::{load_forest, load_manifest, store_manifest},
-    },
+use crate::utils::{
+    fs::ensure_path_exists_and_is_empty_dir,
+    pipeline::{load_forest, load_manifest, store_manifest},
 };
-use tomb_common::types::blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore};
+use tomb_common::types::blockstore::{
+    carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore,
+};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pull_pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {

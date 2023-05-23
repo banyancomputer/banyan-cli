@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::Metadata,
     path::{Path, PathBuf},
-    time::SystemTime, sync::Arc,
+    sync::Arc,
+    time::SystemTime,
 };
 
 #[derive(Debug, Clone)]
@@ -121,7 +122,6 @@ impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {
     }
 }
 
-
 /// This struct is used to describe how a filesystem structure was processed. Either it was a duplicate/symlink/
 /// directory and there isn't much to do, or else we need to go through compression, partition, and
 /// encryption steps.
@@ -135,4 +135,3 @@ pub enum PackPipelinePlan {
     /// it was a group of identical files, here's the metadata for how they were encrypted and compressed
     FileGroup(Vec<Arc<SpiderMetadata>>),
 }
-

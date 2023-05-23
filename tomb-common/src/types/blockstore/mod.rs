@@ -5,7 +5,7 @@ pub mod diskblockstore;
 /// Network based blockstore
 pub mod networkblockstore;
 
-/* 
+/*
 #[cfg(test)]
 mod tests {
     use super::{

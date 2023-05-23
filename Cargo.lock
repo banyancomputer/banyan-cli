@@ -3174,13 +3174,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "tomb-common",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "wnfs 0.1.20 (git+https://github.com/wnfs-wg/rs-wnfs)",
+ "wnfs 0.1.20 (git+https://github.com/banyancomputer/rs-wnfs)",
+ "wnfs-common 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "wnfs-wasm",
 ]
 
@@ -3457,9 +3461,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.34"
+version = "0.4.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f219e0d211ba40266969f6dbdd90636da12f75bee4fc9d6c23d1260dadb51454"
+checksum = "2d1985d03709c53167ce907ff394f5316aa22cb4e12761295c5dc57dacb6297e"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -3776,36 +3780,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wnfs"
-version = "0.1.20"
-source = "git+https://github.com/wnfs-wg/rs-wnfs#874030d9b62d16239d192921873e79f4d926d197"
-dependencies = [
- "aes-gcm",
- "aes-kw",
- "anyhow",
- "async-once-cell",
- "async-recursion",
- "async-stream",
- "async-trait",
- "chrono",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "semver",
- "serde",
- "serde_ipld_dagcbor",
- "sha3",
- "skip_ratchet",
- "thiserror",
- "wnfs-common 0.1.20 (git+https://github.com/wnfs-wg/rs-wnfs)",
- "wnfs-hamt 0.1.20 (git+https://github.com/wnfs-wg/rs-wnfs)",
- "wnfs-namefilter 0.1.20 (git+https://github.com/wnfs-wg/rs-wnfs)",
- "xxhash-rust",
-]
-
-[[package]]
 name = "wnfs-common"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3828,24 +3802,6 @@ dependencies = [
 name = "wnfs-common"
 version = "0.1.20"
 source = "git+https://github.com/banyancomputer/rs-wnfs#d73a84c846350da095e53d8ac6e671215252abe9"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "async-trait",
- "chrono",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "wnfs-common"
-version = "0.1.20"
-source = "git+https://github.com/wnfs-wg/rs-wnfs#874030d9b62d16239d192921873e79f4d926d197"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -3910,30 +3866,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wnfs-hamt"
-version = "0.1.20"
-source = "git+https://github.com/wnfs-wg/rs-wnfs#874030d9b62d16239d192921873e79f4d926d197"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "async-recursion",
- "async-trait",
- "bitvec",
- "chrono",
- "either",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "semver",
- "serde",
- "sha3",
- "thiserror",
- "wnfs-common 0.1.20 (git+https://github.com/wnfs-wg/rs-wnfs)",
-]
-
-[[package]]
 name = "wnfs-namefilter"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3973,27 +3905,6 @@ dependencies = [
  "sha3",
  "thiserror",
  "wnfs-common 0.1.20 (git+https://github.com/banyancomputer/rs-wnfs)",
- "xxhash-rust",
-]
-
-[[package]]
-name = "wnfs-namefilter"
-version = "0.1.20"
-source = "git+https://github.com/wnfs-wg/rs-wnfs#874030d9b62d16239d192921873e79f4d926d197"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "async-trait",
- "bitvec",
- "chrono",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "rand_core 0.6.4",
- "serde",
- "sha3",
- "thiserror",
- "wnfs-common 0.1.20 (git+https://github.com/wnfs-wg/rs-wnfs)",
  "xxhash-rust",
 ]
 

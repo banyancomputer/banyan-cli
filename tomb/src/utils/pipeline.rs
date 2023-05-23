@@ -254,16 +254,16 @@ mod test {
     use crate::utils::{
         fs::ensure_path_exists_and_is_dir,
         pipeline::{
-            load_dir, load_forest, load_key, load_manifest, load_pipeline, store_dir,
-            store_forest, store_key, store_manifest, store_pipeline,
+            load_dir, load_forest, load_key, load_manifest, load_pipeline, store_dir, store_forest,
+            store_key, store_manifest, store_pipeline,
         },
     };
-    use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
     use std::{fs, path::PathBuf, rc::Rc};
+    use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
     use wnfs::{
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},

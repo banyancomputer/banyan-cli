@@ -1,2 +1,1 @@
-
-mod networkblockstore;
+mod bindings;

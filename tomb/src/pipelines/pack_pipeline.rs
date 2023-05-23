@@ -1,8 +1,5 @@
 use crate::{
-    types::{
-        shared::CompressionScheme,
-        spider::PackPipelinePlan
-    },
+    types::{shared::CompressionScheme, spider::PackPipelinePlan},
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
@@ -11,10 +8,6 @@ use crate::{
         },
         spider::{self, path_to_segments},
     },
-};
-use tomb_common::types::{
-    blockstore::carblockstore::CarBlockStore,
-    pipeline::Manifest
 };
 use anyhow::{anyhow, Result};
 use blake2::{Blake2b512, Digest};
@@ -31,6 +24,7 @@ use std::{
     sync::{Arc, Mutex},
     vec,
 };
+use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
 use wnfs::{
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateFile, PrivateForest},

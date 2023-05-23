@@ -1,10 +1,10 @@
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
-use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
 };
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use wnfs::{common::BlockStore, libipld::Cid};
 
 use crate::utils::pipeline::load_manifest;
