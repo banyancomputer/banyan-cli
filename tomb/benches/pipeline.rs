@@ -7,8 +7,7 @@ use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
 use tomb::{
-    pipelines::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
+    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir}, pipelines::{pack, unpack},
 };
 
 // Configure the Benching Framework from the Environment -- or use defaults
@@ -293,7 +292,7 @@ fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf
             || prep_pack(packed_path),
             // The routine to benchmark
             |_| async {
-                pack_pipeline(
+                pack::pipeline(
                     black_box(input_path),
                     black_box(packed_path),
                     // TODO (amiller68) - make this configurable
@@ -336,7 +335,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path),
             // The routine to benchmark
-            |_| async { unpack_pipeline(black_box(packed_path), black_box(unpacked_path)).await },
+            |_| async { unpack::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

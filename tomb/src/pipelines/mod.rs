@@ -1,11 +1,11 @@
 /// This module contains the pack_pipeline function, which is the main entry point for packing new data.
-pub mod pack_pipeline;
+pub mod pack;
 /// This module contains the pull_pipeline function, which downloads packed content from disk to a remote server.
-pub mod pull_pipeline;
+pub mod pull;
 /// This module contains the push_pipeline function, which uploads packed content from disk to a remote server.
-pub mod push_pipeline;
+pub mod push;
 /// This module contains the unpack_pipeline function, which is the main entry point for extracting previously packed data.
-pub mod unpack_pipeline;
+pub mod unpack;
 
 #[cfg(test)]
 mod test {
@@ -17,10 +17,7 @@ mod test {
     use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
     use crate::{
-        pipelines::{
-            pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline,
-            push_pipeline::push_pipeline,
-        },
+        pipelines::{pack, push, pull},
         utils::pipeline::load_manifest,
     };
 
@@ -49,11 +46,11 @@ mod test {
     async fn test_push() -> Result<()> {
         // Create the setup conditions
         let (input_dir, output_dir) = setup("push").await?;
-        pack_pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
 
         // Construct NetworkBlockStore and run pipeline
         let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
-        push_pipeline(&output_dir, &store).await?;
+        push::pipeline(&output_dir, &store).await?;
 
         // Teardown
         teardown("push").await
@@ -64,12 +61,12 @@ mod test {
     async fn test_pull() -> Result<()> {
         // Create the setup conditions
         let (input_dir, output_dir) = setup("pull").await?;
-        pack_pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
 
         // Construct NetworkBlockStore
         let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
         // Send data to remote endpoint
-        push_pipeline(&output_dir, &store).await?;
+        push::pipeline(&output_dir, &store).await?;
         let tomb_path = output_dir.join(".tomb");
         let manifest = load_manifest(&tomb_path).await?;
 
@@ -77,7 +74,7 @@ mod test {
         fs::remove_dir_all(output_dir.join("content"))?;
 
         // Now its time to reconstruct all our data
-        pull_pipeline(&output_dir, &store).await?;
+        pull::pipeline(&output_dir, &store).await?;
 
         let new_manifest = load_manifest(&tomb_path).await?;
 

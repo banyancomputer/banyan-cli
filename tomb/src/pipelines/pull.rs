@@ -18,7 +18,7 @@ use tomb_common::types::blockstore::{
 };
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pull_pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
+pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     info!("Downloading blocks from remote server.");
 
     // Represent relative directories for .tomb and content

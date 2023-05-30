@@ -44,7 +44,7 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pack_pipeline(
+pub async fn pipeline(
     input_dir: &Path,
     output_dir: &Path,
     // TODO implement a way to specify chunk size for WNFS

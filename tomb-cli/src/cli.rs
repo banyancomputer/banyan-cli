@@ -57,6 +57,16 @@ pub(crate) enum Commands {
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
     },
+    Add {
+        #[arg(short, long, help = "input path")]
+        input_dir: PathBuf,
+        #[arg(short, long, help = "wnfs path")]
+        wnfs_path: PathBuf
+    },
+    Remove {
+        #[arg(short, long, help = "wnfs path")]
+        wnfs_path: PathBuf
+    },
     /// tomb pull - Update local from the bucket- determined by CWD
     Pull {
         /// Input directory in which packed files are stored.

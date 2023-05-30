@@ -10,7 +10,7 @@ use wnfs::{common::BlockStore, libipld::Cid};
 use crate::utils::pipeline::load_manifest;
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn push_pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()> {
+pub async fn pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     info!("Sending blocks to remote server.");
     let tomb_path = input_dir.join(".tomb");
     let content_path = input_dir.join("content");

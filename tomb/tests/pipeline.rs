@@ -3,8 +3,7 @@ use fake_file::{Strategy, Structure};
 use serial_test as _;
 use std::{path::Path, process::Command};
 use tomb::{
-    pipelines::{pack_pipeline::pack_pipeline, unpack_pipeline::unpack_pipeline},
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
+    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir}, pipelines::{pack, unpack},
 };
 
 const INPUT_PATH: &str = "input";
@@ -39,12 +38,12 @@ async fn run_test(test_path: &Path) {
     let unpacked_path = test_path.join(UNPACKED_PATH);
 
     // Pack the input
-    pack_pipeline(&input_path, &packed_path, 262144, true)
+    pack::pipeline(&input_path, &packed_path, 262144, true)
         .await
         .unwrap();
 
     // Unpack the output
-    unpack_pipeline(&packed_path, &unpacked_path).await.unwrap();
+    unpack::pipeline(&packed_path, &unpacked_path).await.unwrap();
 
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();

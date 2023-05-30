@@ -18,7 +18,7 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn unpack_pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
+pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Paths representing metadata and content
     let tomb_path = input_dir.join(".tomb");
     let content_path = input_dir.join("content");

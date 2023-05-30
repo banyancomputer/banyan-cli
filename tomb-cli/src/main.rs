@@ -9,11 +9,8 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
+use tomb::pipelines::{pack, unpack, pull, push};
 use std::{io::Write, net::Ipv4Addr};
-use tomb::pipelines::{
-    pack_pipeline::pack_pipeline, pull_pipeline::pull_pipeline, push_pipeline::push_pipeline,
-    unpack_pipeline::unpack_pipeline,
-};
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
 mod cli;
@@ -41,7 +38,7 @@ async fn main() {
             chunk_size,
             follow_links,
         } => {
-            pack_pipeline(&input_dir, &output_dir, chunk_size, follow_links)
+            pack::pipeline(&input_dir, &output_dir, chunk_size, follow_links)
                 .await
                 .unwrap();
         }
@@ -50,7 +47,7 @@ async fn main() {
             input_dir,
             output_dir,
         } => {
-            unpack_pipeline(&input_dir, &output_dir).await.unwrap();
+            unpack::pipeline(&input_dir, &output_dir).await.unwrap();
         }
         cli::Commands::Init => unimplemented!("todo... create the tombolo file in the current directory"),
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
@@ -66,6 +63,7 @@ async fn main() {
                 }
             }
         },
+        cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
         cli::Commands::Pull {
             dir,
             address,
@@ -74,7 +72,7 @@ async fn main() {
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(address), port);
             // Start the Pull pipeline
-            pull_pipeline(&dir, &store).await.unwrap();
+            pull::pipeline(&dir, &store).await.unwrap();
         },
         cli::Commands::Push {
             input_dir,
@@ -84,9 +82,19 @@ async fn main() {
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(address), port);
             // Start the Push pipeline
-            push_pipeline(&input_dir, &store).await.unwrap();
+            push::pipeline(&input_dir, &store).await.unwrap();
         },
-        cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
+        cli::Commands::Add {
+            input_dir,
+            wnfs_path  
+        } => {
+            todo!("add");
+        },
+        cli::Commands::Remove {
+            wnfs_path
+        } => {
+            todo!("remove");
+        }
     }
 }
 
