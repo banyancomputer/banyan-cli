@@ -3,7 +3,7 @@ use crate::{
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
-        pipeline::{
+        serialize::{
             load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
         spider::{self, path_to_segments},

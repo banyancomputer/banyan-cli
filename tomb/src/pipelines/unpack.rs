@@ -1,4 +1,4 @@
-use crate::{types::shared::CompressionScheme, utils::pipeline::load_pipeline};
+use crate::{types::shared::CompressionScheme, utils::serialize::load_pipeline};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{fs::File, io::Write, path::Path};

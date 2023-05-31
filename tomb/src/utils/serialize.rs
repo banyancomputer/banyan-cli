@@ -253,7 +253,7 @@ pub async fn load_pipeline(
 mod test {
     use crate::utils::{
         fs::ensure_path_exists_and_is_dir,
-        pipeline::{
+        serialize::{
             load_dir, load_forest, load_key, load_manifest, load_pipeline, store_dir, store_forest,
             store_key, store_manifest, store_pipeline,
         },

@@ -7,7 +7,8 @@ use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
 use tomb::{
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir}, pipelines::{pack, unpack},
+    pipelines::{pack, unpack},
+    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 
 // Configure the Benching Framework from the Environment -- or use defaults

@@ -1,10 +1,14 @@
-/// This module contains the pack_pipeline function, which is the main entry point for packing new data.
+/// This module contains the add pipeline function, which is the main entry point for inserting into existing WNFS filesystems.
+pub mod add;
+/// This module contains the pack pipeline function, which is the main entry point for packing new data.
 pub mod pack;
-/// This module contains the pull_pipeline function, which downloads packed content from disk to a remote server.
+/// This module contains the pull pipeline function, which downloads packed content from disk to a remote server.
 pub mod pull;
-/// This module contains the push_pipeline function, which uploads packed content from disk to a remote server.
+/// This module contains the push pipeline function, which uploads packed content from disk to a remote server.
 pub mod push;
-/// This module contains the unpack_pipeline function, which is the main entry point for extracting previously packed data.
+/// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
+pub mod remove;
+/// This module contains the unpack pipeline function, which is the main entry point for extracting previously packed data.
 pub mod unpack;
 
 #[cfg(test)]
@@ -17,8 +21,8 @@ mod test {
     use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
     use crate::{
-        pipelines::{pack, push, pull},
-        utils::pipeline::load_manifest,
+        pipelines::{pack, pull, push},
+        utils::serialize::load_manifest,
     };
 
     // Set up temporary filesystem for test cases

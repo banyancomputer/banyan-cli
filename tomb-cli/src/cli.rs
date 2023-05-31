@@ -17,13 +17,13 @@ pub(crate) enum ConfigSubCommands {
         path: PathBuf,
     },
     /// tomb seturl - Set the ID for this tomb's bucket - MAY BREAK YOUR EVERYTHING!!!
-    SetUrl {
-        #[arg(
-            short,
-            long,
-            help = "set the ID for this tomb's bucket- MAY BREAK THINGS!!!"
-        )]
-        bucket_name: String,
+    SetRemote {
+        /// Server address
+        #[arg(short, long, help = "remote IPv4 address")]
+        url: String,
+        /// Server port
+        #[arg(short, long, help = "remote address port")]
+        port: u16,
     },
 }
 
@@ -58,42 +58,26 @@ pub(crate) enum Commands {
         output_dir: PathBuf,
     },
     Add {
-        #[arg(short, long, help = "input path")]
-        input_dir: PathBuf,
+        #[arg(short, long, help = "new file / directory")]
+        input_file: PathBuf,
         #[arg(short, long, help = "wnfs path")]
-        wnfs_path: PathBuf
+        wnfs_path: PathBuf,
     },
     Remove {
         #[arg(short, long, help = "wnfs path")]
-        wnfs_path: PathBuf
+        wnfs_path: PathBuf,
     },
     /// tomb pull - Update local from the bucket- determined by CWD
     Pull {
         /// Input directory in which packed files are stored.
         #[arg(short, long, help = "directory")]
         dir: PathBuf,
-
-        /// Server address
-        #[arg(short, long, help = "remote IPv4 address")]
-        address: String,
-
-        /// Server port
-        #[arg(short, long, help = "remote address port")]
-        port: u16,
     },
     /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
     Push {
         /// Input directory in which packed files are stored.
         #[arg(short, long, help = "input directory")]
         input_dir: PathBuf,
-
-        /// Server address
-        #[arg(short, long, help = "remote IPv4 address")]
-        address: String,
-
-        /// Server port
-        #[arg(short, long, help = "remote address port")]
-        port: u16,
     },
     ///- Initialize Tomb - Abort if the `~/.tomb` path already exists
     //- Create a new directory at `~/.tomb`

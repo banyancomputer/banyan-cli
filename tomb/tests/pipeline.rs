@@ -3,7 +3,8 @@ use fake_file::{Strategy, Structure};
 use serial_test as _;
 use std::{path::Path, process::Command};
 use tomb::{
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir}, pipelines::{pack, unpack},
+    pipelines::{pack, unpack},
+    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 
 const INPUT_PATH: &str = "input";
@@ -43,7 +44,9 @@ async fn run_test(test_path: &Path) {
         .unwrap();
 
     // Unpack the output
-    unpack::pipeline(&packed_path, &unpacked_path).await.unwrap();
+    unpack::pipeline(&packed_path, &unpacked_path)
+        .await
+        .unwrap();
 
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
@@ -89,7 +92,7 @@ mod test {
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
-    use tomb::utils::pipeline::{load_dir, load_key, load_pipeline};
+    use tomb::utils::serialize::{load_dir, load_key, load_pipeline};
     use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run
