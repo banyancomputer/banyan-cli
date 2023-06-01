@@ -1,4 +1,4 @@
-use crate::{types::shared::CompressionScheme, utils::serialize::load_pipeline};
+use crate::{utils::{serialize::load_pipeline, wnfsio::decompress_bytes}};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{fs::File, io::Write, path::Path};
@@ -90,17 +90,11 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
                 // If this is a real file
                 else {
                     // Get the bytes associated with this file
-                    let file_content = file.get_content(forest, store).await.unwrap();
-                    // Create a buffer to hold the decompressed bytes
-                    let mut decompressed_bytes: Vec<u8> = vec![];
-                    // Decompress the chunk before writing to disk
-                    CompressionScheme::new_zstd()
-                        .decode(file_content.as_slice(), &mut decompressed_bytes)
-                        .unwrap();
+                    let content = decompress_bytes(file.get_content(forest, store).await.unwrap()).await.unwrap();
                     // Create the file at the desired location
                     let mut output_file = File::create(file_path).unwrap();
                     // Write all contents to the output file
-                    output_file.write_all(&decompressed_bytes).unwrap();
+                    output_file.write_all(&content).unwrap();
                 }
             }
         }

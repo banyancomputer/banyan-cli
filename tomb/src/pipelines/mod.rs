@@ -13,16 +13,21 @@ pub mod unpack;
 
 #[cfg(test)]
 mod test {
-    use std::{fs, net::Ipv4Addr, path::PathBuf};
+    use std::{
+        fs::{self, File},
+        io::Write,
+        net::Ipv4Addr,
+        path::PathBuf,
+    };
 
     use anyhow::Result;
     use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
     use serial_test::serial;
-    use tomb_common::types::blockstore::{networkblockstore::NetworkBlockStore, carblockstore::CarBlockStore};
+    use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
     use crate::{
         pipelines::{pack, pull, push},
-        utils::serialize::load_manifest,
+        utils::{serialize::{load_manifest, load_pipeline}, spider::path_to_segments, wnfsio::decompress_bytes},
     };
 
     use super::add;
@@ -89,5 +94,38 @@ mod test {
 
         // Teardown
         teardown("pull").await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_add() -> Result<()> {
+        // Create the setup conditions
+        let (input_dir, output_dir) = setup("add").await?;
+        // Run the pack pipeline
+        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
+        // Grab metadata
+        let tomb_path = &output_dir.join(".tomb");
+        // This is still in the input dir. Technically we could just
+        let input_file = &input_dir.join("hello.txt");
+        // Content to be written to the file
+        let file_content = String::from("This is just example text.").as_bytes().to_vec();
+        // Create and write to the file
+        File::create(input_file)?.write_all(&file_content)?;
+        // Add the input file to the WNFS
+        add::pipeline(input_file, tomb_path, input_file).await?;
+        // Now that the pipeline has run, grab all metadata
+        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        // Grab the file at this path
+        let result = dir.get_node(&path_to_segments(&input_file)?, true, forest, &manifest.content_store).await?;
+        // Assert the node was found
+        assert!(result.is_some());
+        // Represent the result as a PrivateFile
+        let loaded_file = result.unwrap().as_file()?;
+        // Get the content of the PrivateFile and decompress it
+        let loaded_file_content = decompress_bytes(loaded_file.get_content(forest, &manifest.content_store).await?).await?;
+        // Assert that the data matches the original data
+        assert_eq!(file_content, loaded_file_content);
+        // Teardown
+        teardown("add").await
     }
 }

@@ -12,7 +12,7 @@
 use clap::Parser;
 use serde::Deserialize;
 use std::{env, io::Write, net::Ipv4Addr};
-use tomb::pipelines::{pack, pull, push, unpack, add};
+use tomb::pipelines::{add, pack, pull, push, unpack};
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 mod cli;
 

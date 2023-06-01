@@ -6,7 +6,8 @@ use crate::{
         serialize::{
             load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
-        spider::{self, path_to_segments}, write::{write_file, compress_file},
+        spider::{self, path_to_segments},
+        wnfsio::{compress_file, write_file},
     },
 };
 use anyhow::Result;
@@ -164,13 +165,27 @@ pub async fn pipeline(
         match direct_plan {
             PackPipelinePlan::FileGroup(metadatas) => {
                 // Compress the data in the file
-                let content = compress_file(&metadatas.get(0).expect("why is there nothing in metadatas").canonicalized_path).await?;
+                let content = compress_file(
+                    &metadatas
+                        .get(0)
+                        .expect("why is there nothing in metadatas")
+                        .canonicalized_path,
+                )
+                .await?;
                 // Grab the metadata for the first occurrence of this file
                 let first = &metadatas.get(0).unwrap().original_location;
                 // Turn the relative path into a vector of segments
                 let path_segments = &path_to_segments(first).unwrap();
                 // Write the file
-                write_file(path_segments, content, &mut root_dir, &mut forest, &content_store, &mut rng).await?;
+                write_file(
+                    path_segments,
+                    content,
+                    &mut root_dir,
+                    &mut forest,
+                    &content_store,
+                    &mut rng,
+                )
+                .await?;
                 // Duplicates need to be linked no matter what
                 for metadata in &metadatas[1..] {
                     // Grab the original location
