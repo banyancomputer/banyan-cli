@@ -8,7 +8,7 @@ pub mod grouper;
 pub mod serialize;
 /// This module contains code designed to traverse directory structure and get a packing plan for directories and symlinks.
 pub mod spider;
-/// This module
-pub mod wnfsio;
 /// This module contains testing fns
 pub mod tests;
+/// This module
+pub mod wnfsio;

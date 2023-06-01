@@ -14,8 +14,10 @@ tokio.workspace = true
 env_logger = "0.10.0"
 log = "0.4.14"
 serde_json.workspace = true
+anyhow = "1"
 
 [dev-dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
+fs_extra.workspace = true
 predicates = "3.0.3"
 assert_cmd = "2.0.11"

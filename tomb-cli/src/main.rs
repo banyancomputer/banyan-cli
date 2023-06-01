@@ -10,12 +10,14 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
-use std::{env, io::Write, net::Ipv4Addr, fs::{create_dir_all, File}, path::PathBuf};
+use std::io::Write;
 use tomb::pipelines::{add, pack, pull, push, unpack};
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
+use utils::{get_remote, ip_from_string, set_remote};
 mod cli;
 ///
 pub mod tests;
+mod utils;
 
 #[tokio::main]
 async fn main() {
@@ -60,22 +62,14 @@ async fn main() {
                 cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
                     unimplemented!("todo... change where we stage content locally");
                 }
-                cli::ConfigSubCommands::SetRemote { url, port } => {
-                    let tomb = PathBuf::from(format!("{}/.config/tomb", env::var("HOME").unwrap()));
-                    // If the directory doesnt exist yet, make it!
-                    create_dir_all(&tomb).unwrap();
-                    // Create the config file
-                    let remote_file = File::create(tomb.join("remote")).unwrap();
-                    // Write the variables to the config file
-                    serde_json::to_writer(remote_file, &(url, port)).unwrap();
-                }
+                cli::ConfigSubCommands::SetRemote { url, port } => { set_remote(url, port).unwrap(); }
             }
         },
         cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
         cli::Commands::Pull {
             dir
         } => {
-            let (url, port) = get_remote();
+            let (url, port) = get_remote().unwrap();
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Pull pipeline
@@ -84,7 +78,7 @@ async fn main() {
         cli::Commands::Push {
             input_dir,
         } => {
-            let (url, port) = get_remote();
+            let (url, port) = get_remote().unwrap();
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Push pipeline
@@ -95,30 +89,4 @@ async fn main() {
         },
         cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
     }
-}
-
-fn tomb_config() -> PathBuf {
-    PathBuf::from(format!("{}/.config/tomb", env::var("HOME").unwrap()))
-}
-
-fn get_remote() -> (String, u16) {
-    // Create the config file
-    let remote_file = File::open(tomb_config().join("remote")).unwrap();
-    // Write the variables to the config file
-    serde_json::from_reader(remote_file).unwrap()
-}
-
-// Helper function for creating the required type
-fn ip_from_string(address: String) -> Ipv4Addr {
-    // Represent the string as an array of four numbers exactly
-    let numbers: [u8; 4] = address
-        .split('.')
-        .map(|s| s.parse::<u8>().unwrap())
-        .collect::<Vec<u8>>()
-        .as_slice()
-        .try_into()
-        .expect("IP Address was not formatted correctly");
-
-    // Construct the IP Address from these numbers
-    Ipv4Addr::from(numbers)
 }

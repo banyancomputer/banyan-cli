@@ -51,37 +51,6 @@ async fn run_test(test_path: &Path) {
     // checks if two directories are the same
     assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
 }
-
-//TODO(organizedgrime) - Move this into fakefile
-// Determines the size of the contents of a directory.
-// This standard unix tool handles far more edge cases than we could ever hope
-// to approximate with a hardcoded recursion step, and with more efficiency too.
-fn compute_directory_size(path: &Path) -> Result<usize, ()> {
-    // Execute the unix du command to evaluate the size of the given path in kilobytes
-    let du_result = Command::new("du")
-        .arg("-sh")
-        .arg("-k")
-        .arg(path.display().to_string())
-        .output();
-
-    // Handle the output of this command
-    match du_result {
-        // Command executed successfully
-        Ok(output) => {
-            // Interpret the output as a string
-            let output_str = String::from_utf8(output.stdout).unwrap();
-            // Grab all text before the tab
-            let size_str = output_str.split('\t').next().unwrap();
-            // Parse that text as a number
-            let size = size_str.parse::<usize>().unwrap();
-            // Ok status with size
-            Ok(size)
-        }
-        // Something went wrong, this should never happen in a test but may in other use cases
-        Err(_e) => Err(()),
-    }
-}
-
 /// Small Input End to End Integration Tests for the Pipeline
 #[cfg(test)]
 mod test {
@@ -92,7 +61,10 @@ mod test {
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
-    use tomb::utils::serialize::{load_dir, load_key, load_pipeline};
+    use tomb::utils::{
+        serialize::{load_dir, load_key, load_pipeline},
+        tests::compute_directory_size,
+    };
     use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run

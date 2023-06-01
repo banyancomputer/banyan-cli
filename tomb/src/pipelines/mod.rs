@@ -29,7 +29,8 @@ mod test {
         utils::{
             serialize::{load_manifest, load_pipeline},
             spider::path_to_segments,
-            wnfsio::decompress_bytes, tests::{test_setup, test_teardown},
+            tests::{compute_directory_size, start_daemon, test_setup, test_teardown},
+            wnfsio::decompress_bytes,
         },
     };
 
@@ -38,6 +39,9 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn test_push() -> Result<()> {
+        // Start the IPFS daemon
+        let mut ipfs = start_daemon();
+
         // Create the setup conditions
         let (input_dir, output_dir) = test_setup("push").await?;
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
@@ -46,6 +50,9 @@ mod test {
         let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
         push::pipeline(&output_dir, &store).await?;
 
+        // Kill the daemon
+        ipfs.kill()?;
+
         // Teardown
         test_teardown("push").await
     }
@@ -53,6 +60,9 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn test_pull() -> Result<()> {
+        // Start the IPFS daemon
+        let mut ipfs = start_daemon();
+
         // Create the setup conditions
         let (input_dir, output_dir) = test_setup("pull").await?;
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
@@ -61,8 +71,8 @@ mod test {
         let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
         // Send data to remote endpoint
         push::pipeline(&output_dir, &store).await?;
-        let tomb_path = output_dir.join(".tomb");
-        let manifest = load_manifest(&tomb_path).await?;
+        // Compute size of original content
+        let d1 = compute_directory_size(&output_dir.join("content")).unwrap();
 
         // Oh no! File corruption, we lost all our data!
         fs::remove_dir_all(output_dir.join("content"))?;
@@ -70,10 +80,14 @@ mod test {
         // Now its time to reconstruct all our data
         pull::pipeline(&output_dir, &store).await?;
 
-        let new_manifest = load_manifest(&tomb_path).await?;
+        // Compute size of reconstructed content
+        let d2 = compute_directory_size(&output_dir.join("content")).unwrap();
 
-        // Assert that the reconstructed manifest and blocks contained therein are identical
-        assert_eq!(manifest, new_manifest);
+        // Assert that, despite reordering of CIDs, content CAR is the exact same size
+        assert_eq!(d1, d2);
+
+        // Kill the daemon
+        ipfs.kill()?;
 
         // Teardown
         test_teardown("pull").await

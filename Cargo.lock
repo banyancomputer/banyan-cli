@@ -3239,6 +3239,7 @@ dependencies = [
  "assert_cmd",
  "clap 4.3.0",
  "env_logger",
+ "fs_extra",
  "log",
  "predicates",
  "serde_json",
