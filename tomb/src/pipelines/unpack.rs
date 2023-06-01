@@ -1,8 +1,7 @@
-use crate::{utils::{serialize::load_pipeline, wnfsio::decompress_bytes}};
+use crate::utils::{serialize::load_pipeline, wnfsio::file_to_disk};
 use anyhow::Result;
 use async_recursion::async_recursion;
-use std::{fs::File, io::Write, path::Path};
-use tokio::{self as _, fs::symlink};
+use std::path::Path;
 use wnfs::{
     common::BlockStore,
     private::{PrivateForest, PrivateNode},
@@ -45,16 +44,15 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
         node: &PrivateNode,
         forest: &PrivateForest,
         store: &impl BlockStore,
-    ) {
+    ) -> Result<()> {
         match &node {
             PrivateNode::Dir(dir) => {
                 // Create the directory we are in
-                std::fs::create_dir_all(output_dir.join(built_path)).unwrap();
+                std::fs::create_dir_all(output_dir.join(built_path))?;
                 // Obtain a list of this Node's children
                 let node_names: Vec<String> = dir
                     .ls(&Vec::new(), true, forest, store)
-                    .await
-                    .unwrap()
+                    .await?
                     .into_iter()
                     .map(|(l, _)| l)
                     .collect();
@@ -62,42 +60,30 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
                 // For each of those children
                 for node_name in node_names {
                     // Fetch the Node with the given name
-                    let node = dir
+                    if let Some(node) = dir
                         .get_node(&[node_name.clone()], true, forest, store)
-                        .await
-                        .unwrap()
-                        .unwrap();
-
-                    // Recurse with newly found node and await
-                    process_node(
-                        output_dir,
-                        &built_path.join(node_name),
-                        &node,
-                        forest,
-                        store,
-                    )
-                    .await;
+                        .await?
+                    {
+                        // Recurse with newly found node and await
+                        process_node(
+                            output_dir,
+                            &built_path.join(node_name),
+                            &node,
+                            forest,
+                            store,
+                        )
+                        .await?;
+                    }
                 }
             }
             PrivateNode::File(file) => {
                 // This is where the file will be unpacked no matter what
-                let file_path = output_dir.join(built_path);
-                // If this file is a symlink
-                if let Some(path) = file.symlink_origin() {
-                    // Write out the symlink
-                    symlink(output_dir.join(path), file_path).await.unwrap();
-                }
-                // If this is a real file
-                else {
-                    // Get the bytes associated with this file
-                    let content = decompress_bytes(file.get_content(forest, store).await.unwrap()).await.unwrap();
-                    // Create the file at the desired location
-                    let mut output_file = File::create(file_path).unwrap();
-                    // Write all contents to the output file
-                    output_file.write_all(&content).unwrap();
-                }
+                let file_path = &output_dir.join(built_path);
+                // Handle the PrivateFile and write its contents to disk
+                file_to_disk(file, output_dir, file_path, forest, store).await?;
             }
         }
+        Ok(())
     }
 
     // Run extraction on the base level with an empty built path
@@ -108,7 +94,7 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
         &forest,
         &manifest.content_store,
     )
-    .await;
+    .await?;
 
     // Remove the .tomb directory from the output path if it is already there
     let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));

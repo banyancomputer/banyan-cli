@@ -1,15 +1,21 @@
-use std::{fs::File, io::BufReader, path::Path, rc::Rc};
+use std::{
+    fs::File,
+    io::{BufReader, Write},
+    os::unix::fs::symlink,
+    path::Path,
+    rc::Rc,
+};
 
+use crate::types::shared::CompressionScheme;
 use anyhow::{anyhow, Result};
 use blake2::{Blake2b512, Digest};
 use chrono::Utc;
 use rand::RngCore;
+use tokio as _;
 use wnfs::{
     common::BlockStore,
     private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
-
-use crate::types::shared::CompressionScheme;
 
 /// Compress the contents of a file at a given path
 pub async fn compress_file(path: &Path) -> Result<Vec<u8>> {
@@ -33,9 +39,7 @@ pub async fn compress_file(path: &Path) -> Result<Vec<u8>> {
 }
 
 ///
-pub async fn decompress_bytes(
-    content: Vec<u8>
-) -> Result<Vec<u8>> {
+pub async fn decompress_bytes(content: Vec<u8>) -> Result<Vec<u8>> {
     // Get the bytes associated with this file
     // let file_content = file.get_content(forest, store).await.unwrap();
     // Create a buffer to hold the decompressed bytes
@@ -111,7 +115,34 @@ pub async fn write_file(
             .unwrap();
         }
 
+        // Return OK
         Ok(())
-        // TODO (organizedgrime) - actually check if the file is identical or a new version
     }
+}
+
+/// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
+pub async fn file_to_disk(
+    file: &Rc<PrivateFile>,
+    output_dir: &Path,
+    file_path: &Path,
+    forest: &PrivateForest,
+    store: &impl BlockStore,
+) -> Result<()> {
+    // If this file is a symlink
+    if let Some(path) = file.symlink_origin() {
+        // Write out the symlink
+        symlink(output_dir.join(path), file_path)?;
+    }
+    // If this is a real file
+    else {
+        // Get the bytes associated with this file
+        let content = decompress_bytes(file.get_content(forest, store).await?).await?;
+        // Create the file at the desired location
+        let mut output_file = File::create(file_path)?;
+        // Write all contents to the output file
+        output_file.write_all(&content)?;
+    }
+
+    // Return Ok
+    Ok(())
 }

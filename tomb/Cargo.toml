@@ -10,7 +10,6 @@ repository.workspace = true
 [dependencies]
 tomb-common = { path = "../tomb-common" }
 anyhow.workspace = true
-tokio.workspace = true
 jwalk.workspace = true
 serde.workspace = true
 # Dev-Dependencies: These should live under a different tag
@@ -29,6 +28,7 @@ rand.workspace = true
 async-recursion = "1.0.4"
 blake2 = "0.10.6"
 serial_test = "2.0.0"
+tokio.workspace = true
 
 # Benchmark for packing -> unpacking an input directory
 [[bench]]

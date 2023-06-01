@@ -9,7 +9,7 @@ use crate::utils::{
     wnfsio::{compress_file, write_file},
 };
 
-///
+/// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(input_file: &Path, tomb_path: &Path, wnfs_path: &Path) -> Result<()> {
     // Compress the data in the file
     let content = compress_file(input_file).await?;

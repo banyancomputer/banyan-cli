@@ -190,7 +190,7 @@ pub async fn pipeline(
                 for metadata in &metadatas[1..] {
                     // Grab the original location
                     let dup = &metadata.original_location;
-                    let dup_path_segments = path_to_segments(dup).unwrap();
+                    let dup_path_segments = &path_to_segments(dup)?;
                     // Remove the final element to represent the folder path
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
@@ -208,8 +208,8 @@ pub async fn pipeline(
                     // Copy the file from the original path to the duplicate path
                     root_dir
                         .cp_link(
-                            &path_segments,
-                            &dup_path_segments,
+                            path_segments,
+                            dup_path_segments,
                             true,
                             &mut forest,
                             &content_store,
