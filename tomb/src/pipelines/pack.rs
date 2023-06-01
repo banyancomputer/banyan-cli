@@ -1,24 +1,21 @@
 use crate::{
-    types::{shared::CompressionScheme, spider::PackPipelinePlan},
+    types::spider::PackPipelinePlan,
     utils::{
         fs::{self as fsutil},
         grouper::grouper,
         serialize::{
             load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
-        spider::{self, path_to_segments},
+        spider::{self, path_to_segments}, write::{write_file, compress_file},
     },
 };
-use anyhow::{anyhow, Result};
-use blake2::{Blake2b512, Digest};
+use anyhow::Result;
 use chrono::Utc;
 use fs_extra::dir;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
 use std::{
     collections::HashSet,
-    fs::{self, File},
-    io::BufReader,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{Arc, Mutex},
@@ -27,7 +24,7 @@ use std::{
 use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
 use wnfs::{
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateFile, PrivateForest},
+    private::{PrivateDirectory, PrivateForest},
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -166,82 +163,14 @@ pub async fn pipeline(
     for direct_plan in direct_plans {
         match direct_plan {
             PackPipelinePlan::FileGroup(metadatas) => {
-                // Open the original file (just the first one!)
-                let file = File::open(&metadatas.get(0)
-                    .expect("why is there nothing in metadatas").canonicalized_path)
-                    .map_err(|e| anyhow!("could not find canonicalized path when trying to open reader to original file! {}", e))?;
-
-                // Create a reader for the original file
-                let file_reader = BufReader::new(file);
-                // Create a buffer to hold the compressed bytes
-                let mut compressed_bytes: Vec<u8> = vec![];
-                // Compress the chunk before feeding it to WNFS
-                CompressionScheme::new_zstd()
-                    .encode(file_reader, &mut compressed_bytes)
-                    .unwrap();
-
+                // Compress the data in the file
+                let content = compress_file(&metadatas.get(0).expect("why is there nothing in metadatas").canonicalized_path).await?;
                 // Grab the metadata for the first occurrence of this file
                 let first = &metadatas.get(0).unwrap().original_location;
                 // Turn the relative path into a vector of segments
-                let path_segments = path_to_segments(first).unwrap();
-                // Grab the current time
-                let time = Utc::now();
-
-                // Search through the PrivateDirectory for a Node that matches the path provided
-                let result = root_dir
-                    .get_node(&path_segments, true, &forest, &content_store)
-                    .await;
-
-                // If the file does not exist in the PrivateForest or an error occurred in searching for it
-                if result.is_err() || result.as_ref().unwrap().is_none() {
-                    // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                    root_dir
-                        .write(
-                            &path_segments,
-                            true,
-                            time,
-                            compressed_bytes.clone(),
-                            &mut forest,
-                            &content_store,
-                            &mut rng,
-                        )
-                        .await
-                        .unwrap();
-                }
-                // If the file exists in the PrivateForest
-                else {
-                    // Forcibly cast because we know this is a file
-                    let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
-                    // Grab the content that already exists in the PrivateFile at this path
-                    let existing_file_content = file.get_content(&forest, &content_store).await?;
-
-                    // Create Hashers for both the new content and the old content
-                    let mut h1 = Blake2b512::new();
-                    let mut h2 = Blake2b512::new();
-                    h1.update(&compressed_bytes);
-                    h2.update(&existing_file_content);
-
-                    // If the file has been modified since the last time it was packed
-                    if h1.finalize() != h2.finalize() {
-                        println!("The file at {:?} has changed between the previous packing and now, rewriting", path_segments);
-                        // Write the new bytes to the path where the file was originally
-                        // TODO (organizedgrime) - Here we need to do something with versioning!
-                        root_dir
-                            .write(
-                                &path_segments,
-                                true,
-                                time,
-                                compressed_bytes.clone(),
-                                &mut forest,
-                                &content_store,
-                                &mut rng,
-                            )
-                            .await
-                            .unwrap();
-                    }
-                    // TODO (organizedgrime) - actually check if the file is identical or a new version
-                }
-
+                let path_segments = &path_to_segments(first).unwrap();
+                // Write the file
+                write_file(path_segments, content, &mut root_dir, &mut forest, &content_store, &mut rng).await?;
                 // Duplicates need to be linked no matter what
                 for metadata in &metadatas[1..] {
                     // Grab the original location
@@ -353,7 +282,7 @@ pub async fn pipeline(
     // Store Forest and Dir in BlockStores and retrieve Key
     let _ = store_pipeline(&tomb_path, &manifest, &mut forest, &root_dir).await?;
     // Remove the .tomb directory from the output path if it is already there
-    let _ = fs::remove_dir_all(output_dir.join(".tomb"));
+    let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
     // Copy the generated metadata into the output directory
     fs_extra::copy_items(
         &[tomb_path],

@@ -12,7 +12,7 @@
 use clap::Parser;
 use serde::Deserialize;
 use std::{env, io::Write, net::Ipv4Addr};
-use tomb::pipelines::{pack, pull, push, unpack};
+use tomb::pipelines::{pack, pull, push, unpack, add};
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 mod cli;
 
@@ -88,8 +88,10 @@ async fn main() {
             // Start the Push pipeline
             push::pipeline(&input_dir, &store).await.unwrap();
         },
-        cli::Commands::Add { input_file: _, wnfs_path: _ } => todo!("add"),
-        cli::Commands::Remove { wnfs_path: _ } => todo!("remove")
+        cli::Commands::Add {input_file, tomb_path, wnfs_path } => {
+            add::pipeline(&input_file, &tomb_path, &wnfs_path).await.unwrap();
+        },
+        cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
     }
 }
 

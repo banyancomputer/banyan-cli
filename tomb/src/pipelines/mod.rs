@@ -18,12 +18,14 @@ mod test {
     use anyhow::Result;
     use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
     use serial_test::serial;
-    use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
+    use tomb_common::types::blockstore::{networkblockstore::NetworkBlockStore, carblockstore::CarBlockStore};
 
     use crate::{
         pipelines::{pack, pull, push},
         utils::serialize::load_manifest,
     };
+
+    use super::add;
 
     // Set up temporary filesystem for test cases
     async fn setup(test_name: &str) -> Result<(PathBuf, PathBuf)> {

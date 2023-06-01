@@ -60,10 +60,14 @@ pub(crate) enum Commands {
     Add {
         #[arg(short, long, help = "new file / directory")]
         input_file: PathBuf,
+        #[arg(short, long, help = "new file / directory")]
+        tomb_path: PathBuf,
         #[arg(short, long, help = "wnfs path")]
         wnfs_path: PathBuf,
     },
     Remove {
+        #[arg(short, long, help = "new file / directory")]
+        tomb_path: PathBuf,
         #[arg(short, long, help = "wnfs path")]
         wnfs_path: PathBuf,
     },
