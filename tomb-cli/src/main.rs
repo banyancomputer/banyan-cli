@@ -10,11 +10,12 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
-use serde::Deserialize;
-use std::{env, io::Write, net::Ipv4Addr};
+use std::{env, io::Write, net::Ipv4Addr, fs::{create_dir_all, File}, path::PathBuf};
 use tomb::pipelines::{add, pack, pull, push, unpack};
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 mod cli;
+///
+pub mod tests;
 
 #[tokio::main]
 async fn main() {
@@ -60,8 +61,13 @@ async fn main() {
                     unimplemented!("todo... change where we stage content locally");
                 }
                 cli::ConfigSubCommands::SetRemote { url, port } => {
-                    env::set_var("TOMB_URL", url);
-                    env::set_var("TOMB_PORT", port.to_string());
+                    let tomb = PathBuf::from(format!("{}/.config/tomb", env::var("HOME").unwrap()));
+                    // If the directory doesnt exist yet, make it!
+                    create_dir_all(&tomb).unwrap();
+                    // Create the config file
+                    let remote_file = File::create(tomb.join("remote")).unwrap();
+                    // Write the variables to the config file
+                    serde_json::to_writer(remote_file, &(url, port)).unwrap();
                 }
             }
         },
@@ -69,22 +75,18 @@ async fn main() {
         cli::Commands::Pull {
             dir
         } => {
-            let remote = envy::prefixed("TOMB_")
-                .from_env::<RemoteConfig>()
-                .expect("Please provide TOMB_URL and TOMB_PORT env vars");
+            let (url, port) = get_remote();
             // Construct the NetworkBlockStore from this IP and Port combination
-            let store = NetworkBlockStore::new(ip_from_string(remote.url), remote.port);
+            let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Pull pipeline
             pull::pipeline(&dir, &store).await.unwrap();
         },
         cli::Commands::Push {
             input_dir,
         } => {
-            let remote = envy::prefixed("TOMB_")
-                .from_env::<RemoteConfig>()
-                .expect("Please provide TOMB_URL and TOMB_PORT env vars");
+            let (url, port) = get_remote();
             // Construct the NetworkBlockStore from this IP and Port combination
-            let store = NetworkBlockStore::new(ip_from_string(remote.url), remote.port);
+            let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Push pipeline
             push::pipeline(&input_dir, &store).await.unwrap();
         },
@@ -93,6 +95,17 @@ async fn main() {
         },
         cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
     }
+}
+
+fn tomb_config() -> PathBuf {
+    PathBuf::from(format!("{}/.config/tomb", env::var("HOME").unwrap()))
+}
+
+fn get_remote() -> (String, u16) {
+    // Create the config file
+    let remote_file = File::open(tomb_config().join("remote")).unwrap();
+    // Write the variables to the config file
+    serde_json::from_reader(remote_file).unwrap()
 }
 
 // Helper function for creating the required type
@@ -108,18 +121,4 @@ fn ip_from_string(address: String) -> Ipv4Addr {
 
     // Construct the IP Address from these numbers
     Ipv4Addr::from(numbers)
-}
-
-#[derive(Deserialize, Debug)]
-struct RemoteConfig {
-    #[serde(default = "default_url")]
-    url: String,
-    #[serde(default = "default_port")]
-    port: u16,
-}
-fn default_url() -> String {
-    String::from("127.0.0.1")
-}
-fn default_port() -> u16 {
-    5001
 }

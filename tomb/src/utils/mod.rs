@@ -10,3 +10,5 @@ pub mod serialize;
 pub mod spider;
 /// This module
 pub mod wnfsio;
+/// This module contains testing fns
+pub mod tests;

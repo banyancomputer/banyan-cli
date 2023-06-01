@@ -21,7 +21,6 @@ mod test {
     };
 
     use anyhow::Result;
-    use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
     use serial_test::serial;
     use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
@@ -30,37 +29,17 @@ mod test {
         utils::{
             serialize::{load_manifest, load_pipeline},
             spider::path_to_segments,
-            wnfsio::decompress_bytes,
+            wnfsio::decompress_bytes, tests::{test_setup, test_teardown},
         },
     };
 
     use super::add;
 
-    // Set up temporary filesystem for test cases
-    async fn setup(test_name: &str) -> Result<(PathBuf, PathBuf)> {
-        // Base of the test directory
-        let root_path = PathBuf::from("test").join(test_name);
-        // Create and empty the dir
-        ensure_path_exists_and_is_empty_dir(&root_path, true)?;
-        // Input and output paths
-        let input_path = root_path.join("input");
-        let output_path = root_path.join("output");
-        // Generate file structure
-        Structure::new(2, 2, 2000, Strategy::Simple).generate(&input_path)?;
-        // Return all paths
-        Ok((input_path, output_path))
-    }
-
-    // Remove contents of temporary dir
-    async fn teardown(test_name: &str) -> Result<()> {
-        Ok(fs::remove_dir_all(PathBuf::from("test").join(test_name))?)
-    }
-
     #[tokio::test]
     #[serial]
     async fn test_push() -> Result<()> {
         // Create the setup conditions
-        let (input_dir, output_dir) = setup("push").await?;
+        let (input_dir, output_dir) = test_setup("push").await?;
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
 
         // Construct NetworkBlockStore and run pipeline
@@ -68,14 +47,14 @@ mod test {
         push::pipeline(&output_dir, &store).await?;
 
         // Teardown
-        teardown("push").await
+        test_teardown("push").await
     }
 
     #[tokio::test]
     #[serial]
     async fn test_pull() -> Result<()> {
         // Create the setup conditions
-        let (input_dir, output_dir) = setup("pull").await?;
+        let (input_dir, output_dir) = test_setup("pull").await?;
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
 
         // Construct NetworkBlockStore
@@ -97,14 +76,14 @@ mod test {
         assert_eq!(manifest, new_manifest);
 
         // Teardown
-        teardown("pull").await
+        test_teardown("pull").await
     }
 
     #[tokio::test]
     #[serial]
     async fn test_add() -> Result<()> {
         // Create the setup conditions
-        let (input_dir, output_dir) = setup("add").await?;
+        let (input_dir, output_dir) = test_setup("add").await?;
         // Run the pack pipeline
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
         // Grab metadata
@@ -144,14 +123,14 @@ mod test {
         // Assert that the data matches the original data
         assert_eq!(file_content, loaded_file_content);
         // Teardown
-        teardown("add").await
+        test_teardown("add").await
     }
 
     #[tokio::test]
     #[serial]
     async fn test_remove() -> Result<()> {
         // Create the setup conditions
-        let (input_dir, output_dir) = setup("remove").await?;
+        let (input_dir, output_dir) = test_setup("remove").await?;
         // Run the pack pipeline
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
         // Grab metadata
@@ -180,6 +159,6 @@ mod test {
         assert!(result.is_none());
 
         // Teardown
-        teardown("remove").await
+        test_teardown("remove").await
     }
 }
