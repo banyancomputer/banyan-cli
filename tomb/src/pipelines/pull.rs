@@ -34,7 +34,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     manifest.meta_store.change_dir(&tomb_path)?;
 
     // Erase the old content store, assume all data has been lost
-    manifest.content_store = CarBlockStore::new(&content_path, None);
+    manifest.content_local = CarBlockStore::new(&content_path, None);
 
     // Load the forest
     let forest = load_forest(&manifest).await?;
@@ -42,7 +42,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
     // Find CID differences as a way of tallying all Forest CIDs
     let differences = forest
-        .diff(&Rc::new(PrivateForest::new()), &manifest.content_store)
+        .diff(&Rc::new(PrivateForest::new()), &manifest.content_local)
         .await?;
     let mut children = HashSet::new();
     for difference in differences {
@@ -63,7 +63,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
         let bytes = store.get_block(&child).await?;
         // Throw those bytes onto the local store
         manifest
-            .content_store
+            .content_local
             .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
             .await?;
         // Denote progress for each loop iteration

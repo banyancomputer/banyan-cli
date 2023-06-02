@@ -30,7 +30,7 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;
-    manifest.content_store.change_dir(&content_path)?;
+    manifest.content_local.change_dir(&content_path)?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -92,7 +92,7 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
         Path::new(""),
         &dir.as_node(),
         &forest,
-        &manifest.content_store,
+        &manifest.content_local,
     )
     .await?;
 

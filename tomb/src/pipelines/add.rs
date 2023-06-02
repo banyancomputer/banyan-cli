@@ -23,7 +23,7 @@ pub async fn pipeline(input_file: &Path, tomb_path: &Path, wnfs_path: &Path) -> 
         content,
         root_dir,
         forest,
-        &manifest.content_store,
+        &manifest.content_local,
         &mut thread_rng(),
     )
     .await?;

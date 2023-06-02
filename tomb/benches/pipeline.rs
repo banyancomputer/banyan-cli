@@ -295,7 +295,7 @@ fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf
             |_| async {
                 pack::pipeline(
                     black_box(input_path),
-                    black_box(packed_path),
+                    Some(black_box(packed_path)),
                     // TODO (amiller68) - make this configurable
                     black_box(1073741824),
                     black_box(false),

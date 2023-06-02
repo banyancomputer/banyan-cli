@@ -6,6 +6,8 @@ use std::{
     path::PathBuf,
 };
 
+use crate::types::blockstore::networkblockstore::NetworkBlockStore;
+
 /// Grab config path from env variables + XDG spec
 pub fn tomb_config() -> Result<PathBuf> {
     // Construct
@@ -32,6 +34,14 @@ pub fn get_remote() -> Result<(String, u16)> {
     let remote_file = File::open(tomb_config()?.join("remote"))?;
     // Write the variables to the config file
     Ok(serde_json::from_reader(remote_file)?)
+}
+
+/// Get the NetworkBlockStore represented in the config
+pub fn get_network_blockstore() -> Result<NetworkBlockStore> {
+    // Grab url and port
+    let (url, port) = get_remote()?;
+    // Construct the NetworkBlockStore from this IP and Port combination
+    Ok(NetworkBlockStore::new(ip_from_string(url), port))
 }
 
 /// Helper function for creating the required type

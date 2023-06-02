@@ -13,13 +13,22 @@ mod test {
     use tomb::utils::tests::{compute_directory_size, start_daemon, test_setup, test_teardown};
 
     // Run the Pack pipeline through the CLI
-    async fn pack(input_dir: &Path, output_dir: &Path) -> Result<Command> {
+    async fn pack_local(input_dir: &Path, output_dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb-cli")?;
         cmd.arg("pack")
             .arg("--input-dir")
             .arg(input_dir.to_str().unwrap())
             .arg("--output-dir")
             .arg(output_dir.to_str().unwrap());
+        Ok(cmd)
+    }
+
+    // Run the Pack pipeline through the CLI
+    async fn pack_remote(input_dir: &Path) -> Result<Command> {
+        let mut cmd = Command::cargo_bin("tomb-cli")?;
+        cmd.arg("pack")
+            .arg("--input-dir")
+            .arg(input_dir.to_str().unwrap());
         Ok(cmd)
     }
 
@@ -63,13 +72,23 @@ mod test {
     }
 
     #[tokio::test]
-    async fn cli_pack() -> Result<()> {
+    async fn cli_pack_local() -> Result<()> {
         // Setup test
-        let (input_dir, output_dir) = &test_setup("cli_pack").await?;
+        let (input_dir, output_dir) = &test_setup("cli_pack_local").await?;
         // Run pack and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack_local(input_dir, output_dir).await?.assert().success();
         // Teardown test
-        test_teardown("cli_pack").await
+        test_teardown("cli_pack_local").await
+    }
+
+    #[tokio::test]
+    async fn cli_pack_remote() -> Result<()> {
+        // Setup test
+        let (input_dir, _) = &test_setup("cli_pack_remote").await?;
+        // Run pack and assert success
+        pack_remote(input_dir).await?.assert().success();
+        // Teardown test
+        test_teardown("cli_pack_remote").await
     }
 
     #[tokio::test]
@@ -77,7 +96,7 @@ mod test {
         // Setup test
         let (input_dir, output_dir) = &test_setup("cli_unpack").await?;
         // Run pack and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack_local(input_dir, output_dir).await?.assert().success();
         // Run unpack and assert success
         unpack(output_dir, input_dir).await?.assert().success();
         // Teardown test
@@ -117,7 +136,7 @@ mod test {
         // Setup test
         let (input_dir, output_dir) = &test_setup("cli_push_pull").await?;
         // Run pack and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack_local(input_dir, output_dir).await?.assert().success();
         // Configure remote endpoint if not already done
         configure_remote(String::from("127.0.0.1"), 5001)
             .await?

@@ -56,14 +56,14 @@ pub async fn write_file(
     content: Vec<u8>,
     dir: &mut Rc<PrivateDirectory>,
     forest: &mut Rc<PrivateForest>,
-    content_store: &impl BlockStore,
+    content_local: &impl BlockStore,
     rng: &mut impl RngCore,
 ) -> Result<()> {
     // Grab the current time
     let time = Utc::now();
     // Search through the PrivateDirectory for a Node that matches the path provided
     let result = dir
-        .get_node(path_segments, true, forest, content_store)
+        .get_node(path_segments, true, forest, content_local)
         .await;
     // If the file does not exist in the PrivateForest or an error occurred in searching for it
     if result.is_err() || result.as_ref().unwrap().is_none() {
@@ -74,7 +74,7 @@ pub async fn write_file(
             time,
             content,
             forest,
-            content_store,
+            content_local,
             rng,
         )
         .await
@@ -84,7 +84,7 @@ pub async fn write_file(
         // Forcibly cast because we know this is a file
         let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
         // Grab the content that already exists in the PrivateFile at this path
-        let existing_file_content = file.get_content(forest, content_store).await?;
+        let existing_file_content = file.get_content(forest, content_local).await?;
 
         // Create Hashers for both the new content and the old content
         let mut h1 = Blake2b512::new();
@@ -106,7 +106,7 @@ pub async fn write_file(
                 time,
                 content,
                 forest,
-                content_store,
+                content_local,
                 rng,
             )
             .await

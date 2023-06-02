@@ -15,10 +15,11 @@ pub async fn pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()>
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;
-    manifest.content_store.change_dir(&content_path)?;
+    manifest.content_local.change_dir(&content_path)?;
+    // manifest.content_remote.addr = "".to_string();
 
     // Grab all Block CIDs
-    let children: Vec<Cid> = manifest.content_store.get_all_cids();
+    let children: Vec<Cid> = manifest.content_local.get_all_cids();
 
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(children.len() as u64)?;
@@ -28,7 +29,7 @@ pub async fn pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()>
     // For each child CID in the list
     for child in children {
         // Grab the bytes from the local store
-        let bytes = manifest.content_store.get_block(&child).await?;
+        let bytes = manifest.content_local.get_block(&child).await?;
         // Throw those bytes onto the remote network
         store
             .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)

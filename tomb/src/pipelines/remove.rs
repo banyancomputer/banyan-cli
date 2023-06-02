@@ -15,7 +15,7 @@ pub async fn pipeline(tomb_path: &Path, wnfs_path: &Path) -> Result<()> {
         &path_to_segments(wnfs_path)?,
         true,
         forest,
-        &manifest.content_store,
+        &manifest.content_local,
     )
     .await?;
     // Stores the modified directory back to disk

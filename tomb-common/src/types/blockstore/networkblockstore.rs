@@ -13,7 +13,7 @@ use wnfs::{
 };
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct NetworkBlockStore {
     /// The address which we are connecting to
     pub addr: String,

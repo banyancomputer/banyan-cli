@@ -37,7 +37,7 @@ pub(crate) enum Commands {
 
         /// Directory that either does not exist or is empty; this is where packed data will go.
         #[arg(short, long, help = "output directory")]
-        output_dir: PathBuf,
+        output_dir: Option<PathBuf>,
 
         /// Maximum size for each chunk, defaults to 1GiB.
         #[arg(short, long, help = "target chunk size", default_value = "1073741824")]

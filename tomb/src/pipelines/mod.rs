@@ -44,7 +44,7 @@ mod test {
 
         // Create the setup conditions
         let (input_dir, output_dir) = test_setup("push").await?;
-        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&input_dir, Some(&output_dir), 262144, true).await?;
 
         // Construct NetworkBlockStore and run pipeline
         let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
@@ -65,7 +65,7 @@ mod test {
 
         // Create the setup conditions
         let (input_dir, output_dir) = test_setup("pull").await?;
-        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&input_dir, Some(&output_dir), 262144, true).await?;
 
         // Construct NetworkBlockStore
         let store = NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
@@ -99,7 +99,7 @@ mod test {
         // Create the setup conditions
         let (input_dir, output_dir) = test_setup("add").await?;
         // Run the pack pipeline
-        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&input_dir, Some(&output_dir), 262144, true).await?;
         // Grab metadata
         let tomb_path = &output_dir.join(".tomb");
         // This is still in the input dir. Technically we could just
@@ -120,7 +120,7 @@ mod test {
                 &path_to_segments(&input_file)?,
                 true,
                 forest,
-                &manifest.content_store,
+                &manifest.content_local,
             )
             .await?;
         // Assert the node was found
@@ -131,7 +131,7 @@ mod test {
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
             loaded_file
-                .get_content(forest, &manifest.content_store)
+                .get_content(forest, &manifest.content_local)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -148,7 +148,7 @@ mod test {
         // Create the setup conditions
         let (input_dir, output_dir) = test_setup("remove").await?;
         // Run the pack pipeline
-        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&input_dir, Some(&output_dir), 262144, true).await?;
         // Grab metadata
         let tomb_path = &output_dir.join(".tomb");
         // Write out a reference to where we expect to find this file
@@ -158,7 +158,7 @@ mod test {
         // Load metadata
         let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, forest, &manifest.content_store)
+            .get_node(wnfs_segments, true, forest, &manifest.content_local)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
@@ -169,7 +169,7 @@ mod test {
         // Reload metadata
         let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, forest, &manifest.content_store)
+            .get_node(wnfs_segments, true, forest, &manifest.content_local)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());

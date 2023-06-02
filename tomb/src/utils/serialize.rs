@@ -120,10 +120,10 @@ pub fn load_key(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
 /// Store a PrivateForest
 pub async fn store_forest(manifest: &Manifest, forest: &mut Rc<PrivateForest>) -> Result<()> {
     // Extract BlockStores
-    let content_store = &manifest.content_store;
+    let content_local = &manifest.content_local;
     let meta_store = &manifest.meta_store;
     // Create an IPLD from the PrivateForest
-    let forest_ipld = forest.async_serialize_ipld(content_store).await?;
+    let forest_ipld = forest.async_serialize_ipld(content_local).await?;
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
     // Add PrivateForest associated roots to meta store
@@ -156,14 +156,14 @@ pub async fn store_dir(
     cid_key: &str,
 ) -> Result<TemporalKey> {
     // Extract BlockStores
-    let content_store = &manifest.content_store;
+    let content_local = &manifest.content_local;
     let meta_store = &manifest.meta_store;
 
     // Random number generator
     let rng = &mut thread_rng();
 
     // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
-    let dir_ref: PrivateRef = dir.store(forest, content_store, rng).await?;
+    let dir_ref: PrivateRef = dir.store(forest, content_local, rng).await?;
 
     // Extract the component fields of the PrivateDirectory's PrivateReference
     let PrivateRef {
@@ -193,7 +193,7 @@ pub async fn load_dir(
 ) -> Result<Rc<PrivateDirectory>> {
     info!("Loading in PrivateDirectory from disk");
     // Extract BlockStores
-    let content_store = &manifest.content_store;
+    let content_local = &manifest.content_local;
     let meta_store = &manifest.meta_store;
 
     // Get the PrivateRef CID
@@ -209,7 +209,7 @@ pub async fn load_dir(
         PrivateRef::with_temporal_key(saturated_name_hash, key.clone(), content_cid);
 
     // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, forest, content_store)
+    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, forest, content_local)
         .await
         .unwrap()
         .as_dir()?;
@@ -262,7 +262,7 @@ mod test {
     use rand::thread_rng;
     use serial_test::serial;
     use std::{fs, path::PathBuf, rc::Rc};
-    use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
+    use tomb_common::{types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest}, utils::get_network_blockstore};
     use wnfs::{
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
@@ -276,7 +276,7 @@ mod test {
         let content_path = path.join("content");
         let tomb_path = path.join(".tomb");
 
-        let content_store = CarBlockStore::new(&content_path, None);
+        let content_local = CarBlockStore::new(&content_path, None);
         let meta_store = CarBlockStore::new(&tomb_path, None);
 
         let rng = &mut thread_rng();
@@ -293,14 +293,15 @@ mod test {
                 Utc::now(),
                 b"Hello kitty cat!".to_vec(),
                 &mut forest,
-                &content_store,
+                &content_local,
                 rng,
             )
             .await?;
 
         let manifest_data = Manifest {
             version: "1.1.0".to_string(),
-            content_store,
+            content_local,
+            content_remote: get_network_blockstore()?,
             meta_store,
         };
 
@@ -364,7 +365,7 @@ mod test {
         // Assert equality
         assert_eq!(
             new_forest
-                .diff(&forest, &manifest.content_store)
+                .diff(&forest, &manifest.content_local)
                 .await?
                 .len(),
             0
@@ -406,7 +407,7 @@ mod test {
         assert_eq!(new_manifest, manifest);
         assert_eq!(
             new_forest
-                .diff(&forest, &new_manifest.content_store)
+                .diff(&forest, &new_manifest.content_local)
                 .await?
                 .len(),
             0

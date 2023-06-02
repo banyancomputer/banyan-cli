@@ -13,7 +13,7 @@ use clap::Parser;
 use anyhow::Result;
 use std::{io::Write, fs::{create_dir_all, remove_dir_all}};
 use tomb::pipelines::{add, pack, pull, push, unpack};
-use tomb_common::{types::blockstore::networkblockstore::NetworkBlockStore, utils::{get_remote, ip_from_string, set_remote, tomb_config}};
+use tomb_common::utils::{set_remote, tomb_config, get_network_blockstore};
 mod cli;
 ///
 pub mod tests;
@@ -41,8 +41,14 @@ async fn main() -> Result<()> {
             chunk_size,
             follow_links,
         } => {
-            pack::pipeline(&input_dir, &output_dir, chunk_size, follow_links)
-                .await?;
+            match output_dir {
+                Some(output_dir) => {
+                    pack::pipeline(&input_dir, Some(&output_dir), chunk_size, follow_links).await?;
+                },
+                None => {
+                    pack::pipeline(&input_dir, None, chunk_size, follow_links).await?;
+                },
+            }
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
@@ -73,20 +79,14 @@ async fn main() -> Result<()> {
         cli::Commands::Pull {
             dir
         } => {
-            let (url, port) = get_remote()?;
-            // Construct the NetworkBlockStore from this IP and Port combination
-            let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Pull pipeline
-            pull::pipeline(&dir, &store).await?;
+            pull::pipeline(&dir, &get_network_blockstore()?).await?;
         },
         cli::Commands::Push {
             input_dir,
         } => {
-            let (url, port) = get_remote()?;
-            // Construct the NetworkBlockStore from this IP and Port combination
-            let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Push pipeline
-            push::pipeline(&input_dir, &store).await?;
+            push::pipeline(&input_dir, &get_network_blockstore()?).await?;
         },
         cli::Commands::Add {input_file, tomb_path, wnfs_path } => {
             add::pipeline(&input_file, &tomb_path, &wnfs_path).await?;

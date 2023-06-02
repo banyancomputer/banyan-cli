@@ -39,7 +39,7 @@ async fn run_test(test_path: &Path) {
     let unpacked_path = test_path.join(UNPACKED_PATH);
 
     // Pack the input
-    pack::pipeline(&input_path, &packed_path, 262144, true)
+    pack::pipeline(&input_path, Some(&packed_path), 262144, true)
         .await
         .unwrap();
 
@@ -390,7 +390,7 @@ mod test {
             &[],
             true,
             Rc::clone(&forest),
-            &manifest.content_store,
+            &manifest.content_local,
         )
         .await
         .unwrap();
@@ -401,7 +401,7 @@ mod test {
 
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
-            .get_previous(&manifest.content_store)
+            .get_previous(&manifest.content_local)
             .await
             .unwrap()
             .unwrap()
@@ -410,7 +410,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, &forest, &manifest.content_store)
+            .get_node(&path_segments, true, &forest, &manifest.content_local)
             .await
             .unwrap()
             .unwrap()
@@ -419,7 +419,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&forest, &manifest.content_store)
+            .get_content(&forest, &manifest.content_local)
             .await
             .unwrap();
 
@@ -428,7 +428,7 @@ mod test {
 
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
-            .get_previous(&manifest.content_store)
+            .get_previous(&manifest.content_local)
             .await
             .unwrap()
             .unwrap()
@@ -437,7 +437,7 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, true, &forest, &manifest.content_store)
+            .get_node(&path_segments, true, &forest, &manifest.content_local)
             .await
             .unwrap()
             .unwrap()
@@ -446,7 +446,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(&forest, &manifest.content_store)
+            .get_content(&forest, &manifest.content_local)
             .await
             .unwrap();
 
@@ -469,7 +469,7 @@ mod test {
 
         // Assert that there are no more previous versions to find
         assert!(iterator
-            .get_previous(&manifest.content_store)
+            .get_previous(&manifest.content_local)
             .await
             .unwrap()
             .is_none());
