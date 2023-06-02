@@ -10,6 +10,7 @@ use crate::types::shared::CompressionScheme;
 use anyhow::Result;
 use blake2::{Blake2b512, Digest};
 use chrono::Utc;
+use indicatif::{ProgressBar, ProgressStyle};
 use rand::RngCore;
 use tokio as _;
 use wnfs::{
@@ -147,4 +148,16 @@ pub async fn file_to_disk(
 
     // Return Ok
     Ok(())
+}
+
+/// Create a progress bar for displaying progress through a task with a predetermined style
+pub fn get_progress_bar(count: u64) -> Result<ProgressBar> {
+    // Initialize the progress bar using the number of Nodes to process
+    let progress_bar = ProgressBar::new(count);
+    // Stylize that progress bar!
+    progress_bar.set_style(ProgressStyle::default_bar().template(
+        "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
+    )?);
+    
+    Ok(progress_bar)
 }

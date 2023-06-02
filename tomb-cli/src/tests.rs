@@ -4,14 +4,13 @@ mod test {
     use assert_cmd::prelude::*;
     use fs_extra::dir::CopyOptions;
     use predicates::prelude::*;
+    use tomb_common::utils::{tomb_config, get_remote};
     use std::{
         fs::{self, create_dir_all},
         path::Path,
         process::Command,
     };
     use tomb::utils::tests::{compute_directory_size, start_daemon, test_setup, test_teardown};
-
-    use crate::utils::{get_remote, tomb_config};
 
     // Run the Pack pipeline through the CLI
     async fn pack(input_dir: &Path, output_dir: &Path) -> Result<Command> {

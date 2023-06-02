@@ -1,17 +1,15 @@
 use anyhow::Result;
 use fake_file::utils::ensure_path_exists_and_is_dir;
-use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     collections::HashSet,
     path::Path,
     rc::Rc,
-    sync::{Arc, Mutex},
 };
 use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
     fs::ensure_path_exists_and_is_empty_dir,
-    serialize::{load_forest, load_manifest, store_manifest},
+    serialize::{load_forest, load_manifest, store_manifest}, wnfsio::get_progress_bar,
 };
 use tomb_common::types::blockstore::{
     carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore,
@@ -58,13 +56,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
 
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = ProgressBar::new(children.len() as u64);
-    // Stylize that progress bar!
-    progress_bar.set_style(ProgressStyle::default_bar().template(
-        "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-    )?);
-    // Create a usable instance of the progress bar by wrapping the obj in Mutex and Arc
-    let progress_bar = Arc::new(Mutex::new(progress_bar));
+    let progress_bar = get_progress_bar(children.len() as u64)?;
 
     for child in children {
         // Grab the bytes from the remote network
@@ -75,7 +67,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
             .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
             .await?;
         // Denote progress for each loop iteration
-        progress_bar.lock().unwrap().inc(1);
+        progress_bar.inc(1);
     }
 
     info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");

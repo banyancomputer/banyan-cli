@@ -7,7 +7,7 @@ use std::{
 };
 
 /// Grab config path from env variables + XDG spec
-pub(crate) fn tomb_config() -> Result<PathBuf> {
+pub fn tomb_config() -> Result<PathBuf> {
     // Construct
     let path = PathBuf::from(format!("{}/.config/tomb", env::var("HOME")?));
     // If the directory doesnt exist yet, make it!
@@ -17,7 +17,7 @@ pub(crate) fn tomb_config() -> Result<PathBuf> {
 }
 
 /// Set details of remote endpoint
-pub(crate) fn set_remote(url: String, port: u16) -> Result<()> {
+pub fn set_remote(url: String, port: u16) -> Result<()> {
     // Create the config file
     let remote_file = File::create(tomb_config()?.join("remote"))?;
     // Write the variables to the config file
@@ -27,7 +27,7 @@ pub(crate) fn set_remote(url: String, port: u16) -> Result<()> {
 }
 
 /// Get details of remote endpoint
-pub(crate) fn get_remote() -> Result<(String, u16)> {
+pub fn get_remote() -> Result<(String, u16)> {
     // Create the config file
     let remote_file = File::open(tomb_config()?.join("remote"))?;
     // Write the variables to the config file
@@ -36,7 +36,7 @@ pub(crate) fn get_remote() -> Result<(String, u16)> {
 
 /// Helper function for creating the required type
 /// TODO(organizedgrime) - ipv4 sucks. switch to urls soon.
-pub(crate) fn ip_from_string(address: String) -> Ipv4Addr {
+pub fn ip_from_string(address: String) -> Ipv4Addr {
     // Represent the string as an array of four numbers exactly
     let numbers: [u8; 4] = address
         .split('.')

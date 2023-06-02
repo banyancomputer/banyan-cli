@@ -7,19 +7,17 @@ use crate::{
             load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
         spider::{self, path_to_segments},
-        wnfsio::{compress_file, write_file},
-    },
+        wnfsio::{compress_file, write_file, get_progress_bar},
+    }
 };
 use anyhow::Result;
 use chrono::Utc;
 use fs_extra::dir;
-use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
     vec,
 };
 use tomb_common::types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest};
@@ -82,13 +80,7 @@ pub async fn pipeline(
 
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = ProgressBar::new(packing_plan.len() as u64);
-    // Stylize that progress bar!
-    progress_bar.set_style(ProgressStyle::default_bar().template(
-        "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-    )?);
-    // Create a usable instance of the progress bar by wrapping the obj in Mutex and Arc
-    let progress_bar = Arc::new(Mutex::new(progress_bar));
+    let progress_bar = get_progress_bar(packing_plan.len() as u64)?;
 
     // Create the directory in which content will be stored
     let content_path: PathBuf = output_dir.join("content");
@@ -249,7 +241,7 @@ pub async fn pipeline(
         }
 
         // Denote progress for each loop iteration
-        progress_bar.lock().unwrap().inc(1);
+        progress_bar.inc(1);
     }
 
     // Now that the data exists, we can symlink to it
@@ -277,7 +269,7 @@ pub async fn pipeline(
         }
 
         // Denote progress for each loop iteration
-        progress_bar.lock().unwrap().inc(1);
+        progress_bar.inc(1);
     }
 
     // Construct the latest version of the Manifest struct

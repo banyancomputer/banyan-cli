@@ -10,17 +10,16 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
 use clap::Parser;
-use std::io::Write;
+use anyhow::Result;
+use std::{io::Write, fs::{create_dir_all, remove_dir_all}};
 use tomb::pipelines::{add, pack, pull, push, unpack};
-use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
-use utils::{get_remote, ip_from_string, set_remote};
+use tomb_common::{types::blockstore::networkblockstore::NetworkBlockStore, utils::{get_remote, ip_from_string, set_remote, tomb_config}};
 mod cli;
 ///
 pub mod tests;
-mod utils;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
     let cli = cli::Args::parse();
 
@@ -43,17 +42,22 @@ async fn main() {
             follow_links,
         } => {
             pack::pipeline(&input_dir, &output_dir, chunk_size, follow_links)
-                .await
-                .unwrap();
+                .await?;
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
             input_dir,
             output_dir,
         } => {
-            unpack::pipeline(&input_dir, &output_dir).await.unwrap();
+            unpack::pipeline(&input_dir, &output_dir).await?;
         }
-        cli::Commands::Init => unimplemented!("todo... create the tombolo file in the current directory"),
+        cli::Commands::Init => {
+            let tomb_path = &tomb_config()?.join(".tomb");
+            // Remove existing metadata
+            remove_dir_all(tomb_path)?;
+            // Create new metadata folder
+            create_dir_all(tomb_path)?;
+        },
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
         cli::Commands::Register { bucket_name: _ } =>
             unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
@@ -62,31 +66,33 @@ async fn main() {
                 cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
                     unimplemented!("todo... change where we stage content locally");
                 }
-                cli::ConfigSubCommands::SetRemote { url, port } => { set_remote(url, port).unwrap(); }
+                cli::ConfigSubCommands::SetRemote { url, port } => { set_remote(url, port)?; }
             }
         },
         cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
         cli::Commands::Pull {
             dir
         } => {
-            let (url, port) = get_remote().unwrap();
+            let (url, port) = get_remote()?;
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Pull pipeline
-            pull::pipeline(&dir, &store).await.unwrap();
+            pull::pipeline(&dir, &store).await?;
         },
         cli::Commands::Push {
             input_dir,
         } => {
-            let (url, port) = get_remote().unwrap();
+            let (url, port) = get_remote()?;
             // Construct the NetworkBlockStore from this IP and Port combination
             let store = NetworkBlockStore::new(ip_from_string(url), port);
             // Start the Push pipeline
-            push::pipeline(&input_dir, &store).await.unwrap();
+            push::pipeline(&input_dir, &store).await?;
         },
         cli::Commands::Add {input_file, tomb_path, wnfs_path } => {
-            add::pipeline(&input_file, &tomb_path, &wnfs_path).await.unwrap();
+            add::pipeline(&input_file, &tomb_path, &wnfs_path).await?;
         },
         cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
     }
+
+    Ok(())
 }

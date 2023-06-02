@@ -1,10 +1,6 @@
-use crate::utils::serialize::load_manifest;
+use crate::utils::{serialize::load_manifest, wnfsio::get_progress_bar};
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
-use std::{
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::path::Path;
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use wnfs::{common::BlockStore, libipld::Cid};
 
@@ -24,15 +20,8 @@ pub async fn pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()>
     // Grab all Block CIDs
     let children: Vec<Cid> = manifest.content_store.get_all_cids();
 
-    // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = ProgressBar::new(children.len() as u64);
-    // Stylize that progress bar!
-    progress_bar.set_style(ProgressStyle::default_bar().template(
-        "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-    )?);
-    // Create a usable instance of the progress bar by wrapping the obj in Mutex and Arc
-    let progress_bar = Arc::new(Mutex::new(progress_bar));
+    let progress_bar = get_progress_bar(children.len() as u64)?;
 
     info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
 
@@ -46,7 +35,7 @@ pub async fn pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()>
             .await?;
 
         // Denote progress for each loop iteration
-        progress_bar.lock().unwrap().inc(1);
+        progress_bar.inc(1);
     }
 
     info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");

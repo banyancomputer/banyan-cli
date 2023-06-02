@@ -3242,7 +3242,6 @@ dependencies = [
  "fs_extra",
  "log",
  "predicates",
- "serde_json",
  "tokio",
  "tomb",
  "tomb-common",

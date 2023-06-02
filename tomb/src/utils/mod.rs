@@ -10,5 +10,5 @@ pub mod serialize;
 pub mod spider;
 /// This module contains testing fns
 pub mod tests;
-/// This module
+/// This module contains WNFS IO fns
 pub mod wnfsio;
