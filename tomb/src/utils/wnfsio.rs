@@ -1,13 +1,13 @@
 use std::{
     fs::File,
-    io::{BufReader, Write},
+    io::{BufReader, Read, Write},
     os::unix::fs::symlink,
     path::Path,
     rc::Rc,
 };
 
 use crate::types::shared::CompressionScheme;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use blake2::{Blake2b512, Digest};
 use chrono::Utc;
 use rand::RngCore;
@@ -17,39 +17,36 @@ use wnfs::{
     private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
 
-/// Compress the contents of a file at a given path
-pub async fn compress_file(path: &Path) -> Result<Vec<u8>> {
-    // Open the original file (just the first one!)
-    let file = File::open(path).map_err(|e| {
-        anyhow!(
-            "could not find canonicalized path when trying to open reader to original file! {}",
-            e
-        )
-    })?;
-    // Create a reader for the original file
-    let file_reader = BufReader::new(file);
-    // Create a buffer to hold the compressed bytes
-    let mut compressed_bytes: Vec<u8> = vec![];
-    // Compress the chunk before feeding it to WNFS
-    CompressionScheme::new_zstd()
-        .encode(file_reader, &mut compressed_bytes)
-        .unwrap();
-    // Return compressed bytes
-    Ok(compressed_bytes)
+/// Compresses bytes
+pub fn compress_bytes<R, W>(reader: R, writer: W) -> Result<()>
+where
+    R: Read,
+    W: Write,
+{
+    Ok(CompressionScheme::new_zstd().encode(reader, writer)?)
 }
 
-///
-pub async fn decompress_bytes(content: Vec<u8>) -> Result<Vec<u8>> {
-    // Get the bytes associated with this file
-    // let file_content = file.get_content(forest, store).await.unwrap();
-    // Create a buffer to hold the decompressed bytes
-    let mut decompressed_bytes: Vec<u8> = vec![];
-    // Decompress the chunk before writing to disk
-    CompressionScheme::new_zstd()
-        .decode(content.as_slice(), &mut decompressed_bytes)
-        .unwrap();
+/// Decompresses bytes
+pub fn decompress_bytes<R, W>(reader: R, writer: W) -> Result<()>
+where
+    R: Read,
+    W: Write,
+{
+    Ok(CompressionScheme::new_zstd().decode(reader, writer)?)
+}
 
-    Ok(decompressed_bytes)
+/// Compress the contents of a file at a given path
+pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
+    // Open the original file (just the first one!)
+    let file = File::open(path)?;
+    // Create a reader for the original file
+    let reader = BufReader::new(file);
+    // Create a buffer to hold the compressed bytes
+    let mut compressed: Vec<u8> = vec![];
+    // Compress the chunk before feeding it to WNFS
+    compress_bytes(reader, &mut compressed)?;
+    // Return compressed bytes
+    Ok(compressed)
 }
 
 /// Writes content to a given path within a given WNFS filesystem, ensuring that duplicate writing is avoided
@@ -135,10 +132,15 @@ pub async fn file_to_disk(
     }
     // If this is a real file
     else {
-        // Get the bytes associated with this file
-        let content = decompress_bytes(file.get_content(forest, store).await?).await?;
         // Create the file at the desired location
         let mut output_file = File::create(file_path)?;
+        // Buffer for decrypted and decompressed file content
+        let mut content: Vec<u8> = Vec::new();
+        // Get and decompress bytes associated with this file
+        decompress_bytes(
+            file.get_content(forest, store).await?.as_slice(),
+            &mut content,
+        )?;
         // Write all contents to the output file
         output_file.write_all(&content)?;
     }

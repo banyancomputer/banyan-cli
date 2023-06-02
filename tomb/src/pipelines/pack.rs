@@ -170,8 +170,7 @@ pub async fn pipeline(
                         .get(0)
                         .expect("why is there nothing in metadatas")
                         .canonicalized_path,
-                )
-                .await?;
+                )?;
                 // Grab the metadata for the first occurrence of this file
                 let first = &metadatas.get(0).unwrap().original_location;
                 // Turn the relative path into a vector of segments

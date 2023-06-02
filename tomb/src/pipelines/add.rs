@@ -12,7 +12,7 @@ use crate::utils::{
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(input_file: &Path, tomb_path: &Path, wnfs_path: &Path) -> Result<()> {
     // Compress the data in the file
-    let content = compress_file(input_file).await?;
+    let content = compress_file(input_file)?;
     // Turn the relative path into a vector of segments
     let path_segments = &path_to_segments(wnfs_path).unwrap();
     // Load the data

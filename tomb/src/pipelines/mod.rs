@@ -27,7 +27,7 @@ mod test {
     use crate::{
         pipelines::{pack, pull, push, remove},
         utils::{
-            serialize::{load_manifest, load_pipeline},
+            serialize::load_pipeline,
             spider::path_to_segments,
             tests::{compute_directory_size, start_daemon, test_setup, test_teardown},
             wnfsio::decompress_bytes,
@@ -128,12 +128,14 @@ mod test {
         // Represent the result as a PrivateFile
         let loaded_file = result.unwrap().as_file()?;
         // Get the content of the PrivateFile and decompress it
-        let loaded_file_content = decompress_bytes(
+        let mut loaded_file_content: Vec<u8> = Vec::new();
+        decompress_bytes(
             loaded_file
                 .get_content(forest, &manifest.content_store)
-                .await?,
-        )
-        .await?;
+                .await?
+                .as_slice(),
+            &mut loaded_file_content,
+        )?;
         // Assert that the data matches the original data
         assert_eq!(file_content, loaded_file_content);
         // Teardown
