@@ -3242,6 +3242,7 @@ dependencies = [
  "fs_extra",
  "log",
  "predicates",
+ "serial_test",
  "tokio",
  "tomb",
  "tomb-common",

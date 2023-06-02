@@ -1,31 +1,37 @@
 use crate::{
     types::spider::PackPipelinePlan,
     utils::{
-        fs::{self as fsutil},
         grouper::grouper,
         serialize::{
             load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
         spider::{self, path_to_segments},
-        wnfsio::{compress_file, write_file, get_progress_bar},
-    }
+        wnfsio::{compress_file, get_progress_bar, write_file},
+    },
 };
 use anyhow::Result;
 use chrono::Utc;
 use fs_extra::dir;
 use indicatif::ProgressBar;
 use log::info;
-use rand::{thread_rng};
+use rand::thread_rng;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
     rc::Rc,
     vec,
 };
-use tomb_common::{types::{blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore}, pipeline::Manifest}, utils::get_network_blockstore};
+use tomb_common::{
+    types::{
+        blockstore::carblockstore::CarBlockStore,
+        pipeline::Manifest,
+    },
+    utils::get_network_blockstore,
+};
 use wnfs::{
+    common::BlockStore,
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest}, common::BlockStore,
+    private::{PrivateDirectory, PrivateForest},
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -59,8 +65,12 @@ pub async fn pipeline(
     // Determine if this is the first time pack is being run on this filesystem
     let first_run = !tomb_path.exists();
 
-    let local_job = output_dir.is_some();
-    let content_path = if let Some(output_dir) = output_dir { output_dir.join("content") } else { tomb_path.join("content") };
+    let local = output_dir.is_some();
+    let content_path = if let Some(output_dir) = output_dir {
+        output_dir.join("content")
+    } else {
+        tomb_path.join("content")
+    };
 
     // Create a BlockStore for remote jobs as well as one for local jobs
     let mut content_local = CarBlockStore::new(&content_path, None);
@@ -93,7 +103,7 @@ pub async fn pipeline(
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_forest) = load_forest(&manifest).await &&
-           let Ok(new_dir) = load_dir(&manifest, &key, &new_forest, "current_root").await {
+           let Ok(new_dir) = load_dir(local, &manifest, &key, &new_forest, "current_root").await {
             // Update the BlockStores
             meta_store = manifest.meta_store;
             content_local = manifest.content_local;
@@ -111,27 +121,28 @@ pub async fn pipeline(
     }
 
     // Process all of the PackPipelinePlans
-    if local_job {
+    if local {
         // Process each of the packing plans with a local BlockStore
         process_plans(
             packing_plan,
             progress_bar,
             &mut root_dir,
             &mut forest,
-            &content_local
-        ).await?;
-    }
-    else {
+            &content_local,
+        )
+        .await?;
+    } else {
         // Process each of the packing plans with a remote BlockStore
         process_plans(
             packing_plan,
             progress_bar,
             &mut root_dir,
             &mut forest,
-            &content_remote
-        ).await?;
+            &content_remote,
+        )
+        .await?;
     }
-    
+
     // Construct the latest version of the Manifest struct
     let manifest = Manifest {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -142,12 +153,13 @@ pub async fn pipeline(
 
     if first_run {
         println!("storing original dir and key");
-        let original_key = store_dir(&manifest, &mut forest, &root_dir, "original_root").await?;
+        let original_key =
+            store_dir(local, &manifest, &mut forest, &root_dir, "original_root").await?;
         store_key(&tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_pipeline(&tomb_path, &manifest, &mut forest, &root_dir).await?;
+    let _ = store_pipeline(local, &tomb_path, &manifest, &mut forest, &root_dir).await?;
 
     if let Some(output_dir) = output_dir {
         // Remove the .tomb directory from the output path if it is already there
@@ -196,7 +208,7 @@ async fn process_plans(
     packing_plan: Vec<PackPipelinePlan>,
     progress_bar: &ProgressBar,
     root_dir: &mut Rc<PrivateDirectory>,
-    mut forest: &mut Rc<PrivateForest>,
+    forest: &mut Rc<PrivateForest>,
     content_local: &impl BlockStore,
 ) -> Result<()> {
     // Rng
@@ -233,15 +245,7 @@ async fn process_plans(
                 // Turn the relative path into a vector of segments
                 let path_segments = &path_to_segments(first).unwrap();
                 // Write the file
-                write_file(
-                    path_segments,
-                    content,
-                    root_dir,
-                    forest,
-                    content_local,
-                    rng,
-                )
-                .await?;
+                write_file(path_segments, content, root_dir, forest, content_local, rng).await?;
                 // Duplicates need to be linked no matter what
                 for metadata in &metadatas[1..] {
                     // Grab the original location
@@ -255,7 +259,7 @@ async fn process_plans(
                             folder_segments,
                             true,
                             Utc::now(),
-                            &forest,
+                            forest,
                             content_local,
                             rng,
                         )
@@ -267,7 +271,7 @@ async fn process_plans(
                             path_segments,
                             dup_path_segments,
                             true,
-                            &mut forest,
+                            forest,
                             content_local,
                         )
                         .await
@@ -282,21 +286,14 @@ async fn process_plans(
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, true, &forest, content_local)
+                    .get_node(&path_segments, true, forest, content_local)
                     .await;
 
                 // If there was an error searching for the Node or
                 if result.is_err() || result.as_ref().unwrap().is_none() {
                     // Create the subdirectory
                     root_dir
-                        .mkdir(
-                            &path_segments,
-                            true,
-                            Utc::now(),
-                            forest,
-                            content_local,
-                            rng,
-                        )
+                        .mkdir(&path_segments, true, Utc::now(), forest, content_local, rng)
                         .await?;
                 }
                 // We don't need an else here, directories don't actually contain any data
@@ -339,4 +336,3 @@ async fn process_plans(
     // Return Ok
     Ok(())
 }
-

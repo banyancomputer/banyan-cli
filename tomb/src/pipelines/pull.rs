@@ -1,15 +1,12 @@
 use anyhow::Result;
 use fake_file::utils::ensure_path_exists_and_is_dir;
-use std::{
-    collections::HashSet,
-    path::Path,
-    rc::Rc,
-};
+use std::{collections::HashSet, path::Path, rc::Rc};
 use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
     fs::ensure_path_exists_and_is_empty_dir,
-    serialize::{load_forest, load_manifest, store_manifest}, wnfsio::get_progress_bar,
+    serialize::{load_forest, load_manifest, store_manifest},
+    wnfsio::get_progress_bar,
 };
 use tomb_common::types::blockstore::{
     carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore,

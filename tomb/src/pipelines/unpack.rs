@@ -26,7 +26,7 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     info!("🚀 Starting unpacking pipeline...");
 
     // Load
-    let (_, mut manifest, forest, dir) = load_pipeline(&tomb_path).await?;
+    let (_, mut manifest, forest, dir) = load_pipeline(true, &tomb_path).await?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;

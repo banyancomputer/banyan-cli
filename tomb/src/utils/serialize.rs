@@ -118,12 +118,21 @@ pub fn load_key(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
 }
 
 /// Store a PrivateForest
-pub async fn store_forest(manifest: &Manifest, forest: &mut Rc<PrivateForest>) -> Result<()> {
+pub async fn store_forest(
+    local: bool,
+    manifest: &Manifest,
+    forest: &mut Rc<PrivateForest>,
+) -> Result<()> {
     // Extract BlockStores
     let content_local = &manifest.content_local;
+    let content_remote = &manifest.content_remote;
     let meta_store = &manifest.meta_store;
     // Create an IPLD from the PrivateForest
-    let forest_ipld = forest.async_serialize_ipld(content_local).await?;
+    let forest_ipld = if local {
+        forest.async_serialize_ipld(content_local).await?
+    } else {
+        forest.async_serialize_ipld(content_remote).await?
+    };
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
     // Add PrivateForest associated roots to meta store
@@ -150,6 +159,7 @@ pub async fn load_forest(manifest: &Manifest) -> Result<Rc<PrivateForest>> {
 
 /// Store a PrivateDirectory
 pub async fn store_dir(
+    local: bool,
     manifest: &Manifest,
     forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
@@ -157,13 +167,18 @@ pub async fn store_dir(
 ) -> Result<TemporalKey> {
     // Extract BlockStores
     let content_local = &manifest.content_local;
+    let content_remote = &manifest.content_remote;
     let meta_store = &manifest.meta_store;
 
     // Random number generator
     let rng = &mut thread_rng();
 
     // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
-    let dir_ref: PrivateRef = dir.store(forest, content_local, rng).await?;
+    let dir_ref: PrivateRef = if local {
+        dir.store(forest, content_local, rng).await?
+    } else {
+        dir.store(forest, content_remote, rng).await?
+    };
 
     // Extract the component fields of the PrivateDirectory's PrivateReference
     let PrivateRef {
@@ -186,6 +201,7 @@ pub async fn store_dir(
 
 /// Load a PrivateDirectory
 pub async fn load_dir(
+    local: bool,
     manifest: &Manifest,
     key: &TemporalKey,
     forest: &Rc<PrivateForest>,
@@ -194,6 +210,7 @@ pub async fn load_dir(
     info!("Loading in PrivateDirectory from disk");
     // Extract BlockStores
     let content_local = &manifest.content_local;
+    let content_remote = &manifest.content_remote;
     let meta_store = &manifest.meta_store;
 
     // Get the PrivateRef CID
@@ -209,24 +226,30 @@ pub async fn load_dir(
         PrivateRef::with_temporal_key(saturated_name_hash, key.clone(), content_cid);
 
     // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, forest, content_local)
-        .await
-        .unwrap()
-        .as_dir()?;
+    let dir: Rc<PrivateDirectory> = if local {
+        PrivateNode::load(&dir_ref, forest, content_local)
+            .await?
+            .as_dir()?
+    } else {
+        PrivateNode::load(&dir_ref, forest, content_remote)
+            .await?
+            .as_dir()?
+    };
 
     Ok(dir)
 }
 
 /// Store everything at once!
 pub async fn store_pipeline(
+    local: bool,
     tomb_path: &Path,
     manifest: &Manifest,
     forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     // Store the dir, then the forest, then the manifest and key
-    let temporal_key = store_dir(manifest, forest, root_dir, "current_root").await?;
-    store_forest(manifest, forest).await?;
+    let temporal_key = store_dir(local, manifest, forest, root_dir, "current_root").await?;
+    store_forest(local, manifest, forest).await?;
     store_manifest(tomb_path, manifest)?;
     store_key(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
@@ -234,6 +257,7 @@ pub async fn store_pipeline(
 
 /// Load everything at once!
 pub async fn load_pipeline(
+    local: bool,
     tomb_path: &Path,
 ) -> Result<(
     TemporalKey,
@@ -244,7 +268,7 @@ pub async fn load_pipeline(
     let key = load_key(tomb_path, "root")?;
     let manifest = load_manifest(tomb_path)?;
     let forest = load_forest(&manifest).await?;
-    let dir = load_dir(&manifest, &key, &forest, "current_root").await?;
+    let dir = load_dir(local, &manifest, &key, &forest, "current_root").await?;
     Ok((key, manifest, forest, dir))
 }
 
@@ -262,7 +286,10 @@ mod test {
     use rand::thread_rng;
     use serial_test::serial;
     use std::{fs, path::PathBuf, rc::Rc};
-    use tomb_common::{types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest}, utils::get_network_blockstore};
+    use tomb_common::{
+        types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest},
+        utils::get_network_blockstore,
+    };
     use wnfs::{
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
@@ -322,7 +349,7 @@ mod test {
         let (tomb_path, manifest, mut forest, dir) = setup().await?;
 
         // Generate key for this directory
-        let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
+        let key = store_dir(true, &manifest, &mut forest, &dir, "dir").await?;
 
         // Store and load
         store_key(&tomb_path, &key, "root")?;
@@ -359,7 +386,7 @@ mod test {
         let (_, manifest, mut forest, _) = setup().await?;
 
         // Store and load
-        store_forest(&manifest, &mut forest).await?;
+        store_forest(true, &manifest, &mut forest).await?;
         let new_forest = load_forest(&manifest).await?;
 
         // Assert equality
@@ -381,10 +408,10 @@ mod test {
         // Start er up!
         let (_, manifest, mut forest, dir) = setup().await?;
 
-        let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
-        store_forest(&manifest, &mut forest).await?;
+        let key = store_dir(true, &manifest, &mut forest, &dir, "dir").await?;
+        store_forest(true, &manifest, &mut forest).await?;
         let new_forest = load_forest(&manifest).await?;
-        let new_dir = load_dir(&manifest, &key, &new_forest, "dir").await?;
+        let new_dir = load_dir(true, &manifest, &key, &new_forest, "dir").await?;
         // Assert equality
         assert_eq!(dir, new_dir);
 
@@ -399,8 +426,8 @@ mod test {
         let (tomb_path, manifest, mut forest, dir) = setup().await?;
 
         // Store and load
-        let key = store_pipeline(&tomb_path, &manifest, &mut forest, &dir).await?;
-        let (new_key, new_manifest, new_forest, new_dir) = load_pipeline(&tomb_path).await?;
+        let key = store_pipeline(true, &tomb_path, &manifest, &mut forest, &dir).await?;
+        let (new_key, new_manifest, new_forest, new_dir) = load_pipeline(true, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(new_key, key);

@@ -375,10 +375,11 @@ mod test {
 
         // The path in which we expect to find metadata
         let tomb_path = &test_path.join("unpacked").join(".tomb");
-        let (key, manifest, mut forest, dir) = load_pipeline(tomb_path).await?;
+        let (key, manifest, mut forest, dir) = load_pipeline(true, tomb_path).await?;
 
         let original_key = load_key(tomb_path, "original")?;
-        let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;
+        let original_dir =
+            load_dir(true, &manifest, &original_key, &mut forest, "original_root").await?;
 
         assert_ne!(key, original_key);
         assert_ne!(dir, original_dir);

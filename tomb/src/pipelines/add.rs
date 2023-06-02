@@ -16,7 +16,7 @@ pub async fn pipeline(input_file: &Path, tomb_path: &Path, wnfs_path: &Path) -> 
     // Turn the relative path into a vector of segments
     let path_segments = &path_to_segments(wnfs_path).unwrap();
     // Load the data
-    let (_, manifest, forest, root_dir) = &mut load_pipeline(tomb_path).await?;
+    let (_, manifest, forest, root_dir) = &mut load_pipeline(true, tomb_path).await?;
     // Write the file
     write_file(
         path_segments,
@@ -28,7 +28,7 @@ pub async fn pipeline(input_file: &Path, tomb_path: &Path, wnfs_path: &Path) -> 
     )
     .await?;
     // Store all the updated information, now that we've written the file
-    store_pipeline(tomb_path, manifest, forest, root_dir).await?;
+    store_pipeline(true, tomb_path, manifest, forest, root_dir).await?;
     // Return Ok
     Ok(())
 }

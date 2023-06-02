@@ -113,7 +113,7 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, dir) = &mut load_pipeline(true, tomb_path).await?;
         // Grab the file at this path
         let result = dir
             .get_node(
@@ -156,7 +156,7 @@ mod test {
         let wnfs_segments = &path_to_segments(wnfs_path)?;
 
         // Load metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, dir) = &mut load_pipeline(true, tomb_path).await?;
         let result = dir
             .get_node(wnfs_segments, true, forest, &manifest.content_local)
             .await?;
@@ -167,7 +167,7 @@ mod test {
         remove::pipeline(tomb_path, wnfs_path).await?;
 
         // Reload metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, dir) = &mut load_pipeline(true, tomb_path).await?;
         let result = dir
             .get_node(wnfs_segments, true, forest, &manifest.content_local)
             .await?;

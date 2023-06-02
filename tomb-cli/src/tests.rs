@@ -4,13 +4,14 @@ mod test {
     use assert_cmd::prelude::*;
     use fs_extra::dir::CopyOptions;
     use predicates::prelude::*;
-    use tomb_common::utils::{tomb_config, get_remote};
+    use serial_test::serial;
     use std::{
         fs::{self, create_dir_all},
         path::Path,
         process::Command,
     };
     use tomb::utils::tests::{compute_directory_size, start_daemon, test_setup, test_teardown};
+    use tomb_common::utils::{get_remote, tomb_config};
 
     // Run the Pack pipeline through the CLI
     async fn pack_local(input_dir: &Path, output_dir: &Path) -> Result<Command> {
@@ -82,11 +83,16 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_pack_remote() -> Result<()> {
+        // Start the IPFS daemon
+        let mut ipfs = start_daemon();
         // Setup test
         let (input_dir, _) = &test_setup("cli_pack_remote").await?;
         // Run pack and assert success
         pack_remote(input_dir).await?.assert().success();
+        // Kill the daemon
+        ipfs.kill()?;
         // Teardown test
         test_teardown("cli_pack_remote").await
     }
@@ -129,6 +135,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_push_pull() -> Result<()> {
         // Start the IPFS daemon
         let mut ipfs = start_daemon();

@@ -9,11 +9,14 @@
 
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 
-use clap::Parser;
 use anyhow::Result;
-use std::{io::Write, fs::{create_dir_all, remove_dir_all}};
+use clap::Parser;
+use std::{
+    fs::{create_dir_all, remove_dir_all},
+    io::Write,
+};
 use tomb::pipelines::{add, pack, pull, push, unpack};
-use tomb_common::utils::{set_remote, tomb_config, get_network_blockstore};
+use tomb_common::utils::{get_network_blockstore, set_remote, tomb_config};
 mod cli;
 ///
 pub mod tests;

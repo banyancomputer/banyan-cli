@@ -16,6 +16,7 @@ log = "0.4.14"
 anyhow = "1"
 
 [dev-dependencies]
+serial_test = "2.0.0"
 anyhow = { version = "1", features = ["backtrace"] }
 fs_extra.workspace = true
 predicates = "3.0.3"
