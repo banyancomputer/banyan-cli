@@ -15,7 +15,7 @@ use wnfs::{
 use tomb_common::types::pipeline::Manifest;
 
 /// Store a Manifest
-pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()> {
+pub fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()> {
     // The path in which we expect to find the Manifest JSON file
     let manifest_file = tomb_path.join("manifest.cbor");
 
@@ -46,7 +46,7 @@ pub async fn store_manifest(tomb_path: &Path, manifest: &Manifest) -> Result<()>
 }
 
 /// Deserializes the Manifest struct from a given .tomb dir
-pub async fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
+pub fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
     info!("Loading in Manifest from disk");
     let manifest_file = tomb_path.join("manifest.cbor");
 
@@ -79,7 +79,7 @@ pub async fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
 }
 
 /// Store a TemporalKey
-pub async fn store_key(tomb_path: &Path, temporal_key: &TemporalKey, label: &str) -> Result<()> {
+pub fn store_key(tomb_path: &Path, temporal_key: &TemporalKey, label: &str) -> Result<()> {
     // The path in which we expect to find the Manifest JSON file
     let key_file = tomb_path.join(format!("{}.key", label));
     let mut key_writer = match std::fs::OpenOptions::new()
@@ -100,9 +100,8 @@ pub async fn store_key(tomb_path: &Path, temporal_key: &TemporalKey, label: &str
 
     Ok(())
 }
-
 /// Load a TemporalKey
-pub async fn load_key(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
+pub fn load_key(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
     info!("Loading in {} Key from disk", label);
     // The path in which we expect to find the Manifest JSON file
     let key_file = tomb_path.join(format!("{}.key", label));
@@ -228,8 +227,8 @@ pub async fn store_pipeline(
     // Store the dir, then the forest, then the manifest and key
     let temporal_key = store_dir(manifest, forest, root_dir, "current_root").await?;
     store_forest(manifest, forest).await?;
-    store_manifest(tomb_path, manifest).await?;
-    store_key(tomb_path, &temporal_key, "root").await?;
+    store_manifest(tomb_path, manifest)?;
+    store_key(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
 }
 
@@ -242,8 +241,8 @@ pub async fn load_pipeline(
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
-    let key = load_key(tomb_path, "root").await?;
-    let manifest = load_manifest(tomb_path).await?;
+    let key = load_key(tomb_path, "root")?;
+    let manifest = load_manifest(tomb_path)?;
     let forest = load_forest(&manifest).await?;
     let dir = load_dir(&manifest, &key, &forest, "current_root").await?;
     Ok((key, manifest, forest, dir))
@@ -325,8 +324,8 @@ mod test {
         let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
 
         // Store and load
-        store_key(&tomb_path, &key, "root").await?;
-        let new_key = load_key(&tomb_path, "root").await?;
+        store_key(&tomb_path, &key, "root")?;
+        let new_key = load_key(&tomb_path, "root")?;
 
         // Assert equality
         assert_eq!(key, new_key);
@@ -342,8 +341,8 @@ mod test {
         let (tomb_path, manifest, _, _) = setup().await?;
 
         // Store and load
-        store_manifest(&tomb_path, &manifest).await?;
-        let new_manifest = load_manifest(&tomb_path).await?;
+        store_manifest(&tomb_path, &manifest)?;
+        let new_manifest = load_manifest(&tomb_path)?;
 
         // Assert equality
         assert_eq!(manifest, new_manifest);

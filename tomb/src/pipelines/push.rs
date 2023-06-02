@@ -15,7 +15,7 @@ pub async fn pipeline(input_dir: &Path, store: &NetworkBlockStore) -> Result<()>
     let content_path = input_dir.join("content");
 
     // Load the manifest
-    let mut manifest = load_manifest(&tomb_path).await?;
+    let mut manifest = load_manifest(&tomb_path)?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;

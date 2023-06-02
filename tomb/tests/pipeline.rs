@@ -1,7 +1,7 @@
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
 use serial_test as _;
-use std::{path::Path, process::Command};
+use std::path::Path;
 use tomb::{
     pipelines::{pack, unpack},
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
@@ -377,7 +377,7 @@ mod test {
         let tomb_path = &test_path.join("unpacked").join(".tomb");
         let (key, manifest, mut forest, dir) = load_pipeline(tomb_path).await?;
 
-        let original_key = load_key(tomb_path, "original").await?;
+        let original_key = load_key(tomb_path, "original")?;
         let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;
 
         assert_ne!(key, original_key);

@@ -30,7 +30,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     ensure_path_exists_and_is_empty_dir(&content_path, true)?;
 
     // Load the Manifest
-    let mut manifest = load_manifest(&tomb_path).await?;
+    let mut manifest = load_manifest(&tomb_path)?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;
@@ -81,5 +81,5 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
     info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
 
     // Store the modified manifest
-    store_manifest(&tomb_path, &manifest).await
+    store_manifest(&tomb_path, &manifest)
 }

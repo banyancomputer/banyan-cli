@@ -123,8 +123,8 @@ pub async fn pipeline(
     else {
         println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
         // Load in the Manifest
-        let key = load_key(&tomb_path, "root").await?;
-        let manifest = load_manifest(&tomb_path).await?;
+        let key = load_key(&tomb_path, "root")?;
+        let manifest = load_manifest(&tomb_path)?;
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_forest) = load_forest(&manifest).await &&
@@ -290,7 +290,7 @@ pub async fn pipeline(
     if first_run {
         println!("storing original dir and key");
         let original_key = store_dir(&manifest, &mut forest, &root_dir, "original_root").await?;
-        store_key(&tomb_path, &original_key, "original").await?;
+        store_key(&tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
