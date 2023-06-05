@@ -72,7 +72,14 @@ async fn main() -> Result<()> {
             input_dir,
             output_dir,
         } => {
-            unpack::pipeline(&input_dir, &output_dir).await?;
+            match input_dir {
+                Some(input_dir) => {
+                    unpack::pipeline(Some(&input_dir), &output_dir).await?;
+                },
+                None => {
+                    unpack::pipeline(None, &output_dir).await?;
+                },
+            }
         }
         cli::Commands::Init {
             dir

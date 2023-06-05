@@ -8,10 +8,10 @@ use wnfs::{common::BlockStore, libipld::Cid};
 pub async fn pipeline(dir: &Path) -> Result<()> {
     info!("Sending blocks to remote server.");
     let tomb_path = dir.join(".tomb");
-    let content_path = dir.join("content");
+    let _content_path = dir.join("content");
 
     // Load the manifest
-    let mut manifest = load_manifest(&tomb_path)?;
+    let manifest = load_manifest(&tomb_path)?;
 
     // If this remote endpoint has not actually been configured
     if manifest.content_remote == NetworkBlockStore::default() {

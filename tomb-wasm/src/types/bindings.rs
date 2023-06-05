@@ -22,3 +22,8 @@ pub async fn retrieve_string(cid: String) -> Result<String, JsError> {
     let value: String = std::str::from_utf8(&bytes)?.to_string();
     Ok(value)
 }
+
+#[wasm_bindgen]
+pub async fn pack() {
+    
+}

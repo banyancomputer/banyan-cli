@@ -55,7 +55,7 @@ pub(crate) enum Commands {
     Unpack {
         /// Input directory in which packed files are stored.
         #[arg(short, long, help = "input directory")]
-        input_dir: PathBuf,
+        input_dir: Option<PathBuf>,
 
         /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory")]

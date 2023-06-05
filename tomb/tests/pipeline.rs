@@ -33,7 +33,7 @@ fn setup_test(test_path: &Path, structure: Structure, test_name: &str) {
 /// Helper function to run a test end to end
 /// # Arguments
 /// * test_path: Where we store artefacts for the test
-async fn run_test(test_path: &Path) {
+async fn run_test(test_path: &Path, test_name: &str) {
     // Declare Paths for the Input, Packed, Unpacked, and Manifest
     let input_path = test_path.join(INPUT_PATH);
     let packed_path = test_path.join(PACKED_PATH);
@@ -45,12 +45,12 @@ async fn run_test(test_path: &Path) {
         .unwrap();
 
     // Unpack the output
-    unpack::pipeline(&packed_path, &unpacked_path)
+    unpack::pipeline(Some(&packed_path), &unpacked_path)
         .await
         .unwrap();
 
     // checks if two directories are the same
-    assert_paths(input_path.clone(), unpacked_path.clone()).unwrap();
+    assert_paths(input_path.join(test_name), unpacked_path.join(test_name)).unwrap();
 }
 /// Small Input End to End Integration Tests for the Pipeline
 #[cfg(test)]
@@ -91,7 +91,7 @@ mod test {
         // Setup the test
         setup_test(&test_path, desired_structure, "test_simple");
         // Run the test
-        run_test(&test_path).await;
+        run_test(&test_path, "test_simple").await;
     }
 
     /// Test the pipeline with a very deep file structure
@@ -110,7 +110,7 @@ mod test {
         // Setup the test
         setup_test(&test_path, desired_structure, "test_deep");
         // Run the test
-        run_test(&test_path).await;
+        run_test(&test_path, "test_deep").await;
     }
 
     /// Test the pipeline with a very wide file structure
@@ -129,7 +129,7 @@ mod test {
         // Setup the test
         setup_test(&test_path, desired_structure, "test_wide");
         // Run the test
-        run_test(&test_path).await;
+        run_test(&test_path, "test_wide").await;
     }
 
     /// Test with one very big file -- ignore cuz it takes a while
@@ -144,7 +144,7 @@ mod test {
         // Setup the test
         setup_test(&test_path, desired_structure, "test_big_file");
         // Run the test
-        run_test(&test_path).await;
+        run_test(&test_path, "test_big_file").await;
     }
 
     /// Ensure that the pipeline can recover duplicate files
@@ -173,7 +173,7 @@ mod test {
         .unwrap();
 
         // Run the test to ensure input = output
-        run_test(&test_path).await;
+        run_test(&test_path, "duplicate_directory").await;
     }
 
     /// Ensure that the duplicate data occupies a smaller footprint when packed
@@ -233,8 +233,8 @@ mod test {
         assert_eq!(twin_dups_size, twin_unique_size);
 
         // Run the pipelines on both directories, also ensuring output = input
-        run_test(&twin_dups).await;
-        run_test(&twin_unique).await;
+        run_test(&twin_dups, "duplicate_directory").await;
+        run_test(&twin_unique, "unique1").await;
 
         // Write out the paths to both packed directories
         let packed_dups_path = twin_dups.join(PACKED_PATH);
@@ -260,7 +260,7 @@ mod test {
         let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 100, Strategy::Simple);
 
         // Setup the test
-        setup_test(&test_path, desired_structure, "0");
+        setup_test(&test_path, desired_structure, "test_large");
 
         // Duplicate the file in place
         fs_extra::file::copy(
@@ -271,7 +271,7 @@ mod test {
         .unwrap();
 
         // Run the test
-        run_test(&test_path).await;
+        run_test(&test_path, "test_large").await;
 
         // Assert that only one file was packed
         let packed_path = test_path.join(PACKED_PATH);
@@ -297,8 +297,8 @@ mod test {
         setup_test(&test_path, desired_structure, test_name);
 
         // Run the test twice
-        run_test(&test_path).await;
-        run_test(&test_path).await;
+        run_test(&test_path, test_name).await;
+        run_test(&test_path, test_name).await;
     }
 
     // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
@@ -350,7 +350,7 @@ mod test {
         println!("running for the first time...");
 
         // Run the test
-        run_test(&test_path).await;
+        run_test(&test_path, test_name).await;
 
         // Write "Still there, World?" out to the same file
         File::create(&versioned_file_path)
@@ -361,7 +361,7 @@ mod test {
             .unwrap();
 
         // Run the test again
-        run_test(&test_path).await;
+        run_test(&test_path, test_name).await;
 
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)
@@ -372,7 +372,7 @@ mod test {
             .unwrap();
 
         // Run the test again
-        run_test(&test_path).await;
+        run_test(&test_path, test_name).await;
 
         // The path in which we expect to find metadata
         let tomb_path = &test_path.join("unpacked").join(".tomb");
@@ -521,6 +521,6 @@ mod test {
         assert_eq!(file_original, read_link(file_sym).await.unwrap());
 
         // Run the test on the created filesystem
-        run_test(&test_path).await;
+        run_test(&test_path, "symlinks").await;
     }
 }

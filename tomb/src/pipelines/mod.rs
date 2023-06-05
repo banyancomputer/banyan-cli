@@ -20,13 +20,13 @@ mod test {
         utils::{
             serialize::{load_manifest, load_pipeline},
             spider::path_to_segments,
-            tests::{compute_directory_size, start_daemon, test_setup, test_teardown},
+            tests::{compute_directory_size, test_setup, test_teardown},
             wnfsio::decompress_bytes,
         },
     };
     use anyhow::Result;
     use dir_assert::assert_paths;
-    use fs_extra::dir::CopyOptions;
+    use fs_extra::{dir::{CopyOptions, move_dir}, move_items, copy_items};
     use serial_test::serial;
     use std::{
         fs::{self, create_dir_all, remove_dir_all, File},
@@ -80,12 +80,33 @@ mod test {
         let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(output_dir, unpacked_dir).await?;
+        unpack::pipeline(Some(output_dir), unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
         test_teardown("pipeline_pack_unpack_local").await
     }
+
+    #[tokio::test]
+    async fn pipeline_pack_unpack_remote() -> Result<()> {
+        // Create the setup conditions
+        let (input_dir, unpacked_dir) = &test_setup("pipeline_pack_unpack_remote").await?;
+        // Initialize tomb
+        configure::init(input_dir)?;
+        // Configure the remote endpoint
+        configure::remote(input_dir, "http://127.0.0.1", 5001)?;
+        // Pack remotely
+        pack::pipeline(input_dir, None, 262144, true).await?;
+        // Copy the .tomb into the unpack dir
+        copy_items(&[input_dir.join(".tomb")], &unpacked_dir, &CopyOptions::new())?;
+        // Unpack from remote
+        unpack::pipeline(None, unpacked_dir).await?;
+        // Assert the pre-packed and unpacked directories are identical
+        assert_paths(input_dir, unpacked_dir).unwrap();
+        // Teardown
+        test_teardown("pipeline_pack_unpack_remote").await
+    }
+
 
     #[tokio::test]
     async fn pipeline_pack_pull_unpack() -> Result<()> {
@@ -105,7 +126,7 @@ mod test {
         let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(output_dir, unpacked_dir).await?;
+        unpack::pipeline(Some(output_dir), unpacked_dir).await?;
         // Remove metadata such that it is not factored in comparison
         remove_dir_all(input_dir.join(".tomb"))?;
         remove_dir_all(unpacked_dir.join(".tomb"))?;

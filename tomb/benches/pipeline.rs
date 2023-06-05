@@ -336,7 +336,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path),
             // The routine to benchmark
-            |_| async { unpack::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
+            |_| async { unpack::pipeline(Some(black_box(packed_path)), black_box(unpacked_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

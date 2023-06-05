@@ -1,6 +1,7 @@
 use crate::utils::{serialize::load_pipeline, wnfsio::file_to_disk};
 use anyhow::Result;
 use async_recursion::async_recursion;
+use fs_extra::{copy_items, dir::CopyOptions};
 use std::path::Path;
 use wnfs::{
     common::BlockStore,
@@ -17,20 +18,31 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
-    // Paths representing metadata and content
-    let tomb_path = input_dir.join(".tomb");
-    let content_path = input_dir.join("content");
+pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()> {
+    // If there is an input dir specific with a valid tomb
+    if let Some(input_dir) = input_dir && let tomb_dir = input_dir.join(".tomb") && tomb_dir.exists() {
+        // Copy the existing tomb over to the output dir
+        copy_items(&[tomb_dir], output_dir, &CopyOptions::new().overwrite(true))?;
+    }
 
+    // Paths representing metadata and content
+    let tomb_path = output_dir.join(".tomb");
+    // If initialization hasnt even happened
+    if !tomb_path.exists() {
+        panic!(".tomb does not exist in input or output directories");
+    }
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
-
-    // Load
-    let (_, mut manifest, forest, dir) = load_pipeline(true, &tomb_path).await?;
+    // If this is a local unpack
+    let local = input_dir.is_some();
+    // Load metadata
+    let (_, mut manifest, forest, dir) = load_pipeline(local, &tomb_path).await?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;
-    manifest.content_local.change_dir(&content_path)?;
+    if local {
+        manifest.content_local.change_dir(&input_dir.unwrap().join("content"))?
+    }
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -86,21 +98,29 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
         Ok(())
     }
 
-    // Run extraction on the base level with an empty built path
-    process_node(
-        output_dir,
-        Path::new(""),
-        &dir.as_node(),
-        &forest,
-        &manifest.content_local,
-    )
-    .await?;
-
-    // Remove the .tomb directory from the output path if it is already there
-    let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
-    // Copy the cached metadata into the output directory
-    fs_extra::copy_items(&[tomb_path], output_dir, &fs_extra::dir::CopyOptions::new())
-        .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
+    if local {
+        // Run extraction on the base level with an empty built path
+        process_node(
+            output_dir,
+            Path::new(""),
+            &dir.as_node(),
+            &forest,
+            &manifest.content_local,
+        )
+        .await?;
+    }
+    else {
+        // Run extraction on the base level with an empty built path
+        process_node(
+            output_dir,
+            Path::new(""),
+            &dir.as_node(),
+            &forest,
+            &manifest.content_remote,
+        )
+        .await?;
+    }
+    
 
     Ok(())
 }
