@@ -1,6 +1,0 @@
-../env
-
-!Cargo.lock
-!Cargo.toml
-!src
-!benches

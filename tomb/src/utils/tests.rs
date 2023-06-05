@@ -1,8 +1,9 @@
 use anyhow::Result;
 use fake_file::{Strategy, Structure};
 use std::{
+    fs::create_dir_all,
     path::{Path, PathBuf},
-    process::{Child, Command}, fs::create_dir_all,
+    process::{Child, Command},
 };
 
 use super::fs::ensure_path_exists_and_is_empty_dir;

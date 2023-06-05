@@ -82,9 +82,15 @@ pub async fn pipeline(
     // Load the manifest
     let manifest = load_manifest(tomb_path)?;
     // Update the BlockStores we will use if they have non-default values
-    if manifest.meta_store != CarBlockStore::default() { meta_store = manifest.meta_store; }
-    if manifest.content_local != CarBlockStore::default() { content_local = manifest.content_local; }
-    if manifest.content_remote != NetworkBlockStore::default() { content_remote = manifest.content_remote; }
+    if manifest.meta_store != CarBlockStore::default() {
+        meta_store = manifest.meta_store;
+    }
+    if manifest.content_local != CarBlockStore::default() {
+        content_local = manifest.content_local;
+    }
+    if manifest.content_remote != NetworkBlockStore::default() {
+        content_remote = manifest.content_remote;
+    }
 
     // Create the root directory in which all Nodes will be stored
     let mut root_dir = Rc::new(PrivateDirectory::new(

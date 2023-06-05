@@ -13,9 +13,27 @@ use anyhow::Result;
 use clap::Parser;
 use std::{env, io::Write};
 use tomb::pipelines::{add, configure, pack, pull, push, unpack};
-mod cli;
-///
-pub mod tests;
+/// Command Line Interface and tests
+pub mod cli;
+
+use assert_cmd as _;
+use async_recursion as _;
+use blake2 as _;
+use chrono as _;
+use criterion as _;
+use dir_assert as _;
+use fake_file as _;
+use fclones as _;
+use fs_extra as _;
+use indicatif as _;
+use jwalk as _;
+use lazy_static as _;
+use predicates as _;
+use rand as _;
+use serde as _;
+use serial_test as _;
+use wnfs as _;
+use zstd as _;
 
 #[tokio::main]
 async fn main() -> Result<()> {

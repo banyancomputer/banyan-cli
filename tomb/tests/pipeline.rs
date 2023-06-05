@@ -3,7 +3,7 @@ use fake_file::{Strategy, Structure};
 use serial_test as _;
 use std::path::Path;
 use tomb::{
-    pipelines::{pack, unpack, configure},
+    pipelines::{configure, pack, unpack},
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 

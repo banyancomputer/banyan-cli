@@ -35,11 +35,15 @@
 */
 
 // Used by benchmarking and testing
+use assert_cmd as _;
+use clap as _;
 use criterion as _;
 use dir_assert as _;
+use env_logger as _;
 use fake_file as _;
 use fs_extra as _;
 use lazy_static as _;
+use predicates as _;
 
 #[allow(unused_extern_crates)]
 extern crate core;

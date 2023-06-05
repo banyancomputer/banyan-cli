@@ -29,7 +29,7 @@ mod test {
     use fs_extra::dir::CopyOptions;
     use serial_test::serial;
     use std::{
-        fs::{self, create_dir_all, File, remove_dir_all},
+        fs::{self, create_dir_all, remove_dir_all, File},
         io::Write,
         path::PathBuf,
     };
@@ -114,7 +114,6 @@ mod test {
         // Teardown
         test_teardown("pipeline_pack_pull_unpack").await
     }
-
 
     #[tokio::test]
     #[serial]

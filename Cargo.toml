@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "tomb",
-    "tomb-cli",
     "tomb-common",
     "tomb-wasm"
 ]
