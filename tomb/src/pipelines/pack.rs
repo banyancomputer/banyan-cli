@@ -6,7 +6,7 @@ use crate::{
             load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
         },
         spider::{self, path_to_segments},
-        wnfsio::{compress_file, get_progress_bar, write_file},
+        wnfsio::{compress_file, get_progress_bar},
     },
 };
 use anyhow::Result;
@@ -28,7 +28,7 @@ use tomb_common::types::{
 use wnfs::{
     common::BlockStore,
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest},
+    private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -60,7 +60,7 @@ pub async fn pipeline(
     let tomb_path = &input_dir.join(".tomb");
     // If initialization hasnt even happened
     if !tomb_path.exists() {
-        panic!("initialize first!");
+        panic!("Initialize this filesystem first with tomb init!");
     }
     // If the key has been made before
     let first_run = !tomb_path.join("root.key").exists();
@@ -69,27 +69,27 @@ pub async fn pipeline(
     // If the user provided an output directory
     let local = output_dir.is_some();
     // Declare the MetaData store
-    let mut meta_store = CarBlockStore::default();
+    let mut hot_local = CarBlockStore::default();
     // Local content storage need only be valid if this is a local job
-    let mut content_local: CarBlockStore = if local {
+    let mut cold_local: CarBlockStore = if local {
         CarBlockStore::new(&output_dir.unwrap().join("content"), None)
     } else {
         CarBlockStore::default()
     };
     // Declare the remote store
-    let mut content_remote = NetworkBlockStore::default();
+    let mut cold_remote = NetworkBlockStore::default();
 
     // Load the manifest
     let manifest = load_manifest(tomb_path)?;
     // Update the BlockStores we will use if they have non-default values
-    if manifest.meta_store != CarBlockStore::default() {
-        meta_store = manifest.meta_store;
+    if manifest.hot_local != CarBlockStore::default() {
+        hot_local = manifest.hot_local;
     }
-    if manifest.content_local != CarBlockStore::default() {
-        content_local = manifest.content_local;
+    if manifest.cold_local != CarBlockStore::default() {
+        cold_local = manifest.cold_local;
     }
-    if manifest.content_remote != NetworkBlockStore::default() {
-        content_remote = manifest.content_remote;
+    if manifest.cold_remote != NetworkBlockStore::default() {
+        cold_remote = manifest.cold_remote;
     }
 
     // Create the root directory in which all Nodes will be stored
@@ -104,7 +104,7 @@ pub async fn pipeline(
     // If this filesystem has never been packed
     if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        meta_store = CarBlockStore::new(tomb_path, None);
+        hot_local = CarBlockStore::new(tomb_path, None);
     }
     // If we've already packed this filesystem before
     else {
@@ -116,7 +116,7 @@ pub async fn pipeline(
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_forest) = load_forest(&manifest).await &&
-           let Ok(new_dir) = load_dir(local, &manifest, &key, &new_forest, "current_root").await {
+           let Ok(new_dir) = load_dir(&manifest, &key, &new_forest, "current_root").await {
             // Update the forest and root directory
             forest = new_forest;
             root_dir = new_dir;
@@ -125,7 +125,7 @@ pub async fn pipeline(
         // If the load was unsuccessful
         else {
             info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-            meta_store = CarBlockStore::new(tomb_path, None);
+            hot_local = CarBlockStore::new(tomb_path, None);
         }
     }
 
@@ -137,7 +137,8 @@ pub async fn pipeline(
             progress_bar,
             &mut root_dir,
             &mut forest,
-            &content_local,
+            &hot_local,
+            &cold_local,
         )
         .await?;
     } else {
@@ -147,7 +148,8 @@ pub async fn pipeline(
             progress_bar,
             &mut root_dir,
             &mut forest,
-            &content_remote,
+            &hot_local,
+            &cold_remote,
         )
         .await?;
     }
@@ -155,20 +157,19 @@ pub async fn pipeline(
     // Construct the latest version of the Manifest struct
     let manifest = Manifest {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        content_local,
-        content_remote,
-        meta_store,
+        cold_local,
+        cold_remote,
+        hot_local,
     };
 
     if first_run {
         println!("storing original dir and key");
-        let original_key =
-            store_dir(local, &manifest, &mut forest, &root_dir, "original_root").await?;
+        let original_key = store_dir(&manifest, &mut forest, &root_dir, "original_root").await?;
         store_key(tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_pipeline(local, tomb_path, &manifest, &mut forest, &root_dir).await?;
+    let _ = store_pipeline(tomb_path, &manifest, &mut forest, &root_dir).await?;
 
     if let Some(output_dir) = output_dir {
         // Remove the .tomb directory from the output path if it is already there
@@ -218,7 +219,8 @@ async fn process_plans(
     progress_bar: &ProgressBar,
     root_dir: &mut Rc<PrivateDirectory>,
     forest: &mut Rc<PrivateForest>,
-    content_local: &impl BlockStore,
+    hot_store: &impl BlockStore,
+    cold_store: &impl BlockStore,
 ) -> Result<()> {
     // Rng
     let rng: &mut rand::rngs::ThreadRng = &mut thread_rng();
@@ -242,19 +244,27 @@ async fn process_plans(
     for direct_plan in direct_plans {
         match direct_plan {
             PackPipelinePlan::FileGroup(metadatas) => {
-                // Compress the data in the file
+                // Grab the metadata for the first occurrence of this file
+                let first = &metadatas.get(0).unwrap().original_location;
+                // Turn the relative path into a vector of segments
+                let path_segments = &path_to_segments(first).unwrap();
+                // Grab the current time
+                let time = Utc::now();
+                // Open the PrivateFile
+                let file: &mut PrivateFile = root_dir
+                    .open_file_mut(path_segments, true, time, forest, hot_store, rng)
+                    .await?;
+                // Compress the data in the file on disk
                 let content = compress_file(
                     &metadatas
                         .get(0)
                         .expect("why is there nothing in metadatas")
                         .canonicalized_path,
                 )?;
-                // Grab the metadata for the first occurrence of this file
-                let first = &metadatas.get(0).unwrap().original_location;
-                // Turn the relative path into a vector of segments
-                let path_segments = &path_to_segments(first).unwrap();
-                // Write the file
-                write_file(path_segments, content, root_dir, forest, content_local, rng).await?;
+                // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
+                file.set_content(time, content.as_slice(), forest, cold_store, rng)
+                    .await;
+
                 // Duplicates need to be linked no matter what
                 for metadata in &metadatas[1..] {
                     // Grab the original location
@@ -264,25 +274,12 @@ async fn process_plans(
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
                     root_dir
-                        .mkdir(
-                            folder_segments,
-                            true,
-                            Utc::now(),
-                            forest,
-                            content_local,
-                            rng,
-                        )
+                        .mkdir(folder_segments, true, Utc::now(), forest, hot_store, rng)
                         .await
                         .unwrap();
                     // Copy the file from the original path to the duplicate path
                     root_dir
-                        .cp_link(
-                            path_segments,
-                            dup_path_segments,
-                            true,
-                            forest,
-                            content_local,
-                        )
+                        .cp_link(path_segments, dup_path_segments, true, forest, hot_store)
                         .await
                         .unwrap();
                 }
@@ -295,14 +292,14 @@ async fn process_plans(
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, true, forest, content_local)
+                    .get_node(&path_segments, true, forest, hot_store)
                     .await;
 
                 // If there was an error searching for the Node or
                 if result.is_err() || result.as_ref().unwrap().is_none() {
                     // Create the subdirectory
                     root_dir
-                        .mkdir(&path_segments, true, Utc::now(), forest, content_local, rng)
+                        .mkdir(&path_segments, true, Utc::now(), forest, hot_store, rng)
                         .await?;
                 }
                 // We don't need an else here, directories don't actually contain any data
@@ -329,7 +326,7 @@ async fn process_plans(
                         true,
                         Utc::now(),
                         forest,
-                        content_local,
+                        hot_store,
                         rng,
                     )
                     .await

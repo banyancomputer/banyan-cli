@@ -12,20 +12,21 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
 
     // Load the manifest
     let manifest = load_manifest(&tomb_path)?;
+    info!("Loaded manifest...");
 
     // If this remote endpoint has not actually been configured
-    if manifest.content_remote == NetworkBlockStore::default() {
-        println!("content_remote: {:?}", manifest.content_remote);
+    if manifest.cold_remote == NetworkBlockStore::default() {
+        println!("cold_remote: {:?}", manifest.cold_remote);
         panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
     }
 
     // Update the locations of the CarBlockStores to be relative to the input path
-    // manifest.meta_store.change_dir(&tomb_path)?;
-    // manifest.content_local.change_dir(&content_path)?;
-    // manifest.content_remote.addr = "".to_string();
+    // manifest.hot_local.change_dir(&tomb_path)?;
+    // manifest.cold_local.change_dir(&content_path)?;
+    // manifest.cold_remote.addr = "".to_string();
 
     // Grab all Block CIDs
-    let children: Vec<Cid> = manifest.content_local.get_all_cids();
+    let children: Vec<Cid> = manifest.cold_local.get_all_cids();
 
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(children.len() as u64)?;
@@ -35,10 +36,10 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // For each child CID in the list
     for child in children {
         // Grab the bytes from the local store
-        let bytes = manifest.content_local.get_block(&child).await?;
+        let bytes = manifest.cold_local.get_block(&child).await?;
         // Throw those bytes onto the remote network
         manifest
-            .content_remote
+            .cold_remote
             .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
             .await?;
 

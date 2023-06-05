@@ -7,21 +7,17 @@ use crate::utils::{
     serialize::{load_forest, load_manifest, store_manifest},
     wnfsio::get_progress_bar,
 };
-use tomb_common::types::blockstore::{
-    carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore,
-};
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pipeline(dir: &Path) -> Result<()> {
     // Represent relative directories for .tomb and content
     let tomb_path = dir.join(".tomb");
     let content_path = dir.join("content");
-
     // Load the Manifest
-    let mut manifest = load_manifest(&tomb_path)?;
-
+    let manifest = load_manifest(&tomb_path)?;
     // If this remote endpoint has not actually been configured
-    if manifest.content_remote == NetworkBlockStore::default() {
+    if manifest.cold_remote == NetworkBlockStore::default() {
         panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
     }
 
@@ -31,10 +27,10 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     ensure_path_exists_and_is_empty_dir(&content_path, true)?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
-    manifest.meta_store.change_dir(&tomb_path)?;
+    // manifest.hot_local.change_dir(&tomb_path)?;
 
-    // Erase the old content store, assume all data has been lost
-    manifest.content_local = CarBlockStore::new(&content_path, None);
+    // // Erase the old content store, assume all data has been lost
+    // manifest.cold_local = CarBlockStore::new(&content_path, None);
 
     // Load the forest
     let forest = load_forest(&manifest).await?;
@@ -42,8 +38,9 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
     // Find CID differences as a way of tallying all Forest CIDs
     let differences = forest
-        .diff(&Rc::new(PrivateForest::new()), &manifest.content_local)
+        .diff(&Rc::new(PrivateForest::new()), &manifest.hot_local)
         .await?;
+
     let mut children = HashSet::new();
     for difference in differences {
         if let Some(difference1) = difference.value1 {
@@ -60,10 +57,10 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
 
     for child in children {
         // Grab the bytes from the remote network
-        let bytes = manifest.content_remote.get_block(&child).await?;
+        let bytes = manifest.cold_remote.get_block(&child).await?;
         // Throw those bytes onto the local store
         manifest
-            .content_local
+            .cold_local
             .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
             .await?;
         // Denote progress for each loop iteration

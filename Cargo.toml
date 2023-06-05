@@ -32,8 +32,6 @@ categories = [
 # End cargo publication
 
 [workspace.dependencies]
-# Our core library -- is a dependency of the binary
-tomb = { path = "tomb" }
 # Dependencies
 clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
@@ -51,8 +49,8 @@ dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch 
 zstd = "0.12.3"
 fclones = "0.30.0"
 # For local dev if needed..
-#wnfs = { path = "../rs-wnfs/wnfs" }
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs" }
+wnfs = { path = "../rs-wnfs/wnfs" }
+#wnfs = { git = "https://github.com/banyancomputer/rs-wnfs" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]

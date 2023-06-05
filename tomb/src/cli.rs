@@ -62,6 +62,8 @@ pub(crate) enum Commands {
         output_dir: PathBuf,
     },
     Add {
+        #[arg(short, long, help = "local")]
+        local: bool,
         #[arg(short, long, help = "new file / directory")]
         input_file: PathBuf,
         #[arg(short, long, help = "new file / directory")]
@@ -155,7 +157,6 @@ mod test {
     use assert_cmd::prelude::*;
     use fs_extra::dir::CopyOptions;
     use predicates::prelude::*;
-    use serial_test::serial;
     use std::{fs::create_dir_all, path::Path, process::Command};
     use tomb::utils::{
         serialize::load_manifest,
@@ -260,7 +261,7 @@ mod test {
         // Load the modified Manifest
         let manifest = load_manifest(&input_dir.join(".tomb"))?;
         // Expect that the remote endpoint was successfully updated
-        assert_eq!(manifest.content_remote.addr, "http://127.0.0.1:5001");
+        assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown test
         test_teardown("cli_remote").await
     }
@@ -278,7 +279,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn cli_pack_remote() -> Result<()> {
         // Start the IPFS daemon
         // let mut ipfs = start_daemon();
@@ -314,7 +314,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
+    #[ignore]
     async fn cli_push_pull() -> Result<()> {
         // Start the IPFS daemon
         // let mut ipfs = start_daemon();

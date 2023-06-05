@@ -24,6 +24,4 @@ pub async fn retrieve_string(cid: String) -> Result<String, JsError> {
 }
 
 #[wasm_bindgen]
-pub async fn pack() {
-    
-}
+pub async fn pack() {}

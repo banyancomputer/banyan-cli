@@ -31,7 +31,6 @@ use lazy_static as _;
 use predicates as _;
 use rand as _;
 use serde as _;
-use serial_test as _;
 use wnfs as _;
 use zstd as _;
 
@@ -117,8 +116,8 @@ async fn main() -> Result<()> {
             // Start the Push pipeline
             push::pipeline(&dir).await?;
         },
-        cli::Commands::Add {input_file, tomb_path, wnfs_path } => {
-            add::pipeline(&input_file, &tomb_path, &wnfs_path).await?;
+        cli::Commands::Add { local, input_file, tomb_path, wnfs_path } => {
+            add::pipeline(local, &input_file, &tomb_path, &wnfs_path).await?;
         },
         cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
     }

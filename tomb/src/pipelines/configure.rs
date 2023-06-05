@@ -45,7 +45,7 @@ pub fn remote(dir: &Path, url: &str, port: u16) -> Result<()> {
     let tomb_path = &dir.join(".tomb");
     let mut manifest = load_manifest(tomb_path)?;
     // Set the remote endpoint
-    manifest.content_remote = NetworkBlockStore::new(url, port);
+    manifest.cold_remote = NetworkBlockStore::new(url, port);
     // Store the updated Manifest
     store_manifest(tomb_path, &manifest)
 }

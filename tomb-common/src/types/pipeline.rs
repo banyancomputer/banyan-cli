@@ -13,20 +13,20 @@ pub struct Manifest {
     /// The project version that was used to encode this Manifest
     pub version: String,
     /// The BlockStore that holds all packed data
-    pub content_local: CarBlockStore,
+    pub cold_local: CarBlockStore,
     /// The BlockStore that holds all packed data, remotely
-    pub content_remote: NetworkBlockStore,
+    pub cold_remote: NetworkBlockStore,
     /// The BlockStore that holds all Metadata
-    pub meta_store: CarBlockStore,
+    pub hot_local: CarBlockStore,
 }
 
 impl Default for Manifest {
     fn default() -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            content_local: Default::default(),
-            content_remote: Default::default(),
-            meta_store: Default::default(),
+            cold_local: Default::default(),
+            cold_remote: Default::default(),
+            hot_local: Default::default(),
         }
     }
 }

@@ -51,72 +51,17 @@ pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
 }
 
 /// Writes content to a given path within a given WNFS filesystem, ensuring that duplicate writing is avoided
-pub async fn write_file(
-    path_segments: &[String],
-    content: Vec<u8>,
-    dir: &mut Rc<PrivateDirectory>,
-    forest: &mut Rc<PrivateForest>,
-    content_local: &impl BlockStore,
-    rng: &mut impl RngCore,
-) -> Result<()> {
-    // Grab the current time
-    let time = Utc::now();
-    // Search through the PrivateDirectory for a Node that matches the path provided
-    let result = dir
-        .get_node(path_segments, true, forest, content_local)
-        .await;
-    // If the file does not exist in the PrivateForest or an error occurred in searching for it
-    if result.is_err() || result.as_ref().unwrap().is_none() {
-        // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-        dir.write(
-            path_segments,
-            true,
-            time,
-            content,
-            forest,
-            content_local,
-            rng,
-        )
-        .await
-    }
-    // If the file exists in the PrivateForest
-    else {
-        // Forcibly cast because we know this is a file
-        let file: Rc<PrivateFile> = result.unwrap().unwrap().as_file().unwrap();
-        // Grab the content that already exists in the PrivateFile at this path
-        let existing_file_content = file.get_content(forest, content_local).await?;
+// pub async fn write_file(
+//     path_segments: &[String],
+//     content: Vec<u8>,
+//     dir: &mut Rc<PrivateDirectory>,
+//     forest: &mut Rc<PrivateForest>,
+//     hot_store: &impl BlockStore,
+//     cold_store: &impl BlockStore,
+//     rng: &mut impl RngCore,
+// ) -> Result<()> {
 
-        // Create Hashers for both the new content and the old content
-        let mut h1 = Blake2b512::new();
-        let mut h2 = Blake2b512::new();
-        h1.update(&content);
-        h2.update(&existing_file_content);
-
-        // If the file has been modified since the last time it was packed
-        if h1.finalize() != h2.finalize() {
-            println!(
-                "The file at {:?} has changed between the previous packing and now, rewriting",
-                path_segments
-            );
-            // Write the new bytes to the path where the file was originally
-            // TODO (organizedgrime) - Here we need to do something with versioning!
-            dir.write(
-                path_segments,
-                true,
-                time,
-                content,
-                forest,
-                content_local,
-                rng,
-            )
-            .await
-            .unwrap();
-        }
-
-        // Return OK
-        Ok(())
-    }
-}
+// }
 
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
 pub async fn file_to_disk(
@@ -124,7 +69,7 @@ pub async fn file_to_disk(
     output_dir: &Path,
     file_path: &Path,
     forest: &PrivateForest,
-    store: &impl BlockStore,
+    cold_store: &impl BlockStore,
 ) -> Result<()> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {
@@ -139,7 +84,7 @@ pub async fn file_to_disk(
         let mut content: Vec<u8> = Vec::new();
         // Get and decompress bytes associated with this file
         decompress_bytes(
-            file.get_content(forest, store).await?.as_slice(),
+            file.get_content(forest, cold_store).await?.as_slice(),
             &mut content,
         )?;
         // Write all contents to the output file

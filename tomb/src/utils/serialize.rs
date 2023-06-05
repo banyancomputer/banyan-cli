@@ -1,6 +1,5 @@
 use anyhow::Result;
 use rand::thread_rng;
-use serial_test as _;
 use std::{
     io::{Read, Write},
     path::Path,
@@ -120,25 +119,16 @@ pub fn load_key(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
 }
 
 /// Store a PrivateForest
-pub async fn store_forest(
-    local: bool,
-    manifest: &Manifest,
-    forest: &mut Rc<PrivateForest>,
-) -> Result<()> {
+pub async fn store_forest(manifest: &Manifest, forest: &mut Rc<PrivateForest>) -> Result<()> {
     // Extract BlockStores
-    let content_local = &manifest.content_local;
-    let content_remote = &manifest.content_remote;
-    let meta_store = &manifest.meta_store;
+    let hot_local = &manifest.hot_local;
     // Create an IPLD from the PrivateForest
-    let forest_ipld = if local {
-        forest.async_serialize_ipld(content_local).await?
-    } else {
-        forest.async_serialize_ipld(content_remote).await?
-    };
+    let forest_ipld = forest.async_serialize_ipld(hot_local).await?;
+
     // Store the PrivateForest's IPLD in the BlockStore
-    let ipld_cid = meta_store.put_serializable(&forest_ipld).await?;
+    let ipld_cid = hot_local.put_serializable(&forest_ipld).await?;
     // Add PrivateForest associated roots to meta store
-    meta_store.insert_root("ipld_cid", ipld_cid);
+    hot_local.insert_root("ipld_cid", ipld_cid);
     // Return Ok
     Ok(())
 }
@@ -147,10 +137,10 @@ pub async fn store_forest(
 pub async fn load_forest(manifest: &Manifest) -> Result<Rc<PrivateForest>> {
     info!("Loading in PrivateForest from disk");
 
-    let ipld_cid = &manifest.meta_store.get_root("ipld_cid")?;
+    let ipld_cid = &manifest.hot_local.get_root("ipld_cid")?;
 
     // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = manifest.meta_store.get_deserializable(ipld_cid).await?;
+    let forest_ipld: Ipld = manifest.hot_local.get_deserializable(ipld_cid).await?;
     // Create a PrivateForest from that IPLD DAG
     let forest: Rc<PrivateForest> =
         Rc::new(ipld_serde::from_ipld::<PrivateForest>(forest_ipld).unwrap());
@@ -161,26 +151,19 @@ pub async fn load_forest(manifest: &Manifest) -> Result<Rc<PrivateForest>> {
 
 /// Store a PrivateDirectory
 pub async fn store_dir(
-    local: bool,
     manifest: &Manifest,
     forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
     cid_key: &str,
 ) -> Result<TemporalKey> {
     // Extract BlockStores
-    let content_local = &manifest.content_local;
-    let content_remote = &manifest.content_remote;
-    let meta_store = &manifest.meta_store;
+    let hot_local = &manifest.hot_local;
 
     // Random number generator
     let rng = &mut thread_rng();
 
     // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
-    let dir_ref: PrivateRef = if local {
-        dir.store(forest, content_local, rng).await?
-    } else {
-        dir.store(forest, content_remote, rng).await?
-    };
+    let dir_ref: PrivateRef = dir.store(forest, hot_local, rng).await?;
 
     // Extract the component fields of the PrivateDirectory's PrivateReference
     let PrivateRef {
@@ -190,12 +173,12 @@ pub async fn store_dir(
     } = dir_ref;
 
     // Store it in the Metadata CarBlockStore
-    let ref_cid = meta_store
+    let ref_cid = hot_local
         .put_serializable::<(HashOutput, Cid)>(&(saturated_name_hash, content_cid))
         .await?;
 
     // Add PrivateDirectory associated roots to meta store
-    meta_store.insert_root(cid_key, ref_cid);
+    hot_local.insert_root(cid_key, ref_cid);
 
     // Return OK
     Ok(temporal_key)
@@ -203,7 +186,6 @@ pub async fn store_dir(
 
 /// Load a PrivateDirectory
 pub async fn load_dir(
-    local: bool,
     manifest: &Manifest,
     key: &TemporalKey,
     forest: &Rc<PrivateForest>,
@@ -211,15 +193,13 @@ pub async fn load_dir(
 ) -> Result<Rc<PrivateDirectory>> {
     info!("Loading in PrivateDirectory from disk");
     // Extract BlockStores
-    let content_local = &manifest.content_local;
-    let content_remote = &manifest.content_remote;
-    let meta_store = &manifest.meta_store;
+    let hot_local = &manifest.hot_local;
 
     // Get the PrivateRef CID
-    let ref_cid = meta_store.get_root(cid_key)?;
+    let ref_cid = hot_local.get_root(cid_key)?;
 
     // Construct the saturated name hash
-    let (saturated_name_hash, content_cid): (HashOutput, Cid) = meta_store
+    let (saturated_name_hash, content_cid): (HashOutput, Cid) = hot_local
         .get_deserializable::<(HashOutput, Cid)>(&ref_cid)
         .await?;
 
@@ -228,30 +208,23 @@ pub async fn load_dir(
         PrivateRef::with_temporal_key(saturated_name_hash, key.clone(), content_cid);
 
     // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = if local {
-        PrivateNode::load(&dir_ref, forest, content_local)
-            .await?
-            .as_dir()?
-    } else {
-        PrivateNode::load(&dir_ref, forest, content_remote)
-            .await?
-            .as_dir()?
-    };
+    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, forest, hot_local)
+        .await?
+        .as_dir()?;
 
     Ok(dir)
 }
 
 /// Store everything at once!
 pub async fn store_pipeline(
-    local: bool,
     tomb_path: &Path,
     manifest: &Manifest,
     forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     // Store the dir, then the forest, then the manifest and key
-    let temporal_key = store_dir(local, manifest, forest, root_dir, "current_root").await?;
-    store_forest(local, manifest, forest).await?;
+    let temporal_key = store_dir(manifest, forest, root_dir, "current_root").await?;
+    store_forest(manifest, forest).await?;
     store_manifest(tomb_path, manifest)?;
     store_key(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
@@ -259,7 +232,6 @@ pub async fn store_pipeline(
 
 /// Load everything at once!
 pub async fn load_pipeline(
-    local: bool,
     tomb_path: &Path,
 ) -> Result<(
     TemporalKey,
@@ -270,7 +242,7 @@ pub async fn load_pipeline(
     let key = load_key(tomb_path, "root")?;
     let manifest = load_manifest(tomb_path)?;
     let forest = load_forest(&manifest).await?;
-    let dir = load_dir(local, &manifest, &key, &forest, "current_root").await?;
+    let dir = load_dir(&manifest, &key, &forest, "current_root").await?;
     Ok((key, manifest, forest, dir))
 }
 
@@ -286,7 +258,6 @@ mod test {
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;
-    use serial_test::serial;
     use std::{fs, path::PathBuf, rc::Rc};
     use tomb_common::types::{
         blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
@@ -298,15 +269,17 @@ mod test {
     };
 
     // Create all of the relevant objects, using real CarBlockStores and real data
-    async fn setup() -> Result<(PathBuf, Manifest, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-        let path = PathBuf::from("serialtest");
+    async fn setup(
+        test_name: &str,
+    ) -> Result<(PathBuf, Manifest, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+        let path = PathBuf::from(test_name);
         ensure_path_exists_and_is_dir(&path)?;
 
         let content_path = path.join("content");
         let tomb_path = path.join(".tomb");
 
-        let content_local = CarBlockStore::new(&content_path, None);
-        let meta_store = CarBlockStore::new(&tomb_path, None);
+        let cold_local = CarBlockStore::new(&content_path, None);
+        let hot_local = CarBlockStore::new(&tomb_path, None);
 
         let rng = &mut thread_rng();
         let mut root_dir = Rc::new(PrivateDirectory::new(
@@ -315,46 +288,53 @@ mod test {
             rng,
         ));
         let mut forest = Rc::new(PrivateForest::new());
-        root_dir
-            .write(
+        // Open new file
+        let file = root_dir
+            .open_file_mut(
                 &["cats".to_string()],
                 true,
                 Utc::now(),
-                b"Hello kitty cat!".to_vec(),
                 &mut forest,
-                &content_local,
+                &hot_local,
                 rng,
             )
             .await?;
-
+        // Set file content
+        file.set_content(
+            Utc::now(),
+            "Hello Kitty!".as_bytes(),
+            &mut forest,
+            &cold_local,
+            rng,
+        )
+        .await?;
         // Default remote endpoint
-        let content_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
-
+        let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
+        //
         let manifest_data = Manifest {
             version: "1.1.0".to_string(),
-            content_local,
-            content_remote,
-            meta_store,
+            cold_local,
+            cold_remote,
+            hot_local,
         };
 
         Ok((tomb_path, manifest_data, forest, root_dir))
     }
 
     // Delete the temporary directory
-    async fn teardown() -> Result<()> {
-        let path = PathBuf::from("serialtest");
+    async fn teardown(test_name: &str) -> Result<()> {
+        let path = PathBuf::from(test_name);
         fs::remove_dir_all(path)?;
         Ok(())
     }
 
     #[tokio::test]
-    #[serial]
-    async fn test_serial_key() -> Result<()> {
+    async fn serial_key() -> Result<()> {
         // Start er up!
-        let (tomb_path, manifest, mut forest, dir) = setup().await?;
+        let (tomb_path, manifest, mut forest, dir) = setup("serial_key").await?;
 
         // Generate key for this directory
-        let key = store_dir(true, &manifest, &mut forest, &dir, "dir").await?;
+        let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
 
         // Store and load
         store_key(&tomb_path, &key, "root")?;
@@ -364,14 +344,13 @@ mod test {
         assert_eq!(key, new_key);
 
         // Teardown
-        teardown().await
+        teardown("serial_key").await
     }
 
     #[tokio::test]
-    #[serial]
-    async fn test_serial_manifest() -> Result<()> {
+    async fn serial_manifest() -> Result<()> {
         // Start er up!
-        let (tomb_path, manifest, _, _) = setup().await?;
+        let (tomb_path, manifest, _, _) = setup("serial_manifest").await?;
 
         // Store and load
         store_manifest(&tomb_path, &manifest)?;
@@ -381,65 +360,59 @@ mod test {
         assert_eq!(manifest, new_manifest);
 
         // Teardown
-        teardown().await
+        teardown("serial_manifest").await
     }
 
     #[tokio::test]
-    #[serial]
-    async fn test_serial_forest() -> Result<()> {
+    async fn serial_forest() -> Result<()> {
         // Start er up!
-        let (_, manifest, mut forest, _) = setup().await?;
+        let (_, manifest, mut forest, _) = setup("serial_forest").await?;
 
         // Store and load
-        store_forest(true, &manifest, &mut forest).await?;
+        store_forest(&manifest, &mut forest).await?;
         let new_forest = load_forest(&manifest).await?;
 
         // Assert equality
         assert_eq!(
-            new_forest
-                .diff(&forest, &manifest.content_local)
-                .await?
-                .len(),
+            new_forest.diff(&forest, &manifest.cold_local).await?.len(),
             0
         );
 
         // Teardown
-        teardown().await
+        teardown("serial_forest").await
     }
 
     #[tokio::test]
-    #[serial]
-    async fn test_serial_dir() -> Result<()> {
+    async fn serial_dir() -> Result<()> {
         // Start er up!
-        let (_, manifest, mut forest, dir) = setup().await?;
+        let (_, manifest, mut forest, dir) = setup("serial_dir").await?;
 
-        let key = store_dir(true, &manifest, &mut forest, &dir, "dir").await?;
-        store_forest(true, &manifest, &mut forest).await?;
+        let key = store_dir(&manifest, &mut forest, &dir, "dir").await?;
+        store_forest(&manifest, &mut forest).await?;
         let new_forest = load_forest(&manifest).await?;
-        let new_dir = load_dir(true, &manifest, &key, &new_forest, "dir").await?;
+        let new_dir = load_dir(&manifest, &key, &new_forest, "dir").await?;
         // Assert equality
         assert_eq!(dir, new_dir);
 
         // Teardown
-        teardown().await
+        teardown("serial_dir").await
     }
 
     #[tokio::test]
-    #[serial]
-    async fn test_serial_pipeline() -> Result<()> {
+    async fn serial_pipeline() -> Result<()> {
         // Start er up!
-        let (tomb_path, manifest, mut forest, dir) = setup().await?;
+        let (tomb_path, manifest, mut forest, dir) = setup("serial_pipeline").await?;
 
         // Store and load
-        let key = store_pipeline(true, &tomb_path, &manifest, &mut forest, &dir).await?;
-        let (new_key, new_manifest, new_forest, new_dir) = load_pipeline(true, &tomb_path).await?;
+        let key = store_pipeline(&tomb_path, &manifest, &mut forest, &dir).await?;
+        let (new_key, new_manifest, new_forest, new_dir) = load_pipeline(&tomb_path).await?;
 
         // Assert equality
         assert_eq!(new_key, key);
         assert_eq!(new_manifest, manifest);
         assert_eq!(
             new_forest
-                .diff(&forest, &new_manifest.content_local)
+                .diff(&forest, &new_manifest.cold_local)
                 .await?
                 .len(),
             0
@@ -447,6 +420,56 @@ mod test {
         assert_eq!(new_dir, dir);
 
         // Teardown
-        teardown().await
+        teardown("serial_pipeline").await
+    }
+
+    #[tokio::test]
+    async fn serial_dir_content() -> Result<()> {
+        // Start er up!
+        let (_, manifest, mut original_forest, mut original_dir) =
+            setup("serial_dir_content").await?;
+        // Grab the original file
+        let original_file = original_dir
+            .open_file_mut(
+                &["cats".to_string()],
+                true,
+                Utc::now(),
+                &mut original_forest,
+                &manifest.hot_local,
+                &mut thread_rng(),
+            )
+            .await?;
+        // Get the content
+        let original_content = original_file
+            .get_content(&mut original_forest, &manifest.cold_local)
+            .await?;
+
+        let key = store_dir(&manifest, &mut original_forest, &original_dir, "dir").await?;
+        store_forest(&manifest, &mut original_forest).await?;
+
+        let mut new_forest = load_forest(&manifest).await?;
+        let mut new_dir = load_dir(&manifest, &key, &new_forest, "dir").await?;
+        // Assert equality
+        assert_eq!(original_dir, new_dir);
+
+        let file = new_dir
+            .open_file_mut(
+                &["cats".to_string()],
+                true,
+                Utc::now(),
+                &mut new_forest,
+                &manifest.hot_local,
+                &mut thread_rng(),
+            )
+            .await?;
+        // Get the content
+        let new_content = file
+            .get_content(&mut new_forest, &manifest.cold_local)
+            .await?;
+
+        assert_eq!(original_content, new_content);
+
+        // Teardown
+        teardown("serial_dir_content").await
     }
 }
