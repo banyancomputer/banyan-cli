@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use log::LevelFilter;
 use std::path::PathBuf;
+use tomb_common as _;
 
 // TODO add support for https://docs.rs/keyring/latest/keyring/
 // TODO what's going on with buckets? these are URLs right?
@@ -18,6 +19,9 @@ pub(crate) enum ConfigSubCommands {
     },
     /// tomb seturl - Set the ID for this tomb's bucket - MAY BREAK YOUR EVERYTHING!!!
     SetRemote {
+        /// Input directory
+        #[arg(short, long, help = "directory")]
+        dir: Option<PathBuf>,
         /// Server address
         #[arg(short, long, help = "remote IPv4 address")]
         url: String,
@@ -80,8 +84,8 @@ pub(crate) enum Commands {
     /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
     Push {
         /// Input directory in which packed files are stored.
-        #[arg(short, long, help = "input directory")]
-        input_dir: PathBuf,
+        #[arg(short, long, help = "directory")]
+        dir: PathBuf,
     },
     ///- Initialize Tomb - Abort if the `~/.tomb` path already exists
     //- Create a new directory at `~/.tomb`
@@ -92,7 +96,11 @@ pub(crate) enum Commands {
     //    - `tombolo_path: ~/.tomb/olo`
     //    - `index_path: ~/.tomb/index`
     /// tomb init - create a new .tomb file and populate it.
-    Init,
+    Init {
+        /// Input directory
+        #[arg(short, long, help = "directory")]
+        dir: Option<PathBuf>,
+    },
     /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
     Login,
     /// tomb register <bucket_name> - Register a new bucket on the tombolo service for this data. then you can push to it. MUST be called before push.

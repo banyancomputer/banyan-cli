@@ -6,14 +6,14 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{borrow::Cow, net::Ipv4Addr, str::from_utf8};
+use std::{borrow::Cow, str::from_utf8};
 use wnfs::{
     common::BlockStore,
     libipld::{Cid, IpldCodec},
 };
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
 pub struct NetworkBlockStore {
     /// The address which we are connecting to
     pub addr: String,
@@ -25,10 +25,15 @@ pub struct NetworkBlockStore {
 
 impl NetworkBlockStore {
     /// Initializes the NetworkBlockStore
-    pub fn new(ip: Ipv4Addr, port: u16) -> Self {
+    pub fn new(url: &str, port: u16) -> Self {
+        // TODO(organizedgrime) - also add a case for https
+        if !url.starts_with("http://") {
+            panic!("Cannot initialize with bad URL");
+        }
+
         // Create/return the new instance of self
         Self {
-            addr: format!("{}:{}", ip, port),
+            addr: format!("{}:{}", url, port),
         }
     }
 }
@@ -41,7 +46,7 @@ impl BlockStore for NetworkBlockStore {
         let cid = self.create_cid(&bytes, codec)?;
 
         // Construct the appropriate URI for a block request
-        let url: String = format!("http://{}/api/v0/block/put/{}", self.addr, cid);
+        let url: String = format!("{}/api/v0/block/put/{}", self.addr, cid);
 
         // Construct the Form data that will be sending content bytes over the network
         let form = Form::new().part("data", Part::bytes(bytes));
@@ -73,7 +78,7 @@ impl BlockStore for NetworkBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Construct the appropriate URI for a block request
-        let url: String = format!("http://{}/api/v0/block/get?arg={}", self.addr, cid);
+        let url: String = format!("{}/api/v0/block/get?arg={}", self.addr, cid);
 
         // This command is modeled after the following curl command:
         // curl -X POST "http://127.0.0.1:5001/api/v0/block/get?arg=<cid>"

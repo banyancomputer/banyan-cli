@@ -40,7 +40,7 @@ mod tests {
     async fn network_blockstore() -> Result<()> {
         let dir = &PathBuf::from("test");
         ensure_path_exists_and_is_dir(dir)?;
-        let store = &NetworkBlockStore::new(Ipv4Addr::new(127, 0, 0, 1), 5001);
+        let store = &NetworkBlockStore::new("http://127.0.0.1", 5001);
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

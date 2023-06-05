@@ -21,12 +21,9 @@ use std::{
     rc::Rc,
     vec,
 };
-use tomb_common::{
-    types::{
-        blockstore::carblockstore::CarBlockStore,
-        pipeline::Manifest,
-    },
-    utils::get_network_blockstore,
+use tomb_common::types::{
+    blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+    pipeline::Manifest,
 };
 use wnfs::{
     common::BlockStore,
@@ -56,35 +53,44 @@ pub async fn pipeline(
 ) -> Result<()> {
     // Create packing plan
     let packing_plan = create_plans(input_dir, follow_links).await?;
-
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
+    // Path to the tomb folder
+    let tomb_path = &input_dir.join(".tomb");
+    // If initialization hasnt even happened
+    if !tomb_path.exists() {
+        panic!("initialize first!");
+    }
+    // If the key has been made before
+    let first_run = !tomb_path.join("root.key").exists();
+    info!("pack first_run: {}", first_run);
 
-    let tomb_path = input_dir.join(".tomb");
-    // Determine if this is the first time pack is being run on this filesystem
-    let first_run = !tomb_path.exists();
-
+    // If the user provided an output directory
     let local = output_dir.is_some();
-    let content_path = if let Some(output_dir) = output_dir {
-        output_dir.join("content")
-    } else {
-        tomb_path.join("content")
-    };
-
-    // Create a BlockStore for remote jobs as well as one for local jobs
-    let mut content_local = CarBlockStore::new(&content_path, None);
-    let mut content_remote = get_network_blockstore()?;
     // Declare the MetaData store
-    let meta_store: CarBlockStore;
+    let mut meta_store = CarBlockStore::default();
+    // Local content storage need only be valid if this is a local job
+    let mut content_local: CarBlockStore = if local {
+        CarBlockStore::new(&output_dir.unwrap().join("content"), None)
+    } else {
+        CarBlockStore::default()
+    };
+    // Declare the remote store
+    let mut content_remote = NetworkBlockStore::default();
 
-    // Create a random number generator
-    let rng = &mut thread_rng();
+    // Load the manifest
+    let manifest = load_manifest(tomb_path)?;
+    // Update the BlockStores we will use if they have non-default values
+    if manifest.meta_store != CarBlockStore::default() { meta_store = manifest.meta_store; }
+    if manifest.content_local != CarBlockStore::default() { content_local = manifest.content_local; }
+    if manifest.content_remote != NetworkBlockStore::default() { content_remote = manifest.content_remote; }
+
     // Create the root directory in which all Nodes will be stored
     let mut root_dir = Rc::new(PrivateDirectory::new(
         Namefilter::default(),
         Utc::now(),
-        rng,
+        &mut thread_rng(),
     ));
     // Create the PrivateForest from which Nodes will be queried
     let mut forest = Rc::new(PrivateForest::new());
@@ -92,23 +98,20 @@ pub async fn pipeline(
     // If this filesystem has never been packed
     if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        meta_store = CarBlockStore::new(&tomb_path, None);
+        meta_store = CarBlockStore::new(tomb_path, None);
     }
     // If we've already packed this filesystem before
     else {
         println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
-        // Load in the Manifest
-        let key = load_key(&tomb_path, "root")?;
-        let manifest = load_manifest(&tomb_path)?;
+        // Load the manifest
+        let manifest = load_manifest(tomb_path)?;
+        // Load in the Key
+        let key = load_key(tomb_path, "root")?;
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_forest) = load_forest(&manifest).await &&
            let Ok(new_dir) = load_dir(local, &manifest, &key, &new_forest, "current_root").await {
-            // Update the BlockStores
-            meta_store = manifest.meta_store;
-            content_local = manifest.content_local;
-            content_remote = manifest.content_remote;
-            // Update the forest and 
+            // Update the forest and root directory
             forest = new_forest;
             root_dir = new_dir;
             println!("root dir and forest and original ratchet loaded from disk...");
@@ -116,7 +119,7 @@ pub async fn pipeline(
         // If the load was unsuccessful
         else {
             info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-            meta_store = CarBlockStore::new(&tomb_path, None);
+            meta_store = CarBlockStore::new(tomb_path, None);
         }
     }
 
@@ -155,11 +158,11 @@ pub async fn pipeline(
         println!("storing original dir and key");
         let original_key =
             store_dir(local, &manifest, &mut forest, &root_dir, "original_root").await?;
-        store_key(&tomb_path, &original_key, "original")?;
+        store_key(tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_pipeline(local, &tomb_path, &manifest, &mut forest, &root_dir).await?;
+    let _ = store_pipeline(local, tomb_path, &manifest, &mut forest, &root_dir).await?;
 
     if let Some(output_dir) = output_dir {
         // Remove the .tomb directory from the output path if it is already there
@@ -170,7 +173,7 @@ pub async fn pipeline(
             output_dir,
             &dir::CopyOptions::new().overwrite(true),
         )
-        .map_err(|e| anyhow::anyhow!("Failed to copy meta dir: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to copy tomb dir: {}", e))?;
     }
 
     Ok(())

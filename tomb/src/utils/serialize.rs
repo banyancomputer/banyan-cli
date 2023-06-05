@@ -70,10 +70,12 @@ pub fn load_manifest(tomb_path: &Path) -> Result<Manifest> {
         != env!("CARGO_PKG_VERSION").split('.').next().unwrap()
     {
         // Panic if it's not
-        panic!("Unsupported manifest version.");
+        panic!(
+            "Unsupported manifest version. Using {} but found {}",
+            env!("CARGO_PKG_VERSION"),
+            manifest.version
+        );
     }
-
-    // println!("the paths associated with these blockstores: {}");
 
     Ok(manifest)
 }
@@ -286,9 +288,9 @@ mod test {
     use rand::thread_rng;
     use serial_test::serial;
     use std::{fs, path::PathBuf, rc::Rc};
-    use tomb_common::{
-        types::{blockstore::carblockstore::CarBlockStore, pipeline::Manifest},
-        utils::get_network_blockstore,
+    use tomb_common::types::{
+        blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+        pipeline::Manifest,
     };
     use wnfs::{
         namefilter::Namefilter,
@@ -325,10 +327,13 @@ mod test {
             )
             .await?;
 
+        // Default remote endpoint
+        let content_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
+
         let manifest_data = Manifest {
             version: "1.1.0".to_string(),
             content_local,
-            content_remote: get_network_blockstore()?,
+            content_remote,
             meta_store,
         };
 

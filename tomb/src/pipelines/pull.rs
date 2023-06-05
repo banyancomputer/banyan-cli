@@ -1,5 +1,4 @@
 use anyhow::Result;
-use fake_file::utils::ensure_path_exists_and_is_dir;
 use std::{collections::HashSet, path::Path, rc::Rc};
 use wnfs::{common::BlockStore, private::PrivateForest};
 
@@ -13,19 +12,23 @@ use tomb_common::types::blockstore::{
 };
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
-    info!("Downloading blocks from remote server.");
-
+pub async fn pipeline(dir: &Path) -> Result<()> {
     // Represent relative directories for .tomb and content
     let tomb_path = dir.join(".tomb");
     let content_path = dir.join("content");
-    // Ensure that there is a .tomb path
-    ensure_path_exists_and_is_dir(&tomb_path)?;
-    // Empty the packed contents if there are any
-    ensure_path_exists_and_is_empty_dir(&content_path, true)?;
 
     // Load the Manifest
     let mut manifest = load_manifest(&tomb_path)?;
+
+    // If this remote endpoint has not actually been configured
+    if manifest.content_remote == NetworkBlockStore::default() {
+        panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
+    }
+
+    // // Ensure that there is a .tomb path
+    // ensure_path_exists_and_is_dir(&tomb_path)?;
+    // Empty the packed contents if there are any
+    ensure_path_exists_and_is_empty_dir(&content_path, true)?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     manifest.meta_store.change_dir(&tomb_path)?;
@@ -57,7 +60,7 @@ pub async fn pipeline(dir: &Path, store: &NetworkBlockStore) -> Result<()> {
 
     for child in children {
         // Grab the bytes from the remote network
-        let bytes = store.get_block(&child).await?;
+        let bytes = manifest.content_remote.get_block(&child).await?;
         // Throw those bytes onto the local store
         manifest
             .content_local

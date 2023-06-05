@@ -3250,7 +3250,7 @@ dependencies = [
 
 [[package]]
 name = "tomb-common"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3262,7 +3262,7 @@ dependencies = [
 
 [[package]]
 name = "tomb-wasm"
-version = "0.1.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "async-trait",

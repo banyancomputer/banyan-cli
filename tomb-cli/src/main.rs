@@ -11,12 +11,8 @@
 
 use anyhow::Result;
 use clap::Parser;
-use std::{
-    fs::{create_dir_all, remove_dir_all},
-    io::Write,
-};
-use tomb::pipelines::{add, pack, pull, push, unpack};
-use tomb_common::utils::{get_network_blockstore, set_remote, tomb_config};
+use std::{env, io::Write};
+use tomb::pipelines::{add, configure, pack, pull, push, unpack};
 mod cli;
 ///
 pub mod tests;
@@ -60,12 +56,13 @@ async fn main() -> Result<()> {
         } => {
             unpack::pipeline(&input_dir, &output_dir).await?;
         }
-        cli::Commands::Init => {
-            let tomb_path = &tomb_config()?.join(".tomb");
-            // Remove existing metadata
-            remove_dir_all(tomb_path)?;
-            // Create new metadata folder
-            create_dir_all(tomb_path)?;
+        cli::Commands::Init {
+            dir
+        } => {
+            // If no dir was supplied, use the current working directory
+            let dir = dir.unwrap_or(env::current_dir()?);
+            // Initialize here
+            configure::init(&dir)?;
         },
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
         cli::Commands::Register { bucket_name: _ } =>
@@ -75,7 +72,11 @@ async fn main() -> Result<()> {
                 cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
                     unimplemented!("todo... change where we stage content locally");
                 }
-                cli::ConfigSubCommands::SetRemote { url, port } => { set_remote(url, port)?; }
+                cli::ConfigSubCommands::SetRemote { dir, url, port } => {
+                    // If no dir was supplied, use the current working directory
+                    let dir = dir.unwrap_or(env::current_dir()?);
+                    configure::remote(&dir, &url, port)?;
+                }
             }
         },
         cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
@@ -83,13 +84,13 @@ async fn main() -> Result<()> {
             dir
         } => {
             // Start the Pull pipeline
-            pull::pipeline(&dir, &get_network_blockstore()?).await?;
+            pull::pipeline(&dir).await?;
         },
         cli::Commands::Push {
-            input_dir,
+            dir,
         } => {
             // Start the Push pipeline
-            push::pipeline(&input_dir, &get_network_blockstore()?).await?;
+            push::pipeline(&dir).await?;
         },
         cli::Commands::Add {input_file, tomb_path, wnfs_path } => {
             add::pipeline(&input_file, &tomb_path, &wnfs_path).await?;

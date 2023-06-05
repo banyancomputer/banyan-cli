@@ -20,6 +20,17 @@ pub struct Manifest {
     pub meta_store: CarBlockStore,
 }
 
+impl Default for Manifest {
+    fn default() -> Self {
+        Self {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            content_local: Default::default(),
+            content_remote: Default::default(),
+            meta_store: Default::default(),
+        }
+    }
+}
+
 impl Debug for Manifest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Manifest")

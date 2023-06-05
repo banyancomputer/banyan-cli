@@ -2,7 +2,7 @@ use anyhow::Result;
 use fake_file::{Strategy, Structure};
 use std::{
     path::{Path, PathBuf},
-    process::{Child, Command},
+    process::{Child, Command}, fs::create_dir_all,
 };
 
 use super::fs::ensure_path_exists_and_is_empty_dir;
@@ -16,6 +16,7 @@ pub async fn test_setup(test_name: &str) -> Result<(PathBuf, PathBuf)> {
     // Input and output paths
     let input_path = root_path.join("input");
     let output_path = root_path.join("output");
+    create_dir_all(&output_path)?;
     // Generate file structure
     Structure::new(2, 2, 2000, Strategy::Simple).generate(&input_path)?;
     // Return all paths

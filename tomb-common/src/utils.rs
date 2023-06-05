@@ -1,12 +1,5 @@
 use anyhow::Result;
-use std::{
-    env,
-    fs::{create_dir_all, File},
-    net::Ipv4Addr,
-    path::PathBuf,
-};
-
-use crate::types::blockstore::networkblockstore::NetworkBlockStore;
+use std::{env, fs::create_dir_all, net::Ipv4Addr, path::PathBuf};
 
 /// Grab config path from env variables + XDG spec
 pub fn tomb_config() -> Result<PathBuf> {
@@ -16,32 +9,6 @@ pub fn tomb_config() -> Result<PathBuf> {
     create_dir_all(&path)?;
     // Return
     Ok(path)
-}
-
-/// Set details of remote endpoint
-pub fn set_remote(url: String, port: u16) -> Result<()> {
-    // Create the config file
-    let remote_file = File::create(tomb_config()?.join("remote"))?;
-    // Write the variables to the config file
-    serde_json::to_writer(remote_file, &(url, port))?;
-    // Return Ok
-    Ok(())
-}
-
-/// Get details of remote endpoint
-pub fn get_remote() -> Result<(String, u16)> {
-    // Create the config file
-    let remote_file = File::open(tomb_config()?.join("remote"))?;
-    // Write the variables to the config file
-    Ok(serde_json::from_reader(remote_file)?)
-}
-
-/// Get the NetworkBlockStore represented in the config
-pub fn get_network_blockstore() -> Result<NetworkBlockStore> {
-    // Grab url and port
-    let (url, port) = get_remote()?;
-    // Construct the NetworkBlockStore from this IP and Port combination
-    Ok(NetworkBlockStore::new(ip_from_string(url), port))
 }
 
 /// Helper function for creating the required type

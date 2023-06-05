@@ -3,7 +3,7 @@ use fake_file::{Strategy, Structure};
 use serial_test as _;
 use std::path::Path;
 use tomb::{
-    pipelines::{pack, unpack},
+    pipelines::{pack, unpack, configure},
     utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
 };
 
@@ -19,14 +19,15 @@ const UNPACKED_PATH: &str = "unpacked";
 fn setup_test(test_path: &Path, structure: Structure, test_name: &str) {
     // Declare Paths for the Input, Packed, Unpacked, and Manifest
     let mut input_path = test_path.join(INPUT_PATH);
-    let packed_path = test_path.join(PACKED_PATH);
-    let unpacked_path = test_path.join(UNPACKED_PATH);
+    let packed_path = &test_path.join(PACKED_PATH);
+    let unpacked_path = &test_path.join(UNPACKED_PATH);
     // Prepare the test structure
     ensure_path_exists_and_is_empty_dir(&input_path, true).unwrap();
+    configure::init(&input_path).unwrap();
     input_path.push(test_name);
     structure.generate(&input_path).unwrap();
-    ensure_path_exists_and_is_empty_dir(&packed_path, true).unwrap();
-    ensure_path_exists_and_is_empty_dir(&unpacked_path, true).unwrap();
+    ensure_path_exists_and_is_empty_dir(packed_path, true).unwrap();
+    ensure_path_exists_and_is_empty_dir(unpacked_path, true).unwrap();
 }
 
 /// Helper function to run a test end to end

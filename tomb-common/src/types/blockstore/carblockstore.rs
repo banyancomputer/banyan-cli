@@ -18,7 +18,7 @@ use wnfs::{
 };
 
 /// BlockStore implmentation which stores its data locally on disk in CAR format
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CarBlockStore {
     /// The version number and list of root dir CIDs
     carhead: CarHeader,
@@ -254,7 +254,7 @@ impl PartialEq for CarBlockStore {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 struct CarHeader {
     version: i64,
     roots: RefCell<HashMap<String, Cid>>,
@@ -276,7 +276,7 @@ struct LocationInCar {
 }
 // TODO make sure most of the things go into the same local car file. hard. need to change blockstore interface. rip.
 /// Data required to keep track of the structure and location of CAR files
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DiskCarFactory {
     /// car file number
     car_number: usize,
