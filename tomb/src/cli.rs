@@ -156,7 +156,7 @@ mod test {
     use anyhow::Result;
     use assert_cmd::prelude::*;
     use fs_extra::dir::CopyOptions;
-    use predicates::prelude::*;
+    use serial_test::serial;
     use std::{fs::create_dir_all, path::Path, process::Command};
     use tomb::utils::{
         serialize::load_manifest,
@@ -205,7 +205,7 @@ mod test {
     }
 
     // Run the Unpack pipeline through the CLI
-    async fn unpack(input_dir: &Path, output_dir: &Path) -> Result<Command> {
+    async fn unpack_local(input_dir: &Path, output_dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("unpack")
             .arg("--input-dir")
@@ -233,8 +233,9 @@ mod test {
 
     #[tokio::test]
     async fn cli_init() -> Result<()> {
+        let test_name = "cli_init";
         // Setup test
-        let (input_dir, _) = &test_setup("cli_init").await?;
+        let (input_dir, _) = &test_setup(test_name).await?;
         // Initialization worked
         init(&input_dir).await?.assert().success();
         // Load the modified Manifest
@@ -242,13 +243,14 @@ mod test {
         // Expect that the default Manifest was successfully encoded
         assert_eq!(manifest, Manifest::default());
         // Teardown test
-        test_teardown("cli_init").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn cli_configure_remote() -> Result<()> {
+        let test_name = "cli_configure_remote";
         // Setup test
-        let (input_dir, _) = &test_setup("cli_remote").await?;
+        let (input_dir, _) = &test_setup(test_name).await?;
         // Initialization worked
         init(&input_dir).await?.assert().success();
 
@@ -263,27 +265,30 @@ mod test {
         // Expect that the remote endpoint was successfully updated
         assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown test
-        test_teardown("cli_remote").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn cli_pack_local() -> Result<()> {
+        let test_name = "cli_pack_local";
         // Setup test
-        let (input_dir, output_dir) = &test_setup("cli_pack_local").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         init(&input_dir).await?.assert().success();
         // Run pack and assert success
         pack_local(input_dir, output_dir).await?.assert().success();
         // Teardown test
-        test_teardown("cli_pack_local").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_pack_remote() -> Result<()> {
+        let test_name = "cli_pack_remote";
         // Start the IPFS daemon
         // let mut ipfs = start_daemon();
         // Setup test
-        let (input_dir, _) = &test_setup("cli_pack_remote").await?;
+        let (input_dir, _) = &test_setup(test_name).await?;
         // Initialize tomb
         init(&input_dir).await?.assert().success();
         // Configure remote endpoint
@@ -296,30 +301,35 @@ mod test {
         // Kill the daemon
         // ipfs.kill()?;
         // Teardown test
-        test_teardown("cli_pack_remote").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
-    async fn cli_unpack() -> Result<()> {
+    async fn cli_unpack_local() -> Result<()> {
+        let test_name = "cli_unpack_local";
         // Setup test
-        let (input_dir, output_dir) = &test_setup("cli_unpack").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         init(&input_dir).await?.assert().success();
         // Run pack and assert success
         pack_local(input_dir, output_dir).await?.assert().success();
         // Run unpack and assert success
-        unpack(output_dir, input_dir).await?.assert().success();
+        unpack_local(output_dir, input_dir)
+            .await?
+            .assert()
+            .success();
         // Teardown test
-        test_teardown("cli_unpack").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
-    #[ignore]
+    #[serial]
     async fn cli_push_pull() -> Result<()> {
+        let test_name = "cli_push_pull";
         // Start the IPFS daemon
         // let mut ipfs = start_daemon();
         // Setup test
-        let (input_dir, output_dir) = &test_setup("cli_push_pull").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         init(&input_dir).await?.assert().success();
         // Configure remote endpoint
@@ -350,6 +360,6 @@ mod test {
         // Kill the daemon
         // ipfs.kill()?;
         // Teardown test
-        test_teardown("cli_push_pull").await
+        test_teardown(test_name).await
     }
 }

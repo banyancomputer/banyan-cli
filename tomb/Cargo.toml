@@ -30,7 +30,6 @@ tokio.workspace = true
 env_logger = "0.10.0"
 clap.workspace = true
 assert_cmd = "2.0.11"
-predicates = "3.0.3"
 serial_test = "2.0.0"
 
 # Benchmark for packing -> unpacking an input directory

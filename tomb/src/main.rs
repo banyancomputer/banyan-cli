@@ -27,7 +27,6 @@ use fs_extra as _;
 use indicatif as _;
 use jwalk as _;
 use lazy_static as _;
-use predicates as _;
 use rand as _;
 use serde as _;
 use serial_test as _;

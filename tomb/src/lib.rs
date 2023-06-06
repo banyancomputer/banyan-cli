@@ -43,7 +43,6 @@ use env_logger as _;
 use fake_file as _;
 use fs_extra as _;
 use lazy_static as _;
-use predicates as _;
 use serial_test as _;
 
 #[allow(unused_extern_crates)]

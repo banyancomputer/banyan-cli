@@ -89,6 +89,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_pack_unpack_remote() -> Result<()> {
         let test_name = "pipeline_pack_unpack_remote";
         // Create the setup conditions
@@ -114,7 +115,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[serial]
     async fn pipeline_pack_pull_unpack() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
@@ -144,6 +145,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Start the IPFS daemon
@@ -165,7 +167,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[serial]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Start the IPFS daemon
@@ -247,6 +249,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_add_remote() -> Result<()> {
         let test_name = "pipeline_add_remote";
         // Create the setup conditions
