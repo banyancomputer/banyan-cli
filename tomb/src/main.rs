@@ -30,9 +30,9 @@ use lazy_static as _;
 use predicates as _;
 use rand as _;
 use serde as _;
+use serial_test as _;
 use wnfs as _;
 use zstd as _;
-use serial_test as _;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -62,7 +62,7 @@ mod test {
         io::AsyncWriteExt,
     };
     use tomb::utils::{
-        serialize::{load_dir, load_key, load_all},
+        serialize::{load_all_hot, load_dir, load_key},
         tests::compute_directory_size,
     };
     use wnfs::private::PrivateNodeOnPathHistory;
@@ -71,7 +71,6 @@ mod test {
     const TEST_PATH: &str = "test";
     // Configure the test sets
     const TEST_INPUT_SIZE: usize = 1024 * 1024; // 1MB
-
 
     /// Test with one very big file -- ignore cuz it takes a while
     #[tokio::test]
@@ -317,7 +316,7 @@ mod test {
 
         // The path in which we expect to find metadata
         let tomb_path = &test_path.join("unpacked").join(".tomb");
-        let (key, manifest, mut forest, mut cold_forest, dir) = load_all(true, tomb_path).await?;
+        let (key, manifest, mut forest, dir) = load_all_hot(tomb_path).await?;
 
         let original_key = load_key(tomb_path, "original")?;
         let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;

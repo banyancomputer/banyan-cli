@@ -19,7 +19,7 @@ mod test {
     use crate::{
         pipelines::{configure, pack, pull, push, remove, unpack},
         utils::{
-            serialize::{load_manifest, load_all},
+            serialize::{load_all, load_all_hot, load_manifest},
             spider::path_to_segments,
             tests::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
             wnfsio::decompress_bytes,
@@ -29,31 +29,33 @@ mod test {
     use dir_assert::assert_paths;
     use fake_file::{Strategy, Structure};
     use fs_extra::{copy_items, dir::CopyOptions};
+    use serial_test::serial;
     use std::{
         fs::{self, create_dir_all, remove_dir_all, File},
         io::Write,
         path::PathBuf,
     };
     use tomb_common::types::pipeline::Manifest;
-    use serial_test::serial;
 
     #[tokio::test]
     async fn pipeline_init() -> Result<()> {
+        let test_name = "pipeline_init";
         // Create the setup conditions
-        let (input_dir, _) = test_setup("pipeline_init").await?;
+        let (input_dir, _) = test_setup(test_name).await?;
         // Initialize
         configure::init(&input_dir)?;
         let manifest = load_manifest(&input_dir.join(".tomb"))?;
         // Expect that the default Manifest was serialized
         assert_eq!(manifest, Manifest::default());
         // Teardown
-        test_teardown("pipeline_init").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_configure_remote() -> Result<()> {
+        let test_name = "pipeline_configure_remote";
         // Create the setup conditions
-        let (input_dir, _) = test_setup("pipeline_configure_remote").await?;
+        let (input_dir, _) = test_setup(test_name).await?;
         // Initialize
         configure::init(&input_dir)?;
         // Configure the remote endpoint
@@ -63,13 +65,14 @@ mod test {
         // Expect that the default Manifest was serialized
         assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown
-        test_teardown("pipeline_configure_remote").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_pack_unpack_local() -> Result<()> {
+        let test_name = "pipeline_pack_unpack_local";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup("pipeline_pack_unpack_local").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Pack locally
@@ -82,14 +85,14 @@ mod test {
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
-        // test_teardown("pipeline_pack_unpack_local").await
-        Ok(())
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_pack_unpack_remote() -> Result<()> {
+        let test_name = "pipeline_pack_unpack_remote";
         // Create the setup conditions
-        let (input_dir, unpacked_dir) = &test_setup("pipeline_pack_unpack_remote").await?;
+        let (input_dir, unpacked_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Configure the remote endpoint
@@ -107,14 +110,15 @@ mod test {
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
-        test_teardown("pipeline_pack_unpack_remote").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[ignore]
     async fn pipeline_pack_pull_unpack() -> Result<()> {
+        let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup("pipeline_pack_pull_unpack").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Configure the remote endpoint
@@ -136,15 +140,16 @@ mod test {
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
-        test_teardown("pipeline_pack_pull_unpack").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_pack_push() -> Result<()> {
+        let test_name = "pipeline_pack_pull_unpack";
         // Start the IPFS daemon
         // let mut ipfs = start_daemon();
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup("pipeline_pack_push").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Configure the remote endpoint
@@ -156,17 +161,18 @@ mod test {
         // Kill the daemon
         // ipfs.kill()?;
         // Teardown
-        test_teardown("pipeline_pack_push").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
+        let test_name = "pipeline_pack_push_pull";
         // Start the IPFS daemon
         // let mut ipfs = start_daemon();
 
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup("pipeline_pack_push_pull").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Configure the remote endpoint
@@ -189,13 +195,14 @@ mod test {
         // Kill the daemon
         // ipfs.kill()?;
         // Teardown
-        test_teardown("pipeline_pack_push_pull").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_add_local() -> Result<()> {
+        let test_name = "pipeline_add_local";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup("pipeline_add_local").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Run the pack pipeline
@@ -213,13 +220,13 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(true, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
+        let (_, manifest, hot_forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
                 &path_to_segments(&input_file)?,
                 true,
-                forest,
+                hot_forest,
                 &manifest.hot_local,
             )
             .await?
@@ -228,7 +235,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(forest, &manifest.cold_local)
+            file.get_content(cold_forest, &manifest.cold_local)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -236,13 +243,14 @@ mod test {
         // Assert that the data matches the original data
         assert_eq!(file_content, loaded_file_content);
         // Teardown
-        test_teardown("pipeline_add_local").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_add_remote() -> Result<()> {
+        let test_name = "pipeline_add_remote";
         // Create the setup conditions
-        let (input_dir, _) = &test_setup("pipeline_add_remote").await?;
+        let (input_dir, _) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Configure the remote endpoint
@@ -262,13 +270,13 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(false, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, forest, cold_forest, dir) = &mut load_all(false, tomb_path).await?;
+        let (_, manifest, hot_forest, cold_forest, dir) = &mut load_all(false, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
                 &path_to_segments(&input_file)?,
                 true,
-                forest,
+                hot_forest,
                 &manifest.hot_local,
             )
             .await?
@@ -277,7 +285,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(forest, &manifest.cold_remote)
+            file.get_content(cold_forest, &manifest.cold_remote)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -285,13 +293,14 @@ mod test {
         // Assert that the data matches the original data
         assert_eq!(file_content, loaded_file_content);
         // Teardown
-        test_teardown("pipeline_add_remote").await
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
     async fn pipeline_remove_local() -> Result<()> {
+        let test_name = "pipeline_remove_local";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup("pipeline_remove").await?;
+        let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(input_dir)?;
         // Run the pack pipeline
@@ -302,23 +311,23 @@ mod test {
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let (_, manifest, forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
+        let (_, manifest, hot_forest, dir) = &mut load_all_hot(tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, forest, &manifest.hot_local)
+            .get_node(wnfs_segments, true, hot_forest, &manifest.hot_local)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
         remove::pipeline(tomb_path, wnfs_path).await?;
         // Reload metadata
-        let (_, manifest, forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
+        let (_, manifest, hot_forest, dir) = &mut load_all_hot(tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, forest, &manifest.hot_local)
+            .get_node(wnfs_segments, true, hot_forest, &manifest.hot_local)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
         // Teardown
-        test_teardown("pipeline_remove").await
+        test_teardown(test_name).await
     }
 
     // Helper function for structure tests
@@ -341,7 +350,6 @@ mod test {
         Ok(())
     }
 
-    
     const STRUCTURE_INPUT_SIZE: usize = 1024;
 
     #[tokio::test]

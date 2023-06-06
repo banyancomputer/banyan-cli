@@ -3,8 +3,8 @@ use crate::{
     utils::{
         grouper::grouper,
         serialize::{
-            load_dir, load_hot_forest, load_key, load_manifest, store_dir, store_key,
-            store_all, load_cold_forest,
+            load_cold_forest, load_dir, load_hot_forest, load_key, load_manifest, store_all,
+            store_dir, store_key,
         },
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -177,12 +177,21 @@ pub async fn pipeline(
 
     if first_run {
         println!("storing original dir and key");
-        let original_key = store_dir(&manifest, &mut hot_forest, &root_dir, "original_root").await?;
+        let original_key =
+            store_dir(&manifest, &mut hot_forest, &root_dir, "original_root").await?;
         store_key(tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_all(local, tomb_path, &manifest, &mut hot_forest, &mut cold_forest, &root_dir).await?;
+    let _ = store_all(
+        local,
+        tomb_path,
+        &manifest,
+        &mut hot_forest,
+        &mut cold_forest,
+        &root_dir,
+    )
+    .await?;
 
     if let Some(output_dir) = output_dir {
         // Remove the .tomb directory from the output path if it is already there
@@ -288,11 +297,24 @@ async fn process_plans(
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
                     root_dir
-                        .mkdir(folder_segments, true, Utc::now(), hot_forest, hot_store, rng)
+                        .mkdir(
+                            folder_segments,
+                            true,
+                            Utc::now(),
+                            hot_forest,
+                            hot_store,
+                            rng,
+                        )
                         .await?;
                     // Copy the file from the original path to the duplicate path
                     root_dir
-                        .cp_link(path_segments, dup_path_segments, true, hot_forest, hot_store)
+                        .cp_link(
+                            path_segments,
+                            dup_path_segments,
+                            true,
+                            hot_forest,
+                            hot_store,
+                        )
                         .await?;
                 }
             }

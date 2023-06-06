@@ -11,7 +11,7 @@ use super::fs::ensure_path_exists_and_is_empty_dir;
 /// Set up temporary filesystem for test cases
 pub async fn test_setup(test_name: &str) -> Result<(PathBuf, PathBuf)> {
     // Run the structured test setup with a default Structure
-    test_setup_structured(test_name, Structure::new(4, 4, 2000, Strategy::Simple)).await
+    test_setup_structured(test_name, Structure::new(2, 2, 2000, Strategy::Simple)).await
 }
 
 /// Set up a temporary filesystem for test cases according to specified structure

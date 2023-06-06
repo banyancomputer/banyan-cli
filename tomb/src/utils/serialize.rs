@@ -175,7 +175,10 @@ pub async fn store_cold_forest(
 }
 
 /// Load the cold PrivateForest
-pub async fn load_cold_forest(hot_store: &CarBlockStore, cold_store: &impl BlockStore) -> Result<Rc<PrivateForest>> {
+pub async fn load_cold_forest(
+    hot_store: &CarBlockStore,
+    cold_store: &impl BlockStore,
+) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let hot_cid = &hot_store.get_root("cold_ipld_cid")?;
     // Load the forest
@@ -259,8 +262,7 @@ pub async fn store_all(
 ) -> Result<TemporalKey> {
     if local {
         store_cold_forest(&manifest.hot_local, &manifest.cold_local, cold_forest).await?;
-    }
-    else {
+    } else {
         store_cold_forest(&manifest.hot_local, &manifest.cold_remote, cold_forest).await?;
     }
 
@@ -296,13 +298,44 @@ pub async fn load_all(
     Ok((key, manifest, hot_forest, cold_forest, dir))
 }
 
+/// Store all hot objects!
+pub async fn store_all_hot(
+    tomb_path: &Path,
+    manifest: &Manifest,
+    hot_forest: &mut Rc<PrivateForest>,
+    root_dir: &Rc<PrivateDirectory>,
+) -> Result<TemporalKey> {
+    // Store the dir, then the forest, then the manifest and key
+    let temporal_key = store_dir(manifest, hot_forest, root_dir, "current_root").await?;
+    store_hot_forest(&manifest.hot_local, hot_forest).await?;
+    store_manifest(tomb_path, manifest)?;
+    store_key(tomb_path, &temporal_key, "root")?;
+    Ok(temporal_key)
+}
+
+/// Load all hot objects!
+pub async fn load_all_hot(
+    tomb_path: &Path,
+) -> Result<(
+    TemporalKey,
+    Manifest,
+    Rc<PrivateForest>,
+    Rc<PrivateDirectory>,
+)> {
+    let key = load_key(tomb_path, "root")?;
+    let manifest = load_manifest(tomb_path)?;
+    let hot_forest = load_hot_forest(&manifest.hot_local).await?;
+    let dir = load_dir(&manifest, &key, &hot_forest, "current_root").await?;
+    Ok((key, manifest, hot_forest, dir))
+}
+
 #[cfg(test)]
 mod test {
     use crate::utils::{
         fs::ensure_path_exists_and_is_dir,
         serialize::{
-            load_dir, load_hot_forest, load_key, load_manifest, load_all, store_dir,
-            store_hot_forest, store_key, store_manifest, store_all,
+            load_all, load_dir, load_hot_forest, load_key, load_manifest, store_all, store_dir,
+            store_hot_forest, store_key, store_manifest,
         },
     };
     use anyhow::Result;
@@ -464,14 +497,24 @@ mod test {
         teardown("serial_dir").await
     }
 
-    #[tokio::test]
-    async fn serial_all_local() -> Result<()> {
+    /// Helper function, not a test
+    async fn assert_serial_all_cold(local: bool) -> Result<()> {
+        let test_name: &String = &format!("serial_all_cold_{}", local);
         // Start er up!
-        let (tomb_path, manifest, mut hot_forest, mut cold_forest, dir) = setup("serial_pipeline").await?;
+        let (tomb_path, manifest, mut hot_forest, mut cold_forest, dir) = setup(test_name).await?;
 
         // Store and load
-        let key = store_all(true, &tomb_path, &manifest, &mut hot_forest, &mut cold_forest, &dir).await?;
-        let (new_key, new_manifest, new_hot_forest, new_cold_forest, new_dir) = load_all(true, &tomb_path).await?;
+        let key = store_all(
+            local,
+            &tomb_path,
+            &manifest,
+            &mut hot_forest,
+            &mut cold_forest,
+            &dir,
+        )
+        .await?;
+        let (new_key, new_manifest, new_hot_forest, new_cold_forest, new_dir) =
+            load_all(local, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(new_key, key);
@@ -493,7 +536,17 @@ mod test {
         assert_eq!(new_dir, dir);
 
         // Teardown
-        teardown("serial_pipeline").await
+        teardown(test_name).await
+    }
+
+    #[tokio::test]
+    async fn serial_all_cold_local() -> Result<()> {
+        assert_serial_all_cold(true).await
+    }
+
+    #[tokio::test]
+    async fn serial_all_cold_remote() -> Result<()> {
+        assert_serial_all_cold(false).await
     }
 
     #[tokio::test]
