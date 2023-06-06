@@ -21,6 +21,9 @@ wnfs-common = "0.1.20"
 rand.workspace = true
 chrono.workspace = true
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3.36"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
