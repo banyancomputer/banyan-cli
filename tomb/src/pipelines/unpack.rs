@@ -36,7 +36,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     // If this is a local unpack
     let local = input_dir.is_some();
     // Load metadata
-    let (_, mut manifest, forest, cold_forest, dir) = load_all(local, &tomb_path).await?;
+    let (_, manifest, hot_forest, cold_forest, dir) = load_all(local, &tomb_path).await?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     // manifest.hot_local.change_dir(&tomb_path)?;
@@ -56,7 +56,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
         output_dir: &Path,
         built_path: &Path,
         node: &PrivateNode,
-        forest: &PrivateForest,
+        hot_forest: &PrivateForest,
+        cold_forest: &PrivateForest,
         hot_store: &impl BlockStore,
         cold_store: &impl BlockStore,
     ) -> Result<()> {
@@ -67,7 +68,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                 std::fs::create_dir_all(output_dir.join(built_path))?;
                 // Obtain a list of this Node's children
                 let node_names: Vec<String> = dir
-                    .ls(&Vec::new(), true, forest, hot_store)
+                    .ls(&Vec::new(), true, hot_forest, hot_store)
                     .await?
                     .into_iter()
                     .map(|(l, _)| l)
@@ -77,7 +78,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                 for node_name in node_names {
                     // Fetch the Node with the given name
                     if let Some(node) = dir
-                        .get_node(&[node_name.clone()], true, forest, hot_store)
+                        .get_node(&[node_name.clone()], true, hot_forest, hot_store)
                         .await?
                     {
                         // Recurse with newly found node and await
@@ -85,7 +86,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                             output_dir,
                             &built_path.join(node_name),
                             &node,
-                            forest,
+                            hot_forest,
+                            cold_forest,
                             hot_store,
                             cold_store,
                         )
@@ -98,7 +100,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                 let file_path = &output_dir.join(built_path);
                 println!("processing file {}", file_path.display());
                 // Handle the PrivateFile and write its contents to disk
-                file_to_disk(file, output_dir, file_path, forest, cold_store).await?;
+                file_to_disk(file, output_dir, file_path, cold_forest, cold_store).await?;
             }
         }
         Ok(())
@@ -110,7 +112,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
             output_dir,
             Path::new(""),
             &dir.as_node(),
-            &forest,
+            &hot_forest,
+            &cold_forest,
             &manifest.hot_local,
             &manifest.cold_local,
         )
@@ -121,7 +124,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
             output_dir,
             Path::new(""),
             &dir.as_node(),
-            &forest,
+            &hot_forest,
+            &cold_forest,
             &manifest.hot_local,
             &manifest.cold_remote,
         )

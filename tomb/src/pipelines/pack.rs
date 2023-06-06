@@ -4,7 +4,7 @@ use crate::{
         grouper::grouper,
         serialize::{
             load_dir, load_hot_forest, load_key, load_manifest, store_dir, store_key,
-            store_all,
+            store_all, load_cold_forest,
         },
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -100,7 +100,8 @@ pub async fn pipeline(
         &mut thread_rng(),
     ));
     // Create the PrivateForest from which Nodes will be queried
-    let mut forest = Rc::new(PrivateForest::new());
+    let mut hot_forest = Rc::new(PrivateForest::new());
+    let mut cold_forest = Rc::new(PrivateForest::new());
 
     // If this filesystem has never been packed
     if first_run {
@@ -116,10 +117,10 @@ pub async fn pipeline(
         let key = load_key(tomb_path, "root")?;
 
         // Load in the PrivateForest and PrivateDirectory
-        if let Ok(new_forest) = load_hot_forest(&manifest.hot_local).await &&
-           let Ok(new_dir) = load_dir(&manifest, &key, &new_forest, "current_root").await {
+        if let Ok(new_hot_forest) = load_hot_forest(&manifest.hot_local).await &&
+           let Ok(new_dir) = load_dir(&manifest, &key, &new_hot_forest, "current_root").await {
             // Update the forest and root directory
-            forest = new_forest;
+            hot_forest = new_hot_forest;
             root_dir = new_dir;
             println!("root dir and forest and original ratchet loaded from disk...");
         }
@@ -127,6 +128,15 @@ pub async fn pipeline(
         else {
             info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
             hot_local = CarBlockStore::new(tomb_path, None);
+        }
+
+        let new_cold_forest = if local {
+            load_cold_forest(&manifest.hot_local, &manifest.cold_local).await
+        } else {
+            load_cold_forest(&manifest.hot_local, &manifest.cold_remote).await
+        };
+        if let Ok(new_cold_forest) = new_cold_forest {
+            cold_forest = new_cold_forest;
         }
     }
 
@@ -137,7 +147,8 @@ pub async fn pipeline(
             packing_plan,
             progress_bar,
             &mut root_dir,
-            &mut forest,
+            &mut hot_forest,
+            &mut cold_forest,
             &hot_local,
             &cold_local,
         )
@@ -148,7 +159,8 @@ pub async fn pipeline(
             packing_plan,
             progress_bar,
             &mut root_dir,
-            &mut forest,
+            &mut hot_forest,
+            &mut cold_forest,
             &hot_local,
             &cold_remote,
         )
@@ -165,12 +177,12 @@ pub async fn pipeline(
 
     if first_run {
         println!("storing original dir and key");
-        let original_key = store_dir(&manifest, &mut forest, &root_dir, "original_root").await?;
+        let original_key = store_dir(&manifest, &mut hot_forest, &root_dir, "original_root").await?;
         store_key(tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_all(local, tomb_path, &manifest, &mut Rc::clone(&forest), &mut forest, &root_dir).await?;
+    let _ = store_all(local, tomb_path, &manifest, &mut hot_forest, &mut cold_forest, &root_dir).await?;
 
     if let Some(output_dir) = output_dir {
         // Remove the .tomb directory from the output path if it is already there
@@ -219,7 +231,8 @@ async fn process_plans(
     packing_plan: Vec<PackPipelinePlan>,
     progress_bar: &ProgressBar,
     root_dir: &mut Rc<PrivateDirectory>,
-    forest: &mut Rc<PrivateForest>,
+    hot_forest: &mut Rc<PrivateForest>,
+    cold_forest: &mut Rc<PrivateForest>,
     hot_store: &impl BlockStore,
     cold_store: &impl BlockStore,
 ) -> Result<()> {
@@ -253,7 +266,7 @@ async fn process_plans(
                 let time = Utc::now();
                 // Open the PrivateFile
                 let file: &mut PrivateFile = root_dir
-                    .open_file_mut(path_segments, true, time, forest, hot_store, rng)
+                    .open_file_mut(path_segments, true, time, hot_forest, hot_store, rng)
                     .await?;
                 // Compress the data in the file on disk
                 let content = compress_file(
@@ -263,7 +276,7 @@ async fn process_plans(
                         .canonicalized_path,
                 )?;
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                file.set_content(time, content.as_slice(), forest, cold_store, rng)
+                file.set_content(time, content.as_slice(), cold_forest, cold_store, rng)
                     .await?;
 
                 // Duplicates need to be linked no matter what
@@ -275,11 +288,11 @@ async fn process_plans(
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
                     root_dir
-                        .mkdir(folder_segments, true, Utc::now(), forest, hot_store, rng)
+                        .mkdir(folder_segments, true, Utc::now(), hot_forest, hot_store, rng)
                         .await?;
                     // Copy the file from the original path to the duplicate path
                     root_dir
-                        .cp_link(path_segments, dup_path_segments, true, forest, hot_store)
+                        .cp_link(path_segments, dup_path_segments, true, hot_forest, hot_store)
                         .await?;
                 }
             }
@@ -291,14 +304,14 @@ async fn process_plans(
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, true, forest, hot_store)
+                    .get_node(&path_segments, true, hot_forest, hot_store)
                     .await;
 
                 // If there was an error searching for the Node or
                 if result.is_err() || result.as_ref().unwrap().is_none() {
                     // Create the subdirectory
                     root_dir
-                        .mkdir(&path_segments, true, Utc::now(), forest, hot_store, rng)
+                        .mkdir(&path_segments, true, Utc::now(), hot_forest, hot_store, rng)
                         .await?;
                 }
                 // We don't need an else here, directories don't actually contain any data
@@ -324,7 +337,7 @@ async fn process_plans(
                         &symlink_segments,
                         true,
                         Utc::now(),
-                        forest,
+                        hot_forest,
                         hot_store,
                         rng,
                     )
