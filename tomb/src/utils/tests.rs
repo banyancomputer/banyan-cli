@@ -1,7 +1,7 @@
 use anyhow::Result;
 use fake_file::{Strategy, Structure};
 use std::{
-    fs::create_dir_all,
+    fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
     process::{Child, Command},
 };
@@ -21,6 +21,8 @@ pub async fn test_setup_structured(
 ) -> Result<(PathBuf, PathBuf)> {
     // Base of the test directory
     let root_path = PathBuf::from("test").join(test_name);
+    // Remove anything that might already be there
+    remove_dir_all(&root_path).ok();
     // Create and empty the dir
     ensure_path_exists_and_is_empty_dir(&root_path, true)?;
     // Input and output paths

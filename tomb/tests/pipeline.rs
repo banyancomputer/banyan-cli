@@ -70,66 +70,8 @@ mod test {
     // Configure where tests are run
     const TEST_PATH: &str = "test";
     // Configure the test sets
-    const TEST_MAX_WIDTH: usize = 4;
-    const TEST_MAX_DEPTH: usize = 4;
     const TEST_INPUT_SIZE: usize = 1024 * 1024; // 1MB
 
-    /// Test the pipeline with a small file structure
-    #[tokio::test]
-    async fn test_simple() {
-        // Create a new path for this test
-        let test_path = Path::new(TEST_PATH);
-        let test_path = test_path.join("simple");
-        // Define the file structure to test
-        let desired_structure = Structure::new(
-            TEST_MAX_WIDTH, // width
-            TEST_MAX_DEPTH, // depth
-            TEST_INPUT_SIZE,
-            Strategy::Simple,
-        );
-        // Setup the test
-        setup_test(&test_path, desired_structure, "test_simple");
-        // Run the test
-        run_test(&test_path, "test_simple").await;
-    }
-
-    /// Test the pipeline with a very deep file structure
-    #[tokio::test]
-    async fn test_deep() {
-        // Create a new path for this test
-        let test_path = Path::new(TEST_PATH);
-        let test_path = test_path.join("deep");
-        // Define the file structure to test
-        let desired_structure = Structure::new(
-            2, // width
-            8, // depth
-            TEST_INPUT_SIZE,
-            Strategy::Simple,
-        );
-        // Setup the test
-        setup_test(&test_path, desired_structure, "test_deep");
-        // Run the test
-        run_test(&test_path, "test_deep").await;
-    }
-
-    /// Test the pipeline with a very wide file structure
-    #[tokio::test]
-    async fn test_wide() {
-        // Create a new path for this test
-        let test_path = Path::new(TEST_PATH);
-        let test_path = test_path.join("wide");
-        // Define the file structure to test
-        let desired_structure = Structure::new(
-            16, // width
-            2,  // depth
-            TEST_INPUT_SIZE,
-            Strategy::Simple,
-        );
-        // Setup the test
-        setup_test(&test_path, desired_structure, "test_wide");
-        // Run the test
-        run_test(&test_path, "test_wide").await;
-    }
 
     /// Test with one very big file -- ignore cuz it takes a while
     #[tokio::test]

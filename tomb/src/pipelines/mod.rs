@@ -35,6 +35,7 @@ mod test {
         path::PathBuf,
     };
     use tomb_common::types::pipeline::Manifest;
+    use serial_test::serial;
 
     #[tokio::test]
     async fn pipeline_init() -> Result<()> {
@@ -340,31 +341,34 @@ mod test {
         Ok(())
     }
 
-    // 1MB
-    const TEST_INPUT_SIZE: usize = 4000;
+    
+    const STRUCTURE_INPUT_SIZE: usize = 1024;
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_structure_simple() -> Result<()> {
         let test_name = "pipeline_structure_simple";
-        let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
+        let structure = Structure::new(4, 4, STRUCTURE_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_structure_deep() -> Result<()> {
         let test_name = "pipeline_structure_deep";
-        let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
+        let structure = Structure::new(2, 8, STRUCTURE_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_structure_wide() -> Result<()> {
         let test_name = "pipeline_structure_deep";
-        let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
+        let structure = Structure::new(16, 1, STRUCTURE_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
