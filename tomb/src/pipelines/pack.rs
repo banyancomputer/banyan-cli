@@ -4,7 +4,7 @@ use crate::{
         grouper::grouper,
         serialize::{
             load_dir, load_hot_forest, load_key, load_manifest, store_dir, store_key,
-            store_pipeline,
+            store_all,
         },
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -170,7 +170,7 @@ pub async fn pipeline(
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_pipeline(tomb_path, &manifest, &mut forest, &root_dir).await?;
+    let _ = store_all(local, tomb_path, &manifest, &mut Rc::clone(&forest), &mut forest, &root_dir).await?;
 
     if let Some(output_dir) = output_dir {
         // Remove the .tomb directory from the output path if it is already there

@@ -19,7 +19,7 @@ mod test {
     use crate::{
         pipelines::{configure, pack, pull, push, remove, unpack},
         utils::{
-            serialize::{load_manifest, load_pipeline},
+            serialize::{load_manifest, load_all},
             spider::path_to_segments,
             tests::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
             wnfsio::decompress_bytes,
@@ -212,7 +212,7 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(true, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
@@ -261,7 +261,7 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(false, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, cold_forest, dir) = &mut load_all(false, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
@@ -288,7 +288,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn pipeline_remove() -> Result<()> {
+    async fn pipeline_remove_local() -> Result<()> {
         // Create the setup conditions
         let (input_dir, output_dir) = &test_setup("pipeline_remove").await?;
         // Initialize tomb
@@ -301,7 +301,7 @@ mod test {
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
         let result = dir
             .get_node(wnfs_segments, true, forest, &manifest.hot_local)
             .await?;
@@ -310,7 +310,7 @@ mod test {
         // Remove the PrivateFile at this Path
         remove::pipeline(tomb_path, wnfs_path).await?;
         // Reload metadata
-        let (_, manifest, forest, dir) = &mut load_pipeline(tomb_path).await?;
+        let (_, manifest, forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
         let result = dir
             .get_node(wnfs_segments, true, forest, &manifest.hot_local)
             .await?;

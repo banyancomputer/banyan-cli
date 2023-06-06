@@ -5,7 +5,7 @@ use chrono::Utc;
 use rand::thread_rng;
 
 use crate::utils::{
-    serialize::{load_pipeline, store_pipeline},
+    serialize::{store_all, load_all},
     spider::path_to_segments,
     wnfsio::compress_file,
 };
@@ -22,7 +22,7 @@ pub async fn pipeline(
     // Turn the relative path into a vector of segments
     let path_segments = &path_to_segments(wnfs_path).unwrap();
     // Load the data
-    let (_, manifest, forest, root_dir) = &mut load_pipeline(tomb_path).await?;
+    let (_, manifest, forest, cold_forest, root_dir) = &mut load_all(local, tomb_path).await?;
     let time = Utc::now();
     let rng = &mut thread_rng();
     let file = root_dir
@@ -37,7 +37,7 @@ pub async fn pipeline(
             .await?;
     }
     // Store all the updated information, now that we've written the file
-    store_pipeline(tomb_path, manifest, forest, root_dir).await?;
+    store_all(local, tomb_path, manifest, forest, cold_forest, root_dir).await?;
     // Return Ok
     Ok(())
 }
