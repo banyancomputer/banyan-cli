@@ -81,7 +81,8 @@ mod test {
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
-        test_teardown("pipeline_pack_unpack_local").await
+        // test_teardown("pipeline_pack_unpack_local").await
+        Ok(())
     }
 
     #[tokio::test]
@@ -324,14 +325,15 @@ mod test {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let (input_dir, output_dir) = &(root_path.join("input"), root_path.join("output"));
+        // Initialize
+        configure::init(input_dir)?;
         // Pack locally
-        pack::pipeline(input_dir, Some(output_dir), 0, true).await?;
+        pack::pipeline(input_dir, Some(output_dir), 262144, true).await?;
         // Create a new dir to unpack in
         let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
         unpack::pipeline(Some(output_dir), unpacked_dir).await?;
-
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
 
@@ -339,15 +341,13 @@ mod test {
     }
 
     // 1MB
-    const TEST_INPUT_SIZE: usize = 100;
+    const TEST_INPUT_SIZE: usize = 4000;
 
     #[tokio::test]
     async fn pipeline_structure_simple() -> Result<()> {
         let test_name = "pipeline_structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
-        // Setup
-        let (input_dir, _) = test_setup_structured(test_name, structure).await?;
-        configure::init(&input_dir)?;
+        test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }
@@ -356,9 +356,7 @@ mod test {
     async fn pipeline_structure_deep() -> Result<()> {
         let test_name = "pipeline_structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
-        // Setup
-        let (input_dir, _) = test_setup_structured(test_name, structure).await?;
-        configure::init(&input_dir)?;
+        test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }
@@ -367,9 +365,7 @@ mod test {
     async fn pipeline_structure_wide() -> Result<()> {
         let test_name = "pipeline_structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
-        // Setup
-        let (input_dir, _) = test_setup_structured(test_name, structure).await?;
-        configure::init(&input_dir)?;
+        test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }

@@ -18,7 +18,6 @@ pub mod cli;
 
 use assert_cmd as _;
 use async_recursion as _;
-use blake2 as _;
 use chrono as _;
 use criterion as _;
 use dir_assert as _;

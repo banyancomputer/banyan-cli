@@ -329,15 +329,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blake2"
-version = "0.10.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
-dependencies = [
- "digest",
-]
-
-[[package]]
 name = "blake2b_simd"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3171,7 +3162,6 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "async-recursion",
- "blake2",
  "chrono",
  "clap 4.3.1",
  "criterion",

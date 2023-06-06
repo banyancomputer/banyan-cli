@@ -26,7 +26,6 @@ wnfs.workspace = true
 chrono.workspace = true
 rand.workspace = true
 async-recursion = "1.0.4"
-blake2 = "0.10.6"
 tokio.workspace = true
 env_logger = "0.10.0"
 clap.workspace = true

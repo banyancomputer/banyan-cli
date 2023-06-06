@@ -8,14 +8,11 @@ use std::{
 
 use crate::types::shared::CompressionScheme;
 use anyhow::Result;
-use blake2::{Blake2b512, Digest};
-use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle};
-use rand::RngCore;
 use tokio as _;
 use wnfs::{
     common::BlockStore,
-    private::{PrivateDirectory, PrivateFile, PrivateForest},
+    private::{PrivateFile, PrivateForest},
 };
 
 /// Compresses bytes

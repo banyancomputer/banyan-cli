@@ -39,12 +39,12 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     let (_, mut manifest, forest, dir) = load_pipeline(&tomb_path).await?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
-    manifest.hot_local.change_dir(&tomb_path)?;
-    if local {
-        manifest
-            .cold_local
-            .change_dir(&input_dir.unwrap().join("content"))?
-    }
+    // manifest.hot_local.change_dir(&tomb_path)?;
+    // if local {
+    //     manifest
+    //         .cold_local
+    //         .change_dir(&input_dir.unwrap().join("content"))?
+    // }
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",

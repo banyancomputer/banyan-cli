@@ -3,7 +3,8 @@ use crate::{
     utils::{
         grouper::grouper,
         serialize::{
-            load_dir, load_forest, load_key, load_manifest, store_dir, store_key, store_pipeline,
+            load_dir, load_hot_forest, load_key, load_manifest, store_dir, store_key,
+            store_pipeline,
         },
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -115,7 +116,7 @@ pub async fn pipeline(
         let key = load_key(tomb_path, "root")?;
 
         // Load in the PrivateForest and PrivateDirectory
-        if let Ok(new_forest) = load_forest(&manifest).await &&
+        if let Ok(new_forest) = load_hot_forest(&manifest.hot_local).await &&
            let Ok(new_dir) = load_dir(&manifest, &key, &new_forest, "current_root").await {
             // Update the forest and root directory
             forest = new_forest;
@@ -247,7 +248,7 @@ async fn process_plans(
                 // Grab the metadata for the first occurrence of this file
                 let first = &metadatas.get(0).unwrap().original_location;
                 // Turn the relative path into a vector of segments
-                let path_segments = &path_to_segments(first).unwrap();
+                let path_segments = &path_to_segments(first)?;
                 // Grab the current time
                 let time = Utc::now();
                 // Open the PrivateFile
@@ -263,7 +264,7 @@ async fn process_plans(
                 )?;
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
                 file.set_content(time, content.as_slice(), forest, cold_store, rng)
-                    .await;
+                    .await?;
 
                 // Duplicates need to be linked no matter what
                 for metadata in &metadatas[1..] {
@@ -275,19 +276,17 @@ async fn process_plans(
                     // Create that folder
                     root_dir
                         .mkdir(folder_segments, true, Utc::now(), forest, hot_store, rng)
-                        .await
-                        .unwrap();
+                        .await?;
                     // Copy the file from the original path to the duplicate path
                     root_dir
                         .cp_link(path_segments, dup_path_segments, true, forest, hot_store)
-                        .await
-                        .unwrap();
+                        .await?;
                 }
             }
             // If this is a directory or symlink
             PackPipelinePlan::Directory(metadata) => {
                 // Turn the canonicalized path into a vector of segments
-                let path_segments = path_to_segments(&metadata.original_location).unwrap();
+                let path_segments = path_to_segments(&metadata.original_location)?;
 
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
@@ -316,7 +315,7 @@ async fn process_plans(
         match symlink_plan {
             PackPipelinePlan::Symlink(metadata, symlink_target) => {
                 // The path where the symlink will be placed
-                let symlink_segments = path_to_segments(&metadata.original_location).unwrap();
+                let symlink_segments = path_to_segments(&metadata.original_location)?;
 
                 // Link the file or folder
                 root_dir
@@ -329,8 +328,7 @@ async fn process_plans(
                         hot_store,
                         rng,
                     )
-                    .await
-                    .unwrap();
+                    .await?;
             }
             PackPipelinePlan::Directory(_) | PackPipelinePlan::FileGroup(_) => todo!(),
         }

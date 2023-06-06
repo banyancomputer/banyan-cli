@@ -4,7 +4,7 @@ use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
     fs::ensure_path_exists_and_is_empty_dir,
-    serialize::{load_forest, load_manifest, store_manifest},
+    serialize::{load_hot_forest, load_manifest, store_manifest},
     wnfsio::get_progress_bar,
 };
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
@@ -33,11 +33,11 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // manifest.cold_local = CarBlockStore::new(&content_path, None);
 
     // Load the forest
-    let forest = load_forest(&manifest).await?;
+    let hot_forest = load_hot_forest(&manifest.hot_local).await?;
 
     // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
     // Find CID differences as a way of tallying all Forest CIDs
-    let differences = forest
+    let differences = hot_forest
         .diff(&Rc::new(PrivateForest::new()), &manifest.hot_local)
         .await?;
 
