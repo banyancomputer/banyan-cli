@@ -1,6 +1,7 @@
 use crate::types::blockstore::carblockstore::CarBlockStore;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
+use wnfs::libipld::Cid;
 
 use super::blockstore::networkblockstore::NetworkBlockStore;
 
@@ -18,6 +19,10 @@ pub struct Manifest {
     pub cold_remote: NetworkBlockStore,
     /// The BlockStore that holds all Metadata
     pub hot_local: CarBlockStore,
+    /// The BlockStore that holds all Metadata
+    pub hot_remote: NetworkBlockStore,
+    /// The roots containing keys and CIDs
+    pub roots: HashMap<String, Cid>,
 }
 
 impl Default for Manifest {
@@ -27,6 +32,8 @@ impl Default for Manifest {
             cold_local: Default::default(),
             cold_remote: Default::default(),
             hot_local: Default::default(),
+            hot_remote: Default::default(),
+            roots: Default::default(),
         }
     }
 }

@@ -35,7 +35,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     manifest.cold_local = CarBlockStore::new(&content_path, None);
 
     // Load the cold forest from the remote endpoint
-    let cold_forest = load_cold_forest(&manifest.hot_local, &manifest.cold_remote).await?;
+    let cold_forest = load_cold_forest(&manifest.roots, &manifest.cold_remote).await?;
 
     // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
     // Find CID differences as a way of tallying all Forest CIDs
@@ -69,8 +69,8 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
 
     // Store the modified cold forest both locally and remotely
-    store_cold_forest(&manifest.hot_local, &manifest.cold_local, &cold_forest).await?;
-    store_cold_forest(&manifest.hot_local, &manifest.cold_remote, &cold_forest).await?;
+    store_cold_forest(&mut manifest.roots, &manifest.cold_local, &cold_forest).await?;
+    store_cold_forest(&mut manifest.roots, &manifest.cold_remote, &cold_forest).await?;
     // Store the modified manifest
     store_manifest(&tomb_path, &manifest)
 }

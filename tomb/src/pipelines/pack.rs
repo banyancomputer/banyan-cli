@@ -77,14 +77,18 @@ pub async fn pipeline(
     } else {
         CarBlockStore::default()
     };
-    // Declare the remote store
+    // Declare the remote stores
     let mut cold_remote = NetworkBlockStore::default();
+    let mut hot_remote = NetworkBlockStore::default();
 
     // Load the manifest
     let manifest = load_manifest(tomb_path)?;
     // Update the BlockStores we will use if they have non-default values
     if manifest.hot_local != CarBlockStore::default() {
         hot_local = manifest.hot_local;
+    }
+    if manifest.hot_remote != NetworkBlockStore::default() {
+        hot_remote = manifest.hot_remote;
     }
     if manifest.cold_local != CarBlockStore::default() {
         cold_local = manifest.cold_local;
@@ -117,7 +121,7 @@ pub async fn pipeline(
         let key = load_key(tomb_path, "root")?;
 
         // Load in the PrivateForest and PrivateDirectory
-        if let Ok(new_hot_forest) = load_hot_forest(&manifest.hot_local).await &&
+        if let Ok(new_hot_forest) = load_hot_forest(&manifest.roots, &manifest.hot_local).await &&
            let Ok(new_dir) = load_dir(&manifest, &key, &new_hot_forest, "current_root").await {
             // Update the forest and root directory
             hot_forest = new_hot_forest;
@@ -131,9 +135,9 @@ pub async fn pipeline(
         }
 
         let new_cold_forest = if local {
-            load_cold_forest(&manifest.hot_local, &manifest.cold_local).await
+            load_cold_forest(&manifest.roots, &manifest.cold_local).await
         } else {
-            load_cold_forest(&manifest.hot_local, &manifest.cold_remote).await
+            load_cold_forest(&manifest.roots, &manifest.cold_remote).await
         };
         if let Ok(new_cold_forest) = new_cold_forest {
             cold_forest = new_cold_forest;
@@ -168,17 +172,19 @@ pub async fn pipeline(
     }
 
     // Construct the latest version of the Manifest struct
-    let manifest = Manifest {
+    let mut manifest = Manifest {
         version: env!("CARGO_PKG_VERSION").to_string(),
         cold_local,
         cold_remote,
         hot_local,
+        hot_remote,
+        roots: Default::default(),
     };
 
     if first_run {
         println!("storing original dir and key");
         let original_key =
-            store_dir(&manifest, &mut hot_forest, &root_dir, "original_root").await?;
+            store_dir(&mut manifest, &mut hot_forest, &root_dir, "original_root").await?;
         store_key(tomb_path, &original_key, "original")?;
     }
 
@@ -186,7 +192,7 @@ pub async fn pipeline(
     let _ = store_all(
         local,
         tomb_path,
-        &manifest,
+        &mut manifest,
         &mut hot_forest,
         &mut cold_forest,
         &root_dir,
