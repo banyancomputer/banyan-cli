@@ -4,12 +4,13 @@ use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
     fs::ensure_path_exists_and_is_empty_dir,
-    serialize::{load_manifest, store_manifest},
+    disk::{manifest_from_disk, manifest_to_disk},
     wnfsio::get_progress_bar,
 };
-use tomb_common::{types::blockstore::{
-    carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore,
-}, utils::serialize::{load_cold_forest, store_cold_forest}};
+use tomb_common::{
+    types::blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+    utils::serialize::{load_cold_forest, store_cold_forest},
+};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pipeline(dir: &Path) -> Result<()> {
@@ -17,7 +18,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     let tomb_path = dir.join(".tomb");
     let content_path = dir.join("content");
     // Load the Manifest
-    let mut manifest = load_manifest(&tomb_path)?;
+    let mut manifest = manifest_from_disk(&tomb_path)?;
     // If this remote endpoint has not actually been configured
     if manifest.cold_remote == NetworkBlockStore::default() {
         panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
@@ -72,5 +73,5 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     store_cold_forest(&mut manifest.roots, &manifest.cold_local, &cold_forest).await?;
     store_cold_forest(&mut manifest.roots, &manifest.cold_remote, &cold_forest).await?;
     // Store the modified manifest
-    store_manifest(&tomb_path, &manifest)
+    manifest_to_disk(&tomb_path, &manifest)
 }

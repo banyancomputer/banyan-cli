@@ -1,4 +1,4 @@
-use crate::utils::{serialize::load_manifest, wnfsio::get_progress_bar};
+use crate::utils::{disk::manifest_from_disk, wnfsio::get_progress_bar};
 use anyhow::Result;
 use std::path::Path;
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
@@ -11,7 +11,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     let _content_path = dir.join("content");
 
     // Load the manifest
-    let manifest = load_manifest(&tomb_path)?;
+    let manifest = manifest_from_disk(&tomb_path)?;
     info!("Loaded manifest...");
 
     // If this remote endpoint has not actually been configured

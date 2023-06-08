@@ -159,7 +159,7 @@ mod test {
     use serial_test::serial;
     use std::{fs::create_dir_all, path::Path, process::Command};
     use tomb::utils::{
-        serialize::load_manifest,
+        disk::manifest_from_disk,
         tests::{compute_directory_size, test_setup, test_teardown},
     };
     use tomb_common::types::pipeline::Manifest;
@@ -239,7 +239,7 @@ mod test {
         // Initialization worked
         init(&input_dir).await?.assert().success();
         // Load the modified Manifest
-        let manifest = load_manifest(&input_dir.join(".tomb"))?;
+        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the default Manifest was successfully encoded
         assert_eq!(manifest, Manifest::default());
         // Teardown test
@@ -261,7 +261,7 @@ mod test {
             .success();
 
         // Load the modified Manifest
-        let manifest = load_manifest(&input_dir.join(".tomb"))?;
+        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the remote endpoint was successfully updated
         assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown test

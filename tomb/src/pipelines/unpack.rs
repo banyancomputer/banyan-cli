@@ -1,4 +1,4 @@
-use crate::utils::{serialize::load_all, wnfsio::file_to_disk};
+use crate::utils::{disk::all_from_disk, wnfsio::file_to_disk};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use fs_extra::{copy_items, dir::CopyOptions};
@@ -36,7 +36,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     // If this is a local unpack
     let local = input_dir.is_some();
     // Load metadata
-    let (_, manifest, hot_forest, cold_forest, dir) = load_all(local, &tomb_path).await?;
+    let (_, manifest, hot_forest, cold_forest, dir) = all_from_disk(local, &tomb_path).await?;
 
     // Update the locations of the CarBlockStores to be relative to the input path
     // manifest.hot_local.change_dir(&tomb_path)?;

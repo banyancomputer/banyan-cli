@@ -56,16 +56,16 @@ async fn run_test(test_path: &Path, test_name: &str) {
 mod test {
     use super::*;
     use anyhow::Result;
-    use tomb_common::utils::serialize::load_dir;
     use std::{path::Path, rc::Rc};
     use tokio::{
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
     use tomb::utils::{
-        serialize::{load_all_hot, load_key},
+        disk::{hot_from_disk, key_from_disk},
         tests::compute_directory_size,
     };
+    use tomb_common::utils::serialize::load_dir;
     use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run
@@ -317,9 +317,9 @@ mod test {
 
         // The path in which we expect to find metadata
         let tomb_path = &test_path.join("unpacked").join(".tomb");
-        let (key, manifest, mut forest, dir) = load_all_hot(tomb_path).await?;
+        let (key, manifest, mut forest, dir) = hot_from_disk(true, tomb_path).await?;
 
-        let original_key = load_key(tomb_path, "original")?;
+        let original_key = key_from_disk(tomb_path, "original")?;
         let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;
 
         assert_ne!(key, original_key);

@@ -2,9 +2,7 @@ use crate::{
     types::spider::PackPipelinePlan,
     utils::{
         grouper::grouper,
-        serialize::{
-            load_key, load_manifest, store_all, store_key,
-        },
+        disk::{all_to_disk, key_from_disk, key_to_disk, manifest_from_disk},
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
     },
@@ -21,10 +19,13 @@ use std::{
     rc::Rc,
     vec,
 };
-use tomb_common::{types::{
-    blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
-    pipeline::Manifest,
-}, utils::serialize::{load_hot_forest, load_dir, load_cold_forest, store_dir}};
+use tomb_common::{
+    types::{
+        blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+        pipeline::Manifest,
+    },
+    utils::serialize::{load_cold_forest, load_dir, load_hot_forest, store_dir},
+};
 use wnfs::{
     common::BlockStore,
     namefilter::Namefilter,
@@ -81,7 +82,7 @@ pub async fn pipeline(
     let mut hot_remote = NetworkBlockStore::default();
 
     // Load the manifest
-    let manifest = load_manifest(tomb_path)?;
+    let manifest = manifest_from_disk(tomb_path)?;
     // Update the BlockStores we will use if they have non-default values
     if manifest.hot_local != CarBlockStore::default() {
         hot_local = manifest.hot_local;
@@ -115,9 +116,9 @@ pub async fn pipeline(
     else {
         println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
         // Load the manifest
-        let manifest = load_manifest(tomb_path)?;
+        let manifest = manifest_from_disk(tomb_path)?;
         // Load in the Key
-        let key = load_key(tomb_path, "root")?;
+        let key = key_from_disk(tomb_path, "root")?;
 
         // Load in the PrivateForest and PrivateDirectory
         if let Ok(new_hot_forest) = load_hot_forest(&manifest.roots, &manifest.hot_local).await &&
@@ -184,11 +185,11 @@ pub async fn pipeline(
         println!("storing original dir and key");
         let original_key =
             store_dir(&mut manifest, &mut hot_forest, &root_dir, "original_root").await?;
-        store_key(tomb_path, &original_key, "original")?;
+        key_to_disk(tomb_path, &original_key, "original")?;
     }
 
     // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = store_all(
+    let _ = all_to_disk(
         local,
         tomb_path,
         &mut manifest,

@@ -1,10 +1,13 @@
-use std::{rc::Rc, collections::HashMap};
+use std::{collections::HashMap, rc::Rc};
 
-use wnfs::{private::{TemporalKey, PrivateForest, PrivateDirectory, PrivateRef, PrivateNode}, common::{HashOutput, BlockStore, AsyncSerialize}, libipld::{serde as ipld_serde, Cid, Ipld}};
 use crate::types::pipeline::Manifest;
 use anyhow::Result;
 use rand::thread_rng;
-
+use wnfs::{
+    common::{AsyncSerialize, BlockStore, HashOutput},
+    libipld::{serde as ipld_serde, Cid, Ipld},
+    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey},
+};
 
 /// Store a given PrivateForest in a given Store
 pub async fn store_forest(forest: &Rc<PrivateForest>, store: &impl BlockStore) -> Result<Cid> {
@@ -144,25 +147,32 @@ pub async fn load_dir(
 
 /// Store all hot objects!
 pub async fn store_all_hot(
-    mut manifest: Manifest,
+    local: bool,
+    manifest: &mut Manifest,
     hot_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-) -> Result<(TemporalKey, Manifest)> {
+) -> Result<TemporalKey> {
     // Store the dir, then the forest, then the manifest and key
-    let temporal_key = store_dir(&mut manifest, hot_forest, root_dir, "current_root").await?;
-    store_hot_forest(&mut manifest.roots, &manifest.hot_local, hot_forest).await?;
-    Ok((temporal_key, manifest))
+    let temporal_key = store_dir(manifest, hot_forest, root_dir, "current_root").await?;
+    if local {
+        store_hot_forest(&mut manifest.roots, &manifest.hot_local, hot_forest).await?;
+    } else {
+        store_hot_forest(&mut manifest.roots, &manifest.hot_remote, hot_forest).await?;
+    }
+    Ok(temporal_key)
 }
 
 /// Load all hot objects!
 pub async fn load_all_hot(
+    local: bool,
     key: &TemporalKey,
-    manifest: &Manifest
-) -> Result<(
-    Rc<PrivateForest>,
-    Rc<PrivateDirectory>,
-)> {
-    let hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
+    manifest: &Manifest,
+) -> Result<(Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+    let hot_forest = if local {
+        load_hot_forest(&manifest.roots, &manifest.hot_local).await?
+    } else {
+        load_hot_forest(&manifest.roots, &manifest.hot_remote).await?
+    };
     let dir = load_dir(&manifest, &key, &hot_forest, "current_root").await?;
     Ok((hot_forest, dir))
 }
@@ -170,13 +180,13 @@ pub async fn load_all_hot(
 /// Store everything at once!
 pub async fn store_all(
     local: bool,
-    mut manifest: Manifest,
+    manifest: &mut Manifest,
     hot_forest: &mut Rc<PrivateForest>,
     cold_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-) -> Result<(TemporalKey, Manifest)> {
-    let temporal_key = store_dir(&mut manifest, hot_forest, root_dir, "current_root").await?;
-    
+) -> Result<TemporalKey> {
+    let temporal_key = store_dir(manifest, hot_forest, root_dir, "current_root").await?;
+
     if local {
         store_hot_forest(&mut manifest.roots, &manifest.hot_local, hot_forest).await?;
         store_cold_forest(&mut manifest.roots, &manifest.cold_local, cold_forest).await?;
@@ -185,32 +195,26 @@ pub async fn store_all(
         store_cold_forest(&mut manifest.roots, &manifest.cold_remote, cold_forest).await?;
     }
 
-    Ok((temporal_key, manifest))
+    Ok(temporal_key)
 }
 
 /// Load everything at once!
 pub async fn load_all(
     local: bool,
     key: &TemporalKey,
-    manifest: &Manifest
-) -> Result<(
-    Rc<PrivateForest>,
-    Rc<PrivateForest>,
-    Rc<PrivateDirectory>,
-)> {
-    let hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
-    let dir = load_dir(&manifest, &key, &hot_forest, "current_root").await?;
-
+    manifest: &Manifest,
+) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     let (hot_forest, cold_forest) = if local {
         (
             load_hot_forest(&manifest.roots, &manifest.hot_local).await?,
-            load_cold_forest(&manifest.roots, &manifest.cold_local).await?
+            load_cold_forest(&manifest.roots, &manifest.cold_local).await?,
         )
     } else {
         (
             load_hot_forest(&manifest.roots, &manifest.hot_remote).await?,
-            load_cold_forest(&manifest.roots, &manifest.cold_remote).await?
+            load_cold_forest(&manifest.roots, &manifest.cold_remote).await?,
         )
     };
+    let dir = load_dir(&manifest, &key, &hot_forest, "current_root").await?;
     Ok((hot_forest, cold_forest, dir))
 }

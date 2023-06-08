@@ -1,6 +1,6 @@
 use crate::utils::{
     fs::ensure_path_exists_and_is_empty_dir,
-    serialize::{load_manifest, store_manifest},
+    disk::{manifest_from_disk, manifest_to_disk},
 };
 use anyhow::Result;
 use std::{fs::create_dir_all, path::Path};
@@ -36,16 +36,17 @@ pub fn init(dir: &Path) -> Result<()> {
     // Forcibly ensure the path exists and is empty
     ensure_path_exists_and_is_empty_dir(tomb_path, true)?;
     // Store the default / empty manifest
-    store_manifest(tomb_path, &Manifest::default())
+    manifest_to_disk(tomb_path, &Manifest::default())
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
 pub fn remote(dir: &Path, url: &str, port: u16) -> Result<()> {
     // Append the expected .tomb
     let tomb_path = &dir.join(".tomb");
-    let mut manifest = load_manifest(tomb_path)?;
+    let mut manifest = manifest_from_disk(tomb_path)?;
     // Set the remote endpoint
     manifest.cold_remote = NetworkBlockStore::new(url, port);
+    manifest.hot_remote = NetworkBlockStore::new(url, port);
     // Store the updated Manifest
-    store_manifest(tomb_path, &manifest)
+    manifest_to_disk(tomb_path, &manifest)
 }

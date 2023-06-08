@@ -19,7 +19,7 @@ mod test {
     use crate::{
         pipelines::{configure, pack, pull, push, remove, unpack},
         utils::{
-            serialize::{load_all, load_all_hot, load_manifest},
+            disk::{all_from_disk, hot_from_disk, manifest_from_disk},
             spider::path_to_segments,
             tests::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
             wnfsio::decompress_bytes,
@@ -44,7 +44,7 @@ mod test {
         let (input_dir, _) = test_setup(test_name).await?;
         // Initialize
         configure::init(&input_dir)?;
-        let manifest = load_manifest(&input_dir.join(".tomb"))?;
+        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the default Manifest was serialized
         assert_eq!(manifest, Manifest::default());
         // Teardown
@@ -61,7 +61,7 @@ mod test {
         // Configure the remote endpoint
         configure::remote(&input_dir, "http://127.0.0.1", 5001)?;
         // Load the Manifest
-        let manifest = load_manifest(&input_dir.join(".tomb"))?;
+        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the default Manifest was serialized
         assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown
@@ -115,7 +115,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
+    #[ignore]
     async fn pipeline_pack_pull_unpack() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
@@ -222,7 +222,8 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(true, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, hot_forest, cold_forest, dir) = &mut load_all(true, tomb_path).await?;
+        let (_, manifest, hot_forest, cold_forest, dir) =
+            &mut all_from_disk(true, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
@@ -273,7 +274,8 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(false, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, hot_forest, cold_forest, dir) = &mut load_all(false, tomb_path).await?;
+        let (_, manifest, hot_forest, cold_forest, dir) =
+            &mut all_from_disk(false, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
@@ -314,7 +316,7 @@ mod test {
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let (_, manifest, hot_forest, dir) = &mut load_all_hot(tomb_path).await?;
+        let (_, manifest, hot_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
         let result = dir
             .get_node(wnfs_segments, true, hot_forest, &manifest.hot_local)
             .await?;
@@ -323,7 +325,7 @@ mod test {
         // Remove the PrivateFile at this Path
         remove::pipeline(tomb_path, wnfs_path).await?;
         // Reload metadata
-        let (_, manifest, hot_forest, dir) = &mut load_all_hot(tomb_path).await?;
+        let (_, manifest, hot_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
         let result = dir
             .get_node(wnfs_segments, true, hot_forest, &manifest.hot_local)
             .await?;

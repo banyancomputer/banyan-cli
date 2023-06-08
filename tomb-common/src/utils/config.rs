@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use std::{env, fs::create_dir_all, net::Ipv4Addr, path::PathBuf};
 
@@ -27,4 +26,3 @@ pub fn ip_from_string(address: String) -> Ipv4Addr {
     // Construct the IP Address from these numbers
     Ipv4Addr::from(numbers)
 }
-
