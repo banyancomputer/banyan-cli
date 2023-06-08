@@ -120,9 +120,20 @@ pub async fn pipeline(
         // Load in the Key
         let key = key_from_disk(tomb_path, "root")?;
 
-        // Load in the PrivateForest and PrivateDirectory
-        if let Ok(new_hot_forest) = load_hot_forest(&manifest.roots, &manifest.hot_local).await &&
-           let Ok(new_dir) = load_dir(&manifest, &key, &new_hot_forest, "current_root").await {
+        let (new_hot_forest, new_cold_forest) = if local {
+            (
+                load_hot_forest(&manifest.roots, &manifest.hot_local).await,
+                load_cold_forest(&manifest.roots, &manifest.cold_local).await,
+            )
+        } else {
+            (
+                load_hot_forest(&manifest.roots, &manifest.hot_remote).await,
+                load_cold_forest(&manifest.roots, &manifest.cold_remote).await,
+            )
+        };
+
+        if let Ok(new_hot_forest) = new_hot_forest &&
+           let Ok(new_dir) = load_dir(local, &manifest, &key, &new_hot_forest, "current_root").await {
             // Update the forest and root directory
             hot_forest = new_hot_forest;
             root_dir = new_dir;
@@ -134,11 +145,6 @@ pub async fn pipeline(
             hot_local = CarBlockStore::new(tomb_path, None);
         }
 
-        let new_cold_forest = if local {
-            load_cold_forest(&manifest.roots, &manifest.cold_local).await
-        } else {
-            load_cold_forest(&manifest.roots, &manifest.cold_remote).await
-        };
         if let Ok(new_cold_forest) = new_cold_forest {
             cold_forest = new_cold_forest;
         }
@@ -165,7 +171,7 @@ pub async fn pipeline(
             &mut root_dir,
             &mut hot_forest,
             &mut cold_forest,
-            &hot_local,
+            &hot_remote,
             &cold_remote,
         )
         .await?;
@@ -183,8 +189,14 @@ pub async fn pipeline(
 
     if first_run {
         println!("storing original dir and key");
-        let original_key =
-            store_dir(&mut manifest, &mut hot_forest, &root_dir, "original_root").await?;
+        let original_key = store_dir(
+            local,
+            &mut manifest,
+            &mut hot_forest,
+            &root_dir,
+            "original_root",
+        )
+        .await?;
         key_to_disk(tomb_path, &original_key, "original")?;
     }
 

@@ -114,9 +114,10 @@ mod test {
         test_teardown(test_name).await
     }
 
+    // TODO (organizedgrime) ignored because packing remotely and unpacking locally call from different hot stores which is not yet supported
     #[tokio::test]
     #[ignore]
-    async fn pipeline_pack_pull_unpack() -> Result<()> {
+    async fn pipeline_pack_remote_pull_unpack_local() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
         let (input_dir, output_dir) = &test_setup(test_name).await?;
@@ -282,7 +283,7 @@ mod test {
                 &path_to_segments(&input_file)?,
                 true,
                 hot_forest,
-                &manifest.hot_local,
+                &manifest.hot_remote,
             )
             .await?
             .unwrap()

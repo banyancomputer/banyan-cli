@@ -197,7 +197,6 @@ mod test {
         pipeline::Manifest,
     };
     use wnfs::{
-        common::MemoryBlockStore,
         libipld::Cid,
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
@@ -314,7 +313,7 @@ mod test {
         let (tomb_path, mut manifest, mut hot_forest, _, dir) = setup(true, test_name).await?;
 
         // Generate key for this directory
-        let key = store_dir(&mut manifest, &mut hot_forest, &dir, "dir").await?;
+        let key = store_dir(true, &mut manifest, &mut hot_forest, &dir, "dir").await?;
 
         // Store and load
         key_to_disk(&tomb_path, &key, "root")?;
@@ -510,19 +509,19 @@ mod test {
     }
 
     #[tokio::test]
-    async fn serial_dir() -> Result<()> {
+    async fn serial_dir_local() -> Result<()> {
+        let test_name = "serial_dir_local";
         // Start er up!
-        let (_, mut manifest, mut hot_forest, _, dir) = setup(true, "serial_dir").await?;
+        let (_, mut manifest, mut hot_forest, _, dir) = setup(true, test_name).await?;
 
-        let key = store_dir(&mut manifest, &mut hot_forest, &dir, "dir").await?;
+        let key = store_dir(true, &mut manifest, &mut hot_forest, &dir, "dir").await?;
         store_hot_forest(&mut manifest.roots, &manifest.hot_local, &mut hot_forest).await?;
         let new_hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
-        let new_dir = load_dir(&manifest, &key, &new_hot_forest, "dir").await?;
+        let new_dir = load_dir(true, &manifest, &key, &new_hot_forest, "dir").await?;
         // Assert equality
         assert_eq!(dir, new_dir);
-
         // Teardown
-        teardown("serial_dir").await
+        teardown(test_name).await
     }
 
     /// Helper function, not a test
@@ -600,6 +599,7 @@ mod test {
             .await?;
 
         let key = store_dir(
+            true,
             &mut manifest,
             &mut original_hot_forest,
             &original_dir,
@@ -614,7 +614,7 @@ mod test {
         .await?;
 
         let mut new_hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
-        let mut new_dir = load_dir(&manifest, &key, &new_hot_forest, "dir").await?;
+        let mut new_dir = load_dir(true, &manifest, &key, &new_hot_forest, "dir").await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 

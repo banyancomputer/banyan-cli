@@ -320,7 +320,8 @@ mod test {
         let (key, manifest, mut forest, dir) = hot_from_disk(true, tomb_path).await?;
 
         let original_key = key_from_disk(tomb_path, "original")?;
-        let original_dir = load_dir(&manifest, &original_key, &mut forest, "original_root").await?;
+        let original_dir =
+            load_dir(true, &manifest, &original_key, &mut forest, "original_root").await?;
 
         assert_ne!(key, original_key);
         assert_ne!(dir, original_dir);

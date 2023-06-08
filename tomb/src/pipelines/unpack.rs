@@ -126,7 +126,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
             &dir.as_node(),
             &hot_forest,
             &cold_forest,
-            &manifest.hot_local,
+            &manifest.hot_remote,
             &manifest.cold_remote,
         )
         .await

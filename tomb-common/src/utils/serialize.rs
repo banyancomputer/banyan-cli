@@ -81,19 +81,21 @@ pub async fn load_cold_forest(
 
 /// Store a PrivateDirectory
 pub async fn store_dir(
+    local: bool,
     manifest: &mut Manifest,
     hot_forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
     cid_key: &str,
 ) -> Result<TemporalKey> {
-    // Extract BlockStores
-    let hot_store = &manifest.hot_local;
-
     // Random number generator
     let rng = &mut thread_rng();
 
     // Store the root of the PrivateDirectory in the PrivateForest, retrieving a PrivateRef to it
-    let dir_ref: PrivateRef = dir.store(hot_forest, hot_store, rng).await?;
+    let dir_ref: PrivateRef = if local {
+        dir.store(hot_forest, &manifest.hot_local, rng).await?
+    } else {
+        dir.store(hot_forest, &manifest.hot_remote, rng).await?
+    };
 
     // Extract the component fields of the PrivateDirectory's PrivateReference
     let PrivateRef {
@@ -103,9 +105,17 @@ pub async fn store_dir(
     } = dir_ref;
 
     // Store it in the Metadata BlockStore
-    let ref_cid = hot_store
-        .put_serializable::<(HashOutput, Cid)>(&(saturated_name_hash, content_cid))
-        .await?;
+    let ref_cid = if local {
+        manifest
+            .hot_local
+            .put_serializable::<(HashOutput, Cid)>(&(saturated_name_hash, content_cid))
+            .await?
+    } else {
+        manifest
+            .hot_remote
+            .put_serializable::<(HashOutput, Cid)>(&(saturated_name_hash, content_cid))
+            .await?
+    };
 
     // Add PrivateDirectory associated roots to meta store
     manifest.roots.insert(cid_key.to_string(), ref_cid);
@@ -116,30 +126,39 @@ pub async fn store_dir(
 
 /// Load a PrivateDirectory
 pub async fn load_dir(
+    local: bool,
     manifest: &Manifest,
     key: &TemporalKey,
     hot_forest: &Rc<PrivateForest>,
     cid_key: &str,
 ) -> Result<Rc<PrivateDirectory>> {
-    // Extract BlockStores
-    let hot_local = &manifest.hot_local;
-
     // Get the PrivateRef CID
     let ref_cid = manifest.roots.get(cid_key).unwrap();
 
     // Construct the saturated name hash
-    let (saturated_name_hash, content_cid): (HashOutput, Cid) = hot_local
-        .get_deserializable::<(HashOutput, Cid)>(ref_cid)
-        .await?;
+    let (saturated_name_hash, content_cid): (HashOutput, Cid) = if local {
+        manifest
+            .hot_local
+            .get_deserializable::<(HashOutput, Cid)>(ref_cid)
+            .await?
+    } else {
+        manifest
+            .hot_remote
+            .get_deserializable::<(HashOutput, Cid)>(ref_cid)
+            .await?
+    };
 
     // Reconstruct the PrivateRef
     let dir_ref: PrivateRef =
         PrivateRef::with_temporal_key(saturated_name_hash, key.clone(), content_cid);
 
     // Load the PrivateDirectory from the PrivateForest
-    let dir: Rc<PrivateDirectory> = PrivateNode::load(&dir_ref, hot_forest, hot_local)
-        .await?
-        .as_dir()?;
+    let dir: Rc<PrivateDirectory> = (if local {
+        PrivateNode::load(&dir_ref, hot_forest, &manifest.hot_local).await
+    } else {
+        PrivateNode::load(&dir_ref, hot_forest, &manifest.hot_remote).await
+    })?
+    .as_dir()?;
 
     Ok(dir)
 }
@@ -152,7 +171,7 @@ pub async fn store_all_hot(
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     // Store the dir, then the forest, then the manifest and key
-    let temporal_key = store_dir(manifest, hot_forest, root_dir, "current_root").await?;
+    let temporal_key = store_dir(local, manifest, hot_forest, root_dir, "current_root").await?;
     if local {
         store_hot_forest(&mut manifest.roots, &manifest.hot_local, hot_forest).await?;
     } else {
@@ -172,7 +191,7 @@ pub async fn load_all_hot(
     } else {
         load_hot_forest(&manifest.roots, &manifest.hot_remote).await?
     };
-    let dir = load_dir(manifest, key, &hot_forest, "current_root").await?;
+    let dir = load_dir(local, manifest, key, &hot_forest, "current_root").await?;
     Ok((hot_forest, dir))
 }
 
@@ -184,7 +203,7 @@ pub async fn store_all(
     cold_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_dir(manifest, hot_forest, root_dir, "current_root").await?;
+    let temporal_key = store_dir(local, manifest, hot_forest, root_dir, "current_root").await?;
 
     if local {
         store_hot_forest(&mut manifest.roots, &manifest.hot_local, hot_forest).await?;
@@ -214,6 +233,6 @@ pub async fn load_all(
             load_cold_forest(&manifest.roots, &manifest.cold_remote).await?,
         )
     };
-    let dir = load_dir(manifest, key, &hot_forest, "current_root").await?;
+    let dir = load_dir(local, manifest, key, &hot_forest, "current_root").await?;
     Ok((hot_forest, cold_forest, dir))
 }
