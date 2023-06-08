@@ -4,12 +4,12 @@ use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
     fs::ensure_path_exists_and_is_empty_dir,
-    serialize::{load_cold_forest, load_manifest, store_cold_forest, store_manifest},
+    serialize::{load_manifest, store_manifest},
     wnfsio::get_progress_bar,
 };
-use tomb_common::types::blockstore::{
+use tomb_common::{types::blockstore::{
     carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore,
-};
+}, utils::serialize::{load_cold_forest, store_cold_forest}};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pipeline(dir: &Path) -> Result<()> {

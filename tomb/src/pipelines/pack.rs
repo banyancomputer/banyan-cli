@@ -3,8 +3,7 @@ use crate::{
     utils::{
         grouper::grouper,
         serialize::{
-            load_cold_forest, load_dir, load_hot_forest, load_key, load_manifest, store_all,
-            store_dir, store_key,
+            load_key, load_manifest, store_all, store_key,
         },
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -22,10 +21,10 @@ use std::{
     rc::Rc,
     vec,
 };
-use tomb_common::types::{
+use tomb_common::{types::{
     blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
     pipeline::Manifest,
-};
+}, utils::serialize::{load_hot_forest, load_dir, load_cold_forest, store_dir}};
 use wnfs::{
     common::BlockStore,
     namefilter::Namefilter,

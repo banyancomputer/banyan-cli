@@ -56,13 +56,14 @@ async fn run_test(test_path: &Path, test_name: &str) {
 mod test {
     use super::*;
     use anyhow::Result;
+    use tomb_common::utils::serialize::load_dir;
     use std::{path::Path, rc::Rc};
     use tokio::{
         fs::{read_link, symlink, symlink_metadata, File},
         io::AsyncWriteExt,
     };
     use tomb::utils::{
-        serialize::{load_all_hot, load_dir, load_key},
+        serialize::{load_all_hot, load_key},
         tests::compute_directory_size,
     };
     use wnfs::private::PrivateNodeOnPathHistory;
