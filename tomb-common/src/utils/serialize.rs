@@ -1,8 +1,7 @@
-use std::{collections::HashMap, rc::Rc};
-
 use crate::types::pipeline::Manifest;
 use anyhow::Result;
 use rand::thread_rng;
+use std::{collections::HashMap, rc::Rc};
 use wnfs::{
     common::{AsyncSerialize, BlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
@@ -130,7 +129,7 @@ pub async fn load_dir(
 
     // Construct the saturated name hash
     let (saturated_name_hash, content_cid): (HashOutput, Cid) = hot_local
-        .get_deserializable::<(HashOutput, Cid)>(&ref_cid)
+        .get_deserializable::<(HashOutput, Cid)>(ref_cid)
         .await?;
 
     // Reconstruct the PrivateRef
@@ -173,7 +172,7 @@ pub async fn load_all_hot(
     } else {
         load_hot_forest(&manifest.roots, &manifest.hot_remote).await?
     };
-    let dir = load_dir(&manifest, &key, &hot_forest, "current_root").await?;
+    let dir = load_dir(manifest, key, &hot_forest, "current_root").await?;
     Ok((hot_forest, dir))
 }
 
@@ -215,6 +214,6 @@ pub async fn load_all(
             load_cold_forest(&manifest.roots, &manifest.cold_remote).await?,
         )
     };
-    let dir = load_dir(&manifest, &key, &hot_forest, "current_root").await?;
+    let dir = load_dir(manifest, key, &hot_forest, "current_root").await?;
     Ok((hot_forest, cold_forest, dir))
 }

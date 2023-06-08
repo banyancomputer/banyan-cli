@@ -3,8 +3,8 @@ use std::{collections::HashSet, path::Path, rc::Rc};
 use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
-    fs::ensure_path_exists_and_is_empty_dir,
     disk::{manifest_from_disk, manifest_to_disk},
+    fs::ensure_path_exists_and_is_empty_dir,
     wnfsio::get_progress_bar,
 };
 use tomb_common::{

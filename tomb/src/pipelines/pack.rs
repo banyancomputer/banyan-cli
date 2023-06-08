@@ -1,8 +1,8 @@
 use crate::{
     types::spider::PackPipelinePlan,
     utils::{
-        grouper::grouper,
         disk::{all_to_disk, key_from_disk, key_to_disk, manifest_from_disk},
+        grouper::grouper,
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
     },

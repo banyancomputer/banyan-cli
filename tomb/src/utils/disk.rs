@@ -4,12 +4,11 @@ use std::{
     path::Path,
     rc::Rc,
 };
+use tomb_common::{types::pipeline::Manifest, utils::serialize::*};
 use wnfs::{
     common::dagcbor,
     private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey},
 };
-
-use tomb_common::{types::pipeline::Manifest, utils::serialize::*};
 
 /// Store a Manifest
 pub fn manifest_to_disk(tomb_path: &Path, manifest: &Manifest) -> Result<()> {
@@ -126,7 +125,7 @@ pub async fn all_to_disk(
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     let temporal_key = store_all(local, manifest, hot_forest, cold_forest, root_dir).await?;
-    manifest_to_disk(tomb_path, &manifest)?;
+    manifest_to_disk(tomb_path, manifest)?;
     key_to_disk(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
 }
@@ -157,7 +156,7 @@ pub async fn hot_to_disk(
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     let temporal_key = store_all_hot(local, manifest, hot_forest, root_dir).await?;
-    manifest_to_disk(tomb_path, &manifest)?;
+    manifest_to_disk(tomb_path, manifest)?;
     key_to_disk(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
 }
@@ -181,12 +180,12 @@ pub async fn hot_from_disk(
 #[cfg(test)]
 mod test {
     use crate::utils::{
-        fs::ensure_path_exists_and_is_dir,
         disk::{
             all_from_disk, all_to_disk, hot_from_disk, hot_to_disk, key_from_disk, key_to_disk,
-            load_dir, load_hot_forest, manifest_from_disk, manifest_to_disk,
-            store_dir, store_hot_forest,
+            load_dir, load_hot_forest, manifest_from_disk, manifest_to_disk, store_dir,
+            store_hot_forest,
         },
+        fs::ensure_path_exists_and_is_dir,
     };
     use anyhow::Result;
     use chrono::Utc;
@@ -198,6 +197,7 @@ mod test {
         pipeline::Manifest,
     };
     use wnfs::{
+        common::MemoryBlockStore,
         libipld::Cid,
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
@@ -276,8 +276,7 @@ mod test {
                 rng,
             )
             .await?;
-        }
-        else {
+        } else {
             file.set_content(
                 Utc::now(),
                 "Hello Kitty!".as_bytes(),
@@ -377,7 +376,8 @@ mod test {
     async fn disk_hot_remote() -> Result<()> {
         let test_name = "disk_hot_remote";
         // Setup
-        let (tomb_path, mut manifest, mut hot_forest, _, root_dir) = setup(false, test_name).await?;
+        let (tomb_path, mut manifest, mut hot_forest, _, root_dir) =
+            setup(false, test_name).await?;
         // Save to disk
         let key = hot_to_disk(false, &tomb_path, &mut manifest, &mut hot_forest, &root_dir).await?;
         // Reload from disk

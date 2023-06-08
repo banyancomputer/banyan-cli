@@ -1,6 +1,6 @@
 use crate::utils::{
-    fs::ensure_path_exists_and_is_empty_dir,
     disk::{manifest_from_disk, manifest_to_disk},
+    fs::ensure_path_exists_and_is_empty_dir,
 };
 use anyhow::Result;
 use std::{fs::create_dir_all, path::Path};

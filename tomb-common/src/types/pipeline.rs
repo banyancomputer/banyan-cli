@@ -1,9 +1,8 @@
+use super::blockstore::networkblockstore::NetworkBlockStore;
 use crate::types::blockstore::carblockstore::CarBlockStore;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug};
 use wnfs::libipld::Cid;
-
-use super::blockstore::networkblockstore::NetworkBlockStore;
 
 /// This is the struct that becomes the contents of the manifest file.
 /// It may seem silly to have a struct that has only one field, but in
@@ -19,7 +18,7 @@ pub struct Manifest {
     pub cold_remote: NetworkBlockStore,
     /// The BlockStore that holds all Metadata
     pub hot_local: CarBlockStore,
-    /// The BlockStore that holds all Metadata
+    /// The BlockStore that holds all Metadata, remotely
     pub hot_remote: NetworkBlockStore,
     /// The roots containing keys and CIDs
     pub roots: HashMap<String, Cid>,
