@@ -3,7 +3,7 @@ use fake_file::{Strategy, Structure};
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
-    process::{Child, Command},
+    process::Command,
 };
 
 use super::fs::ensure_path_exists_and_is_empty_dir;
@@ -60,12 +60,4 @@ pub fn compute_directory_size(path: &Path) -> Result<usize> {
     let size = size_str.parse::<usize>()?;
     // Ok status with size
     Ok(size)
-}
-
-/// Starts a local IPFS daemon for running network tests
-pub fn start_daemon() -> Child {
-    Command::new("ipfs")
-        .arg("daemon")
-        .spawn()
-        .expect("ipfs daemon failed to start. ensure it is installed.")
 }

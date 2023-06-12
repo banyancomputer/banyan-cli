@@ -285,8 +285,6 @@ mod test {
     #[serial]
     async fn cli_pack_remote() -> Result<()> {
         let test_name = "cli_pack_remote";
-        // Start the IPFS daemon
-        // let mut ipfs = start_daemon();
         // Setup test
         let (input_dir, _) = &test_setup(test_name).await?;
         // Initialize tomb
@@ -298,8 +296,6 @@ mod test {
             .success();
         // Run pack and assert success
         pack_remote(input_dir).await?.assert().success();
-        // Kill the daemon
-        // ipfs.kill()?;
         // Teardown test
         test_teardown(test_name).await
     }
@@ -326,8 +322,6 @@ mod test {
     #[serial]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
-        // Start the IPFS daemon
-        // let mut ipfs = start_daemon();
         // Setup test
         let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
@@ -357,8 +351,6 @@ mod test {
             compute_directory_size(&output_dir.join("content"))?,
             compute_directory_size(&rebuild_dir.join("content"))?
         );
-        // Kill the daemon
-        // ipfs.kill()?;
         // Teardown test
         test_teardown(test_name).await
     }

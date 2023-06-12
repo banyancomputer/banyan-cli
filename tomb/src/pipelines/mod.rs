@@ -149,8 +149,6 @@ mod test {
     #[serial]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
-        // Start the IPFS daemon
-        // let mut ipfs = start_daemon();
         // Create the setup conditions
         let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
@@ -161,8 +159,6 @@ mod test {
         pack::pipeline(input_dir, Some(&output_dir), 262144, true).await?;
         // Push
         push::pipeline(output_dir).await?;
-        // Kill the daemon
-        // ipfs.kill()?;
         // Teardown
         test_teardown(test_name).await
     }
@@ -171,9 +167,6 @@ mod test {
     #[serial]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
-        // Start the IPFS daemon
-        // let mut ipfs = start_daemon();
-
         // Create the setup conditions
         let (input_dir, output_dir) = &test_setup(test_name).await?;
         // Initialize tomb
