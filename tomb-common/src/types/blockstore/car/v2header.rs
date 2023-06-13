@@ -1,6 +1,10 @@
 use anyhow::Result;
 use std::io::{Read, Write};
 
+use crate::types::blockstore::car::varint::{encode_varint_u128_exact, encode_varint_u64_exact};
+
+use super::varint::{read_varint_u128_exact, read_varint_u64_exact};
+
 const V2_HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
@@ -15,30 +19,20 @@ pub(crate) struct V2Header {
 impl V2Header {
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
         let mut bytes = 0;
-        bytes += w.write(&self.characteristics.to_le_bytes())?;
-        bytes += w.write(&self.data_offset.to_le_bytes())?;
-        bytes += w.write(&self.data_size.to_le_bytes())?;
-        bytes += w.write(&self.index_offset.to_le_bytes())?;
+        bytes += w.write(&encode_varint_u128_exact(self.characteristics))?;
+        bytes += w.write(&encode_varint_u64_exact(self.data_offset))?;
+        bytes += w.write(&encode_varint_u64_exact(self.data_size))?;
+        bytes += w.write(&encode_varint_u64_exact(self.index_offset))?;
         assert_eq!(bytes, V2_HEADER_SIZE);
         Ok(bytes)
     }
 
     pub fn read_bytes<R: Read>(mut r: R) -> Result<Self> {
-        let mut characteristics_bytes: [u8; 16] = [0; 16];
-        let mut data_offset_bytes: [u8; 8] = [0; 8];
-        let mut data_size_bytes: [u8; 8] = [0; 8];
-        let mut index_offset_bytes: [u8; 8] = [0; 8];
-
-        r.read_exact(&mut characteristics_bytes)?;
-        r.read_exact(&mut data_offset_bytes)?;
-        r.read_exact(&mut data_size_bytes)?;
-        r.read_exact(&mut index_offset_bytes)?;
-
         Ok(Self {
-            characteristics: u128::from_le_bytes(characteristics_bytes),
-            data_offset: u64::from_le_bytes(data_offset_bytes),
-            data_size: u64::from_le_bytes(data_size_bytes),
-            index_offset: u64::from_le_bytes(index_offset_bytes),
+            characteristics: read_varint_u128_exact(&mut r)?,
+            data_offset: read_varint_u64_exact(&mut r)?,
+            data_size: read_varint_u64_exact(&mut r)?,
+            index_offset: read_varint_u64_exact(&mut r)?,
         })
     }
 }
@@ -53,7 +47,7 @@ mod tests {
     use anyhow::Result;
     use std::{
         fs::{self, File},
-        io::{BufReader, BufWriter, Seek, Write},
+        io::{BufReader, BufWriter, Cursor, Seek, Write},
         path::Path,
     };
 
@@ -68,7 +62,9 @@ mod tests {
 
         let mut header_bytes: Vec<u8> = Vec::new();
         header.write_bytes(&mut header_bytes)?;
-        let new_header = V2Header::read_bytes(header_bytes.as_slice())?;
+
+        let header_cursor = Cursor::new(header_bytes);
+        let new_header = V2Header::read_bytes(header_cursor)?;
         assert_eq!(header, new_header);
         Ok(())
     }

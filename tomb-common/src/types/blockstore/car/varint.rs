@@ -28,6 +28,22 @@ pub(crate) fn read_varint_u128<R: Read + Seek>(r: &mut R) -> Result<u128> {
     Ok(result)
 }
 
+pub(crate) fn read_varint_u64_exact<R: Read>(r: &mut R) -> Result<u64> {
+    // Create and fill buffer
+    let mut buf: [u8; 8] = [0; 8];
+    r.read_exact(&mut buf)?;
+    // Decode little endian
+    Ok(u64::from_le_bytes(buf))
+}
+
+pub(crate) fn read_varint_u128_exact<R: Read>(r: &mut R) -> Result<u128> {
+    // Create and fill buffer
+    let mut buf: [u8; 16] = [0; 16];
+    r.read_exact(&mut buf)?;
+    // Decode little endian
+    Ok(u128::from_le_bytes(buf))
+}
+
 pub(crate) fn encode_varint_u64(input: u64) -> Vec<u8> {
     // Create buffer
     let mut buf = encode::u64_buffer();
@@ -40,4 +56,12 @@ pub(crate) fn encode_varint_u128(input: u128) -> Vec<u8> {
     let mut buf = encode::u128_buffer();
     // Encode bytes
     encode::u128(input, &mut buf).to_vec()
+}
+
+pub(crate) fn encode_varint_u64_exact(input: u64) -> [u8; 8] {
+    input.to_le_bytes()
+}
+
+pub(crate) fn encode_varint_u128_exact(input: u128) -> [u8; 16] {
+    input.to_le_bytes()
 }
