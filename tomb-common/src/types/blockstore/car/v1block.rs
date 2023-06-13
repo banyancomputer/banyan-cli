@@ -17,11 +17,11 @@ pub(crate) struct V1Block {
 }
 
 impl V1Block {
-    pub fn new(content: Vec<u8>) -> Result<Self> {
+    pub fn new(content: Vec<u8>, codec: IpldCodec) -> Result<Self> {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
         // Represent the hash as a V1 CID
-        let cid = Cid::new(Version::V1, IpldCodec::Raw.into(), hash)?;
+        let cid = Cid::new(Version::V1, codec.into(), hash)?;
         let varint = (cid.to_bytes().len() + content.len()) as u128;
         // Create new
         Ok(Self {
@@ -32,7 +32,7 @@ impl V1Block {
     }
 
     /// Serialize the current object
-    pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
+    pub(crate) fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
         // Encode varint as buf
         let varint_buf: Vec<u8> = encode_varint_u128(self.varint);
         // Represent CID as bytes
@@ -45,18 +45,28 @@ impl V1Block {
         Ok(varint_buf.len() + cid_buf.len() + self.content.len())
     }
 
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+    pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+        let (varint, cid) = Self::start_read(&mut r)?;
+        Self::finish_read(varint, cid, &mut r)
+    }
+
+    pub(crate) fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
         // Read the varint
         let varint = read_varint_u128(&mut r)?;
         // Read the CID
         let cid = Cid::read_bytes(&mut r)?;
+        // Return
+        Ok((varint, cid))
+    }
+
+    pub(crate) fn finish_read<R: Read + Seek>(varint: u128, cid: Cid, mut r: R) -> Result<Self> {
         // Determine how much data has yet to be read from this block
         let content_length = varint as usize - cid.to_bytes().len();
         // Create a content vector with the specified capacity
         let mut content: Vec<u8> = vec![0; content_length];
         // Read exactly that much content
         r.read_exact(&mut content)?;
-        // Create a new Self
+        // Create new Self
         Ok(Self {
             varint,
             cid,
@@ -71,13 +81,14 @@ mod tests {
 
     use super::V1Block;
     use anyhow::Result;
+    use wnfs::libipld::IpldCodec;
 
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Raw bytes
         let data_example = "Hello Kitty!".as_bytes().to_vec();
         // Create new V1Block with these content bytes
-        let block = V1Block::new(data_example)?;
+        let block = V1Block::new(data_example, IpldCodec::Raw)?;
         // Create a buffer and fill with serialized verison
         let mut block_bytes: Vec<u8> = Vec::new();
         block.write_bytes(&mut block_bytes)?;

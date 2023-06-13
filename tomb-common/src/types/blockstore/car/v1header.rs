@@ -1,5 +1,6 @@
 use super::varint::{encode_varint_u64, read_varint_u64};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     io::{Read, Seek, Write},
@@ -10,7 +11,7 @@ use wnfs::{
 };
 
 // | 16-byte varint | n-byte DAG CBOR |
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct V1Header {
     pub version: u64,
     pub roots: Option<Vec<Cid>>,

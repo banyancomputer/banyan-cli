@@ -10,7 +10,7 @@ pub(crate) struct CarV1 {
 
 impl CarV1 {
     /// Read an entire CARv2 Payload at once
-    fn read_all_blocks<R: Read + Seek>(mut r: R) -> Result<Vec<V1Block>> {
+    pub(crate) fn read_all_blocks<R: Read + Seek>(mut r: R) -> Result<Vec<V1Block>> {
         let mut blocks: Vec<V1Block> = Vec::new();
         let mut potential_block: Result<V1Block> = V1Block::read_bytes(&mut r);
         while let Ok(block) = potential_block {
@@ -23,7 +23,7 @@ impl CarV1 {
     }
 
     /// Write an entire CARv1 Payload at once
-    fn write_all_blocks<W: Write + Seek>(
+    pub(crate) fn write_all_blocks<W: Write + Seek>(
         &self,
         data_offset: u64,
         data_size: u64,
@@ -43,7 +43,7 @@ impl CarV1 {
         Ok(bytes)
     }
 
-    pub fn write_bytes<W: Write + Seek>(
+    pub(crate) fn write_bytes<W: Write + Seek>(
         &self,
         data_offset: u64,
         data_size: u64,
@@ -52,7 +52,7 @@ impl CarV1 {
         self.write_all_blocks(data_offset, data_size, &mut w)
     }
 
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+    pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Read the header
         let header = V1Header::read_bytes(&mut r)?;
         let payload = Self::read_all_blocks(&mut r)?;
@@ -68,7 +68,7 @@ mod tests {
     use wnfs::libipld::Cid;
 
     #[test]
-    fn from_disk() -> Result<()> {
+    fn from_disk_basic() -> Result<()> {
         let mut file = BufReader::new(File::open("carv1-basic.car")?);
         let car = CarV1::read_bytes(&mut file)?;
         // Header tests exist separately, let's just ensure content is correct!
@@ -111,7 +111,10 @@ mod tests {
         assert_eq!(block4.content, hex::decode("62626262")?);
         assert_eq!(block5.content, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804")?);
         assert_eq!(block6.content, hex::decode("61616161")?);
-        assert_eq!(block7.content, hex::decode("a2646c696e6bf6646e616d65656c696d626f")?);
+        assert_eq!(
+            block7.content,
+            hex::decode("a2646c696e6bf6646e616d65656c696d626f")?
+        );
 
         Ok(())
     }

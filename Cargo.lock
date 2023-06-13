@@ -3219,6 +3219,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serial_test",
+ "tokio",
  "unsigned-varint",
  "wasm-bindgen",
  "wnfs 0.1.20 (git+https://github.com/banyancomputer/rs-wnfs)",

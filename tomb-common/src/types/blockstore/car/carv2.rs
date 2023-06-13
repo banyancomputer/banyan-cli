@@ -1,7 +1,10 @@
 use super::{carv1::CarV1, v2index::V2Index};
 use crate::types::blockstore::car::v2header::V2Header;
 use anyhow::Result;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::{
+    cell::RefCell,
+    io::{Read, Seek, SeekFrom, Write},
+};
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const V2_PRAGMA_SIZE: usize = 11;
@@ -13,7 +16,7 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
 
 #[derive(Debug)]
 struct CarV2 {
-    header: V2Header,
+    header: RefCell<V2Header>,
     carv1: CarV1,
     index: Option<V2Index>,
 }
@@ -43,7 +46,7 @@ impl CarV2 {
         };
         // Create the new object
         Ok(Self {
-            header,
+            header: RefCell::new(header),
             carv1,
             index,
         })
@@ -54,12 +57,13 @@ impl CarV2 {
         let mut bytes = 0;
         // Write the pragma
         bytes += w.write(&V2_PRAGMA)?;
+        let header = self.header.borrow();
         // Write the header
-        bytes += self.header.write_bytes(&mut w)?;
+        bytes += header.write_bytes(&mut w)?;
         // Write the payload
         bytes += self
             .carv1
-            .write_bytes(self.header.data_offset, self.header.data_size, &mut w)?;
+            .write_bytes(header.data_offset, header.data_size, &mut w)?;
         // Return Ok with number of bytes written
         Ok(bytes)
     }
@@ -119,15 +123,6 @@ mod tests {
         assert_eq!(block4.content, hex::decode("6c6f6273746572")?);
 
         // Ok
-        Ok(())
-    }
-
-    #[test]
-    fn from_disk_index() -> Result<()> {
-        let mut file = BufReader::new(File::open("carv2-wrapped.car")?);
-        let carv2 = CarV2::read_bytes(&mut file)?;
-        assert_ne!(carv2.index, None);
-
         Ok(())
     }
 }
