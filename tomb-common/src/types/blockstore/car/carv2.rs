@@ -1,10 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
-
+use std::io::{Cursor, Read, Seek, Write};
 use crate::types::blockstore::car::v2header::V2Header;
-
-use super::{v1block::V1Block, carv1::CarV1};
+use super::carv1::CarV1;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const V2_PRAGMA_SIZE: usize = 11;
@@ -17,7 +15,7 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
 #[derive(Debug)]
 struct CarV2 {
     header: V2Header,
-    carv1: CarV1
+    carv1: CarV1,
 }
 
 impl CarV2 {
@@ -47,7 +45,9 @@ impl CarV2 {
         // Write the header
         bytes += self.header.write_bytes(&mut w)?;
         // Write the payload
-        bytes += self.carv1.write_bytes(self.header.data_offset, self.header.data_size, &mut w)?;
+        bytes += self
+            .carv1
+            .write_bytes(self.header.data_offset, self.header.data_size, &mut w)?;
         // Return Ok with number of bytes written
         Ok(bytes)
     }
@@ -117,5 +117,4 @@ mod tests {
     // 01551220a2e1c40da1ae335d4dffe729eb4d5ca23b74b9e51fc535f4a804a261080c294d - block 4 cid (bafkreifc4hca3inognou377hfhvu2xfchn2ltzi7yu27jkaeujqqqdbjju)
     // 6c6f6273746572 - block 4 data
     // 0100000028000000c800000000000000a2e1c40da1ae335d4dffe729eb4d5ca23b74b9e51fc535f4a804a261080c294d9401000000000000b474a99a2705e23cf905a484ec6d14ef58b56bbe62e9292783466ec363b5072d6b01000000000000d745b7757f5b4593eeab7820306c7bc64eb496a7410a0d07df7a34ffec4b97f11201000000000000d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6268b00000000000000fb16f5083412ef1371d031ed4aa239903d84efdadf1ba3cd678e6475b1a232f83900000000000000
-
 }

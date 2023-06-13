@@ -1,33 +1,39 @@
-use std::io::{Read, SeekFrom, Seek, Write};
+use super::{v1block::V1Block, v1header::V1Header};
 use anyhow::Result;
-use super::{v1header::V1Header, v1block::V1Block};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 #[derive(Debug)]
 pub struct CarV1 {
     header: V1Header,
-    payload: Vec<V1Block>
+    payload: Vec<V1Block>,
 }
 
 impl CarV1 {
     /// Read an entire CARv2 Payload at once
-    fn read_all_blocks<R: Read + Seek>(
-        mut r: R,
-    ) -> Result<Vec<V1Block>> {
+    fn read_all_blocks<R: Read + Seek>(mut r: R) -> Result<Vec<V1Block>> {
         let mut blocks: Vec<V1Block> = Vec::new();
-        println!("carv2_read_all_blocks: stream_position {}", r.stream_position()?);
-        let mut potential_block: Option<V1Block> = V1Block::read_bytes(&mut r).ok();
-        while let Some(block) = potential_block {
+        println!(
+            "carv2_read_all_blocks: stream_position {}",
+            r.stream_position()?
+        );
+        let mut potential_block: Result<V1Block> = V1Block::read_bytes(&mut r);
+        while let Ok(block) = potential_block {
             println!("Loaded new block: {:?}", &block);
             // Append the new block
             blocks.push(block);
             // Try again
-            potential_block = V1Block::read_bytes(&mut r).ok();
+            potential_block = V1Block::read_bytes(&mut r);
         }
         Ok(blocks)
     }
 
     /// Write an entire CARv1 Payload at once
-    fn write_all_blocks<W: Write + Seek>(&self, data_offset: u64, data_size: u64, mut w: W) -> Result<usize> {
+    fn write_all_blocks<W: Write + Seek>(
+        &self,
+        data_offset: u64,
+        data_size: u64,
+        mut w: W,
+    ) -> Result<usize> {
         let mut bytes = 0;
         // Start at the data offset
         w.seek(SeekFrom::Start(data_offset))?;
@@ -42,7 +48,12 @@ impl CarV1 {
         Ok(bytes)
     }
 
-    pub fn write_bytes<W: Write + Seek>(&self, data_offset: u64, data_size: u64, mut w: W) -> Result<usize> {
+    pub fn write_bytes<W: Write + Seek>(
+        &self,
+        data_offset: u64,
+        data_size: u64,
+        mut w: W,
+    ) -> Result<usize> {
         self.write_all_blocks(data_offset, data_size, &mut w)
     }
 
@@ -50,30 +61,66 @@ impl CarV1 {
         // Read the header
         let header = V1Header::read_bytes(&mut r)?;
         println!("carv1_read_bytes: header {:?}", header);
-        
-        let payload = Self::read_all_blocks(&mut r)?;
-        Ok(Self {
-            header,
-            payload
-        })
-    }
-    
-}
 
+        let payload = Self::read_all_blocks(&mut r)?;
+        Ok(Self { header, payload })
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use std::{fs::File, io::BufReader, path::PathBuf};
     use crate::types::blockstore::car::carv1::CarV1;
+    use anyhow::Result;
+    use std::{fs::File, io::BufReader, str::FromStr};
+    use wnfs::libipld::Cid;
 
     #[test]
     fn from_disk() -> Result<()> {
-        // let car_path = PathBuf::from("src").join(path)
         let mut file = BufReader::new(File::open("carv1-basic.car")?);
         let car = CarV1::read_bytes(&mut file)?;
+        // Header tests exist separately, let's just ensure content is correct!
+        let block0 = car.payload.get(0).unwrap();
+        let block1 = car.payload.get(1).unwrap();
+        let block2 = car.payload.get(2).unwrap();
+        let block3 = car.payload.get(3).unwrap();
+        let block4 = car.payload.get(4).unwrap();
+        let block5 = car.payload.get(5).unwrap();
+        let block6 = car.payload.get(6).unwrap();
+        let block7 = car.payload.get(7).unwrap();
 
-        println!("loaded carfile: {:?}", car);
+        // Ensure CIDs are matching
+        assert_eq!(
+            block0.cid,
+            Cid::from_str("bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm")?
+        );
+        assert_eq!(
+            block1.cid,
+            Cid::from_str("QmNX6Tffavsya4xgBi2VJQnSuqy9GsxongxZZ9uZBqp16d")?
+        );
+        assert_eq!(
+            block2.cid,
+            Cid::from_str("bafkreifw7plhl6mofk6sfvhnfh64qmkq73oeqwl6sloru6rehaoujituke")?
+        );
+        assert_eq!(
+            block3.cid,
+            Cid::from_str("QmWXZxVQ9yZfhQxLD35eDR8LiMRsYtHxYqTFCBbJoiJVys")?
+        );
+        assert_eq!(
+            block4.cid,
+            Cid::from_str("bafkreiebzrnroamgos2adnbpgw5apo3z4iishhbdx77gldnbk57d4zdio4")?
+        );
+        assert_eq!(
+            block5.cid,
+            Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?
+        );
+        assert_eq!(
+            block6.cid,
+            Cid::from_str("bafkreidbxzk2ryxwwtqxem4l3xyyjvw35yu4tcct4cqeqxwo47zhxgxqwq")?
+        );
+        assert_eq!(
+            block7.cid,
+            Cid::from_str("bafyreidj5idub6mapiupjwjsyyxhyhedxycv4vihfsicm2vt46o7morwlm")?
+        );
 
         Ok(())
     }

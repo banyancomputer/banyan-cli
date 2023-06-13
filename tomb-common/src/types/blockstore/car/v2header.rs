@@ -1,5 +1,5 @@
-use std::io::{Read, Write};
 use anyhow::Result;
+use std::io::{Read, Write};
 
 const V2_HEADER_SIZE: usize = 40;
 
@@ -45,13 +45,17 @@ impl V2Header {
 
 #[cfg(test)]
 mod tests {
-    use std::{io::{BufReader, Seek, BufWriter, Write}, fs::{File, self}, path::Path};
-
-    use anyhow::Result;
-    use reqwest::header::PRAGMA;
-    use crate::types::blockstore::car::{carv2::{V2_PRAGMA_SIZE, V2_PRAGMA}, v2header::V2_HEADER_SIZE};
-
     use super::V2Header;
+    use anyhow::Result;
+    use crate::types::blockstore::car::{
+        carv2::{V2_PRAGMA, V2_PRAGMA_SIZE},
+        v2header::V2_HEADER_SIZE,
+    };
+    use std::{
+        fs::{self, File},
+        io::{BufReader, BufWriter, Seek, Write},
+        path::Path,
+    };
 
     #[test]
     fn read_write_bytes() -> Result<()> {
@@ -103,5 +107,4 @@ mod tests {
         fs::remove_file(path)?;
         Ok(())
     }
-
 }
