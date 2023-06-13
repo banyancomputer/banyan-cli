@@ -1,58 +1,43 @@
 use anyhow::Result;
-use std::io::Read;
-const U64_LEN: usize = 10;
-const U128_LEN: usize = 19;
+use std::io::{Read, Seek, SeekFrom};
+use unsigned_varint::{decode, encode};
 
-pub(crate) fn read_varint_u64<R: Read>(stream: &mut R) -> Result<u64> {
-    let mut result: u64 = 0;
+pub(crate) fn read_varint_u64<R: Read + Seek>(r: &mut R) -> Result<u64> {
+    // Create buffer
+    let mut buf = encode::u64_buffer();
+    // Read from stream
+    r.read_exact(&mut buf)?;
+    // Decode
+    let (result, remaining) = decode::u64(&buf)?;
+    // Rewind
+    r.seek(SeekFrom::Current(-(remaining.len() as i64)))?;
+    // Ok
+    Ok(result)
+}
 
-    for i in 0..U64_LEN {
-        let mut buf = [0u8; 1];
-        stream.read_exact(&mut buf)?;
-
-        let byte = buf[0];
-        result |= u64::from(byte & 0b0111_1111) << (i * 7);
-
-        // If is last byte = leftmost bit is zero
-        if byte & 0b1000_0000 == 0 {
-            return Ok(result);
-        }
-    }
-
-    // This wasn't supposed to happen (*´°̥̥̥̥̥̥̥̥﹏°̥̥̥̥̥̥̥̥ )
-    panic!()
+pub(crate) fn read_varint_u128<R: Read + Seek>(r: &mut R) -> Result<u128> {
+    // Create buffer
+    let mut buf = encode::u128_buffer();
+    // Read from stream
+    r.read_exact(&mut buf)?;
+    // Decode
+    let (result, remaining) = decode::u128(&buf)?;
+    // Rewind
+    r.seek(SeekFrom::Current(-(remaining.len() as i64)))?;
+    // Ok
+    Ok(result)
 }
 
 pub(crate) fn encode_varint_u64(input: u64) -> Vec<u8> {
-    let mut buf = [0; U64_LEN];
-    let mut n = input;
-    let mut i = 0;
-    for b in buf.iter_mut() {
-        *b = n as u8 | 0b1000_0000;
-        n >>= 7;
-        if n == 0 {
-            *b &= 0b0111_1111;
-            break;
-        }
-        i += 1
-    }
-    debug_assert_eq!(n, 0);
-    buf[0..=i].to_vec()
+    // Create buffer
+    let mut buf = encode::u64_buffer();
+    // Encode bytes
+    encode::u64(input, &mut buf).to_vec()
 }
 
 pub(crate) fn encode_varint_u128(input: u128) -> Vec<u8> {
-    let mut buf = [0; U128_LEN];
-    let mut n = input;
-    let mut i = 0;
-    for b in buf.iter_mut() {
-        *b = n as u8 | 0b1000_0000;
-        n >>= 7;
-        if n == 0 {
-            *b &= 0b0111_1111;
-            break;
-        }
-        i += 1
-    }
-    debug_assert_eq!(n, 0);
-    buf[0..=i].to_vec()
+    // Create buffer
+    let mut buf = encode::u128_buffer();
+    // Encode bytes
+    encode::u128(input, &mut buf).to_vec()
 }

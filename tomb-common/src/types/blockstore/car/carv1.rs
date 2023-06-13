@@ -3,9 +3,9 @@ use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
 
 #[derive(Debug)]
-pub struct CarV1 {
-    header: V1Header,
-    payload: Vec<V1Block>,
+pub(crate) struct CarV1 {
+    pub header: V1Header,
+    pub payload: Vec<V1Block>,
 }
 
 impl CarV1 {
@@ -79,6 +79,7 @@ mod tests {
         let mut file = BufReader::new(File::open("carv1-basic.car")?);
         let car = CarV1::read_bytes(&mut file)?;
         // Header tests exist separately, let's just ensure content is correct!
+        // Load content blocks
         let block0 = car.payload.get(0).unwrap();
         let block1 = car.payload.get(1).unwrap();
         let block2 = car.payload.get(2).unwrap();
@@ -88,39 +89,26 @@ mod tests {
         let block6 = car.payload.get(6).unwrap();
         let block7 = car.payload.get(7).unwrap();
 
+        let block_cids = vec![
+            Cid::from_str("bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm")?,
+            Cid::from_str("QmNX6Tffavsya4xgBi2VJQnSuqy9GsxongxZZ9uZBqp16d")?,
+            Cid::from_str("bafkreifw7plhl6mofk6sfvhnfh64qmkq73oeqwl6sloru6rehaoujituke")?,
+            Cid::from_str("QmWXZxVQ9yZfhQxLD35eDR8LiMRsYtHxYqTFCBbJoiJVys")?,
+            Cid::from_str("bafkreiebzrnroamgos2adnbpgw5apo3z4iishhbdx77gldnbk57d4zdio4")?,
+            Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?,
+            Cid::from_str("bafkreidbxzk2ryxwwtqxem4l3xyyjvw35yu4tcct4cqeqxwo47zhxgxqwq")?,
+            Cid::from_str("bafyreidj5idub6mapiupjwjsyyxhyhedxycv4vihfsicm2vt46o7morwlm")?,
+        ];
+
         // Ensure CIDs are matching
-        assert_eq!(
-            block0.cid,
-            Cid::from_str("bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm")?
-        );
-        assert_eq!(
-            block1.cid,
-            Cid::from_str("QmNX6Tffavsya4xgBi2VJQnSuqy9GsxongxZZ9uZBqp16d")?
-        );
-        assert_eq!(
-            block2.cid,
-            Cid::from_str("bafkreifw7plhl6mofk6sfvhnfh64qmkq73oeqwl6sloru6rehaoujituke")?
-        );
-        assert_eq!(
-            block3.cid,
-            Cid::from_str("QmWXZxVQ9yZfhQxLD35eDR8LiMRsYtHxYqTFCBbJoiJVys")?
-        );
-        assert_eq!(
-            block4.cid,
-            Cid::from_str("bafkreiebzrnroamgos2adnbpgw5apo3z4iishhbdx77gldnbk57d4zdio4")?
-        );
-        assert_eq!(
-            block5.cid,
-            Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?
-        );
-        assert_eq!(
-            block6.cid,
-            Cid::from_str("bafkreidbxzk2ryxwwtqxem4l3xyyjvw35yu4tcct4cqeqxwo47zhxgxqwq")?
-        );
-        assert_eq!(
-            block7.cid,
-            Cid::from_str("bafyreidj5idub6mapiupjwjsyyxhyhedxycv4vihfsicm2vt46o7morwlm")?
-        );
+        assert_eq!(&block0.cid, block_cids.get(0).unwrap());
+        assert_eq!(&block1.cid, block_cids.get(1).unwrap());
+        assert_eq!(&block2.cid, block_cids.get(2).unwrap());
+        assert_eq!(&block3.cid, block_cids.get(3).unwrap());
+        assert_eq!(&block4.cid, block_cids.get(4).unwrap());
+        assert_eq!(&block5.cid, block_cids.get(5).unwrap());
+        assert_eq!(&block6.cid, block_cids.get(6).unwrap());
+        assert_eq!(&block7.cid, block_cids.get(7).unwrap());
 
         Ok(())
     }

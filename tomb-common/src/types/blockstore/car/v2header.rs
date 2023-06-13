@@ -46,11 +46,11 @@ impl V2Header {
 #[cfg(test)]
 mod tests {
     use super::V2Header;
-    use anyhow::Result;
     use crate::types::blockstore::car::{
         carv2::{V2_PRAGMA, V2_PRAGMA_SIZE},
         v2header::V2_HEADER_SIZE,
     };
+    use anyhow::Result;
     use std::{
         fs::{self, File},
         io::{BufReader, BufWriter, Seek, Write},

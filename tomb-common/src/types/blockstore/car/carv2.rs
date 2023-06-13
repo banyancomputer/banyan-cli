@@ -1,8 +1,8 @@
+use super::carv1::CarV1;
+use crate::types::blockstore::car::v2header::V2Header;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
-use crate::types::blockstore::car::v2header::V2Header;
-use super::carv1::CarV1;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const V2_PRAGMA_SIZE: usize = 11;
@@ -79,16 +79,47 @@ impl<'de> Deserialize<'de> for CarV2 {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use std::{fs::File, io::BufReader};
+    use std::{fs::File, io::BufReader, str::FromStr, vec};
+    use wnfs::libipld::Cid;
 
     use crate::types::blockstore::car::carv2::CarV2;
 
     #[test]
-    fn read_from_disk() -> Result<()> {
+    fn from_disk() -> Result<()> {
         let mut file = BufReader::new(File::open("carv2-basic.car")?);
-        let car = CarV2::read_bytes(&mut file)?;
+        let carv2 = CarV2::read_bytes(&mut file)?;
+        // Header tests exist separately, let's just ensure content is correct!
+        // In the case of the CARv2, the content is an entire CARv1
+        let carv1 = carv2.carv1;
+        // Assert version is correct
+        assert_eq!(carv1.header.version, 1);
+        // Construct a vector of the roots we're expecting to find
+        let expected_roots = vec![Cid::from_str(
+            "QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z",
+        )?];
+        assert_eq!(carv1.header.roots.unwrap(), expected_roots);
 
-        println!("loaded carfile: {:?}", car);
+        // Load content blocks
+        let block0 = carv1.payload.get(0).unwrap();
+        let block1 = carv1.payload.get(1).unwrap();
+        let block2 = carv1.payload.get(2).unwrap();
+        let block3 = carv1.payload.get(3).unwrap();
+        let block4 = carv1.payload.get(4).unwrap();
+
+        let block_cids = vec![
+            Cid::from_str("QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z")?,
+            Cid::from_str("QmczfirA7VEH7YVvKPTPoU69XM3qY4DC39nnTsWd4K3SkM")?,
+            Cid::from_str("Qmcpz2FHJD7VAhg1fxFXdYJKePtkx1BsHuCrAgWVnaHMTE")?,
+            Cid::from_str("bafkreifuosuzujyf4i6psbneqtwg2fhplc2wxptc5euspa2gn3bwhnihfu")?,
+            Cid::from_str("bafkreifc4hca3inognou377hfhvu2xfchn2ltzi7yu27jkaeujqqqdbjju")?,
+        ];
+
+        // Ensure CIDs are matching
+        assert_eq!(&block0.cid, block_cids.get(0).unwrap());
+        assert_eq!(&block1.cid, block_cids.get(1).unwrap());
+        assert_eq!(&block2.cid, block_cids.get(2).unwrap());
+        assert_eq!(&block3.cid, block_cids.get(3).unwrap());
+        assert_eq!(&block4.cid, block_cids.get(4).unwrap());
 
         Ok(())
     }

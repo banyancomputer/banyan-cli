@@ -2,7 +2,7 @@ use super::varint::{encode_varint_u64, read_varint_u64};
 use anyhow::Result;
 use std::{
     collections::BTreeMap,
-    io::{Read, Write},
+    io::{Read, Seek, Write},
 };
 use wnfs::{
     common::dagcbor,
@@ -34,7 +34,7 @@ impl V1Header {
         Ok(())
     }
 
-    pub fn read_bytes<R: Read>(mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(&mut r)?;
         // Allocate that space
@@ -139,7 +139,7 @@ mod tests {
         let mut file = BufReader::new(File::open("carv1-basic.car")?);
         // Read the header
         let header = V1Header::read_bytes(&mut file)?;
-        // Assert that the version loaded matches the version expected in this file
+        // Assert version is correct
         assert_eq!(header.version, 1);
         // Construct a vector of the roots we're expecting to find
         let expected_roots = vec![
