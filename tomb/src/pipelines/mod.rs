@@ -188,10 +188,9 @@ mod test {
         let d2 = compute_directory_size(&output_dir.join("content")).unwrap();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(d1, d2);
-        // Kill the daemon
-        // ipfs.kill()?;
         // Teardown
-        test_teardown(test_name).await
+        // test_teardown(test_name).await
+        Ok(())
     }
 
     #[tokio::test]

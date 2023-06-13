@@ -1,4 +1,5 @@
 /// CAR based blockstore
+pub mod car;
 pub mod carblockstore;
 /// Disk based blockstore
 pub mod diskblockstore;
