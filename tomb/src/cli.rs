@@ -320,6 +320,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test

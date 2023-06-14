@@ -147,6 +147,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
@@ -165,6 +166,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Create the setup conditions

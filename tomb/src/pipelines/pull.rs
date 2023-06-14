@@ -35,7 +35,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // manifest.hot_local.change_dir(&tomb_path)?;
 
     // Erase the old content store, assume all data has been lost
-    manifest.cold_local = CarV2BlockStore::new(&content_path)?;
+    manifest.cold_local = CarV2BlockStore::new(&content_path.join("content.car"))?;
 
     // Load the cold forest from the remote endpoint
     let cold_forest = load_cold_forest(&manifest.roots, &manifest.cold_remote).await?;

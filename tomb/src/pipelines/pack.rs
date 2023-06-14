@@ -110,7 +110,7 @@ pub async fn pipeline(
     // If this filesystem has never been packed
     if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        hot_local = CarV2BlockStore::new(tomb_path)?;
+        hot_local = CarV2BlockStore::new(&tomb_path.join("meta.car"))?;
     }
     // If we've already packed this filesystem before
     else {
