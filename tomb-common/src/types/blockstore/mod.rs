@@ -7,11 +7,10 @@ pub mod networkblockstore;
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::{
-        carv1blockstore::CarV1BlockStore, carv2blockstore::CarV2BlockStore,
-    };
-
     use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
+    use crate::types::blockstore::car::{
+        carv1::carv1blockstore::CarV1BlockStore, carv2::carv2blockstore::CarV2BlockStore,
+    };
     use anyhow::Result;
     use std::{
         fs::create_dir_all,

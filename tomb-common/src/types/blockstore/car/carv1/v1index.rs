@@ -1,13 +1,13 @@
+use super::v1block::V1Block;
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::{Read, Seek, SeekFrom}, str::FromStr,
+    io::{Read, Seek, SeekFrom},
+    str::FromStr,
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
-
-use crate::types::blockstore::car::v1block::V1Block;
 
 #[derive(Debug, PartialEq, Default)]
 pub struct V1Index(RefCell<HashMap<Cid, u64>>);
@@ -65,7 +65,10 @@ impl<'de> Deserialize<'de> for V1Index {
         // Deserialize the map
         let map: HashMap<String, u64> = <HashMap<String, u64>>::deserialize(deserializer)?;
         // Rewrite the map using CIDs
-        let new_map: HashMap<Cid, u64> = map.into_iter().map(|(k, v)| (Cid::from_str(&k).unwrap(), v)).collect();
+        let new_map: HashMap<Cid, u64> = map
+            .into_iter()
+            .map(|(k, v)| (Cid::from_str(&k).unwrap(), v))
+            .collect();
         // Create new self
         Ok(Self(RefCell::new(new_map)))
     }
@@ -73,9 +76,8 @@ impl<'de> Deserialize<'de> for V1Index {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::{v1block::V1Block, v1header::V1Header};
-
     use super::V1Index;
+    use crate::types::blockstore::car::carv1::{v1block::V1Block, v1header::V1Header};
     use anyhow::Result;
     use std::{
         fs::File,

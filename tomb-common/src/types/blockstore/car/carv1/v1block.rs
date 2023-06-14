@@ -1,3 +1,4 @@
+use crate::types::blockstore::car::varint::{encode_varint_u128, read_varint_u128};
 use anyhow::Result;
 use std::io::{Read, Seek, Write};
 use wnfs::libipld::{
@@ -5,8 +6,6 @@ use wnfs::libipld::{
     multihash::{Code, MultihashDigest},
     Cid, IpldCodec,
 };
-
-use super::varint::{encode_varint_u128, read_varint_u128};
 
 // | 19-byte varint | x-byte Cid | x-byte content |
 #[derive(PartialEq, Debug)]

@@ -1,8 +1,16 @@
-use super::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
+// Modules
+pub mod carv1blockstore;
+pub(crate) mod v1block;
+pub(crate) mod v1header;
+pub(crate) mod v1index;
+
+// Code
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
 use wnfs::libipld::Cid;
+
+use self::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub(crate) struct CarV1 {

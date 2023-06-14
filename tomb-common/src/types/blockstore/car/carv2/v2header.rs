@@ -2,9 +2,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
-use crate::types::blockstore::car::varint::{encode_varint_u128_exact, encode_varint_u64_exact};
-
-use super::varint::{read_varint_u128_exact, read_varint_u64_exact};
+use crate::types::blockstore::car::varint::{
+    encode_varint_u128_exact, encode_varint_u64_exact, read_varint_u128_exact,
+    read_varint_u64_exact,
+};
 
 pub const V2_HEADER_SIZE: usize = 40;
 
@@ -70,11 +71,11 @@ impl<'de> Deserialize<'de> for V2Header {
 
 #[cfg(test)]
 mod tests {
-    use super::V2Header;
-    use crate::types::blockstore::car::{
-        carv2::{V2_PRAGMA, V2_PRAGMA_SIZE},
-        v2header::V2_HEADER_SIZE,
+    use crate::types::blockstore::car::carv2::{
+        v2header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE,
     };
+
+    use super::V2Header;
     use anyhow::Result;
     use std::{
         fs::{self, File},

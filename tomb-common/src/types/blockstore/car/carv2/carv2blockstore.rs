@@ -1,4 +1,5 @@
-use super::{carv1::CarV1, v1block::V1Block};
+use super::CarV2;
+use crate::types::blockstore::car::carv1::v1block::V1Block;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -14,13 +15,12 @@ use wnfs::{
 };
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
-pub struct CarV1BlockStore {
+pub struct CarV2BlockStore {
     pub path: PathBuf,
-    pub(crate) carv1: CarV1,
-    pub(crate) parent_offset: Option<u64>,
+    pub(crate) carv2: CarV2,
 }
 
-impl CarV1BlockStore {
+impl CarV2BlockStore {
     pub fn get_read(&self) -> Result<File> {
         Ok(File::open(&self.path)?)
     }
@@ -28,25 +28,22 @@ impl CarV1BlockStore {
         Ok(OpenOptions::new().append(true).open(&self.path)?)
     }
 
-    // Create a new CARv1 BlockStore from a file
-    pub fn new(path: &Path, parent_offset: Option<u64>) -> Result<Self> {
+    pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
             panic!("invalid path, must be file, not dir");
         }
-
         // Create the file if it doesn't already exist
         if !path.exists() {
-            File::create(&path)?;
+            File::create(path)?;
         }
 
-        // Open the file in reading mode
+        // If the file is already a valid CARv2
         if let Ok(mut file) = File::open(path) &&
-            let Ok(carv1) = CarV1::read_bytes(&mut file) {
+           let Ok(carv2) = CarV2::read_bytes(&mut file) {
             Ok(Self {
                 path: path.to_path_buf(),
-                carv1,
-                parent_offset,
+                carv2,
             })
         }
         // If we need to create the header
@@ -55,27 +52,26 @@ impl CarV1BlockStore {
             let mut file = OpenOptions::new().append(true).open(path)?;
             // Move to start
             file.seek(SeekFrom::Start(0))?;
-            // Initialize this file as a CARv1
-            CarV1::initialize(&mut file)?;
+            // Initialize
+            CarV2::initialize(&mut file)?;
             // Move back to the start of the file
             file.seek(SeekFrom::Start(0))?;
             // Return Ok
             Ok(Self {
                 path: path.to_path_buf(),
-                carv1: CarV1::read_bytes(&mut file)?,
-                parent_offset,
+                carv2: CarV2::read_bytes(&mut file)?,
             })
         }
     }
 }
 
 #[async_trait(?Send)]
-impl BlockStore for CarV1BlockStore {
+impl BlockStore for CarV2BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Open the file in read-only mode
         let mut file = self.get_read()?;
         // Perform the block read
-        let block: V1Block = self.carv1.get_block(cid, &mut file)?;
+        let block: V1Block = self.carv2.get_block(cid, &mut file)?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
@@ -93,7 +89,7 @@ impl BlockStore for CarV1BlockStore {
             // Open the file in append mode
             let mut file = self.get_write()?;
             // Put the block
-            self.carv1.put_block(&block, &mut file)?;
+            self.carv2.put_block(&block, &mut file)?;
             // Return Ok with block CID
             Ok(block.cid)
         }
@@ -104,7 +100,7 @@ impl BlockStore for CarV1BlockStore {
 mod tests {
     use std::{path::Path, str::FromStr};
 
-    use super::CarV1BlockStore;
+    use super::CarV2BlockStore;
     use anyhow::Result;
     use serial_test::serial;
     use wnfs::{
@@ -116,14 +112,16 @@ mod tests {
     #[serial]
     async fn get_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let new_path = Path::new("test").join("carv1-basic-get.car");
+        let existing_path = fixture_path.join("carv2-basic.car");
+        let new_path = Path::new("test").join("carv2-basic-get.car");
         std::fs::copy(existing_path, &new_path)?;
+        let store = CarV2BlockStore::new(&new_path)?;
 
-        let store = CarV1BlockStore::new(&new_path, None)?;
-        let cid = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
+        println!("carv2: {:?}", store.carv2);
+
+        let cid = Cid::from_str("QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z")?;
         let bytes = store.get_block(&cid).await?.to_vec();
-        assert_eq!(bytes, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804")?);
+        assert_eq!(bytes, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401")?);
 
         Ok(())
     }
@@ -132,11 +130,11 @@ mod tests {
     #[serial]
     async fn put_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let new_path = Path::new("test").join("carv1-basic-put.car");
+        let existing_path = fixture_path.join("carv2-basic.car");
+        let new_path = Path::new("test").join("carv2-basic-put.car");
         std::fs::copy(existing_path, &new_path)?;
 
-        let store = CarV1BlockStore::new(&new_path, None)?;
+        let store = CarV2BlockStore::new(&new_path)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store

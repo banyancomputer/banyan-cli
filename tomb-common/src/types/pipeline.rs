@@ -1,5 +1,5 @@
 use super::blockstore::{
-    car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+    car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug};

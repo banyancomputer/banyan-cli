@@ -1,5 +1,11 @@
-use super::{carv1::CarV1, v1block::V1Block, v2index::V2Index};
-use crate::types::blockstore::car::v2header::V2Header;
+// Modules
+pub mod carv2blockstore;
+pub(crate) mod v2header;
+pub(crate) mod v2index;
+
+// Code
+use self::{v2header::V2Header, v2index::V2Index};
+use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -105,10 +111,11 @@ impl CarV2 {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::carv2::CarV2;
     use anyhow::Result;
     use std::{fs::File, io::BufReader, path::Path, str::FromStr, vec};
     use wnfs::libipld::Cid;
+
+    use crate::types::blockstore::car::carv2::CarV2;
 
     #[test]
     fn from_disk_basic() -> Result<()> {
