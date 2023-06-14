@@ -37,8 +37,7 @@ mod tests {
         let store = &CarV1BlockStore::new(&car_path, None)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
-        // bs_serialization_test(store).await
-        Ok(())
+        bs_serialization_test(store).await
     }
 
     #[tokio::test]
@@ -49,8 +48,7 @@ mod tests {
         let store = &CarV2BlockStore::new(&car_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
-        // bs_serialization_test(store).await
-        Ok(())
+        bs_serialization_test(store).await
     }
 
     #[tokio::test]

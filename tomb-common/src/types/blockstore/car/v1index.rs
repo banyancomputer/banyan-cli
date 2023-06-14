@@ -1,15 +1,15 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom}, str::FromStr,
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
 use crate::types::blockstore::car::v1block::V1Block;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct V1Index(RefCell<HashMap<Cid, u64>>);
 
 impl V1Index {
@@ -26,9 +26,7 @@ impl V1Index {
             ))?;
         }
 
-        Ok(Self {
-            0: RefCell::new(offsets),
-        })
+        Ok(Self(RefCell::new(offsets)))
     }
 
     pub fn get_offset(&self, cid: &Cid) -> Result<u64> {
@@ -41,6 +39,35 @@ impl V1Index {
 
     pub fn insert_offset(&self, cid: &Cid, offset: u64) {
         self.0.borrow_mut().insert(*cid, offset);
+    }
+}
+
+impl Serialize for V1Index {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Grab the map
+        let map: HashMap<Cid, u64> = self.0.borrow().clone();
+        // Rewrite the map using strings
+        let new_map: HashMap<String, u64> =
+            map.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+        // Serialize the String based map
+        new_map.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for V1Index {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Deserialize the map
+        let map: HashMap<String, u64> = <HashMap<String, u64>>::deserialize(deserializer)?;
+        // Rewrite the map using CIDs
+        let new_map: HashMap<Cid, u64> = map.into_iter().map(|(k, v)| (Cid::from_str(&k).unwrap(), v)).collect();
+        // Create new self
+        Ok(Self(RefCell::new(new_map)))
     }
 }
 
