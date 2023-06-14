@@ -1,0 +1,4 @@
+---
+parserPreset: conventional-changelog-conventionalcommits
+rules:
+  subject-case: [0, 'never']
