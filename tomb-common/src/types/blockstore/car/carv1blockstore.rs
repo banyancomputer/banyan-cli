@@ -1,9 +1,12 @@
-use super::{v1block::V1Block, v1header::V1Header};
+use crate::types::blockstore::car::{carv2::V2_PRAGMA_SIZE, v2header::V2_HEADER_SIZE};
+
+use super::{v1block::V1Block, v1header::V1Header, v2header::V2Header};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Cow,
+    borrow::{Cow},
+    cell::RefCell,
     fs::{File, OpenOptions},
     io::{Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -15,9 +18,9 @@ use wnfs::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CarV1BlockStore {
-    path: PathBuf,
-    header: V1Header,
-    data_offset: u64,
+    pub path: PathBuf,
+    pub(crate) header: V1Header,
+    pub(crate) parent: Option<RefCell<V2Header>>,
 }
 
 impl CarV1BlockStore {
@@ -29,43 +32,53 @@ impl CarV1BlockStore {
         Ok(OpenOptions::new().append(true).open(&self.path)?)
     }
 
-    pub fn new(path: &Path) -> Result<Self> {
-        // Attempt to read the header
-        let mut file = File::open(path)?;
+    // Create a new CARv1 BlockStore from a file
+    pub fn new(path: &Path, parent: Option<RefCell<V2Header>>) -> Result<Self> {
+        // Open the file in reading mode
+        let file = File::open(path)?;
+        // If the header is already there
         if let Ok(header) = V1Header::read_bytes(&file) {
-            let data_offset = file.stream_position()?;
             Ok(Self {
                 path: path.to_path_buf(),
                 header,
-                data_offset,
+                parent,
             })
-        } else {
+        }
+        // If we need to create the header
+        else {
             // Open the file in append mode
             let mut file = OpenOptions::new().append(true).open(path)?;
-
             // Create a new header
             let new_header = V1Header {
                 version: 1,
                 roots: None,
             };
-
             // Write the header to the file
             new_header.write_bytes(&mut file)?;
-            let data_offset = file.stream_position()?;
-
+            // Return Ok
             Ok(Self {
                 path: path.to_path_buf(),
                 header: new_header,
-                data_offset,
+                parent,
             })
         }
     }
 
     // Find a block in the CARv1
-    fn find_block(&self, cid: &Cid) -> Result<V1Block> {
+    pub(crate) fn find_block(&self, cid: &Cid) -> Result<V1Block> {
         let mut file = self.get_read()?;
+        // Tally len of V1Header
+        let v1header_len = self.header.to_bytes()?.len() as u64;
+        // let 
+        // Determine where to start searching for blocks
+        let data_offset: u64 = if let Some(parent) = &self.parent {
+            v1header_len + V2_HEADER_SIZE as u64
+        }
+        else {
+            v1header_len
+        };
         // Move to the data offset
-        file.seek(SeekFrom::Start(self.data_offset))?;
+        file.seek(SeekFrom::Start(data_offset))?;
         // While we're able to peek varints and CIDs
         while let Ok((varint, found_cid)) = V1Block::start_read(&file) {
             // If the CID matches
@@ -108,10 +121,20 @@ impl BlockStore for CarV1BlockStore {
         else {
             // Open the file in append mode
             let mut file = self.get_write()?;
-            // Move to the end of this file
-            file.seek(SeekFrom::End(0))?;
+            // If we're in a CARv2
+            if let Some(parent) = &self.parent {
+                // Skip past all existing data
+                let header = parent.borrow();
+                file.seek(SeekFrom::Start(header.data_offset + header.data_size))?;
+            } else {
+                // Move to the end of this file
+                file.seek(SeekFrom::End(0))?;
+            }
             // Create a new V1Block from the bytes and write them to the end of the file
-            block.write_bytes(file)?;
+            let bytes_written = block.write_bytes(file)? as u64;
+            if let Some(parent) = &self.parent {
+                parent.borrow_mut().data_size += bytes_written;
+            }
             // Return Ok with block CID
             Ok(block.cid)
         }
@@ -137,7 +160,7 @@ mod tests {
         let new_path = Path::new("carv1-basic-get.car");
         std::fs::copy(existing_path, new_path)?;
 
-        let store = CarV1BlockStore::new(new_path)?;
+        let store = CarV1BlockStore::new(new_path, None)?;
 
         let cid = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
         let bytes = store.get_block(&cid).await?.to_vec();
@@ -153,7 +176,7 @@ mod tests {
         let new_path = Path::new("carv1-basic-put.car");
         std::fs::copy(existing_path, new_path)?;
 
-        let store = CarV1BlockStore::new(new_path)?;
+        let store = CarV1BlockStore::new(new_path, None)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store

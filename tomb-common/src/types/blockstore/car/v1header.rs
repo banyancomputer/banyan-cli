@@ -99,6 +99,12 @@ impl V1Header {
         let ipld = Ipld::Map(map);
         dagcbor::encode(&ipld)
     }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut header_bytes: Vec<u8> = Vec::new();
+        self.write_bytes(&mut header_bytes)?;
+        Ok(header_bytes)
+    }
 }
 
 #[cfg(test)]

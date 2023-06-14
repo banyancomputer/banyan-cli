@@ -15,7 +15,7 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
 ];
 
 #[derive(Debug)]
-struct CarV2 {
+pub struct CarV2 {
     header: RefCell<V2Header>,
     carv1: CarV1,
     index: Option<V2Index>,
@@ -24,11 +24,8 @@ struct CarV2 {
 impl CarV2 {
     /// Load in the CARv2 all at once
     fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
-        // Read the pragma
-        let mut pragma: [u8; V2_PRAGMA_SIZE] = [0; V2_PRAGMA_SIZE];
-        r.read_exact(&mut pragma)?;
-        // Ensure correctness
-        assert_eq!(pragma, V2_PRAGMA);
+        // Verify the pragma
+        Self::verify_pragma(&mut r)?;
         // Load in the header
         let header = V2Header::read_bytes(&mut r)?;
         // Seek to the data offset
@@ -66,6 +63,18 @@ impl CarV2 {
             .write_bytes(header.data_offset, header.data_size, &mut w)?;
         // Return Ok with number of bytes written
         Ok(bytes)
+    }
+
+    pub(crate) fn verify_pragma<R: Read + Seek>(mut r: R) -> Result<()> {
+        // Move to the start of the file
+        r.seek(SeekFrom::Start(0))?;
+        // Read the pragma
+        let mut pragma: [u8; V2_PRAGMA_SIZE] = [0; V2_PRAGMA_SIZE];
+        r.read_exact(&mut pragma)?;
+        // Ensure correctness
+        assert_eq!(pragma, V2_PRAGMA);
+        // Return Ok
+        Ok(())
     }
 }
 

@@ -5,6 +5,7 @@ mod v1block;
 mod v1header;
 // CARv2
 mod carv2;
+pub mod carv2blockstore;
 mod v2header;
 mod v2index;
 // Mutual

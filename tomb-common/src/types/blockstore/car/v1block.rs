@@ -73,6 +73,12 @@ impl V1Block {
             content,
         })
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut block_buf: Vec<u8> = Vec::new();
+        self.write_bytes(&mut block_buf);
+        block_buf
+    }
 }
 
 #[cfg(test)]

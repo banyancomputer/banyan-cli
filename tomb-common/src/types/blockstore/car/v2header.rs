@@ -1,15 +1,16 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
 use crate::types::blockstore::car::varint::{encode_varint_u128_exact, encode_varint_u64_exact};
 
 use super::varint::{read_varint_u128_exact, read_varint_u64_exact};
 
-const V2_HEADER_SIZE: usize = 40;
+pub const V2_HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
-#[derive(Debug, PartialEq)]
-pub(crate) struct V2Header {
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct V2Header {
     pub characteristics: u128,
     pub data_offset: u64,
     pub data_size: u64,
@@ -28,12 +29,41 @@ impl V2Header {
     }
 
     pub fn read_bytes<R: Read>(mut r: R) -> Result<Self> {
+        let characteristics = read_varint_u128_exact(&mut r)?;
+
+        assert_eq!(characteristics, 0);
+
         Ok(Self {
-            characteristics: read_varint_u128_exact(&mut r)?,
+            characteristics,
             data_offset: read_varint_u64_exact(&mut r)?,
             data_size: read_varint_u64_exact(&mut r)?,
             index_offset: read_varint_u64_exact(&mut r)?,
         })
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut header_bytes: Vec<u8> = Vec::new();
+        self.write_bytes(&mut header_bytes)?;
+        Ok(header_bytes)
+    }
+}
+
+impl Serialize for V2Header {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        self.to_bytes().unwrap().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for V2Header {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let header_bytes = <Vec<u8>>::deserialize(deserializer)?;
+        let new_header = Self::read_bytes(header_bytes.as_slice()).unwrap();
+        Ok(new_header)
     }
 }
 
