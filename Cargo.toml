@@ -36,24 +36,26 @@ categories = [
 
 [workspace.dependencies]
 # Dependencies
-clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
-tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
+clap = { version = "4.0.32", features = ["derive"] }
 jwalk = "0.8.1"
 rand = "0.8.4"
-serde ={version= "1.0.152", features = ["derive"]}
-serde_json = { version = "1.0.72", features = ["std"]}
+serde_json = { version = "1.0.72", features = ["std"] }
+serde ={ version= "1.0.152", features = ["derive"] }
+tokio = { version = "1.24", features = ["full", "io-util", "fs"] }
+
 # Dev dependencies
-fs_extra = "1.3.0"
+criterion = { version = "0.4.0", features = ["async_tokio"] }
+dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "0.2.0" }
 fake-file = "0.1.0"
-lazy_static = "1.4"
-criterion = {version = "0.4.0", features = ["async_tokio"]}
-dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8" }
-zstd = "0.12.3"
 fclones = "0.30.0"
+fs_extra = "1.3.0"
+lazy_static = "1.4"
+zstd = "0.12.3"
+
 # For local dev if needed..
 #wnfs = { path = "../rs-wnfs/wnfs" }
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", version = "0.1.20" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 [profile.dev]

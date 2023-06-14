@@ -1,0 +1,21 @@
+name: 🛡 Weekly Dependency Advisories
+on:
+  schedule:
+    # Run every Monday at 10am ET (2pm UTC)
+    - cron: '0 14 * * 1'
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check advisories
+          arguments: --all-features
