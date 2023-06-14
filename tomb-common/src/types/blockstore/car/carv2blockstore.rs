@@ -1,12 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    cell::RefCell,
     fs::{File, OpenOptions},
-    io::Write,
+    io::{Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 use wnfs::{
@@ -14,93 +12,137 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-use crate::types::blockstore::car::carv2::V2_PRAGMA;
-
-use super::{carv1blockstore::CarV1BlockStore, carv2::CarV2, v2header::V2Header};
+use super::{carv2::CarV2, v1block::V1Block};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
-    pub(crate) header: RefCell<V2Header>,
-    pub(crate) child: CarV1BlockStore,
+    pub(crate) carv2: CarV2,
 }
 
 impl CarV2BlockStore {
-    pub fn new(path: &Path) -> Result<Self> {
-        let random_string: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(7)
-            .map(char::from)
-            .collect();
+    pub fn get_read(&self) -> Result<File> {
+        Ok(File::open(&self.path)?)
+    }
+    pub fn get_write(&self) -> Result<File> {
+        Ok(OpenOptions::new().append(true).open(&self.path)?)
+    }
 
-        let path = if path.is_dir() {
-            path.join(format!("{}.car", random_string))
-        } else {
-            path.to_path_buf()
-        };
+    pub fn new(path: &Path) -> Result<Self> {
+        // If the path is a directory
+        if path.is_dir() {
+            panic!("invalid path, must be file, not dir");
+        }
         // Create the file if it doesn't already exist
         if !path.exists() {
-            File::create(&path)?;
+            File::create(path)?;
         }
-        // Open the file in reading mode
-        let file = File::open(&path)?;
-        // If the header is already there
-        if let Ok(_) = CarV2::verify_pragma(&file) {
-            let header = V2Header::read_bytes(&file)?;
-            println!("loaded a v2header: {:?}", header);
+
+        // If the file is already a valid CARv2
+        if let Ok(mut file) = File::open(path) &&
+           let Ok(carv2) = CarV2::read_bytes(&mut file) {
             Ok(Self {
-                path: path.clone(),
-                header: RefCell::new(header),
-                child: CarV1BlockStore::new(&path, Some(RefCell::new(header)))?,
+                path: path.to_path_buf(),
+                carv2,
             })
         }
         // If we need to create the header
         else {
             // Open the file in append mode
-            let mut file = OpenOptions::new().append(true).open(&path)?;
-            file.write_all(&V2_PRAGMA)?;
-            // Create a new header
-            let new_header = V2Header {
-                characteristics: 0,
-                data_offset: 0,
-                data_size: 0,
-                index_offset: 0,
-            };
-            // Write the header to the file
-            new_header.write_bytes(&mut file)?;
-            println!("had to make a v2header: {:?}", new_header);
+            let mut file = OpenOptions::new().append(true).open(path)?;
+            // Move to start
+            file.seek(SeekFrom::Start(0))?;
+            // Initialize
+            CarV2::initialize(&mut file)?;
+            // Move back to the start of the file
+            file.seek(SeekFrom::Start(0))?;
             // Return Ok
             Ok(Self {
-                path: path.clone(),
-                header: RefCell::new(new_header.clone()),
-                child: CarV1BlockStore::new(&path, Some(RefCell::new(new_header.clone())))?,
+                path: path.to_path_buf(),
+                carv2: CarV2::read_bytes(&mut file)?,
             })
         }
-    }
-
-    pub fn get_read(&self) -> Result<File> {
-        Ok(File::open(&self.path)?)
-    }
-    pub fn get_write(&self) -> Result<File> {
-        // Open the file in append mode
-        Ok(OpenOptions::new().append(true).open(&self.path)?)
     }
 }
 
 #[async_trait(?Send)]
 impl BlockStore for CarV2BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
-        self.child.get_block(cid).await
+        // Open the file in read-only mode
+        let mut file = self.get_read()?;
+        // Perform the block read
+        let block: V1Block = self.carv2.get_block(cid, &mut file)?;
+        // Return its contents
+        Ok(Cow::Owned(block.content))
     }
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
-        let cid = self.child.put_block(bytes, codec).await?;
-        // let block = self.child.index.get(&cid)?;
-        // let length = block.to_bytes()?.len() as u64;
+        // Create a block with this content
+        let block = V1Block::new(bytes, codec)?;
+        // If this CID already exists in the store
+        if self.get_block(&block.cid).await.is_ok() {
+            // Return OK
+            Ok(block.cid)
+        }
+        // If this needs to be appended to the CARv1
+        else {
+            // Open the file in append mode
+            let mut file = self.get_write()?;
+            // Put the block
+            self.carv2.put_block(&block, &mut file)?;
+            // Return Ok with block CID
+            Ok(block.cid)
+        }
+    }
+}
 
-        // let mut header = self.header.borrow_mut();
-        // header.data_size += length;
+#[cfg(test)]
+mod tests {
+    use std::{path::Path, str::FromStr};
 
-        Ok(cid)
+    use super::CarV2BlockStore;
+    use anyhow::Result;
+    use serial_test::serial;
+    use wnfs::{
+        common::BlockStore,
+        libipld::{Cid, IpldCodec},
+    };
+
+    #[tokio::test]
+    #[serial]
+    async fn get_block() -> Result<()> {
+        let fixture_path = Path::new("car-fixtures");
+        let existing_path = fixture_path.join("carv2-basic.car");
+        let new_path = Path::new("test").join("carv2-basic-get.car");
+        std::fs::copy(existing_path, &new_path)?;
+        let store = CarV2BlockStore::new(&new_path)?;
+
+        println!("carv2: {:?}", store.carv2);
+
+        let cid = Cid::from_str("QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z")?;
+        let bytes = store.get_block(&cid).await?.to_vec();
+        assert_eq!(bytes, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401")?);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn put_block() -> Result<()> {
+        let fixture_path = Path::new("car-fixtures");
+        let existing_path = fixture_path.join("carv2-basic.car");
+        let new_path = Path::new("test").join("carv2-basic-put.car");
+        std::fs::copy(existing_path, &new_path)?;
+
+        let store = CarV2BlockStore::new(&new_path)?;
+
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let kitty_cid = store
+            .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
+            .await?;
+        let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        Ok(())
     }
 }

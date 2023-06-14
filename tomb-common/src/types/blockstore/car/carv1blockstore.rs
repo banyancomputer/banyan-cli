@@ -1,13 +1,9 @@
-use crate::types::blockstore::car::{carv2::V2_PRAGMA_SIZE, v2header::V2_HEADER_SIZE};
-
-use super::{v1block::V1Block, v1header::V1Header, v1index::V1Index, v2header::V2Header, carv1::CarV1};
+use super::{carv1::CarV1, v1block::V1Block};
 use anyhow::Result;
 use async_trait::async_trait;
-use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    cell::RefCell,
     fs::{File, OpenOptions},
     io::{Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -21,7 +17,7 @@ use wnfs::{
 pub struct CarV1BlockStore {
     pub path: PathBuf,
     pub(crate) carv1: CarV1,
-    pub(crate) parent: Option<RefCell<V2Header>>,
+    pub(crate) parent_offset: Option<u64>,
 }
 
 impl CarV1BlockStore {
@@ -29,49 +25,45 @@ impl CarV1BlockStore {
         Ok(File::open(&self.path)?)
     }
     pub fn get_write(&self) -> Result<File> {
-        // Open the file in append mode
         Ok(OpenOptions::new().append(true).open(&self.path)?)
     }
 
     // Create a new CARv1 BlockStore from a file
-    pub fn new(path: &Path, parent: Option<RefCell<V2Header>>) -> Result<Self> {
-        // If the directory is valid
+    pub fn new(path: &Path, parent_offset: Option<u64>) -> Result<Self> {
+        // If the path is a directory
         if path.is_dir() {
             panic!("invalid path, must be file, not dir");
         }
-        
+
         // Create the file if it doesn't already exist
         if !path.exists() {
             File::create(&path)?;
         }
 
-        // Open the file in reading mode 
-        if  let Ok(mut file) = File::open(path) &&
+        // Open the file in reading mode
+        if let Ok(mut file) = File::open(path) &&
             let Ok(carv1) = CarV1::read_bytes(&mut file) {
             Ok(Self {
                 path: path.to_path_buf(),
                 carv1,
-                parent,
+                parent_offset,
             })
         }
         // If we need to create the header
         else {
             // Open the file in append mode
             let mut file = OpenOptions::new().append(true).open(path)?;
-            // Create a new header
-            let new_header = V1Header {
-                version: 1,
-                roots: None,
-            };
-            // Write the header to the file
-            new_header.write_bytes(&mut file)?;
+            // Move to start
+            file.seek(SeekFrom::Start(0))?;
+            // Initialize this file as a CARv1
+            CarV1::initialize(&mut file)?;
             // Move back to the start of the file
             file.seek(SeekFrom::Start(0))?;
             // Return Ok
             Ok(Self {
                 path: path.to_path_buf(),
                 carv1: CarV1::read_bytes(&mut file)?,
-                parent,
+                parent_offset,
             })
         }
     }
@@ -82,8 +74,8 @@ impl BlockStore for CarV1BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Open the file in read-only mode
         let mut file = self.get_read()?;
-        // Return the block read
-        let block = self.carv1.get_block(cid, &mut file)?;
+        // Perform the block read
+        let block: V1Block = self.carv1.get_block(cid, &mut file)?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
@@ -92,7 +84,7 @@ impl BlockStore for CarV1BlockStore {
         // Create a block with this content
         let block = V1Block::new(bytes, codec)?;
         // If this CID already exists in the store
-        if let Ok(_) = self.get_block(&block.cid).await {
+        if self.get_block(&block.cid).await.is_ok() {
             // Return OK
             Ok(block.cid)
         }
@@ -100,6 +92,7 @@ impl BlockStore for CarV1BlockStore {
         else {
             // Open the file in append mode
             let mut file = self.get_write()?;
+            // Put the block
             self.carv1.put_block(&block, &mut file)?;
             // Return Ok with block CID
             Ok(block.cid)

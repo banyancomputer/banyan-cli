@@ -8,7 +8,9 @@ use crate::utils::{
     wnfsio::get_progress_bar,
 };
 use tomb_common::{
-    types::blockstore::{car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
+    types::blockstore::{
+        car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+    },
     utils::serialize::{load_cold_forest, store_cold_forest},
 };
 

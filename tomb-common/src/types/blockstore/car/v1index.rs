@@ -16,7 +16,7 @@ impl V1Index {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let mut offsets = HashMap::<Cid, u64>::new();
         // While we're able to peek varints and CIDs
-        while let Ok(block_offset) = r.stream_position() && 
+        while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = V1Block::start_read(&mut r) {
             // Log where we found this block
             offsets.insert(cid, block_offset);
@@ -55,30 +55,25 @@ mod tests {
         io::{BufReader, Cursor, Seek, SeekFrom},
         path::Path,
         str::FromStr,
-        vec,
     };
     use wnfs::libipld::Cid;
 
-    // #[test]
-    // fn read_write_bytes() -> Result<()> {
-    //     // Construct a V1Header
-    //     let header = V1Header {
-    //         version: 2,
-    //         roots: None,
-    //     };
+    #[test]
+    fn read_write_bytes() -> Result<()> {
+        // Construct a V1Header
+        let header = V1Header::default();
+        // Write the header into a buffer
+        let mut header_bytes: Vec<u8> = Vec::new();
+        header.write_bytes(&mut header_bytes)?;
 
-    //     // Write the header into a buffer
-    //     let mut header_bytes: Vec<u8> = Vec::new();
-    //     header.write_bytes(&mut header_bytes)?;
+        // Reconstruct the header from this buffer
+        let header_cursor = Cursor::new(header_bytes);
+        let new_header = V1Header::read_bytes(header_cursor)?;
 
-    //     // Reconstruct the header from this buffer
-    //     let header_cursor = Cursor::new(header_bytes);
-    //     let new_header = V1Header::read_bytes(header_cursor)?;
-
-    //     // Assert equality
-    //     assert_eq!(header, new_header);
-    //     Ok(())
-    // }
+        // Assert equality
+        assert_eq!(header, new_header);
+        Ok(())
+    }
 
     #[test]
     fn read_disk() -> Result<()> {

@@ -1,6 +1,6 @@
 use super::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
 use anyhow::Result;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek, SeekFrom, Write};
 use wnfs::libipld::Cid;
 
@@ -35,6 +35,13 @@ impl CarV1 {
         // Return Ok
         Ok(())
     }
+
+    pub(crate) fn initialize<W: Write + Seek>(mut w: W) -> Result<()> {
+        // Write new header
+        V1Header::default().write_bytes(&mut w)?;
+        // Ok
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -51,6 +58,8 @@ mod tests {
         let car = CarV1::read_bytes(&mut file)?;
 
         // Header tests exist separately, let's just ensure content is correct!
+
+        // CIDs
         let block_cids = vec![
             Cid::from_str("bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm")?,
             Cid::from_str("QmNX6Tffavsya4xgBi2VJQnSuqy9GsxongxZZ9uZBqp16d")?,

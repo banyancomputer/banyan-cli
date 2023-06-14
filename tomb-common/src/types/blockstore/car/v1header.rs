@@ -11,7 +11,7 @@ use wnfs::{
 };
 
 // | 16-byte varint | n-byte DAG CBOR |
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct V1Header {
     pub version: u64,
     pub roots: Option<Vec<Cid>>,
@@ -99,11 +99,14 @@ impl V1Header {
         let ipld = Ipld::Map(map);
         dagcbor::encode(&ipld)
     }
+}
 
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
-        let mut header_bytes: Vec<u8> = Vec::new();
-        self.write_bytes(&mut header_bytes)?;
-        Ok(header_bytes)
+impl Default for V1Header {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            roots: None,
+        }
     }
 }
 
@@ -123,11 +126,7 @@ mod tests {
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header {
-            version: 2,
-            roots: None,
-        };
-
+        let header = V1Header::default();
         // Write the header into a buffer
         let mut header_bytes: Vec<u8> = Vec::new();
         header.write_bytes(&mut header_bytes)?;

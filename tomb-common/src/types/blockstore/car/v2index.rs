@@ -1,9 +1,10 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 
 use crate::types::blockstore::car::varint::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub(crate) struct V2Index {}
 
 impl V2Index {

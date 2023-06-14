@@ -26,7 +26,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // manifest.cold_remote.addr = "".to_string();
 
     // Grab all Block CIDs
-    let children: Vec<Cid> = Vec::new();//manifest.cold_local.get_all_cids();
+    let children: Vec<Cid> = Vec::new(); //manifest.cold_local.get_all_cids();
 
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(children.len() as u64)?;

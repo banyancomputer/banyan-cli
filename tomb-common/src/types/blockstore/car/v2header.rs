@@ -41,7 +41,7 @@ impl V2Header {
         })
     }
 
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+    pub fn to_bytes(self) -> Result<Vec<u8>> {
         let mut header_bytes: Vec<u8> = Vec::new();
         self.write_bytes(&mut header_bytes)?;
         Ok(header_bytes)
@@ -102,7 +102,8 @@ mod tests {
 
     #[test]
     fn read_disk() -> Result<()> {
-        let mut file = BufReader::new(File::open("carv2-basic.car")?);
+        let car_path = Path::new("car-fixtures").join("carv2-basic.car");
+        let mut file = BufReader::new(File::open(car_path)?);
         // Skip the pragma
         file.seek(std::io::SeekFrom::Start(V2_PRAGMA_SIZE as u64))?;
         // Read the header
