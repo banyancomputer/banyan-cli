@@ -38,7 +38,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     // Load metadata
     let (_, manifest, hot_forest, cold_forest, dir) = all_from_disk(local, &tomb_path).await?;
 
-    // Update the locations of the CarBlockStores to be relative to the input path
+    // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.hot_local.change_dir(&tomb_path)?;
     // if local {
     //     manifest

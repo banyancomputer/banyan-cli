@@ -9,7 +9,7 @@ use super::varint::{read_varint_u128_exact, read_varint_u64_exact};
 pub const V2_HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct V2Header {
     pub characteristics: u128,
     pub data_offset: u64,
@@ -51,7 +51,8 @@ impl V2Header {
 impl Serialize for V2Header {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         self.to_bytes().unwrap().serialize(serializer)
     }
 }

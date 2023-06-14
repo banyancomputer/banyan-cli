@@ -11,7 +11,7 @@ use wnfs::{
 };
 
 // | 16-byte varint | n-byte DAG CBOR |
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
 pub(crate) struct V1Header {
     pub version: u64,
     pub roots: Option<Vec<Cid>>,
@@ -114,6 +114,7 @@ mod tests {
     use std::{
         fs::File,
         io::{BufReader, Cursor},
+        path::Path,
         str::FromStr,
         vec,
     };
@@ -142,8 +143,9 @@ mod tests {
 
     #[test]
     fn read_disk() -> Result<()> {
+        let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         // Open the CARv1
-        let mut file = BufReader::new(File::open("carv1-basic.car")?);
+        let mut file = BufReader::new(File::open(car_path)?);
         // Read the header
         let header = V1Header::read_bytes(&mut file)?;
         // Assert version is correct

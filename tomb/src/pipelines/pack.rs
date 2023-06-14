@@ -21,7 +21,7 @@ use std::{
 };
 use tomb_common::{
     types::{
-        blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+        blockstore::{car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
         pipeline::Manifest,
     },
     utils::serialize::{load_cold_forest, load_dir, load_hot_forest, store_dir},
@@ -70,12 +70,12 @@ pub async fn pipeline(
     // If the user provided an output directory
     let local = output_dir.is_some();
     // Declare the MetaData store
-    let mut hot_local = CarBlockStore::default();
+    let mut hot_local = CarV2BlockStore::default();
     // Local content storage need only be valid if this is a local job
-    let mut cold_local: CarBlockStore = if local {
-        CarBlockStore::new(&output_dir.unwrap().join("content"), None)
+    let mut cold_local: CarV2BlockStore = if local {
+        CarV2BlockStore::new(&output_dir.unwrap().join("content"))?
     } else {
-        CarBlockStore::default()
+        CarV2BlockStore::default()
     };
     // Declare the remote stores
     let mut cold_remote = NetworkBlockStore::default();
@@ -84,13 +84,13 @@ pub async fn pipeline(
     // Load the manifest
     let manifest = manifest_from_disk(tomb_path)?;
     // Update the BlockStores we will use if they have non-default values
-    if manifest.hot_local != CarBlockStore::default() {
+    if manifest.hot_local != CarV2BlockStore::default() {
         hot_local = manifest.hot_local;
     }
     if manifest.hot_remote != NetworkBlockStore::default() {
         hot_remote = manifest.hot_remote;
     }
-    if manifest.cold_local != CarBlockStore::default() {
+    if manifest.cold_local != CarV2BlockStore::default() {
         cold_local = manifest.cold_local;
     }
     if manifest.cold_remote != NetworkBlockStore::default() {
@@ -110,7 +110,7 @@ pub async fn pipeline(
     // If this filesystem has never been packed
     if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        hot_local = CarBlockStore::new(tomb_path, None);
+        hot_local = CarV2BlockStore::new(tomb_path)?;
     }
     // If we've already packed this filesystem before
     else {
@@ -142,7 +142,7 @@ pub async fn pipeline(
         // If the load was unsuccessful
         else {
             info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-            hot_local = CarBlockStore::new(tomb_path, None);
+            hot_local = CarV2BlockStore::new(tomb_path)?;
         }
 
         if let Ok(new_cold_forest) = new_cold_forest {

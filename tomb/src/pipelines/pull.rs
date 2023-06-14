@@ -8,7 +8,7 @@ use crate::utils::{
     wnfsio::get_progress_bar,
 };
 use tomb_common::{
-    types::blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+    types::blockstore::{car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
     utils::serialize::{load_cold_forest, store_cold_forest},
 };
 
@@ -29,11 +29,11 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // Empty the packed contents if there are any
     ensure_path_exists_and_is_empty_dir(&content_path, true)?;
 
-    // // Update the locations of the CarBlockStores to be relative to the input path
+    // // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.hot_local.change_dir(&tomb_path)?;
 
     // Erase the old content store, assume all data has been lost
-    manifest.cold_local = CarBlockStore::new(&content_path, None);
+    manifest.cold_local = CarV2BlockStore::new(&content_path)?;
 
     // Load the cold forest from the remote endpoint
     let cold_forest = load_cold_forest(&manifest.roots, &manifest.cold_remote).await?;

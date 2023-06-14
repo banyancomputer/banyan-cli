@@ -193,7 +193,7 @@ mod test {
     use serial_test::serial;
     use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
     use tomb_common::types::{
-        blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
+        blockstore::{car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
         pipeline::Manifest,
     };
     use wnfs::{
@@ -220,8 +220,8 @@ mod test {
         let tomb_path = path.join(".tomb");
 
         // Hot Store and cold Store
-        let cold_local = CarBlockStore::new(&content_path, None);
-        let hot_local = CarBlockStore::new(&tomb_path, None);
+        let cold_local = CarV2BlockStore::new(&content_path)?;
+        let hot_local = CarV2BlockStore::new(&tomb_path)?;
 
         // Remote endpoint
         let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);

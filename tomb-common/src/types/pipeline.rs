@@ -1,5 +1,6 @@
-use super::blockstore::networkblockstore::NetworkBlockStore;
-use crate::types::blockstore::carblockstore::CarBlockStore;
+use super::blockstore::{
+    car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug};
 use wnfs::libipld::Cid;
@@ -13,11 +14,11 @@ pub struct Manifest {
     /// The project version that was used to encode this Manifest
     pub version: String,
     /// The BlockStore that holds all packed data
-    pub cold_local: CarBlockStore,
+    pub cold_local: CarV2BlockStore,
     /// The BlockStore that holds all packed data, remotely
     pub cold_remote: NetworkBlockStore,
     /// The BlockStore that holds all Metadata
-    pub hot_local: CarBlockStore,
+    pub hot_local: CarV2BlockStore,
     /// The BlockStore that holds all Metadata, remotely
     pub hot_remote: NetworkBlockStore,
     /// The roots containing keys and CIDs

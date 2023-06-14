@@ -19,7 +19,7 @@ use wnfs::{
 
 /// BlockStore implmentation which stores its data locally on disk in CAR format
 #[derive(Debug, Default)]
-pub struct CarBlockStore {
+pub struct CarV2BlockStore {
     /// The version number and list of root dir CIDs
     carhead: CarHeader,
     /// The number of bytes that each CAR file can hold.
@@ -30,7 +30,7 @@ pub struct CarBlockStore {
     car_factory: RwLock<DiskCarFactory>,
 }
 
-impl Serialize for CarBlockStore {
+impl Serialize for CarV2BlockStore {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -51,7 +51,7 @@ impl Serialize for CarBlockStore {
     }
 }
 
-impl<'de> Deserialize<'de> for CarBlockStore {
+impl<'de> Deserialize<'de> for CarV2BlockStore {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -82,8 +82,8 @@ impl<'de> Deserialize<'de> for CarBlockStore {
     }
 }
 
-impl CarBlockStore {
-    /// Create a new CarBlockStore at a given directory; overwrites all data
+impl CarV2BlockStore {
+    /// Create a new CarV2BlockStore at a given directory; overwrites all data
     pub fn new(directory: &Path, max_size: Option<usize>) -> Self {
         // Remove anything that might be there already
         let _ = std::fs::create_dir_all(directory);
@@ -131,7 +131,7 @@ impl CarBlockStore {
 }
 
 #[async_trait(?Send)]
-impl BlockStore for CarBlockStore {
+impl BlockStore for CarV2BlockStore {
     // TODO audit this for deadlocks.
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Get a read-only reference to the <Cid, LocationInCar> HashMap
@@ -244,7 +244,7 @@ impl BlockStore for CarBlockStore {
     }
 }
 
-impl PartialEq for CarBlockStore {
+impl PartialEq for CarV2BlockStore {
     fn eq(&self, other: &Self) -> bool {
         self.carhead.roots == other.carhead.roots
             && self.max_size == other.max_size

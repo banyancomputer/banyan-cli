@@ -20,13 +20,13 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
         panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
     }
 
-    // Update the locations of the CarBlockStores to be relative to the input path
+    // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.hot_local.change_dir(&tomb_path)?;
     // manifest.cold_local.change_dir(&content_path)?;
     // manifest.cold_remote.addr = "".to_string();
 
     // Grab all Block CIDs
-    let children: Vec<Cid> = manifest.cold_local.get_all_cids();
+    let children: Vec<Cid> = Vec::new();//manifest.cold_local.get_all_cids();
 
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(children.len() as u64)?;

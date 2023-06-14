@@ -1,11 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     cell::RefCell,
     fs::{File, OpenOptions},
-    path::{Path, PathBuf}, io::Write,
+    io::Write,
+    path::{Path, PathBuf},
 };
 use wnfs::{
     common::BlockStore,
@@ -14,9 +16,9 @@ use wnfs::{
 
 use crate::types::blockstore::car::carv2::V2_PRAGMA;
 
-use super::{carv1blockstore::CarV1BlockStore, v2header::V2Header, carv2::CarV2};
+use super::{carv1blockstore::CarV1BlockStore, carv2::CarV2, v2header::V2Header};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
     pub(crate) header: RefCell<V2Header>,
@@ -25,24 +27,37 @@ pub struct CarV2BlockStore {
 
 impl CarV2BlockStore {
     pub fn new(path: &Path) -> Result<Self> {
+        let random_string: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(7)
+            .map(char::from)
+            .collect();
+
+        let path = if path.is_dir() {
+            path.join(format!("{}.car", random_string))
+        } else {
+            path.to_path_buf()
+        };
         // Create the file if it doesn't already exist
-        if !path.exists() { File::create(path)?; }
+        if !path.exists() {
+            File::create(&path)?;
+        }
         // Open the file in reading mode
-        let file = File::open(path)?;
+        let file = File::open(&path)?;
         // If the header is already there
         if let Ok(_) = CarV2::verify_pragma(&file) {
             let header = V2Header::read_bytes(&file)?;
             println!("loaded a v2header: {:?}", header);
             Ok(Self {
-                path: path.to_path_buf(),
+                path: path.clone(),
                 header: RefCell::new(header),
-                child: CarV1BlockStore::new(path, Some(RefCell::new(header)))?,
+                child: CarV1BlockStore::new(&path, Some(RefCell::new(header)))?,
             })
         }
         // If we need to create the header
         else {
             // Open the file in append mode
-            let mut file = OpenOptions::new().append(true).open(path)?;
+            let mut file = OpenOptions::new().append(true).open(&path)?;
             file.write_all(&V2_PRAGMA)?;
             // Create a new header
             let new_header = V2Header {
@@ -56,9 +71,9 @@ impl CarV2BlockStore {
             println!("had to make a v2header: {:?}", new_header);
             // Return Ok
             Ok(Self {
-                path: path.to_path_buf(),
+                path: path.clone(),
                 header: RefCell::new(new_header.clone()),
-                child: CarV1BlockStore::new(path, Some(RefCell::new(new_header.clone())))?,
+                child: CarV1BlockStore::new(&path, Some(RefCell::new(new_header.clone())))?,
             })
         }
     }
@@ -80,13 +95,12 @@ impl BlockStore for CarV2BlockStore {
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         let cid = self.child.put_block(bytes, codec).await?;
-        let block = self.child.find_block(&cid)?;
-        let length = block.to_bytes().len() as u64;
+        // let block = self.child.index.get(&cid)?;
+        // let length = block.to_bytes()?.len() as u64;
 
-        let mut header = self.header.borrow_mut();
-        header.data_size += length;
+        // let mut header = self.header.borrow_mut();
+        // header.data_size += length;
 
         Ok(cid)
     }
 }
-
