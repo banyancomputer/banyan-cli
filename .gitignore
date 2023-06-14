@@ -2,5 +2,5 @@
 /target
 /bench
 .idea
-**/*.DS_Store
+.DS_Store
 .vscode
