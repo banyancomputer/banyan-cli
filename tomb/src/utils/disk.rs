@@ -185,15 +185,15 @@ mod test {
             load_dir, load_hot_forest, manifest_from_disk, manifest_to_disk, store_dir,
             store_hot_forest,
         },
-        fs::ensure_path_exists_and_is_dir,
+        fs::ensure_path_exists_and_is_empty_dir,
     };
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
-    use std::{collections::HashMap, fs, path::PathBuf, rc::Rc};
+    use std::{collections::HashMap, path::{PathBuf, Path}, rc::Rc};
     use tomb_common::types::{
-        blockstore::{car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
+        blockstore::{car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
         pipeline::Manifest,
     };
     use wnfs::{
@@ -213,15 +213,17 @@ mod test {
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
     )> {
-        let path = PathBuf::from(test_name);
-        ensure_path_exists_and_is_dir(&path)?;
-
+        let path = Path::new("test").join(test_name);
+        ensure_path_exists_and_is_empty_dir(&path, true)?;
         let content_path = path.join("content");
-        let tomb_path = path.join(".tomb");
+        ensure_path_exists_and_is_empty_dir(&content_path, true)?;
+        let content_car = content_path.join("content.car");
+        let cold_local = CarV2BlockStore::new(&content_car)?;
 
-        // Hot Store and cold Store
-        let cold_local = CarV2BlockStore::new(&content_path)?;
-        let hot_local = CarV2BlockStore::new(&tomb_path)?;
+        let tomb_path = path.join(".tomb");
+        ensure_path_exists_and_is_empty_dir(&tomb_path, true)?;
+        let meta_car = tomb_path.join("meta.car");
+        let hot_local = CarV2BlockStore::new(&meta_car)?;
 
         // Remote endpoint
         let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
@@ -301,8 +303,8 @@ mod test {
 
     // Delete the temporary directory
     async fn teardown(test_name: &str) -> Result<()> {
-        let path = PathBuf::from(test_name);
-        fs::remove_dir_all(path)?;
+        let path = Path::new("test").join(test_name);
+        std::fs::remove_dir_all(path)?;
         Ok(())
     }
 

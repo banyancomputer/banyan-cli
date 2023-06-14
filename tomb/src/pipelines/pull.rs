@@ -9,7 +9,7 @@ use crate::utils::{
 };
 use tomb_common::{
     types::blockstore::{
-        car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+        car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
     },
     utils::serialize::{load_cold_forest, store_cold_forest},
 };

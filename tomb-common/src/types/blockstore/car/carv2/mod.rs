@@ -70,12 +70,7 @@ impl CarV2 {
     }
 
     pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<V1Block> {
-        println!(
-            "searching for CID: {} in index: {:?}",
-            cid, self.carv1.index
-        );
         let block_offset = self.carv1.index.get_offset(cid)?;
-        println!("offset returned: {}", block_offset);
         r.seek(SeekFrom::Start(block_offset))?;
         V1Block::read_bytes(&mut r)
     }

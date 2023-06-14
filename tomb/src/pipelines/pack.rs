@@ -21,7 +21,7 @@ use std::{
 };
 use tomb_common::{
     types::{
-        blockstore::{car::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
+        blockstore::{car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
         pipeline::Manifest,
     },
     utils::serialize::{load_cold_forest, load_dir, load_hot_forest, store_dir},

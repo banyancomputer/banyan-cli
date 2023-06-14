@@ -62,7 +62,7 @@ impl CarV1BlockStore {
             // Return Ok
             Ok(Self {
                 path: path.to_path_buf(),
-                carv1: CarV1::read_bytes(&mut file)?,
+                carv1: CarV1::read_bytes(&mut File::open(path)?)?,
                 parent_offset,
             })
         }
