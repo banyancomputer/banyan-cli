@@ -191,9 +191,15 @@ mod test {
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
-    use std::{collections::HashMap, path::{PathBuf, Path}, rc::Rc};
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+        rc::Rc,
+    };
     use tomb_common::types::{
-        blockstore::{car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
+        blockstore::{
+            car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+        },
         pipeline::Manifest,
     };
     use wnfs::{

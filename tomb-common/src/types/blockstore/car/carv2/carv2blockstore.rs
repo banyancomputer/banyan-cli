@@ -63,6 +63,10 @@ impl CarV2BlockStore {
             })
         }
     }
+
+    pub fn get_all_cids(&self) -> Vec<Cid> {
+        self.carv2.get_all_cids()
+    }
 }
 
 #[async_trait(?Send)]
@@ -98,11 +102,10 @@ impl BlockStore for CarV2BlockStore {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::Path, str::FromStr};
-
     use super::CarV2BlockStore;
     use anyhow::Result;
     use serial_test::serial;
+    use std::{path::Path, str::FromStr};
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},

@@ -50,6 +50,10 @@ impl CarV1 {
         // Ok
         Ok(())
     }
+
+    pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
+        self.index.get_all_cids()
+    }
 }
 
 #[cfg(test)]

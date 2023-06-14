@@ -21,7 +21,7 @@ mod test {
         utils::{
             disk::{all_from_disk, hot_from_disk, manifest_from_disk},
             spider::path_to_segments,
-            tests::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
+            tests::{test_setup, test_setup_structured, test_teardown},
             wnfsio::decompress_bytes,
         },
     };
@@ -31,7 +31,7 @@ mod test {
     use fs_extra::{copy_items, dir::CopyOptions};
     use serial_test::serial;
     use std::{
-        fs::{self, create_dir_all, remove_dir_all, File},
+        fs::{self, create_dir_all, metadata, remove_dir_all, File},
         io::Write,
         path::PathBuf,
     };
@@ -147,7 +147,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
@@ -166,7 +165,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Create the setup conditions
@@ -181,18 +179,17 @@ mod test {
         push::pipeline(&output_dir).await?;
 
         // Compute size of original content
-        let d1 = compute_directory_size(&output_dir.join("content")).unwrap();
+        let d1 = metadata(&output_dir.join("content.car"))?.len();
         // Oh no! File corruption, we lost all our data!
-        fs::remove_dir_all(output_dir.join("content"))?;
+        fs::remove_file(output_dir.join("content.car"))?;
         // Now its time to reconstruct all our data
         pull::pipeline(&output_dir).await?;
         // Compute size of reconstructed content
-        let d2 = compute_directory_size(&output_dir.join("content")).unwrap();
+        let d2 = metadata(&output_dir.join("content.car"))?.len();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(d1, d2);
         // Teardown
-        // test_teardown(test_name).await
-        Ok(())
+        test_teardown(test_name).await
     }
 
     #[tokio::test]

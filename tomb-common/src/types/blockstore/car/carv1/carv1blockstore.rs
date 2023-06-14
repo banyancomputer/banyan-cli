@@ -67,6 +67,10 @@ impl CarV1BlockStore {
             })
         }
     }
+
+    pub fn get_all_cids(&self) -> Vec<Cid> {
+        self.carv1.get_all_cids()
+    }
 }
 
 #[async_trait(?Send)]

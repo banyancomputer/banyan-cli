@@ -102,6 +102,10 @@ impl CarV2 {
         // Return Ok
         Ok(())
     }
+
+    pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
+        self.carv1.get_all_cids()
+    }
 }
 
 #[cfg(test)]

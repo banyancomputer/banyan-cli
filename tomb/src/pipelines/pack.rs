@@ -21,7 +21,9 @@ use std::{
 };
 use tomb_common::{
     types::{
-        blockstore::{car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore},
+        blockstore::{
+            car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+        },
         pipeline::Manifest,
     },
     utils::serialize::{load_cold_forest, load_dir, load_hot_forest, store_dir},
@@ -73,7 +75,7 @@ pub async fn pipeline(
     let mut hot_local = CarV2BlockStore::default();
     // Local content storage need only be valid if this is a local job
     let mut cold_local: CarV2BlockStore = if local {
-        CarV2BlockStore::new(&output_dir.unwrap().join("content"))?
+        CarV2BlockStore::new(&output_dir.unwrap().join("content.car"))?
     } else {
         CarV2BlockStore::default()
     };

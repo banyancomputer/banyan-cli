@@ -4,7 +4,6 @@ use wnfs::{common::BlockStore, private::PrivateForest};
 
 use crate::utils::{
     disk::{manifest_from_disk, manifest_to_disk},
-    fs::ensure_path_exists_and_is_empty_dir,
     wnfsio::get_progress_bar,
 };
 use tomb_common::{
@@ -18,7 +17,7 @@ use tomb_common::{
 pub async fn pipeline(dir: &Path) -> Result<()> {
     // Represent relative directories for .tomb and content
     let tomb_path = dir.join(".tomb");
-    let content_path = dir.join("content");
+    let content_path = dir.join("content.car");
     // Load the Manifest
     let mut manifest = manifest_from_disk(&tomb_path)?;
     // If this remote endpoint has not actually been configured
@@ -26,16 +25,11 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
         panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
     }
 
-    // // Ensure that there is a .tomb path
-    // ensure_path_exists_and_is_dir(&tomb_path)?;
-    // Empty the packed contents if there are any
-    ensure_path_exists_and_is_empty_dir(&content_path, true)?;
-
     // // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.hot_local.change_dir(&tomb_path)?;
 
     // Erase the old content store, assume all data has been lost
-    manifest.cold_local = CarV2BlockStore::new(&content_path.join("content.car"))?;
+    manifest.cold_local = CarV2BlockStore::new(&content_path)?;
 
     // Load the cold forest from the remote endpoint
     let cold_forest = load_cold_forest(&manifest.roots, &manifest.cold_remote).await?;

@@ -157,10 +157,14 @@ mod test {
     use assert_cmd::prelude::*;
     use fs_extra::dir::CopyOptions;
     use serial_test::serial;
-    use std::{fs::create_dir_all, path::Path, process::Command};
+    use std::{
+        fs::{create_dir_all, metadata},
+        path::Path,
+        process::Command,
+    };
     use tomb::utils::{
         disk::manifest_from_disk,
-        tests::{compute_directory_size, test_setup, test_teardown},
+        tests::{test_setup, test_teardown},
     };
     use tomb_common::types::pipeline::Manifest;
 
@@ -320,7 +324,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test
@@ -349,8 +352,8 @@ mod test {
         pull(&rebuild_dir).await?.assert().success();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(
-            compute_directory_size(&output_dir.join("content"))?,
-            compute_directory_size(&rebuild_dir.join("content"))?
+            metadata(&output_dir.join("content.car"))?.len(),
+            metadata(&rebuild_dir.join("content.car"))?.len(),
         );
         // Teardown test
         test_teardown(test_name).await

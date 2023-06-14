@@ -40,6 +40,10 @@ impl V1Index {
     pub fn insert_offset(&self, cid: &Cid, offset: u64) {
         self.0.borrow_mut().insert(*cid, offset);
     }
+
+    pub fn get_all_cids(&self) -> Vec<Cid> {
+        self.0.borrow().clone().into_keys().collect()
+    }
 }
 
 impl Serialize for V1Index {

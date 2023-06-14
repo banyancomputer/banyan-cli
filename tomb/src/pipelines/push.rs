@@ -8,7 +8,7 @@ use wnfs::{common::BlockStore, libipld::Cid};
 pub async fn pipeline(dir: &Path) -> Result<()> {
     info!("Sending blocks to remote server.");
     let tomb_path = dir.join(".tomb");
-    let _content_path = dir.join("content");
+    // let _content_path = dir.join("content");
 
     // Load the manifest
     let manifest = manifest_from_disk(&tomb_path)?;
@@ -26,7 +26,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // manifest.cold_remote.addr = "".to_string();
 
     // Grab all Block CIDs
-    let children: Vec<Cid> = Vec::new(); //manifest.cold_local.get_all_cids();
+    let children: Vec<Cid> = manifest.cold_local.get_all_cids();
 
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(children.len() as u64)?;
