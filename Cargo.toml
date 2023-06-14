@@ -4,6 +4,8 @@ members = [
     "tomb-common",
     "tomb-wasm"
 ]
+resolver = "2"
+
 [workspace.package]
 # All packages in the workspace will have the same version (for now)
 version = "1.1.0"
@@ -15,6 +17,7 @@ description = "tomb compresses and encrypts data for Filecoin"
 homepage = "https://banyan.computer"
 repository = "https://github.com/banyancomputer/tomb"
 readme = "README.md"
+
 # Cargo publication optionals
 keywords = [
     "banyan", 
