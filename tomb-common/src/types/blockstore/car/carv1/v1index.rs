@@ -10,7 +10,7 @@ use std::{
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
 #[derive(Debug, PartialEq, Default)]
-pub struct V1Index(RefCell<HashMap<Cid, u64>>);
+pub struct V1Index(pub(crate) RefCell<HashMap<Cid, u64>>);
 
 impl V1Index {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
@@ -18,6 +18,7 @@ impl V1Index {
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = V1Block::start_read(&mut r) {
+            println!("i found a block at {}", block_offset);
             // Log where we found this block
             offsets.insert(cid, block_offset);
             // Skip the rest of the block

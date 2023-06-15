@@ -8,6 +8,8 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey},
 };
 
+/*
+
 /// Store a given PrivateForest in a given Store
 pub async fn store_forest(forest: &Rc<PrivateForest>, store: &impl BlockStore) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
@@ -236,3 +238,5 @@ pub async fn load_all(
     let dir = load_dir(local, manifest, key, &hot_forest, "current_root").await?;
     Ok((hot_forest, cold_forest, dir))
 }
+
+ */

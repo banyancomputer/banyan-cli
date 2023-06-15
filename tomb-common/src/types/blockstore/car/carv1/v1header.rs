@@ -2,6 +2,7 @@ use crate::types::blockstore::car::varint::{encode_varint_u64, read_varint_u64};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    cell::RefCell,
     collections::BTreeMap,
     io::{Read, Seek, Write},
 };
@@ -14,7 +15,7 @@ use wnfs::{
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) struct V1Header {
     pub version: u64,
-    pub roots: Option<Vec<Cid>>,
+    pub roots: RefCell<Vec<Cid>>,
 }
 
 /// CARv1 header structure
@@ -66,13 +67,13 @@ impl V1Header {
                         panic!()
                     }
                 }
-                Some(roots)
+                roots
             }
             Some(ipld) => {
                 println!("expected list but found: {:?}", ipld);
                 panic!()
             }
-            None => None,
+            None => Vec::new(),
         };
 
         let version = match map.get("version") {
@@ -82,19 +83,25 @@ impl V1Header {
         };
 
         // Return Ok with new Self
-        Ok(Self { version, roots })
+        Ok(Self {
+            version,
+            roots: RefCell::new(roots),
+        })
     }
 
     /// Transforms this object into a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1
     pub fn to_ipld_bytes(&self) -> Result<Vec<u8>> {
         let mut map = BTreeMap::new();
         map.insert("version".to_string(), Ipld::Integer(self.version as i128));
-        if let Some(roots) = &self.roots {
-            // Represent the root CIDs as IPLD Links
-            let ipld_roots: Vec<Ipld> = roots.iter().map(|&root| Ipld::Link(root)).collect();
-            // Insert the roots into the map
-            map.insert("roots".to_string(), Ipld::List(ipld_roots));
-        }
+        // Represent the root CIDs as IPLD Links
+        let ipld_roots: Vec<Ipld> = self
+            .roots
+            .borrow()
+            .iter()
+            .map(|&root| Ipld::Link(root))
+            .collect();
+        // Insert the roots into the map
+        map.insert("roots".to_string(), Ipld::List(ipld_roots));
         // Construct the final IPLD
         let ipld = Ipld::Map(map);
         dagcbor::encode(&ipld)
@@ -105,7 +112,7 @@ impl Default for V1Header {
     fn default() -> Self {
         Self {
             version: 1,
-            roots: None,
+            roots: RefCell::new(Vec::new()),
         }
     }
 }
@@ -155,7 +162,7 @@ mod tests {
             Cid::from_str("bafyreidj5idub6mapiupjwjsyyxhyhedxycv4vihfsicm2vt46o7morwlm")?,
         ];
         // Assert that the roots loaded match the roots expected in this file
-        assert_eq!(header.roots.unwrap(), expected_roots);
+        assert_eq!(header.roots.borrow().clone(), expected_roots);
         // Return Ok
         Ok(())
     }

@@ -13,27 +13,18 @@ use wnfs::libipld::Cid;
 pub struct Manifest {
     /// The project version that was used to encode this Manifest
     pub version: String,
-    /// The BlockStore that holds all packed data
-    pub cold_local: CarV2BlockStore,
-    /// The BlockStore that holds all packed data, remotely
-    pub cold_remote: NetworkBlockStore,
     /// The BlockStore that holds all Metadata
-    pub hot_local: CarV2BlockStore,
-    /// The BlockStore that holds all Metadata, remotely
-    pub hot_remote: NetworkBlockStore,
-    /// The roots containing keys and CIDs
-    pub roots: HashMap<String, Cid>,
+    pub metadata: CarV2BlockStore,
+    /// The BlockStore that holds all packed data
+    pub content: CarV2BlockStore,
 }
 
 impl Default for Manifest {
     fn default() -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            cold_local: Default::default(),
-            cold_remote: Default::default(),
-            hot_local: Default::default(),
-            hot_remote: Default::default(),
-            roots: Default::default(),
+            metadata: Default::default(),
+            content: Default::default(),
         }
     }
 }

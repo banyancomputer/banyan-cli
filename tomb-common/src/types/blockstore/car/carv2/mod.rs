@@ -164,7 +164,7 @@ mod tests {
             "QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z",
         )?];
         // Assert roots are correct
-        assert_eq!(&carv2.carv1.header.roots.unwrap(), &expected_roots);
+        assert_eq!(&carv2.carv1.header.roots.borrow().clone(), &expected_roots);
 
         // Ok
         Ok(())

@@ -106,7 +106,11 @@ impl BlockStore for CarV1BlockStore {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::Path, str::FromStr};
+    use std::{
+        fs::{copy, remove_file},
+        path::Path,
+        str::FromStr,
+    };
 
     use super::CarV1BlockStore;
     use anyhow::Result;
@@ -138,7 +142,7 @@ mod tests {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
         let new_path = Path::new("test").join("carv1-basic-put.car");
-        std::fs::copy(existing_path, &new_path)?;
+        copy(existing_path, &new_path)?;
 
         let store = CarV1BlockStore::new(&new_path, None)?;
 
@@ -149,6 +153,7 @@ mod tests {
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
+        remove_file(new_path)?;
         Ok(())
     }
 }
