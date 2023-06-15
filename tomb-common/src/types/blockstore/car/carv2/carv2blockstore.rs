@@ -102,9 +102,10 @@ impl BlockStore for CarV2BlockStore {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::blockstore::car::{carv1::v1block::V1Block, carv2::v2header::V2Header};
+
     use super::CarV2BlockStore;
     use anyhow::Result;
-    use serial_test::serial;
     use std::{path::Path, str::FromStr};
     use wnfs::{
         common::BlockStore,
@@ -112,7 +113,6 @@ mod tests {
     };
 
     #[tokio::test]
-    #[serial]
     async fn get_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-basic.car");
@@ -125,12 +125,11 @@ mod tests {
         let cid = Cid::from_str("QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z")?;
         let bytes = store.get_block(&cid).await?.to_vec();
         assert_eq!(bytes, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401")?);
-
+        std::fs::remove_file(new_path)?;
         Ok(())
     }
 
     #[tokio::test]
-    #[serial]
     async fn put_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-basic.car");
@@ -145,7 +144,43 @@ mod tests {
             .await?;
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
+        std::fs::remove_file(new_path)?;
+        Ok(())
+    }
 
+    #[tokio::test]
+    async fn update_header() -> Result<()> {
+        let fixture_path = Path::new("car-fixtures");
+        let existing_path = fixture_path.join("carv2-basic.car");
+        let new_path = Path::new("test").join("carv2-basic-header.car");
+        std::fs::copy(existing_path, &new_path)?;
+
+        let store = CarV2BlockStore::new(&new_path)?;
+
+        // Extract original header
+        let original_header = store.carv2.header.borrow().clone();
+
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        // Store
+        store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+
+        // Extract updated header
+        let new_header = store.carv2.header.borrow().clone();
+        // Assert that the header is no longer default
+        assert_ne!(new_header, V2Header::default());
+
+        let mut kitty_buf: Vec<u8> = Vec::new();
+        // Turn the kitty bytes into
+        V1Block::new(kitty_bytes, IpldCodec::Raw)?.write_bytes(&mut kitty_buf)?;
+        // Assert there are actual bytes written
+        assert_ne!(kitty_buf.len(), 0);
+        // Assert that the bytes of the V1Block are the total data size
+        assert_eq!(
+            new_header.data_size,
+            original_header.data_size + kitty_buf.len() as u64
+        );
+        // Teardown
+        std::fs::remove_file(new_path)?;
         Ok(())
     }
 }
