@@ -128,7 +128,6 @@ mod tests {
 
     use super::CarV1BlockStore;
     use anyhow::Result;
-    use serial_test::serial;
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},

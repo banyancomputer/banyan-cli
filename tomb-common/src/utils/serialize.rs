@@ -9,7 +9,10 @@ use wnfs::{
 };
 
 /// Store a given PrivateForest in a given Store
-pub(crate) async fn store_forest(forest: &Rc<PrivateForest>, store: &impl BlockStore) -> Result<Cid> {
+pub(crate) async fn store_forest(
+    forest: &Rc<PrivateForest>,
+    store: &impl BlockStore,
+) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(store).await?;
     // Store the PrivateForest's IPLD in the BlockStore
@@ -134,6 +137,8 @@ pub async fn store_all_hot(
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
+    // Empty all roots first
+    manifest.metadata.empty_roots()?;
     // Store the dir, then the forest, then the manifest and key
     let temporal_key = store_dir(manifest, metadata_forest, root_dir).await?;
     store_metadata_forest(&manifest.metadata, metadata_forest).await?;
@@ -182,7 +187,6 @@ pub async fn load_all(
     Ok((metadata_forest, content_forest, dir))
 }
 
-
 #[cfg(test)]
 mod test {
     use anyhow::Result;
@@ -194,9 +198,13 @@ mod test {
     #[tokio::test]
     async fn serial_metadata_forest() -> Result<()> {
         // Start er up!
-        let (_, mut manifest, mut metadata_forest, _, _) = setup(true, "serial_metadata_forest").await?;
+        let (_, manifest, mut metadata_forest, _, _) =
+            setup(true, "serial_metadata_forest").await?;
 
-        let cid = manifest.metadata.put_block("Hello Kitty!".as_bytes().to_vec(), IpldCodec::Raw).await?;
+        let cid = manifest
+            .metadata
+            .put_block("Hello Kitty!".as_bytes().to_vec(), IpldCodec::Raw)
+            .await?;
         manifest.metadata.insert_root(&cid)?;
 
         // Store and load
@@ -258,8 +266,13 @@ mod test {
     #[tokio::test]
     async fn serial_dir_content() -> Result<()> {
         // Start er up!
-        let (_, mut manifest, mut original_metadata_forest, mut original_content_forest, mut original_dir) =
-            setup(true, "serial_dir_content").await?;
+        let (
+            _,
+            mut manifest,
+            mut original_metadata_forest,
+            mut original_content_forest,
+            mut original_dir,
+        ) = setup(true, "serial_dir_content").await?;
         // Grab the original file
         let original_file = original_dir
             .open_file_mut(
@@ -276,17 +289,8 @@ mod test {
             .get_content(&mut original_content_forest, &manifest.content)
             .await?;
 
-        let key = store_dir(
-            &mut manifest,
-            &mut original_metadata_forest,
-            &original_dir,
-        )
-        .await?;
-        store_metadata_forest(
-            &manifest.metadata,
-            &mut original_metadata_forest,
-        )
-        .await?;
+        let key = store_dir(&mut manifest, &mut original_metadata_forest, &original_dir).await?;
+        store_metadata_forest(&manifest.metadata, &mut original_metadata_forest).await?;
 
         let mut new_metadata_forest = load_metadata_forest(&manifest.metadata).await?;
         let mut new_dir = load_dir(&manifest, &key, &new_metadata_forest).await?;
@@ -321,7 +325,7 @@ mod test {
         let (_, mut manifest, mut metadata_forest, _, dir) = setup(true, test_name).await?;
 
         let key = store_all_hot(&mut manifest, &mut metadata_forest, &dir).await?;
-        
+
         let (new_metadata_forest, new_dir) = load_all_hot(&key, &manifest).await?;
 
         // Assert equality
@@ -341,10 +345,17 @@ mod test {
     async fn serial_all() -> Result<()> {
         let test_name = "serial_all";
         // Start er up!
-        let (_, mut manifest, mut metadata_forest, mut content_forest, dir) = setup(true, test_name).await?;
+        let (_, mut manifest, mut metadata_forest, mut content_forest, dir) =
+            setup(true, test_name).await?;
 
-        let key = store_all(&mut manifest, &mut metadata_forest, &mut content_forest, &dir).await?;
-        
+        let key = store_all(
+            &mut manifest,
+            &mut metadata_forest,
+            &mut content_forest,
+            &dir,
+        )
+        .await?;
+
         let (new_metadata_forest, new_content_forest, new_dir) = load_all(&key, &manifest).await?;
 
         // Assert equality

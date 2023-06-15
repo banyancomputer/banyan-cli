@@ -1,7 +1,7 @@
 use crate::{
     types::spider::PackPipelinePlan,
     utils::{
-        disk::{all_to_disk, key_from_disk, key_to_disk, manifest_from_disk},
+        disk::{all_to_disk, key_from_disk, manifest_from_disk},
         grouper::grouper,
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -20,12 +20,7 @@ use std::{
     vec,
 };
 use tomb_common::{
-    types::{
-        blockstore::{
-            car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-        },
-        pipeline::Manifest,
-    },
+    types::{blockstore::car::carv2::carv2blockstore::CarV2BlockStore, pipeline::Manifest},
     utils::serialize::{load_content_forest, load_dir, load_metadata_forest},
 };
 use wnfs::{
@@ -50,7 +45,7 @@ use wnfs::{
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
     input_dir: &Path,
-    output_dir: Option<&Path>,
+    output_dir: &Path,
     _chunk_size: u64,
     follow_links: bool,
 ) -> Result<()> {
@@ -69,19 +64,10 @@ pub async fn pipeline(
     let first_run = !tomb_path.join("root.key").exists();
     info!("pack first_run: {}", first_run);
 
-    // If the user provided an output directory
-    let local = output_dir.is_some();
     // Declare the MetaData store
     let mut metadata = CarV2BlockStore::default();
     // Local content storage need only be valid if this is a local job
-    let mut content: CarV2BlockStore = if local {
-        CarV2BlockStore::new(&output_dir.unwrap().join("content.car"))?
-    } else {
-        CarV2BlockStore::default()
-    };
-    // Declare the remote stores
-    let mut cold_remote = NetworkBlockStore::default();
-    let mut hot_remote = NetworkBlockStore::default();
+    let mut content: CarV2BlockStore = CarV2BlockStore::new(&output_dir.join("content.car"))?;
 
     // Load the manifest
     let manifest = manifest_from_disk(tomb_path)?;
@@ -140,31 +126,16 @@ pub async fn pipeline(
     }
 
     // Process all of the PackPipelinePlans
-    if local {
-        // Process each of the packing plans with a local BlockStore
-        process_plans(
-            packing_plan,
-            progress_bar,
-            &mut root_dir,
-            &mut metadata_forest,
-            &mut content_forest,
-            &metadata,
-            &content,
-        )
-        .await?;
-    } else {
-        // Process each of the packing plans with a remote BlockStore
-        process_plans(
-            packing_plan,
-            progress_bar,
-            &mut root_dir,
-            &mut metadata_forest,
-            &mut content_forest,
-            &hot_remote,
-            &cold_remote,
-        )
-        .await?;
-    }
+    process_plans(
+        packing_plan,
+        progress_bar,
+        &mut root_dir,
+        &mut metadata_forest,
+        &mut content_forest,
+        &metadata,
+        &content,
+    )
+    .await?;
 
     // Construct the latest version of the Manifest struct
     let mut manifest = Manifest {
@@ -194,17 +165,15 @@ pub async fn pipeline(
     )
     .await?;
 
-    if let Some(output_dir) = output_dir {
-        // Remove the .tomb directory from the output path if it is already there
-        let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
-        // Copy the generated metadata into the output directory
-        fs_extra::copy_items(
-            &[tomb_path],
-            output_dir,
-            &dir::CopyOptions::new().overwrite(true),
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to copy tomb dir: {}", e))?;
-    }
+    // Remove the .tomb directory from the output path if it is already there
+    let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
+    // Copy the generated metadata into the output directory
+    fs_extra::copy_items(
+        &[tomb_path],
+        output_dir,
+        &dir::CopyOptions::new().overwrite(true),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to copy tomb dir: {}", e))?;
 
     Ok(())
 }
@@ -334,7 +303,14 @@ async fn process_plans(
                 if result.is_err() || result.as_ref().unwrap().is_none() {
                     // Create the subdirectory
                     root_dir
-                        .mkdir(&path_segments, true, Utc::now(), metadata_forest, hot_store, rng)
+                        .mkdir(
+                            &path_segments,
+                            true,
+                            Utc::now(),
+                            metadata_forest,
+                            hot_store,
+                            rng,
+                        )
                         .await?;
                 }
                 // We don't need an else here, directories don't actually contain any data

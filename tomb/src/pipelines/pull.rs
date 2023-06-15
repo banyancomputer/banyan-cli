@@ -1,20 +1,9 @@
-use anyhow::Result;
-use std::{collections::HashSet, path::Path, rc::Rc};
-use wnfs::{common::BlockStore, private::PrivateForest};
+use std::path::Path;
 
-use crate::utils::{
-    disk::{manifest_from_disk, manifest_to_disk},
-    wnfsio::get_progress_bar,
-};
-use tomb_common::{
-    types::blockstore::{
-        car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-    },
-    utils::serialize::{load_content_forest},
-};
+use anyhow::Result;
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(dir: &Path) -> Result<()> {
+pub async fn pipeline(_dir: &Path) -> Result<()> {
     // // Represent relative directories for .tomb and content
     // let tomb_path = dir.join(".tomb");
     // let content_path = dir.join("content.car");

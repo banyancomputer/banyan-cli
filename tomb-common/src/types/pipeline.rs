@@ -1,9 +1,6 @@
-use super::blockstore::{
-    car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-};
+use super::blockstore::car::carv2::carv2blockstore::CarV2BlockStore;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Debug};
-use wnfs::libipld::Cid;
+use std::fmt::Debug;
 
 /// This is the struct that becomes the contents of the manifest file.
 /// It may seem silly to have a struct that has only one field, but in

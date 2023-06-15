@@ -4,7 +4,7 @@ use crate::utils::{
 };
 use anyhow::Result;
 use std::{fs::create_dir_all, path::Path};
-use tomb_common::types::{blockstore::networkblockstore::NetworkBlockStore, pipeline::Manifest};
+use tomb_common::types::pipeline::Manifest;
 
 /// Initialize the .tomb metadata directory and Manifest file therein
 pub fn init(dir: &Path) -> Result<()> {
@@ -40,10 +40,10 @@ pub fn init(dir: &Path) -> Result<()> {
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
-pub fn remote(dir: &Path, url: &str, port: u16) -> Result<()> {
+pub fn remote(dir: &Path, _url: &str, _port: u16) -> Result<()> {
     // Append the expected .tomb
     let tomb_path = &dir.join(".tomb");
-    let mut manifest = manifest_from_disk(tomb_path)?;
+    let manifest = manifest_from_disk(tomb_path)?;
     // Set the remote endpoint
     // manifest.cold_remote = NetworkBlockStore::new(url, port);
     // manifest.hot_remote = NetworkBlockStore::new(url, port);

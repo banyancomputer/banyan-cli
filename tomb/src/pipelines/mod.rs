@@ -28,10 +28,9 @@ mod test {
     use anyhow::Result;
     use dir_assert::assert_paths;
     use fake_file::{Strategy, Structure};
-    use fs_extra::{copy_items, dir::CopyOptions};
     use serial_test::serial;
     use std::{
-        fs::{self, create_dir_all, metadata, remove_dir_all, File},
+        fs::{self, create_dir_all, metadata, File},
         io::Write,
         path::PathBuf,
     };
@@ -61,7 +60,7 @@ mod test {
         // Configure the remote endpoint
         configure::remote(&input_dir, "http://127.0.0.1", 5001)?;
         // Load the Manifest
-        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
+        let _manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the default Manifest was serialized
         // assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown
@@ -76,12 +75,12 @@ mod test {
         // Initialize tomb
         configure::init(input_dir)?;
         // Pack locally
-        pack::pipeline(input_dir, Some(output_dir), 0, true).await?;
+        pack::pipeline(input_dir, output_dir, 0, true).await?;
         // Create a new dir to unpack in
         let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(Some(output_dir), unpacked_dir).await?;
+        unpack::pipeline(output_dir, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
@@ -90,63 +89,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_pack_unpack_remote() -> Result<()> {
-        let test_name = "pipeline_pack_unpack_remote";
-        // Create the setup conditions
-        let (input_dir, unpacked_dir) = &test_setup(test_name).await?;
-        // Initialize tomb
-        configure::init(input_dir)?;
-        // Configure the remote endpoint
-        configure::remote(input_dir, "http://127.0.0.1", 5001)?;
-        // Pack remotely
-        pack::pipeline(input_dir, None, 262144, true).await?;
-        // Copy the .tomb into the unpack dir
-        copy_items(
-            &[input_dir.join(".tomb")],
-            &unpacked_dir,
-            &CopyOptions::new(),
-        )?;
-        // Unpack from remote
-        unpack::pipeline(None, unpacked_dir).await?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(input_dir, unpacked_dir).unwrap();
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    // TODO (organizedgrime) ignored because packing remotely and unpacking locally call from different hot stores which is not yet supported
-    #[tokio::test]
     #[ignore]
-    async fn pipeline_pack_remote_pull_unpack_local() -> Result<()> {
-        let test_name = "pipeline_pack_pull_unpack";
-        // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
-        // Initialize tomb
-        configure::init(input_dir)?;
-        // Configure the remote endpoint
-        configure::remote(input_dir, "http://127.0.0.1", 5001)?;
-        // Pack remotely
-        pack::pipeline(input_dir, None, 262144, true).await?;
-        // Move .tomb into the output dir
-        fs_extra::copy_items(&[input_dir.join(".tomb")], output_dir, &CopyOptions::new())?;
-        // Pull into the output dir
-        pull::pipeline(&output_dir).await?;
-        // Create a new dir to unpack in
-        let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
-        create_dir_all(unpacked_dir)?;
-        // Run the unpacking pipeline
-        unpack::pipeline(Some(output_dir), unpacked_dir).await?;
-        // Remove metadata such that it is not factored in comparison
-        remove_dir_all(input_dir.join(".tomb"))?;
-        remove_dir_all(unpacked_dir.join(".tomb"))?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(input_dir, unpacked_dir).unwrap();
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
@@ -156,7 +99,7 @@ mod test {
         // Configure the remote endpoint
         configure::remote(input_dir, "http://127.0.0.1", 5001)?;
         // Pack locally
-        pack::pipeline(input_dir, Some(&output_dir), 262144, true).await?;
+        pack::pipeline(input_dir, &output_dir, 262144, true).await?;
         // Push
         push::pipeline(output_dir).await?;
         // Teardown
@@ -165,6 +108,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Create the setup conditions
@@ -174,7 +118,7 @@ mod test {
         // Configure the remote endpoint
         configure::remote(&input_dir, "http://127.0.0.1", 5001)?;
         // Pack locally
-        pack::pipeline(&input_dir, Some(&output_dir), 262144, true).await?;
+        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
         // Send data to remote endpoint
         push::pipeline(&output_dir).await?;
 
@@ -200,7 +144,7 @@ mod test {
         // Initialize tomb
         configure::init(input_dir)?;
         // Run the pack pipeline
-        pack::pipeline(input_dir, Some(&output_dir), 262144, true).await?;
+        pack::pipeline(input_dir, &output_dir, 262144, true).await?;
         // Grab metadata
         let tomb_path = &output_dir.join(".tomb");
         // This is still in the input dir. Technically we could just
@@ -212,7 +156,7 @@ mod test {
         // Create and write to the file
         File::create(input_file)?.write_all(&file_content)?;
         // Add the input file to the WNFS
-        add::pipeline(true, input_file, tomb_path, input_file).await?;
+        add::pipeline(input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
         let (_, manifest, metadata_forest, content_forest, dir) =
             &mut all_from_disk(tomb_path).await?;
@@ -249,7 +193,7 @@ mod test {
         // Initialize tomb
         configure::init(input_dir)?;
         // Run the pack pipeline
-        pack::pipeline(input_dir, Some(&output_dir), 262144, true).await?;
+        pack::pipeline(input_dir, &output_dir, 262144, true).await?;
         // Grab metadata
         let tomb_path = &output_dir.join(".tomb");
         // Write out a reference to where we expect to find this file
@@ -283,12 +227,12 @@ mod test {
         // Initialize
         configure::init(input_dir)?;
         // Pack locally
-        pack::pipeline(input_dir, Some(output_dir), 262144, true).await?;
+        pack::pipeline(input_dir, output_dir, 262144, true).await?;
         // Create a new dir to unpack in
         let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(Some(output_dir), unpacked_dir).await?;
+        unpack::pipeline(output_dir, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
 

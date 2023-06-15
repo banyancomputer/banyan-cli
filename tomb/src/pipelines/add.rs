@@ -11,12 +11,7 @@ use crate::utils::{
 };
 
 /// The pipeline for adding an individual file to a WNFS
-pub async fn pipeline(
-    local: bool,
-    input_file: &Path,
-    tomb_path: &Path,
-    wnfs_path: &Path,
-) -> Result<()> {
+pub async fn pipeline(input_file: &Path, tomb_path: &Path, wnfs_path: &Path) -> Result<()> {
     // Load the data
     let (_, manifest, metadata_forest, content_forest, root_dir) =
         &mut all_from_disk(tomb_path).await?;

@@ -39,12 +39,12 @@ async fn run_test(test_path: &Path, test_name: &str) {
     let unpacked_path = test_path.join(UNPACKED_PATH);
 
     // Pack the input
-    pack::pipeline(&input_path, Some(&packed_path), 262144, true)
+    pack::pipeline(&input_path, &packed_path, 262144, true)
         .await
         .unwrap();
 
     // Unpack the output
-    unpack::pipeline(Some(&packed_path), &unpacked_path)
+    unpack::pipeline(&packed_path, &unpacked_path)
         .await
         .unwrap();
 
@@ -320,8 +320,7 @@ mod test {
         let (key, manifest, mut forest, dir) = hot_from_disk(tomb_path).await?;
 
         let original_key = key_from_disk(tomb_path, "original")?;
-        let original_dir =
-            load_dir(&manifest, &original_key, &mut forest).await?;
+        let original_dir = load_dir(&manifest, &original_key, &mut forest).await?;
 
         assert_ne!(key, original_key);
         assert_ne!(dir, original_dir);

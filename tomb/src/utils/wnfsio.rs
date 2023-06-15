@@ -81,7 +81,9 @@ pub async fn file_to_disk(
         let mut content: Vec<u8> = Vec::new();
         // Get and decompress bytes associated with this file
         decompress_bytes(
-            file.get_content(content_forest, cold_store).await?.as_slice(),
+            file.get_content(content_forest, cold_store)
+                .await?
+                .as_slice(),
             &mut content,
         )?;
         // Write all contents to the output file

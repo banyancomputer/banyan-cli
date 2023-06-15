@@ -1,31 +1,28 @@
-use crate::utils::{disk::manifest_from_disk, wnfsio::get_progress_bar};
 use anyhow::Result;
 use std::path::Path;
-use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
-use wnfs::{common::BlockStore, libipld::Cid};
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(dir: &Path) -> Result<()> {
-    info!("Sending blocks to remote server.");
-    let tomb_path = dir.join(".tomb");
-    // let _content_path = dir.join("content");
+pub async fn pipeline(_dir: &Path) -> Result<()> {
+    // info!("Sending blocks to remote server.");
+    // let tomb_path = dir.join(".tomb");
+    // // let _content_path = dir.join("content");
 
-    // Load the manifest
-    let manifest = manifest_from_disk(&tomb_path)?;
-    info!("Loaded manifest...");
+    // // Load the manifest
+    // let manifest = manifest_from_disk(&tomb_path)?;
+    // info!("Loaded manifest...");
 
-    // Update the locations of the CarV2BlockStores to be relative to the input path
-    // manifest.metadata.change_dir(&tomb_path)?;
-    // manifest.content.change_dir(&content_path)?;
-    // manifest.cold_remote.addr = "".to_string();
+    // // Update the locations of the CarV2BlockStores to be relative to the input path
+    // // manifest.metadata.change_dir(&tomb_path)?;
+    // // manifest.content.change_dir(&content_path)?;
+    // // manifest.cold_remote.addr = "".to_string();
 
-    // Grab all Block CIDs
-    let children: Vec<Cid> = manifest.content.get_all_cids();
+    // // Grab all Block CIDs
+    // let children: Vec<Cid> = manifest.content.get_all_cids();
 
-    // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = get_progress_bar(children.len() as u64)?;
+    // // Initialize the progress bar using the number of Nodes to process
+    // let progress_bar = get_progress_bar(children.len() as u64)?;
 
-    info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
+    // info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
 
     // // For each child CID in the list
     // for child in children {
@@ -41,7 +38,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     //     progress_bar.inc(1);
     // }
 
-    info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
+    // info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
 
     Ok(())
 }

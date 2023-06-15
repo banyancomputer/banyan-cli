@@ -56,28 +56,14 @@ async fn main() -> Result<()> {
             chunk_size,
             follow_links,
         } => {
-            match output_dir {
-                Some(output_dir) => {
-                    pack::pipeline(&input_dir, Some(&output_dir), chunk_size, follow_links).await?;
-                },
-                None => {
-                    pack::pipeline(&input_dir, None, chunk_size, follow_links).await?;
-                },
-            }
+            pack::pipeline(&input_dir, &output_dir, chunk_size, follow_links).await?;
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
             input_dir,
             output_dir,
         } => {
-            match input_dir {
-                Some(input_dir) => {
-                    unpack::pipeline(Some(&input_dir), &output_dir).await?;
-                },
-                None => {
-                    unpack::pipeline(None, &output_dir).await?;
-                },
-            }
+            unpack::pipeline(&input_dir, &output_dir).await?;
         }
         cli::Commands::Init {
             dir
@@ -115,8 +101,8 @@ async fn main() -> Result<()> {
             // Start the Push pipeline
             push::pipeline(&dir).await?;
         },
-        cli::Commands::Add { local, input_file, tomb_path, wnfs_path } => {
-            add::pipeline(local, &input_file, &tomb_path, &wnfs_path).await?;
+        cli::Commands::Add { input_file, tomb_path, wnfs_path } => {
+            add::pipeline(&input_file, &tomb_path, &wnfs_path).await?;
         },
         cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
     }

@@ -18,9 +18,10 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()> {
+pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // If there is an input dir specific with a valid tomb
-    if let Some(input_dir) = input_dir && let tomb_dir = input_dir.join(".tomb") && tomb_dir.exists() {
+    let tomb_dir = input_dir.join(".tomb");
+    if tomb_dir.exists() {
         // Copy the existing tomb over to the output dir
         copy_items(&[tomb_dir], output_dir, &CopyOptions::new().overwrite(true))?;
     }
@@ -33,8 +34,6 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     }
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
-    // If this is a local unpack
-    let local = input_dir.is_some();
     // Load metadata
     let (_, manifest, metadata_forest, content_forest, dir) = all_from_disk(&tomb_path).await?;
 

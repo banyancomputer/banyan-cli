@@ -175,9 +175,7 @@ pub async fn hot_from_disk(
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{
-        disk::*,
-    };
+    use crate::utils::disk::*;
     use anyhow::Result;
     use tomb_common::utils::tests::*;
 
@@ -185,10 +183,17 @@ mod test {
     async fn disk_key() -> Result<()> {
         let test_name = "disk_key";
         // Start er up!
-        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, dir) = setup(true, test_name).await?;
+        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, dir) =
+            setup(true, test_name).await?;
 
         // Generate key for this directory
-        let key = store_all(&mut manifest, &mut metadata_forest, &mut content_forest, &dir).await?;
+        let key = store_all(
+            &mut manifest,
+            &mut metadata_forest,
+            &mut content_forest,
+            &dir,
+        )
+        .await?;
 
         // Store and load
         key_to_disk(&tomb_path, &key, "root")?;
@@ -222,7 +227,8 @@ mod test {
     async fn disk_metadata() -> Result<()> {
         let test_name = "disk_metadata";
         // Setup
-        let (tomb_path, mut manifest, mut metadata_forest, _, root_dir) = setup(true, test_name).await?;
+        let (tomb_path, mut manifest, mut metadata_forest, _, root_dir) =
+            setup(true, test_name).await?;
         // Save to disk
         let key = hot_to_disk(&tomb_path, &mut manifest, &mut metadata_forest, &root_dir).await?;
         // Reload from disk
@@ -288,7 +294,7 @@ mod test {
     }
 
     /*
-    
+
     /// Helper function, not a test
     async fn assert_serial_all_cold(local: bool) -> Result<()> {
         let test_name: &String = &format!("serial_all_cold_{}", local);

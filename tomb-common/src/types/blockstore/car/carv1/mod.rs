@@ -35,7 +35,7 @@ impl CarV1 {
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
     pub(crate) fn write_bytes<R: Read + Seek, W: Write + Seek>(
         &self,
-        data_offset: u64,
+        data_offset: i64,
         mut r: R,
         mut w: W,
     ) -> Result<()> {
@@ -61,7 +61,7 @@ impl CarV1 {
             // Grab existing block
             let block = self.get_block(&cid, &mut r)?;
             // Compute the new offset for this block
-            let new_offset = offset + data_offset;
+            let new_offset = (offset as i64 + data_offset) as u64;
 
             println!(
                 "i found a block at {} but i'm writing it at {}",
@@ -125,7 +125,7 @@ impl CarV1 {
         // Insert new root
         new_roots.push(*root);
         // Update roots
-        self.update_roots(new_roots, &mut r, &mut w);
+        self.update_roots(new_roots, &mut r, &mut w)?;
         // Ok
         Ok(())
     }
@@ -136,7 +136,7 @@ impl CarV1 {
         mut w: W,
     ) -> Result<()> {
         // Update roots
-        self.update_roots(Vec::new(), &mut r, &mut w);
+        self.update_roots(Vec::new(), &mut r, &mut w)?;
         // Ok
         Ok(())
     }
@@ -160,7 +160,7 @@ impl CarV1 {
         let mut new_header_buf: Vec<u8> = Vec::new();
         self.header.write_bytes(&mut new_header_buf)?;
 
-        let data_offset = (new_header_buf.len() - old_header_buf.len()) as u64;
+        let data_offset = new_header_buf.len() as i64 - old_header_buf.len() as i64;
 
         println!("new roots: {:?}", self.header.roots.borrow().clone());
         println!("\n\n\ndata_offset: {:?}\n\n\n", data_offset);

@@ -41,7 +41,7 @@ pub(crate) enum Commands {
 
         /// Directory that either does not exist or is empty; this is where packed data will go.
         #[arg(short, long, help = "output directory")]
-        output_dir: Option<PathBuf>,
+        output_dir: PathBuf,
 
         /// Maximum size for each chunk, defaults to 1GiB.
         #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
@@ -55,15 +55,13 @@ pub(crate) enum Commands {
     Unpack {
         /// Input directory in which packed files are stored.
         #[arg(short, long, help = "input directory")]
-        input_dir: Option<PathBuf>,
+        input_dir: PathBuf,
 
         /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory")]
         output_dir: PathBuf,
     },
     Add {
-        #[arg(short, long, help = "local")]
-        local: bool,
         #[arg(short, long, help = "new file / directory")]
         input_file: PathBuf,
         #[arg(short, long, help = "new file / directory")]
@@ -189,7 +187,7 @@ mod test {
     }
 
     // Run the Pack pipeline through the CLI
-    async fn pack_local(input_dir: &Path, output_dir: &Path) -> Result<Command> {
+    async fn pack(input_dir: &Path, output_dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("pack")
             .arg("--input-dir")
@@ -199,17 +197,8 @@ mod test {
         Ok(cmd)
     }
 
-    // Run the Pack pipeline through the CLI
-    async fn pack_remote(input_dir: &Path) -> Result<Command> {
-        let mut cmd = Command::cargo_bin("tomb")?;
-        cmd.arg("pack")
-            .arg("--input-dir")
-            .arg(input_dir.to_str().unwrap());
-        Ok(cmd)
-    }
-
     // Run the Unpack pipeline through the CLI
-    async fn unpack_local(input_dir: &Path, output_dir: &Path) -> Result<Command> {
+    async fn unpack(input_dir: &Path, output_dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("unpack")
             .arg("--input-dir")
@@ -265,7 +254,7 @@ mod test {
             .success();
 
         // Load the modified Manifest
-        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
+        let _manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the remote endpoint was successfully updated
         // assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown test
@@ -280,26 +269,7 @@ mod test {
         // Initialize tomb
         init(&input_dir).await?.assert().success();
         // Run pack and assert success
-        pack_local(input_dir, output_dir).await?.assert().success();
-        // Teardown test
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn cli_pack_remote() -> Result<()> {
-        let test_name = "cli_pack_remote";
-        // Setup test
-        let (input_dir, _) = &test_setup(test_name).await?;
-        // Initialize tomb
-        init(&input_dir).await?.assert().success();
-        // Configure remote endpoint
-        configure_remote(&input_dir, "http://127.0.0.1", 5001)
-            .await?
-            .assert()
-            .success();
-        // Run pack and assert success
-        pack_remote(input_dir).await?.assert().success();
+        pack(input_dir, output_dir).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }
@@ -312,18 +282,16 @@ mod test {
         // Initialize tomb
         init(&input_dir).await?.assert().success();
         // Run pack and assert success
-        pack_local(input_dir, output_dir).await?.assert().success();
+        pack(input_dir, output_dir).await?.assert().success();
         // Run unpack and assert success
-        unpack_local(output_dir, input_dir)
-            .await?
-            .assert()
-            .success();
+        unpack(output_dir, input_dir).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test
@@ -336,7 +304,7 @@ mod test {
             .assert()
             .success();
         // Run pack locally and assert success
-        pack_local(input_dir, output_dir).await?.assert().success();
+        pack(input_dir, output_dir).await?.assert().success();
         // Run push and assert success
         push(output_dir).await?.assert().success();
         // Create a directory in which to reconstruct
