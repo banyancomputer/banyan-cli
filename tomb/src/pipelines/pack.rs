@@ -26,7 +26,7 @@ use tomb_common::{
         },
         pipeline::Manifest,
     },
-    utils::serialize::{load_cold_forest, load_dir, load_hot_forest, store_dir},
+    utils::serialize::{load_content_forest, load_dir, load_metadata_forest, store_dir},
 };
 use wnfs::{
     common::BlockStore,
@@ -72,9 +72,9 @@ pub async fn pipeline(
     // If the user provided an output directory
     let local = output_dir.is_some();
     // Declare the MetaData store
-    let mut hot_local = CarV2BlockStore::default();
+    let mut metadata = CarV2BlockStore::default();
     // Local content storage need only be valid if this is a local job
-    let mut cold_local: CarV2BlockStore = if local {
+    let mut content: CarV2BlockStore = if local {
         CarV2BlockStore::new(&output_dir.unwrap().join("content.car"))?
     } else {
         CarV2BlockStore::default()
@@ -86,14 +86,14 @@ pub async fn pipeline(
     // Load the manifest
     let manifest = manifest_from_disk(tomb_path)?;
     // Update the BlockStores we will use if they have non-default values
-    if manifest.hot_local != CarV2BlockStore::default() {
-        hot_local = manifest.hot_local;
+    if manifest.metadata != CarV2BlockStore::default() {
+        metadata = manifest.metadata;
     }
     if manifest.hot_remote != NetworkBlockStore::default() {
         hot_remote = manifest.hot_remote;
     }
-    if manifest.cold_local != CarV2BlockStore::default() {
-        cold_local = manifest.cold_local;
+    if manifest.content != CarV2BlockStore::default() {
+        content = manifest.content;
     }
     if manifest.cold_remote != NetworkBlockStore::default() {
         cold_remote = manifest.cold_remote;
@@ -106,13 +106,13 @@ pub async fn pipeline(
         &mut thread_rng(),
     ));
     // Create the PrivateForest from which Nodes will be queried
-    let mut hot_forest = Rc::new(PrivateForest::new());
-    let mut cold_forest = Rc::new(PrivateForest::new());
+    let mut metadata_forest = Rc::new(PrivateForest::new());
+    let mut content_forest = Rc::new(PrivateForest::new());
 
     // If this filesystem has never been packed
     if first_run {
         info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        hot_local = CarV2BlockStore::new(&tomb_path.join("meta.car"))?;
+        metadata = CarV2BlockStore::new(&tomb_path.join("meta.car"))?;
     }
     // If we've already packed this filesystem before
     else {
@@ -122,33 +122,33 @@ pub async fn pipeline(
         // Load in the Key
         let key = key_from_disk(tomb_path, "root")?;
 
-        let (new_hot_forest, new_cold_forest) = if local {
+        let (new_metadata_forest, new_content_forest) = if local {
             (
-                load_hot_forest(&manifest.roots, &manifest.hot_local).await,
-                load_cold_forest(&manifest.roots, &manifest.cold_local).await,
+                load_metadata_forest(&manifest.roots, &manifest.metadata).await,
+                load_content_forest(&manifest.roots, &manifest.content).await,
             )
         } else {
             (
-                load_hot_forest(&manifest.roots, &manifest.hot_remote).await,
-                load_cold_forest(&manifest.roots, &manifest.cold_remote).await,
+                load_metadata_forest(&manifest.roots, &manifest.hot_remote).await,
+                load_content_forest(&manifest.roots, &manifest.cold_remote).await,
             )
         };
 
-        if let Ok(new_hot_forest) = new_hot_forest &&
-           let Ok(new_dir) = load_dir(local, &manifest, &key, &new_hot_forest, "current_root").await {
+        if let Ok(new_metadata_forest) = new_metadata_forest &&
+           let Ok(new_dir) = load_dir(local, &manifest, &key, &new_metadata_forest, "current_root").await {
             // Update the forest and root directory
-            hot_forest = new_hot_forest;
+            metadata_forest = new_metadata_forest;
             root_dir = new_dir;
             println!("root dir and forest and original ratchet loaded from disk...");
         }
         // If the load was unsuccessful
         else {
             info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-            hot_local = CarV2BlockStore::new(tomb_path)?;
+            metadata = CarV2BlockStore::new(tomb_path)?;
         }
 
-        if let Ok(new_cold_forest) = new_cold_forest {
-            cold_forest = new_cold_forest;
+        if let Ok(new_content_forest) = new_content_forest {
+            content_forest = new_content_forest;
         }
     }
 
@@ -159,10 +159,10 @@ pub async fn pipeline(
             packing_plan,
             progress_bar,
             &mut root_dir,
-            &mut hot_forest,
-            &mut cold_forest,
-            &hot_local,
-            &cold_local,
+            &mut metadata_forest,
+            &mut content_forest,
+            &metadata,
+            &content,
         )
         .await?;
     } else {
@@ -171,8 +171,8 @@ pub async fn pipeline(
             packing_plan,
             progress_bar,
             &mut root_dir,
-            &mut hot_forest,
-            &mut cold_forest,
+            &mut metadata_forest,
+            &mut content_forest,
             &hot_remote,
             &cold_remote,
         )
@@ -182,9 +182,9 @@ pub async fn pipeline(
     // Construct the latest version of the Manifest struct
     let mut manifest = Manifest {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        cold_local,
+        content,
         cold_remote,
-        hot_local,
+        metadata,
         hot_remote,
         roots: Default::default(),
     };
@@ -194,7 +194,7 @@ pub async fn pipeline(
         let original_key = store_dir(
             local,
             &mut manifest,
-            &mut hot_forest,
+            &mut metadata_forest,
             &root_dir,
             "original_root",
         )
@@ -207,8 +207,8 @@ pub async fn pipeline(
         local,
         tomb_path,
         &mut manifest,
-        &mut hot_forest,
-        &mut cold_forest,
+        &mut metadata_forest,
+        &mut content_forest,
         &root_dir,
     )
     .await?;
@@ -260,8 +260,8 @@ async fn process_plans(
     packing_plan: Vec<PackPipelinePlan>,
     progress_bar: &ProgressBar,
     root_dir: &mut Rc<PrivateDirectory>,
-    hot_forest: &mut Rc<PrivateForest>,
-    cold_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
     hot_store: &impl BlockStore,
     cold_store: &impl BlockStore,
 ) -> Result<()> {
@@ -295,7 +295,7 @@ async fn process_plans(
                 let time = Utc::now();
                 // Open the PrivateFile
                 let file: &mut PrivateFile = root_dir
-                    .open_file_mut(path_segments, true, time, hot_forest, hot_store, rng)
+                    .open_file_mut(path_segments, true, time, metadata_forest, hot_store, rng)
                     .await?;
                 // Compress the data in the file on disk
                 let content = compress_file(
@@ -305,7 +305,7 @@ async fn process_plans(
                         .canonicalized_path,
                 )?;
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                file.set_content(time, content.as_slice(), cold_forest, cold_store, rng)
+                file.set_content(time, content.as_slice(), content_forest, cold_store, rng)
                     .await?;
 
                 // Duplicates need to be linked no matter what
@@ -321,7 +321,7 @@ async fn process_plans(
                             folder_segments,
                             true,
                             Utc::now(),
-                            hot_forest,
+                            metadata_forest,
                             hot_store,
                             rng,
                         )
@@ -332,7 +332,7 @@ async fn process_plans(
                             path_segments,
                             dup_path_segments,
                             true,
-                            hot_forest,
+                            metadata_forest,
                             hot_store,
                         )
                         .await?;
@@ -346,14 +346,14 @@ async fn process_plans(
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, true, hot_forest, hot_store)
+                    .get_node(&path_segments, true, metadata_forest, hot_store)
                     .await;
 
                 // If there was an error searching for the Node or
                 if result.is_err() || result.as_ref().unwrap().is_none() {
                     // Create the subdirectory
                     root_dir
-                        .mkdir(&path_segments, true, Utc::now(), hot_forest, hot_store, rng)
+                        .mkdir(&path_segments, true, Utc::now(), metadata_forest, hot_store, rng)
                         .await?;
                 }
                 // We don't need an else here, directories don't actually contain any data
@@ -379,7 +379,7 @@ async fn process_plans(
                         &symlink_segments,
                         true,
                         Utc::now(),
-                        hot_forest,
+                        metadata_forest,
                         hot_store,
                         rng,
                     )

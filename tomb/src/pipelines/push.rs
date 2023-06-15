@@ -21,12 +21,12 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     }
 
     // Update the locations of the CarV2BlockStores to be relative to the input path
-    // manifest.hot_local.change_dir(&tomb_path)?;
-    // manifest.cold_local.change_dir(&content_path)?;
+    // manifest.metadata.change_dir(&tomb_path)?;
+    // manifest.content.change_dir(&content_path)?;
     // manifest.cold_remote.addr = "".to_string();
 
     // Grab all Block CIDs
-    let children: Vec<Cid> = manifest.cold_local.get_all_cids();
+    let children: Vec<Cid> = manifest.content.get_all_cids();
 
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(children.len() as u64)?;
@@ -36,7 +36,7 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     // For each child CID in the list
     for child in children {
         // Grab the bytes from the local store
-        let bytes = manifest.cold_local.get_block(&child).await?;
+        let bytes = manifest.content.get_block(&child).await?;
         // Throw those bytes onto the remote network
         manifest
             .cold_remote

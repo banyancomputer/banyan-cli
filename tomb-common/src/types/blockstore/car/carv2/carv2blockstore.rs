@@ -5,8 +5,9 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
+    fmt::Write,
     fs::{remove_file, rename, File, OpenOptions},
-    io::{Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 use wnfs::{
@@ -69,6 +70,24 @@ impl CarV2BlockStore {
     }
 
     pub fn insert_root(&self, root: &Cid) -> Result<()> {
+        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
+        self.carv2.insert_root(root, &mut r, &mut w)?;
+        self.tmp_finish(tmp_car_path);
+        Ok(())
+    }
+
+    pub fn empty_roots(&self) -> Result<()> {
+        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
+        self.carv2.empty_roots(&mut r, &mut w)?;
+        self.tmp_finish(tmp_car_path);
+        Ok(())
+    }
+
+    pub fn get_roots(&self) -> Vec<Cid> {
+        self.carv2.carv1.header.roots.borrow().clone()
+    }
+
+    fn tmp_start(&self) -> Result<(PathBuf, File, File)> {
         let mut r = self.get_read()?;
         let tmp_file_name = format!(
             "{}_tmp.car",
@@ -76,7 +95,10 @@ impl CarV2BlockStore {
         );
         let tmp_car_path = self.path.parent().unwrap().join(tmp_file_name);
         let mut w = File::create(&tmp_car_path)?;
-        self.carv2.insert_root(root, &mut r, &mut w)?;
+        Ok((tmp_car_path, r, w))
+    }
+
+    fn tmp_finish(&self, tmp_car_path: PathBuf) -> Result<()> {
         remove_file(&self.path)?;
         rename(tmp_car_path, &self.path)?;
         Ok(())

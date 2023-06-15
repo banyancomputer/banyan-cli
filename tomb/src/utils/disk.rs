@@ -120,11 +120,11 @@ pub async fn all_to_disk(
     local: bool,
     tomb_path: &Path,
     manifest: &mut Manifest,
-    hot_forest: &mut Rc<PrivateForest>,
-    cold_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_all(local, manifest, hot_forest, cold_forest, root_dir).await?;
+    let temporal_key = store_all(local, manifest, metadata_forest, content_forest, root_dir).await?;
     manifest_to_disk(tomb_path, manifest)?;
     key_to_disk(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
@@ -143,8 +143,8 @@ pub async fn all_from_disk(
 )> {
     let key = key_from_disk(tomb_path, "root")?;
     let manifest = manifest_from_disk(tomb_path)?;
-    let (hot_forest, cold_forest, dir) = load_all(local, &key, &manifest).await?;
-    Ok((key, manifest, hot_forest, cold_forest, dir))
+    let (metadata_forest, content_forest, dir) = load_all(local, &key, &manifest).await?;
+    Ok((key, manifest, metadata_forest, content_forest, dir))
 }
 
 /// Store all hot objects!
@@ -152,10 +152,10 @@ pub async fn hot_to_disk(
     local: bool,
     tomb_path: &Path,
     manifest: &mut Manifest,
-    hot_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_all_hot(local, manifest, hot_forest, root_dir).await?;
+    let temporal_key = store_all_hot(local, manifest, metadata_forest, root_dir).await?;
     manifest_to_disk(tomb_path, manifest)?;
     key_to_disk(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
@@ -173,8 +173,8 @@ pub async fn hot_from_disk(
 )> {
     let key = key_from_disk(tomb_path, "root")?;
     let manifest = manifest_from_disk(tomb_path)?;
-    let (hot_forest, dir) = load_all_hot(local, &key, &manifest).await?;
-    Ok((key, manifest, hot_forest, dir))
+    let (metadata_forest, dir) = load_all_hot(local, &key, &manifest).await?;
+    Ok((key, manifest, metadata_forest, dir))
 }
 
 #[cfg(test)]
@@ -182,8 +182,8 @@ mod test {
     use crate::utils::{
         disk::{
             all_from_disk, all_to_disk, hot_from_disk, hot_to_disk, key_from_disk, key_to_disk,
-            load_dir, load_hot_forest, manifest_from_disk, manifest_to_disk, store_dir,
-            store_hot_forest,
+            load_dir, load_metadata_forest, manifest_from_disk, manifest_to_disk, store_dir,
+            store_metadata_forest,
         },
         fs::ensure_path_exists_and_is_empty_dir,
     };
@@ -224,20 +224,20 @@ mod test {
         let content_path = path.join("content");
         ensure_path_exists_and_is_empty_dir(&content_path, true)?;
         let content_car = content_path.join("content.car");
-        let cold_local = CarV2BlockStore::new(&content_car)?;
+        let content = CarV2BlockStore::new(&content_car)?;
 
         let tomb_path = path.join(".tomb");
         ensure_path_exists_and_is_empty_dir(&tomb_path, true)?;
         let meta_car = tomb_path.join("meta.car");
-        let hot_local = CarV2BlockStore::new(&meta_car)?;
+        let metadata = CarV2BlockStore::new(&meta_car)?;
 
         // Remote endpoint
         let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
         let hot_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
 
         // Hot Forest and cold Forest
-        let mut hot_forest = Rc::new(PrivateForest::new());
-        let mut cold_forest = Rc::new(PrivateForest::new());
+        let mut metadata_forest = Rc::new(PrivateForest::new());
+        let mut content_forest = Rc::new(PrivateForest::new());
 
         // Rng
         let rng = &mut thread_rng();
@@ -255,8 +255,8 @@ mod test {
                     &["cats".to_string()],
                     true,
                     Utc::now(),
-                    &mut hot_forest,
-                    &hot_local,
+                    &mut metadata_forest,
+                    &metadata,
                     rng,
                 )
                 .await?
@@ -266,7 +266,7 @@ mod test {
                     &["cats".to_string()],
                     true,
                     Utc::now(),
-                    &mut hot_forest,
+                    &mut metadata_forest,
                     &hot_remote,
                     rng,
                 )
@@ -278,8 +278,8 @@ mod test {
             file.set_content(
                 Utc::now(),
                 "Hello Kitty!".as_bytes(),
-                &mut cold_forest,
-                &cold_local,
+                &mut content_forest,
+                &content,
                 rng,
             )
             .await?;
@@ -287,7 +287,7 @@ mod test {
             file.set_content(
                 Utc::now(),
                 "Hello Kitty!".as_bytes(),
-                &mut cold_forest,
+                &mut content_forest,
                 &cold_remote,
                 rng,
             )
@@ -297,14 +297,14 @@ mod test {
         // Create the Manifest
         let manifest_data = Manifest {
             version: "1.1.0".to_string(),
-            cold_local,
+            content,
             cold_remote,
-            hot_local,
+            metadata,
             hot_remote,
             roots: HashMap::<String, Cid>::new(),
         };
 
-        Ok((tomb_path, manifest_data, hot_forest, cold_forest, root_dir))
+        Ok((tomb_path, manifest_data, metadata_forest, content_forest, root_dir))
     }
 
     // Delete the temporary directory
@@ -318,10 +318,10 @@ mod test {
     async fn disk_key() -> Result<()> {
         let test_name = "disk_key";
         // Start er up!
-        let (tomb_path, mut manifest, mut hot_forest, _, dir) = setup(true, test_name).await?;
+        let (tomb_path, mut manifest, mut metadata_forest, _, dir) = setup(true, test_name).await?;
 
         // Generate key for this directory
-        let key = store_dir(true, &mut manifest, &mut hot_forest, &dir, "dir").await?;
+        let key = store_dir(true, &mut manifest, &mut metadata_forest, &dir, "dir").await?;
 
         // Store and load
         key_to_disk(&tomb_path, &key, "root")?;
@@ -352,22 +352,22 @@ mod test {
     }
 
     #[tokio::test]
-    async fn disk_hot_local() -> Result<()> {
-        let test_name = "disk_hot_local";
+    async fn disk_metadata() -> Result<()> {
+        let test_name = "disk_metadata";
         // Setup
-        let (tomb_path, mut manifest, mut hot_forest, _, root_dir) = setup(true, test_name).await?;
+        let (tomb_path, mut manifest, mut metadata_forest, _, root_dir) = setup(true, test_name).await?;
         // Save to disk
-        let key = hot_to_disk(true, &tomb_path, &mut manifest, &mut hot_forest, &root_dir).await?;
+        let key = hot_to_disk(true, &tomb_path, &mut manifest, &mut metadata_forest, &root_dir).await?;
         // Reload from disk
-        let (new_key, new_manifest, new_hot_forest, new_root_dir) =
+        let (new_key, new_manifest, new_metadata_forest, new_root_dir) =
             hot_from_disk(true, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(key, new_key);
         assert_eq!(manifest, new_manifest);
         assert_eq!(
-            hot_forest
-                .diff(&new_hot_forest, &new_manifest.hot_remote)
+            metadata_forest
+                .diff(&new_metadata_forest, &new_manifest.hot_remote)
                 .await?
                 .len(),
             0
@@ -383,20 +383,20 @@ mod test {
     async fn disk_hot_remote() -> Result<()> {
         let test_name = "disk_hot_remote";
         // Setup
-        let (tomb_path, mut manifest, mut hot_forest, _, root_dir) =
+        let (tomb_path, mut manifest, mut metadata_forest, _, root_dir) =
             setup(false, test_name).await?;
         // Save to disk
-        let key = hot_to_disk(false, &tomb_path, &mut manifest, &mut hot_forest, &root_dir).await?;
+        let key = hot_to_disk(false, &tomb_path, &mut manifest, &mut metadata_forest, &root_dir).await?;
         // Reload from disk
-        let (new_key, new_manifest, new_hot_forest, new_root_dir) =
+        let (new_key, new_manifest, new_metadata_forest, new_root_dir) =
             hot_from_disk(false, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(key, new_key);
         assert_eq!(manifest, new_manifest);
         assert_eq!(
-            hot_forest
-                .diff(&new_hot_forest, &new_manifest.hot_remote)
+            metadata_forest
+                .diff(&new_metadata_forest, &new_manifest.hot_remote)
                 .await?
                 .len(),
             0
@@ -408,38 +408,38 @@ mod test {
     }
 
     #[tokio::test]
-    async fn disk_cold_local() -> Result<()> {
-        let test_name = "disk_cold_local";
+    async fn disk_content() -> Result<()> {
+        let test_name = "disk_content";
         // Setup
-        let (tomb_path, mut manifest, mut hot_forest, mut cold_forest, root_dir) =
+        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, root_dir) =
             setup(true, test_name).await?;
         // Save to disk
         let key = all_to_disk(
             true,
             &tomb_path,
             &mut manifest,
-            &mut hot_forest,
-            &mut cold_forest,
+            &mut metadata_forest,
+            &mut content_forest,
             &root_dir,
         )
         .await?;
         // Reload from disk
-        let (new_key, new_manifest, new_hot_forest, new_cold_forest, new_root_dir) =
+        let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_root_dir) =
             all_from_disk(true, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(key, new_key);
         assert_eq!(manifest, new_manifest);
         assert_eq!(
-            hot_forest
-                .diff(&new_hot_forest, &new_manifest.hot_remote)
+            metadata_forest
+                .diff(&new_metadata_forest, &new_manifest.hot_remote)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
-            cold_forest
-                .diff(&new_cold_forest, &new_manifest.cold_remote)
+            content_forest
+                .diff(&new_content_forest, &new_manifest.cold_remote)
                 .await?
                 .len(),
             0
@@ -455,35 +455,35 @@ mod test {
     async fn disk_cold_remote() -> Result<()> {
         let test_name = "disk_cold_remote";
         // Setup
-        let (tomb_path, mut manifest, mut hot_forest, mut cold_forest, root_dir) =
+        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, root_dir) =
             setup(false, test_name).await?;
         // Save to disk
         let key = all_to_disk(
             false,
             &tomb_path,
             &mut manifest,
-            &mut hot_forest,
-            &mut cold_forest,
+            &mut metadata_forest,
+            &mut content_forest,
             &root_dir,
         )
         .await?;
         // Reload from disk
-        let (new_key, new_manifest, new_hot_forest, new_cold_forest, new_root_dir) =
+        let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_root_dir) =
             all_from_disk(false, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(key, new_key);
         assert_eq!(manifest, new_manifest);
         assert_eq!(
-            hot_forest
-                .diff(&new_hot_forest, &new_manifest.hot_remote)
+            metadata_forest
+                .diff(&new_metadata_forest, &new_manifest.hot_remote)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
-            cold_forest
-                .diff(&new_cold_forest, &new_manifest.cold_remote)
+            content_forest
+                .diff(&new_content_forest, &new_manifest.cold_remote)
                 .await?
                 .len(),
             0
@@ -495,37 +495,37 @@ mod test {
     }
 
     #[tokio::test]
-    async fn serial_hot_forest() -> Result<()> {
+    async fn serial_metadata_forest() -> Result<()> {
         // Start er up!
-        let (_, mut manifest, mut hot_forest, _, _) = setup(true, "serial_hot_forest").await?;
+        let (_, mut manifest, mut metadata_forest, _, _) = setup(true, "serial_metadata_forest").await?;
 
         // Store and load
-        store_hot_forest(&mut manifest.roots, &manifest.hot_local, &mut hot_forest).await?;
-        let new_hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
+        store_metadata_forest(&mut manifest.roots, &manifest.metadata, &mut metadata_forest).await?;
+        let new_metadata_forest = load_metadata_forest(&manifest.roots, &manifest.metadata).await?;
 
         // Assert equality
         assert_eq!(
-            new_hot_forest
-                .diff(&hot_forest, &manifest.hot_local)
+            new_metadata_forest
+                .diff(&metadata_forest, &manifest.metadata)
                 .await?
                 .len(),
             0
         );
 
         // Teardown
-        teardown("serial_hot_forest").await
+        teardown("serial_metadata_forest").await
     }
 
     #[tokio::test]
     async fn serial_dir_local() -> Result<()> {
         let test_name = "serial_dir_local";
         // Start er up!
-        let (_, mut manifest, mut hot_forest, _, dir) = setup(true, test_name).await?;
+        let (_, mut manifest, mut metadata_forest, _, dir) = setup(true, test_name).await?;
 
-        let key = store_dir(true, &mut manifest, &mut hot_forest, &dir, "dir").await?;
-        store_hot_forest(&mut manifest.roots, &manifest.hot_local, &mut hot_forest).await?;
-        let new_hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
-        let new_dir = load_dir(true, &manifest, &key, &new_hot_forest, "dir").await?;
+        let key = store_dir(true, &mut manifest, &mut metadata_forest, &dir, "dir").await?;
+        store_metadata_forest(&mut manifest.roots, &manifest.metadata, &mut metadata_forest).await?;
+        let new_metadata_forest = load_metadata_forest(&manifest.roots, &manifest.metadata).await?;
+        let new_dir = load_dir(true, &manifest, &key, &new_metadata_forest, "dir").await?;
         // Assert equality
         assert_eq!(dir, new_dir);
         // Teardown
@@ -536,7 +536,7 @@ mod test {
     async fn assert_serial_all_cold(local: bool) -> Result<()> {
         let test_name: &String = &format!("serial_all_cold_{}", local);
         // Start er up!
-        let (tomb_path, mut manifest, mut hot_forest, mut cold_forest, dir) =
+        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, dir) =
             setup(true, test_name).await?;
 
         // Store and load
@@ -544,27 +544,27 @@ mod test {
             local,
             &tomb_path,
             &mut manifest,
-            &mut hot_forest,
-            &mut cold_forest,
+            &mut metadata_forest,
+            &mut content_forest,
             &dir,
         )
         .await?;
-        let (new_key, new_manifest, new_hot_forest, new_cold_forest, new_dir) =
+        let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_dir) =
             all_from_disk(local, &tomb_path).await?;
 
         // Assert equality
         assert_eq!(new_key, key);
         assert_eq!(new_manifest, manifest);
         assert_eq!(
-            new_hot_forest
-                .diff(&hot_forest, &new_manifest.hot_local)
+            new_metadata_forest
+                .diff(&metadata_forest, &new_manifest.metadata)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
-            new_cold_forest
-                .diff(&cold_forest, &new_manifest.cold_local)
+            new_content_forest
+                .diff(&content_forest, &new_manifest.content)
                 .await?
                 .len(),
             0
@@ -576,7 +576,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn serial_all_cold_local() -> Result<()> {
+    async fn serial_all_content() -> Result<()> {
         assert_serial_all_cold(true).await
     }
 
@@ -588,7 +588,7 @@ mod test {
     #[tokio::test]
     async fn serial_dir_content() -> Result<()> {
         // Start er up!
-        let (_, mut manifest, mut original_hot_forest, mut original_cold_forest, mut original_dir) =
+        let (_, mut manifest, mut original_metadata_forest, mut original_content_forest, mut original_dir) =
             setup(true, "serial_dir_content").await?;
         // Grab the original file
         let original_file = original_dir
@@ -596,33 +596,33 @@ mod test {
                 &["cats".to_string()],
                 true,
                 Utc::now(),
-                &mut original_hot_forest,
-                &manifest.hot_local,
+                &mut original_metadata_forest,
+                &manifest.metadata,
                 &mut thread_rng(),
             )
             .await?;
         // Get the content
         let original_content = original_file
-            .get_content(&mut original_cold_forest, &manifest.cold_local)
+            .get_content(&mut original_content_forest, &manifest.content)
             .await?;
 
         let key = store_dir(
             true,
             &mut manifest,
-            &mut original_hot_forest,
+            &mut original_metadata_forest,
             &original_dir,
             "dir",
         )
         .await?;
-        store_hot_forest(
+        store_metadata_forest(
             &mut manifest.roots,
-            &manifest.hot_local,
-            &mut original_hot_forest,
+            &manifest.metadata,
+            &mut original_metadata_forest,
         )
         .await?;
 
-        let mut new_hot_forest = load_hot_forest(&manifest.roots, &manifest.hot_local).await?;
-        let mut new_dir = load_dir(true, &manifest, &key, &new_hot_forest, "dir").await?;
+        let mut new_metadata_forest = load_metadata_forest(&manifest.roots, &manifest.metadata).await?;
+        let mut new_dir = load_dir(true, &manifest, &key, &new_metadata_forest, "dir").await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 
@@ -631,14 +631,14 @@ mod test {
                 &["cats".to_string()],
                 true,
                 Utc::now(),
-                &mut new_hot_forest,
-                &manifest.hot_local,
+                &mut new_metadata_forest,
+                &manifest.metadata,
                 &mut thread_rng(),
             )
             .await?;
         // Get the content
         let new_content = file
-            .get_content(&mut original_cold_forest, &manifest.cold_local)
+            .get_content(&mut original_content_forest, &manifest.content)
             .await?;
 
         assert_eq!(original_content, new_content);

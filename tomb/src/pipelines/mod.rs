@@ -214,15 +214,15 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(true, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, hot_forest, cold_forest, dir) =
+        let (_, manifest, metadata_forest, content_forest, dir) =
             &mut all_from_disk(true, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
                 &path_to_segments(&input_file)?,
                 true,
-                hot_forest,
-                &manifest.hot_local,
+                metadata_forest,
+                &manifest.metadata,
             )
             .await?
             .unwrap()
@@ -230,7 +230,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(cold_forest, &manifest.cold_local)
+            file.get_content(content_forest, &manifest.content)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -266,14 +266,14 @@ mod test {
         // Add the input file to the WNFS
         add::pipeline(false, input_file, tomb_path, input_file).await?;
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, hot_forest, cold_forest, dir) =
+        let (_, manifest, metadata_forest, content_forest, dir) =
             &mut all_from_disk(false, tomb_path).await?;
         // Grab the file at this path
         let file = dir
             .get_node(
                 &path_to_segments(&input_file)?,
                 true,
-                hot_forest,
+                metadata_forest,
                 &manifest.hot_remote,
             )
             .await?
@@ -282,7 +282,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(cold_forest, &manifest.cold_remote)
+            file.get_content(content_forest, &manifest.cold_remote)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -308,18 +308,18 @@ mod test {
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let (_, manifest, hot_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
+        let (_, manifest, metadata_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, hot_forest, &manifest.hot_local)
+            .get_node(wnfs_segments, true, metadata_forest, &manifest.metadata)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
         remove::pipeline(tomb_path, wnfs_path).await?;
         // Reload metadata
-        let (_, manifest, hot_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
+        let (_, manifest, metadata_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, hot_forest, &manifest.hot_local)
+            .get_node(wnfs_segments, true, metadata_forest, &manifest.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());

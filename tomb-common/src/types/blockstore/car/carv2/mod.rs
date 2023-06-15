@@ -132,6 +132,28 @@ impl CarV2 {
         self.header.borrow_mut().data_size = v1_end - v1_start;
         Ok(())
     }
+
+    pub(crate) fn empty_roots<R: Read + Seek, W: Write + Seek>(
+        &self,
+        mut r: R,
+        mut w: W,
+    ) -> Result<()> {
+        // Write the pragma and header into the writer
+        w.seek(SeekFrom::Start(0))?;
+        w.write_all(&V2_PRAGMA)?;
+        self.header.borrow().clone().write_bytes(&mut w)?;
+        // Skip past the Pragma and Header on the reader
+        let v1_start = (V2_PRAGMA_SIZE + V2_HEADER_SIZE) as u64;
+        r.seek(SeekFrom::Start(v1_start))?;
+        // Insert the root
+        self.carv1.empty_roots(&mut r, &mut w)?;
+        // The writer now contains the fully modified CARv1
+        // Update the data size
+        let v1_end = w.stream_len()?;
+        // Update the data size
+        self.header.borrow_mut().data_size = v1_end - v1_start;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

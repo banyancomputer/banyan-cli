@@ -36,13 +36,13 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     // If this is a local unpack
     let local = input_dir.is_some();
     // Load metadata
-    let (_, manifest, hot_forest, cold_forest, dir) = all_from_disk(local, &tomb_path).await?;
+    let (_, manifest, metadata_forest, content_forest, dir) = all_from_disk(local, &tomb_path).await?;
 
     // Update the locations of the CarV2BlockStores to be relative to the input path
-    // manifest.hot_local.change_dir(&tomb_path)?;
+    // manifest.metadata.change_dir(&tomb_path)?;
     // if local {
     //     manifest
-    //         .cold_local
+    //         .content
     //         .change_dir(&input_dir.unwrap().join("content"))?
     // }
 
@@ -56,8 +56,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
         output_dir: &Path,
         built_path: &Path,
         node: &PrivateNode,
-        hot_forest: &PrivateForest,
-        cold_forest: &PrivateForest,
+        metadata_forest: &PrivateForest,
+        content_forest: &PrivateForest,
         hot_store: &impl BlockStore,
         cold_store: &impl BlockStore,
     ) -> Result<()> {
@@ -68,7 +68,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                 std::fs::create_dir_all(output_dir.join(built_path))?;
                 // Obtain a list of this Node's children
                 let node_names: Vec<String> = dir
-                    .ls(&Vec::new(), true, hot_forest, hot_store)
+                    .ls(&Vec::new(), true, metadata_forest, hot_store)
                     .await?
                     .into_iter()
                     .map(|(l, _)| l)
@@ -78,7 +78,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                 for node_name in node_names {
                     // Fetch the Node with the given name
                     if let Some(node) = dir
-                        .get_node(&[node_name.clone()], true, hot_forest, hot_store)
+                        .get_node(&[node_name.clone()], true, metadata_forest, hot_store)
                         .await?
                     {
                         // Recurse with newly found node and await
@@ -86,8 +86,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                             output_dir,
                             &built_path.join(node_name),
                             &node,
-                            hot_forest,
-                            cold_forest,
+                            metadata_forest,
+                            content_forest,
                             hot_store,
                             cold_store,
                         )
@@ -100,7 +100,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
                 let file_path = &output_dir.join(built_path);
                 println!("processing file {}", file_path.display());
                 // Handle the PrivateFile and write its contents to disk
-                file_to_disk(file, output_dir, file_path, cold_forest, cold_store).await?;
+                file_to_disk(file, output_dir, file_path, content_forest, cold_store).await?;
             }
         }
         Ok(())
@@ -112,10 +112,10 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
             output_dir,
             Path::new(""),
             &dir.as_node(),
-            &hot_forest,
-            &cold_forest,
-            &manifest.hot_local,
-            &manifest.cold_local,
+            &metadata_forest,
+            &content_forest,
+            &manifest.metadata,
+            &manifest.content,
         )
         .await
     } else {
@@ -124,8 +124,8 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
             output_dir,
             Path::new(""),
             &dir.as_node(),
-            &hot_forest,
-            &cold_forest,
+            &metadata_forest,
+            &content_forest,
             &manifest.hot_remote,
             &manifest.cold_remote,
         )

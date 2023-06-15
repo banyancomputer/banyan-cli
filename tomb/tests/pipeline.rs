@@ -333,7 +333,7 @@ mod test {
             &[],
             true,
             Rc::clone(&forest),
-            &manifest.cold_local,
+            &manifest.content,
         )
         .await
         .unwrap();
@@ -344,7 +344,7 @@ mod test {
 
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
-            .get_previous(&manifest.cold_local)
+            .get_previous(&manifest.content)
             .await
             .unwrap()
             .unwrap()
@@ -353,7 +353,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, &forest, &manifest.cold_local)
+            .get_node(&path_segments, true, &forest, &manifest.content)
             .await
             .unwrap()
             .unwrap()
@@ -362,7 +362,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&forest, &manifest.cold_local)
+            .get_content(&forest, &manifest.content)
             .await
             .unwrap();
 
@@ -371,7 +371,7 @@ mod test {
 
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
-            .get_previous(&manifest.cold_local)
+            .get_previous(&manifest.content)
             .await
             .unwrap()
             .unwrap()
@@ -380,7 +380,7 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, true, &forest, &manifest.cold_local)
+            .get_node(&path_segments, true, &forest, &manifest.content)
             .await
             .unwrap()
             .unwrap()
@@ -389,7 +389,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(&forest, &manifest.cold_local)
+            .get_content(&forest, &manifest.content)
             .await
             .unwrap();
 
@@ -412,7 +412,7 @@ mod test {
 
         // Assert that there are no more previous versions to find
         assert!(iterator
-            .get_previous(&manifest.cold_local)
+            .get_previous(&manifest.content)
             .await
             .unwrap()
             .is_none());

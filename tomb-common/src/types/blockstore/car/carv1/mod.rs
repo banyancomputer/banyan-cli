@@ -120,6 +120,33 @@ impl CarV1 {
         mut r: R,
         mut w: W,
     ) -> Result<()> {
+        // Grab reference to roots
+        let mut new_roots = self.header.roots.borrow().clone();
+        // Insert new root
+        new_roots.push(*root);
+        // Update roots
+        self.update_roots(new_roots, &mut r, &mut w);
+        // Ok
+        Ok(())
+    }
+
+    pub(crate) fn empty_roots<R: Read + Seek, W: Write + Seek>(
+        &self,
+        mut r: R,
+        mut w: W,
+    ) -> Result<()> {
+        // Update roots
+        self.update_roots(Vec::new(), &mut r, &mut w);
+        // Ok
+        Ok(())
+    }
+
+    fn update_roots<R: Read + Seek, W: Write + Seek>(
+        &self,
+        new_roots: Vec<Cid>,
+        mut r: R,
+        mut w: W,
+    ) -> Result<()> {
         let mut old_header_buf: Vec<u8> = Vec::new();
         self.header.write_bytes(&mut old_header_buf)?;
 
@@ -127,7 +154,7 @@ impl CarV1 {
             // Grab mutable reference to roots
             let mut roots = self.header.roots.borrow_mut();
             // Insert new root
-            roots.push(*root);
+            *roots = new_roots;
         }
 
         let mut new_header_buf: Vec<u8> = Vec::new();

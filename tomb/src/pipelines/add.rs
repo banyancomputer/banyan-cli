@@ -18,7 +18,7 @@ pub async fn pipeline(
     wnfs_path: &Path,
 ) -> Result<()> {
     // Load the data
-    let (_, manifest, hot_forest, cold_forest, root_dir) =
+    let (_, manifest, metadata_forest, content_forest, root_dir) =
         &mut all_from_disk(local, tomb_path).await?;
     // Compress the data in the file
     let content = compress_file(input_file)?;
@@ -30,8 +30,8 @@ pub async fn pipeline(
             &path_to_segments(wnfs_path)?,
             true,
             time,
-            hot_forest,
-            &manifest.hot_local,
+            metadata_forest,
+            &manifest.metadata,
             rng,
         )
         .await?;
@@ -40,8 +40,8 @@ pub async fn pipeline(
         file.set_content(
             time,
             content.as_slice(),
-            cold_forest,
-            &manifest.cold_local,
+            content_forest,
+            &manifest.content,
             rng,
         )
         .await?;
@@ -49,7 +49,7 @@ pub async fn pipeline(
         file.set_content(
             time,
             content.as_slice(),
-            cold_forest,
+            content_forest,
             &manifest.cold_remote,
             rng,
         )
@@ -60,8 +60,8 @@ pub async fn pipeline(
         local,
         tomb_path,
         manifest,
-        hot_forest,
-        cold_forest,
+        metadata_forest,
+        content_forest,
         root_dir,
     )
     .await?;

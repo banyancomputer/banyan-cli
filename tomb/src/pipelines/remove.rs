@@ -9,16 +9,16 @@ use crate::utils::{
 /// The pipeline for removing an individual file from a WNFS
 pub async fn pipeline(tomb_path: &Path, wnfs_path: &Path) -> Result<()> {
     // Load everything from the metadata on disk
-    let (_, manifest, hot_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
+    let (_, manifest, metadata_forest, dir) = &mut hot_from_disk(true, tomb_path).await?;
     // Attempt to remove the node
     dir.rm(
         &path_to_segments(wnfs_path)?,
         true,
-        hot_forest,
-        &manifest.hot_local,
+        metadata_forest,
+        &manifest.metadata,
     )
     .await?;
     // Stores the modified directory back to disk
-    hot_to_disk(true, tomb_path, manifest, hot_forest, dir).await?;
+    hot_to_disk(true, tomb_path, manifest, metadata_forest, dir).await?;
     Ok(())
 }
