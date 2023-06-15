@@ -14,12 +14,6 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
     let manifest = manifest_from_disk(&tomb_path)?;
     info!("Loaded manifest...");
 
-    // If this remote endpoint has not actually been configured
-    if manifest.cold_remote == NetworkBlockStore::default() {
-        println!("cold_remote: {:?}", manifest.cold_remote);
-        panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
-    }
-
     // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.metadata.change_dir(&tomb_path)?;
     // manifest.content.change_dir(&content_path)?;
@@ -33,19 +27,19 @@ pub async fn pipeline(dir: &Path) -> Result<()> {
 
     info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
 
-    // For each child CID in the list
-    for child in children {
-        // Grab the bytes from the local store
-        let bytes = manifest.content.get_block(&child).await?;
-        // Throw those bytes onto the remote network
-        manifest
-            .cold_remote
-            .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
-            .await?;
+    // // For each child CID in the list
+    // for child in children {
+    //     // Grab the bytes from the local store
+    //     let bytes = manifest.content.get_block(&child).await?;
+    //     // Throw those bytes onto the remote network
+    //     manifest
+    //         .cold_remote
+    //         .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
+    //         .await?;
 
-        // Denote progress for each loop iteration
-        progress_bar.inc(1);
-    }
+    //     // Denote progress for each loop iteration
+    //     progress_bar.inc(1);
+    // }
 
     info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
 

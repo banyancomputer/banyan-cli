@@ -18,7 +18,7 @@ unsigned-varint = "0.7.1"
 hex = "0.4.3"
 tokio.workspace = true
 serial_test = "2.0.0"
-
+chrono.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"

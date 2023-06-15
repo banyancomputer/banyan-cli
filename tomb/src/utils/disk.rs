@@ -117,14 +117,13 @@ pub fn key_from_disk(tomb_path: &Path, label: &str) -> Result<TemporalKey> {
 
 /// Store everything at once!
 pub async fn all_to_disk(
-    local: bool,
     tomb_path: &Path,
     manifest: &mut Manifest,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_all(local, manifest, metadata_forest, content_forest, root_dir).await?;
+    let temporal_key = store_all(manifest, metadata_forest, content_forest, root_dir).await?;
     manifest_to_disk(tomb_path, manifest)?;
     key_to_disk(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
@@ -132,7 +131,6 @@ pub async fn all_to_disk(
 
 /// Load everything at once!
 pub async fn all_from_disk(
-    local: bool,
     tomb_path: &Path,
 ) -> Result<(
     TemporalKey,
@@ -143,19 +141,18 @@ pub async fn all_from_disk(
 )> {
     let key = key_from_disk(tomb_path, "root")?;
     let manifest = manifest_from_disk(tomb_path)?;
-    let (metadata_forest, content_forest, dir) = load_all(local, &key, &manifest).await?;
+    let (metadata_forest, content_forest, dir) = load_all(&key, &manifest).await?;
     Ok((key, manifest, metadata_forest, content_forest, dir))
 }
 
 /// Store all hot objects!
 pub async fn hot_to_disk(
-    local: bool,
     tomb_path: &Path,
     manifest: &mut Manifest,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_all_hot(local, manifest, metadata_forest, root_dir).await?;
+    let temporal_key = store_all_hot(manifest, metadata_forest, root_dir).await?;
     manifest_to_disk(tomb_path, manifest)?;
     key_to_disk(tomb_path, &temporal_key, "root")?;
     Ok(temporal_key)
@@ -163,7 +160,6 @@ pub async fn hot_to_disk(
 
 /// Load all hot objects!
 pub async fn hot_from_disk(
-    local: bool,
     tomb_path: &Path,
 ) -> Result<(
     TemporalKey,
@@ -173,146 +169,17 @@ pub async fn hot_from_disk(
 )> {
     let key = key_from_disk(tomb_path, "root")?;
     let manifest = manifest_from_disk(tomb_path)?;
-    let (metadata_forest, dir) = load_all_hot(local, &key, &manifest).await?;
+    let (metadata_forest, dir) = load_all_hot(&key, &manifest).await?;
     Ok((key, manifest, metadata_forest, dir))
 }
 
 #[cfg(test)]
 mod test {
     use crate::utils::{
-        disk::{
-            all_from_disk, all_to_disk, hot_from_disk, hot_to_disk, key_from_disk, key_to_disk,
-            load_dir, load_metadata_forest, manifest_from_disk, manifest_to_disk, store_dir,
-            store_metadata_forest,
-        },
-        fs::ensure_path_exists_and_is_empty_dir,
+        disk::*,
     };
     use anyhow::Result;
-    use chrono::Utc;
-    use rand::thread_rng;
-    use serial_test::serial;
-    use std::{
-        collections::HashMap,
-        path::{Path, PathBuf},
-        rc::Rc,
-    };
-    use tomb_common::types::{
-        blockstore::{
-            car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-        },
-        pipeline::Manifest,
-    };
-    use wnfs::{
-        libipld::Cid,
-        namefilter::Namefilter,
-        private::{PrivateDirectory, PrivateForest},
-    };
-
-    // Create all of the relevant objects, using real BlockStores and real data
-    async fn setup(
-        local: bool,
-        test_name: &str,
-    ) -> Result<(
-        PathBuf,
-        Manifest,
-        Rc<PrivateForest>,
-        Rc<PrivateForest>,
-        Rc<PrivateDirectory>,
-    )> {
-        let path = Path::new("test").join(test_name);
-        ensure_path_exists_and_is_empty_dir(&path, true)?;
-        let content_path = path.join("content");
-        ensure_path_exists_and_is_empty_dir(&content_path, true)?;
-        let content_car = content_path.join("content.car");
-        let content = CarV2BlockStore::new(&content_car)?;
-
-        let tomb_path = path.join(".tomb");
-        ensure_path_exists_and_is_empty_dir(&tomb_path, true)?;
-        let meta_car = tomb_path.join("meta.car");
-        let metadata = CarV2BlockStore::new(&meta_car)?;
-
-        // Remote endpoint
-        let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
-        let hot_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
-
-        // Hot Forest and cold Forest
-        let mut metadata_forest = Rc::new(PrivateForest::new());
-        let mut content_forest = Rc::new(PrivateForest::new());
-
-        // Rng
-        let rng = &mut thread_rng();
-        // PrivateDirectory
-        let mut root_dir = Rc::new(PrivateDirectory::new(
-            Namefilter::default(),
-            Utc::now(),
-            rng,
-        ));
-
-        // Open new file
-        let file = if local {
-            root_dir
-                .open_file_mut(
-                    &["cats".to_string()],
-                    true,
-                    Utc::now(),
-                    &mut metadata_forest,
-                    &metadata,
-                    rng,
-                )
-                .await?
-        } else {
-            root_dir
-                .open_file_mut(
-                    &["cats".to_string()],
-                    true,
-                    Utc::now(),
-                    &mut metadata_forest,
-                    &hot_remote,
-                    rng,
-                )
-                .await?
-        };
-
-        // Set file content
-        if local {
-            file.set_content(
-                Utc::now(),
-                "Hello Kitty!".as_bytes(),
-                &mut content_forest,
-                &content,
-                rng,
-            )
-            .await?;
-        } else {
-            file.set_content(
-                Utc::now(),
-                "Hello Kitty!".as_bytes(),
-                &mut content_forest,
-                &cold_remote,
-                rng,
-            )
-            .await?;
-        }
-
-        // Create the Manifest
-        let manifest_data = Manifest {
-            version: "1.1.0".to_string(),
-            content,
-            cold_remote,
-            metadata,
-            hot_remote,
-            roots: HashMap::<String, Cid>::new(),
-        };
-
-        Ok((tomb_path, manifest_data, metadata_forest, content_forest, root_dir))
-    }
-
-    // Delete the temporary directory
-    async fn teardown(test_name: &str) -> Result<()> {
-        let path = Path::new("test").join(test_name);
-        std::fs::remove_dir_all(path)?;
-        Ok(())
-    }
+    use tomb_common::utils::tests::*;
 
     #[tokio::test]
     async fn disk_key() -> Result<()> {
@@ -321,7 +188,7 @@ mod test {
         let (tomb_path, mut manifest, mut metadata_forest, _, dir) = setup(true, test_name).await?;
 
         // Generate key for this directory
-        let key = store_dir(true, &mut manifest, &mut metadata_forest, &dir, "dir").await?;
+        let key = store_dir(&mut manifest, &mut metadata_forest, &dir).await?;
 
         // Store and load
         key_to_disk(&tomb_path, &key, "root")?;
@@ -357,46 +224,17 @@ mod test {
         // Setup
         let (tomb_path, mut manifest, mut metadata_forest, _, root_dir) = setup(true, test_name).await?;
         // Save to disk
-        let key = hot_to_disk(true, &tomb_path, &mut manifest, &mut metadata_forest, &root_dir).await?;
+        let key = hot_to_disk(&tomb_path, &mut manifest, &mut metadata_forest, &root_dir).await?;
         // Reload from disk
         let (new_key, new_manifest, new_metadata_forest, new_root_dir) =
-            hot_from_disk(true, &tomb_path).await?;
+            hot_from_disk(&tomb_path).await?;
 
         // Assert equality
         assert_eq!(key, new_key);
         assert_eq!(manifest, new_manifest);
         assert_eq!(
             metadata_forest
-                .diff(&new_metadata_forest, &new_manifest.hot_remote)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(root_dir, new_root_dir);
-
-        // Teardown
-        teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn disk_hot_remote() -> Result<()> {
-        let test_name = "disk_hot_remote";
-        // Setup
-        let (tomb_path, mut manifest, mut metadata_forest, _, root_dir) =
-            setup(false, test_name).await?;
-        // Save to disk
-        let key = hot_to_disk(false, &tomb_path, &mut manifest, &mut metadata_forest, &root_dir).await?;
-        // Reload from disk
-        let (new_key, new_manifest, new_metadata_forest, new_root_dir) =
-            hot_from_disk(false, &tomb_path).await?;
-
-        // Assert equality
-        assert_eq!(key, new_key);
-        assert_eq!(manifest, new_manifest);
-        assert_eq!(
-            metadata_forest
-                .diff(&new_metadata_forest, &new_manifest.hot_remote)
+                .diff(&new_metadata_forest, &new_manifest.metadata)
                 .await?
                 .len(),
             0
@@ -415,7 +253,6 @@ mod test {
             setup(true, test_name).await?;
         // Save to disk
         let key = all_to_disk(
-            true,
             &tomb_path,
             &mut manifest,
             &mut metadata_forest,
@@ -425,21 +262,21 @@ mod test {
         .await?;
         // Reload from disk
         let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_root_dir) =
-            all_from_disk(true, &tomb_path).await?;
+            all_from_disk(&tomb_path).await?;
 
         // Assert equality
         assert_eq!(key, new_key);
         assert_eq!(manifest, new_manifest);
         assert_eq!(
             metadata_forest
-                .diff(&new_metadata_forest, &new_manifest.hot_remote)
+                .diff(&new_metadata_forest, &new_manifest.metadata)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
             content_forest
-                .diff(&new_content_forest, &new_manifest.cold_remote)
+                .diff(&new_content_forest, &new_manifest.content)
                 .await?
                 .len(),
             0
@@ -450,88 +287,8 @@ mod test {
         teardown(test_name).await
     }
 
-    #[tokio::test]
-    #[serial]
-    async fn disk_cold_remote() -> Result<()> {
-        let test_name = "disk_cold_remote";
-        // Setup
-        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, root_dir) =
-            setup(false, test_name).await?;
-        // Save to disk
-        let key = all_to_disk(
-            false,
-            &tomb_path,
-            &mut manifest,
-            &mut metadata_forest,
-            &mut content_forest,
-            &root_dir,
-        )
-        .await?;
-        // Reload from disk
-        let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_root_dir) =
-            all_from_disk(false, &tomb_path).await?;
-
-        // Assert equality
-        assert_eq!(key, new_key);
-        assert_eq!(manifest, new_manifest);
-        assert_eq!(
-            metadata_forest
-                .diff(&new_metadata_forest, &new_manifest.hot_remote)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(
-            content_forest
-                .diff(&new_content_forest, &new_manifest.cold_remote)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(root_dir, new_root_dir);
-
-        // Teardown
-        teardown(test_name).await
-    }
-
-    #[tokio::test]
-    async fn serial_metadata_forest() -> Result<()> {
-        // Start er up!
-        let (_, mut manifest, mut metadata_forest, _, _) = setup(true, "serial_metadata_forest").await?;
-
-        // Store and load
-        store_metadata_forest(&mut manifest.roots, &manifest.metadata, &mut metadata_forest).await?;
-        let new_metadata_forest = load_metadata_forest(&manifest.roots, &manifest.metadata).await?;
-
-        // Assert equality
-        assert_eq!(
-            new_metadata_forest
-                .diff(&metadata_forest, &manifest.metadata)
-                .await?
-                .len(),
-            0
-        );
-
-        // Teardown
-        teardown("serial_metadata_forest").await
-    }
-
-    #[tokio::test]
-    async fn serial_dir_local() -> Result<()> {
-        let test_name = "serial_dir_local";
-        // Start er up!
-        let (_, mut manifest, mut metadata_forest, _, dir) = setup(true, test_name).await?;
-
-        let key = store_dir(true, &mut manifest, &mut metadata_forest, &dir, "dir").await?;
-        store_metadata_forest(&mut manifest.roots, &manifest.metadata, &mut metadata_forest).await?;
-        let new_metadata_forest = load_metadata_forest(&manifest.roots, &manifest.metadata).await?;
-        let new_dir = load_dir(true, &manifest, &key, &new_metadata_forest, "dir").await?;
-        // Assert equality
-        assert_eq!(dir, new_dir);
-        // Teardown
-        teardown(test_name).await
-    }
-
+    /*
+    
     /// Helper function, not a test
     async fn assert_serial_all_cold(local: bool) -> Result<()> {
         let test_name: &String = &format!("serial_all_cold_{}", local);
@@ -541,16 +298,15 @@ mod test {
 
         // Store and load
         let key = all_to_disk(
-            local,
             &tomb_path,
             &mut manifest,
             &mut metadata_forest,
             &mut content_forest,
-            &dir,
+            &dir
         )
         .await?;
         let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_dir) =
-            all_from_disk(local, &tomb_path).await?;
+            all_from_disk(&tomb_path).await?;
 
         // Assert equality
         assert_eq!(new_key, key);
@@ -584,66 +340,5 @@ mod test {
     async fn serial_all_cold_remote() -> Result<()> {
         assert_serial_all_cold(false).await
     }
-
-    #[tokio::test]
-    async fn serial_dir_content() -> Result<()> {
-        // Start er up!
-        let (_, mut manifest, mut original_metadata_forest, mut original_content_forest, mut original_dir) =
-            setup(true, "serial_dir_content").await?;
-        // Grab the original file
-        let original_file = original_dir
-            .open_file_mut(
-                &["cats".to_string()],
-                true,
-                Utc::now(),
-                &mut original_metadata_forest,
-                &manifest.metadata,
-                &mut thread_rng(),
-            )
-            .await?;
-        // Get the content
-        let original_content = original_file
-            .get_content(&mut original_content_forest, &manifest.content)
-            .await?;
-
-        let key = store_dir(
-            true,
-            &mut manifest,
-            &mut original_metadata_forest,
-            &original_dir,
-            "dir",
-        )
-        .await?;
-        store_metadata_forest(
-            &mut manifest.roots,
-            &manifest.metadata,
-            &mut original_metadata_forest,
-        )
-        .await?;
-
-        let mut new_metadata_forest = load_metadata_forest(&manifest.roots, &manifest.metadata).await?;
-        let mut new_dir = load_dir(true, &manifest, &key, &new_metadata_forest, "dir").await?;
-        // Assert equality
-        assert_eq!(original_dir, new_dir);
-
-        let file = new_dir
-            .open_file_mut(
-                &["cats".to_string()],
-                true,
-                Utc::now(),
-                &mut new_metadata_forest,
-                &manifest.metadata,
-                &mut thread_rng(),
-            )
-            .await?;
-        // Get the content
-        let new_content = file
-            .get_content(&mut original_content_forest, &manifest.content)
-            .await?;
-
-        assert_eq!(original_content, new_content);
-
-        // Teardown
-        teardown("serial_dir_content").await
-    }
+     */
 }

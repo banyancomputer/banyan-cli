@@ -89,14 +89,8 @@ pub async fn pipeline(
     if manifest.metadata != CarV2BlockStore::default() {
         metadata = manifest.metadata;
     }
-    if manifest.hot_remote != NetworkBlockStore::default() {
-        hot_remote = manifest.hot_remote;
-    }
     if manifest.content != CarV2BlockStore::default() {
         content = manifest.content;
-    }
-    if manifest.cold_remote != NetworkBlockStore::default() {
-        cold_remote = manifest.cold_remote;
     }
 
     // Create the root directory in which all Nodes will be stored
@@ -122,20 +116,13 @@ pub async fn pipeline(
         // Load in the Key
         let key = key_from_disk(tomb_path, "root")?;
 
-        let (new_metadata_forest, new_content_forest) = if local {
-            (
-                load_metadata_forest(&manifest.roots, &manifest.metadata).await,
-                load_content_forest(&manifest.roots, &manifest.content).await,
-            )
-        } else {
-            (
-                load_metadata_forest(&manifest.roots, &manifest.hot_remote).await,
-                load_content_forest(&manifest.roots, &manifest.cold_remote).await,
-            )
-        };
+        let (new_metadata_forest, new_content_forest) = (
+            load_metadata_forest(&manifest.metadata).await,
+            load_content_forest(&manifest.content).await,
+        );
 
         if let Ok(new_metadata_forest) = new_metadata_forest &&
-           let Ok(new_dir) = load_dir(local, &manifest, &key, &new_metadata_forest, "current_root").await {
+           let Ok(new_dir) = load_dir(&manifest, &key, &new_metadata_forest).await {
             // Update the forest and root directory
             metadata_forest = new_metadata_forest;
             root_dir = new_dir;
@@ -183,28 +170,22 @@ pub async fn pipeline(
     let mut manifest = Manifest {
         version: env!("CARGO_PKG_VERSION").to_string(),
         content,
-        cold_remote,
         metadata,
-        hot_remote,
-        roots: Default::default(),
     };
 
-    if first_run {
-        println!("storing original dir and key");
-        let original_key = store_dir(
-            local,
-            &mut manifest,
-            &mut metadata_forest,
-            &root_dir,
-            "original_root",
-        )
-        .await?;
-        key_to_disk(tomb_path, &original_key, "original")?;
-    }
+    // if first_run {
+    //     println!("storing original dir and key");
+    //     let original_key = store_dir(
+    //         &mut manifest,
+    //         &mut metadata_forest,
+    //         &root_dir,
+    //     )
+    //     .await?;
+    //     key_to_disk(tomb_path, &original_key, "original")?;
+    // }
 
     // Store Forest and Dir in BlockStores and retrieve Key
     let _ = all_to_disk(
-        local,
         tomb_path,
         &mut manifest,
         &mut metadata_forest,

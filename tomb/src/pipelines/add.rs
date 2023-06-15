@@ -19,7 +19,7 @@ pub async fn pipeline(
 ) -> Result<()> {
     // Load the data
     let (_, manifest, metadata_forest, content_forest, root_dir) =
-        &mut all_from_disk(local, tomb_path).await?;
+        &mut all_from_disk(tomb_path).await?;
     // Compress the data in the file
     let content = compress_file(input_file)?;
     // Turn the relative path into a vector of segments
@@ -36,28 +36,17 @@ pub async fn pipeline(
         )
         .await?;
     //
-    if local {
-        file.set_content(
-            time,
-            content.as_slice(),
-            content_forest,
-            &manifest.content,
-            rng,
-        )
-        .await?;
-    } else {
-        file.set_content(
-            time,
-            content.as_slice(),
-            content_forest,
-            &manifest.cold_remote,
-            rng,
-        )
-        .await?;
-    }
+    file.set_content(
+        time,
+        content.as_slice(),
+        content_forest,
+        &manifest.content,
+        rng,
+    )
+    .await?;
+
     // Store all the updated information, now that we've written the file
     all_to_disk(
-        local,
         tomb_path,
         manifest,
         metadata_forest,

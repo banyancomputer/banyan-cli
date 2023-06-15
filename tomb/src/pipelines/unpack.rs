@@ -36,7 +36,7 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
     // If this is a local unpack
     let local = input_dir.is_some();
     // Load metadata
-    let (_, manifest, metadata_forest, content_forest, dir) = all_from_disk(local, &tomb_path).await?;
+    let (_, manifest, metadata_forest, content_forest, dir) = all_from_disk(&tomb_path).await?;
 
     // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.metadata.change_dir(&tomb_path)?;
@@ -106,29 +106,15 @@ pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()>
         Ok(())
     }
 
-    if local {
-        // Run extraction on the base level with an empty built path
-        process_node(
-            output_dir,
-            Path::new(""),
-            &dir.as_node(),
-            &metadata_forest,
-            &content_forest,
-            &manifest.metadata,
-            &manifest.content,
-        )
-        .await
-    } else {
-        // Run extraction on the base level with an empty built path
-        process_node(
-            output_dir,
-            Path::new(""),
-            &dir.as_node(),
-            &metadata_forest,
-            &content_forest,
-            &manifest.hot_remote,
-            &manifest.cold_remote,
-        )
-        .await
-    }
+    // Run extraction on the base level with an empty built path
+    process_node(
+        output_dir,
+        Path::new(""),
+        &dir.as_node(),
+        &metadata_forest,
+        &content_forest,
+        &manifest.metadata,
+        &manifest.content,
+    )
+    .await
 }
