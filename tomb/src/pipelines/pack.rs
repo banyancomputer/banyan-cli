@@ -26,7 +26,7 @@ use tomb_common::{
         },
         pipeline::Manifest,
     },
-    utils::serialize::{load_content_forest, load_dir, load_metadata_forest, store_dir},
+    utils::serialize::{load_content_forest, load_dir, load_metadata_forest},
 };
 use wnfs::{
     common::BlockStore,

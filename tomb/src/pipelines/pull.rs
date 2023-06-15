@@ -10,7 +10,7 @@ use tomb_common::{
     types::blockstore::{
         car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
     },
-    utils::serialize::{load_content_forest, store_content_forest},
+    utils::serialize::{load_content_forest},
 };
 
 /// Takes locally packed car file data and throws it onto a server

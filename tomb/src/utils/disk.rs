@@ -185,10 +185,10 @@ mod test {
     async fn disk_key() -> Result<()> {
         let test_name = "disk_key";
         // Start er up!
-        let (tomb_path, mut manifest, mut metadata_forest, _, dir) = setup(true, test_name).await?;
+        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, dir) = setup(true, test_name).await?;
 
         // Generate key for this directory
-        let key = store_dir(&mut manifest, &mut metadata_forest, &dir).await?;
+        let key = store_all(&mut manifest, &mut metadata_forest, &mut content_forest, &dir).await?;
 
         // Store and load
         key_to_disk(&tomb_path, &key, "root")?;
