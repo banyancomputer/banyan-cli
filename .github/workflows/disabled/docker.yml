@@ -1,19 +1,19 @@
-name: 🐳 Docker
-
-on:
-  pull_request:
-    branches: [ '**' ]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  empty_job:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Do nothing
-        run: echo "Nothing to do here."
+#name: 🐳 Docker
+#
+#on:
+#  pull_request:
+#    branches: [ '**' ]
+#
+#concurrency:
+#  group: ${{ github.workflow }}-${{ github.ref }}
+#  cancel-in-progress: true
+#
+#jobs:
+#  empty_job:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Do nothing
+#        run: echo "Nothing to do here."
 # TODO: Implement docker builds in github actions
 #  build-docker:
 #    runs-on: ubuntu-latest

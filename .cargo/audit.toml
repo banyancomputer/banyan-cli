@@ -1,0 +1,6 @@
+# Thie file contains the configuration for `cargo audit`, full configuration
+# example can be found at: https://github.com/rustsec/rustsec/blob/59e1d2ad0b9cbc6892c26de233d4925074b4b97b/cargo-audit/audit.toml.example
+
+[advisories]
+ignore = ["RUSTSEC-2020-0071"]
+informational_warnings = []
