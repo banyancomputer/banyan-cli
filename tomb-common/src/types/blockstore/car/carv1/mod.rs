@@ -40,7 +40,8 @@ impl CarV1 {
         mut w: W,
     ) -> Result<()> {
         // Save our starting point
-        let carv1_start = w.stream_position()?;
+        let carv1_start = r.stream_position()?;
+        w.seek(SeekFrom::Start(carv1_start))?;
         // Write the header into a buffer
         let mut header_buf: Vec<u8> = Vec::new();
         self.header.write_bytes(&mut header_buf)?;
@@ -52,7 +53,7 @@ impl CarV1 {
         println!("starting to write data at {}", r.stream_position()?);
 
         // Keep track of the new index being built
-        // let mut new_index: HashMap<Cid, u64> = HashMap::new();
+        let mut new_index: HashMap<Cid, u64> = HashMap::new();
         // For each block logged in the index
         for (cid, offset) in self.index.0.borrow().clone() {
             // Move to preexisting offset
@@ -71,12 +72,10 @@ impl CarV1 {
             // Write the block at that new location
             block.write_bytes(&mut w)?;
             // Insert the new offset into the new index
-            // new_index.insert(block.cid, new_offset);
-            // }
-
-            // Update index
-            // *self.index.0.borrow_mut() = new_index;
+            new_index.insert(block.cid, new_offset);
         }
+        // Update index
+        *self.index.0.borrow_mut() = new_index;
 
         // Move back to the satart
         w.seek(SeekFrom::Start(carv1_start))?;
@@ -152,6 +151,7 @@ mod tests {
     use anyhow::Result;
     use std::{
         fs::{copy, remove_file, File},
+        io::Seek,
         path::Path,
         str::FromStr,
     };
@@ -229,8 +229,8 @@ mod tests {
 
         // Read in the car
         let car = CarV1::read_bytes(&mut r)?;
+        r.seek(std::io::SeekFrom::Start(0))?;
 
-        // r.seek(std::io::SeekFrom::Start(0))?;
         car.write_bytes(0, &mut r, &mut w)?;
 
         // Read in the car
@@ -254,6 +254,7 @@ mod tests {
 
         // Read in the car
         let car = CarV1::read_bytes(&mut r)?;
+        r.seek(std::io::SeekFrom::Start(0))?;
         //Find original roots
         let original_roots = car.header.roots.borrow().clone();
 

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{File, OpenOptions},
+    fs::{remove_file, rename, File, OpenOptions},
     io::{Seek, SeekFrom},
     path::{Path, PathBuf},
 };
@@ -71,6 +71,20 @@ impl CarV1BlockStore {
     pub fn get_all_cids(&self) -> Vec<Cid> {
         self.carv1.get_all_cids()
     }
+
+    pub fn insert_root(&self, root: &Cid) -> Result<()> {
+        let mut r = self.get_read()?;
+        let tmp_file_name = format!(
+            "{}_tmp.car",
+            self.path.file_name().unwrap().to_str().unwrap()
+        );
+        let tmp_car_path = self.path.parent().unwrap().join(tmp_file_name);
+        let mut w = File::create(&tmp_car_path)?;
+        self.carv1.insert_root(root, &mut r, &mut w)?;
+        remove_file(&self.path)?;
+        rename(tmp_car_path, &self.path)?;
+        Ok(())
+    }
 }
 
 #[async_trait(?Send)]
@@ -121,7 +135,6 @@ mod tests {
     };
 
     #[tokio::test]
-    #[serial]
     async fn get_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
@@ -137,7 +150,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
     async fn put_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
@@ -153,6 +165,28 @@ mod tests {
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
+        remove_file(new_path)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_root() -> Result<()> {
+        let fixture_path = Path::new("car-fixtures");
+        let existing_path = fixture_path.join("carv1-basic.car");
+        let new_path = Path::new("test").join("carv1-basic-blockstore-insert-root.car");
+        copy(existing_path, &new_path)?;
+
+        let store = CarV1BlockStore::new(&new_path, None)?;
+
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let kitty_cid = store
+            .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
+            .await?;
+
+        assert_eq!(store.carv1.header.roots.borrow().clone().len(), 2);
+        store.insert_root(&kitty_cid)?;
+        assert_eq!(store.carv1.header.roots.borrow().clone().len(), 3);
+        assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
         remove_file(new_path)?;
         Ok(())
     }

@@ -4,7 +4,10 @@ pub(crate) mod v2header;
 pub(crate) mod v2index;
 
 // Code
-use self::{v2header::V2Header, v2index::V2Index};
+use self::{
+    v2header::{V2Header, V2_HEADER_SIZE},
+    v2index::V2Index,
+};
 use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -105,6 +108,29 @@ impl CarV2 {
 
     pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
         self.carv1.get_all_cids()
+    }
+
+    pub(crate) fn insert_root<R: Read + Seek, W: Write + Seek>(
+        &self,
+        root: &Cid,
+        mut r: R,
+        mut w: W,
+    ) -> Result<()> {
+        // Write the pragma and header into the writer
+        w.seek(SeekFrom::Start(0))?;
+        w.write_all(&V2_PRAGMA)?;
+        self.header.borrow().clone().write_bytes(&mut w)?;
+        // Skip past the Pragma and Header on the reader
+        let v1_start = (V2_PRAGMA_SIZE + V2_HEADER_SIZE) as u64;
+        r.seek(SeekFrom::Start(v1_start))?;
+        // Insert the root
+        self.carv1.insert_root(root, &mut r, &mut w)?;
+        // The writer now contains the fully modified CARv1
+        // Update the data size
+        let v1_end = w.stream_len()?;
+        // Update the data size
+        self.header.borrow_mut().data_size = v1_end - v1_start;
+        Ok(())
     }
 }
 

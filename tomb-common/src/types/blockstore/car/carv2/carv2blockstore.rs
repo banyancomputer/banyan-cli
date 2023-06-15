@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{File, OpenOptions},
+    fs::{remove_file, rename, File, OpenOptions},
     io::{Seek, SeekFrom},
     path::{Path, PathBuf},
 };
@@ -67,6 +67,20 @@ impl CarV2BlockStore {
     pub fn get_all_cids(&self) -> Vec<Cid> {
         self.carv2.get_all_cids()
     }
+
+    pub fn insert_root(&self, root: &Cid) -> Result<()> {
+        let mut r = self.get_read()?;
+        let tmp_file_name = format!(
+            "{}_tmp.car",
+            self.path.file_name().unwrap().to_str().unwrap()
+        );
+        let tmp_car_path = self.path.parent().unwrap().join(tmp_file_name);
+        let mut w = File::create(&tmp_car_path)?;
+        self.carv2.insert_root(root, &mut r, &mut w)?;
+        remove_file(&self.path)?;
+        rename(tmp_car_path, &self.path)?;
+        Ok(())
+    }
 }
 
 #[async_trait(?Send)]
@@ -106,7 +120,11 @@ mod tests {
 
     use super::CarV2BlockStore;
     use anyhow::Result;
-    use std::{path::Path, str::FromStr};
+    use std::{
+        fs::{copy, remove_file},
+        path::Path,
+        str::FromStr,
+    };
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},
@@ -181,6 +199,30 @@ mod tests {
         );
         // Teardown
         std::fs::remove_file(new_path)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn insert_root() -> Result<()> {
+        let fixture_path = Path::new("car-fixtures");
+        let existing_path = fixture_path.join("carv2-basic.car");
+        let new_path = Path::new("test").join("carv2-basic-blockstore-insert-root.car");
+        copy(existing_path, &new_path)?;
+
+        let store = CarV2BlockStore::new(&new_path)?;
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let kitty_cid = store
+            .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
+            .await?;
+
+        assert_eq!(store.carv2.carv1.header.roots.borrow().clone().len(), 1);
+        let original_data_size = store.carv2.header.borrow().data_size;
+        store.insert_root(&kitty_cid)?;
+        let new_data_size = store.carv2.header.borrow().data_size;
+        assert_ne!(original_data_size, new_data_size);
+        assert_eq!(store.carv2.carv1.header.roots.borrow().clone().len(), 2);
+        assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
+        remove_file(new_path)?;
         Ok(())
     }
 }
