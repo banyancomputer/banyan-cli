@@ -1,10 +1,8 @@
 use dir_assert::assert_paths;
 use fake_file::{Strategy, Structure};
 use std::path::Path;
-use tomb::{
-    pipelines::{configure, pack, unpack},
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
-};
+use tomb::pipelines::*;
+use tomb_common::utils::tests::ensure_path_exists_and_is_empty_dir;
 
 const INPUT_PATH: &str = "input";
 const PACKED_PATH: &str = "packed";
@@ -65,7 +63,7 @@ mod test {
         disk::{hot_from_disk, key_from_disk},
         tests::compute_directory_size,
     };
-    use tomb_common::utils::serialize::load_dir;
+    use tomb_common::utils::{serialize::load_dir, tests::ensure_path_exists_and_is_dir};
     use wnfs::private::PrivateNodeOnPathHistory;
 
     // Configure where tests are run

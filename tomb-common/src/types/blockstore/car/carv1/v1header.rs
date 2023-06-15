@@ -18,12 +18,6 @@ pub(crate) struct V1Header {
     pub roots: RefCell<Vec<Cid>>,
 }
 
-/// CARv1 header structure
-///
-/// ```nn
-/// [-------header---------]
-/// [varint][DAG-CBOR block]
-/// ```
 impl V1Header {
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<()> {
         // Represent as DAGCBOR IPLD

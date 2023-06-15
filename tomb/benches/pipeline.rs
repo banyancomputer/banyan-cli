@@ -6,9 +6,9 @@ use lazy_static::lazy_static;
 use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
-use tomb::{
-    pipelines::{pack, unpack},
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
+use tomb::pipelines::{pack, unpack};
+use tomb_common::utils::tests::{
+    ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir,
 };
 
 // Configure the Benching Framework from the Environment -- or use defaults
@@ -295,7 +295,7 @@ fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf
             |_| async {
                 pack::pipeline(
                     black_box(input_path),
-                    Some(black_box(packed_path)),
+                    black_box(packed_path),
                     // TODO (amiller68) - make this configurable
                     black_box(1073741824),
                     black_box(false),
@@ -336,9 +336,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path),
             // The routine to benchmark
-            |_| async {
-                unpack::pipeline(Some(black_box(packed_path)), black_box(unpacked_path)).await
-            },
+            |_| async { unpack::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

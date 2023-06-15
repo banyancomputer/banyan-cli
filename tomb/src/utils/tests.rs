@@ -5,8 +5,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-
-use super::fs::ensure_path_exists_and_is_empty_dir;
+use tomb_common::utils::tests::ensure_path_exists_and_is_empty_dir;
 
 /// Set up temporary filesystem for test cases
 pub async fn test_setup(test_name: &str) -> Result<(PathBuf, PathBuf)> {

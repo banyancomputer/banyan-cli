@@ -1,10 +1,7 @@
-use crate::utils::{
-    disk::{manifest_from_disk, manifest_to_disk},
-    fs::ensure_path_exists_and_is_empty_dir,
-};
+use crate::utils::disk::{manifest_from_disk, manifest_to_disk};
 use anyhow::Result;
 use std::{fs::create_dir_all, path::Path};
-use tomb_common::types::pipeline::Manifest;
+use tomb_common::{types::pipeline::Manifest, utils::tests::ensure_path_exists_and_is_empty_dir};
 
 /// Initialize the .tomb metadata directory and Manifest file therein
 pub fn init(dir: &Path) -> Result<()> {

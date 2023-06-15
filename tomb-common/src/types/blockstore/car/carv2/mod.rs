@@ -4,10 +4,7 @@ pub(crate) mod v2header;
 pub(crate) mod v2index;
 
 // Code
-use self::{
-    v2header::{V2Header, V2_HEADER_SIZE},
-    v2index::V2Index,
-};
+use self::{v2header::V2Header, v2index::V2Index};
 use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -19,6 +16,7 @@ use wnfs::libipld::Cid;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const V2_PRAGMA_SIZE: usize = 11;
+pub(crate) const V2_PH_SIZE: u64 = 41;
 
 // This is the fixed file signature associated with the CARV2 file format
 pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
@@ -110,27 +108,45 @@ impl CarV2 {
         self.carv1.get_all_cids()
     }
 
+    fn read_to_v1<R: Read + Seek>(&self, mut r: R) -> Result<()> {
+        // Skip past the Pragma and Header on the reader
+        r.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        Ok(())
+    }
+
+    fn write_to_v1<W: Write + Seek>(&self, mut w: W) -> Result<()> {
+        // Write the pragma and header into the writer
+        w.seek(SeekFrom::Start(0))?;
+        w.write_all(&V2_PRAGMA)?;
+        // Write the header
+        self.header.borrow().clone().write_bytes(&mut w)?;
+        Ok(())
+    }
+
+    fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
+        // Update the data size
+        let v1_end = x.stream_len()?;
+        // Update the data size
+        self.header.borrow_mut().data_size = v1_end - V2_PH_SIZE;
+        Ok(())
+    }
+
     pub(crate) fn insert_root<R: Read + Seek, W: Write + Seek>(
         &self,
         root: &Cid,
         mut r: R,
         mut w: W,
     ) -> Result<()> {
-        // Write the pragma and header into the writer
-        w.seek(SeekFrom::Start(0))?;
-        w.write_all(&V2_PRAGMA)?;
-        self.header.borrow().clone().write_bytes(&mut w)?;
-        // Skip past the Pragma and Header on the reader
-        let v1_start = (V2_PRAGMA_SIZE + V2_HEADER_SIZE) as u64;
-        r.seek(SeekFrom::Start(v1_start))?;
+        // Read up to the CARv1
+        self.read_to_v1(&mut r)?;
+        // Write up to the CARv1
+        self.write_to_v1(&mut w)?;
+
         // Insert the root
         self.carv1.insert_root(root, &mut r, &mut w)?;
+
         // The writer now contains the fully modified CARv1
-        // Update the data size
-        let v1_end = w.stream_len()?;
-        // Update the data size
-        self.header.borrow_mut().data_size = v1_end - v1_start;
-        Ok(())
+        self.update_data_size(&mut w)
     }
 
     pub(crate) fn empty_roots<R: Read + Seek, W: Write + Seek>(
@@ -138,21 +154,14 @@ impl CarV2 {
         mut r: R,
         mut w: W,
     ) -> Result<()> {
-        // Write the pragma and header into the writer
-        w.seek(SeekFrom::Start(0))?;
-        w.write_all(&V2_PRAGMA)?;
-        self.header.borrow().clone().write_bytes(&mut w)?;
-        // Skip past the Pragma and Header on the reader
-        let v1_start = (V2_PRAGMA_SIZE + V2_HEADER_SIZE) as u64;
-        r.seek(SeekFrom::Start(v1_start))?;
+        // Read up to the CARv1
+        self.read_to_v1(&mut r)?;
+        // Write up to the CARv1
+        self.write_to_v1(&mut w)?;
         // Insert the root
         self.carv1.empty_roots(&mut r, &mut w)?;
         // The writer now contains the fully modified CARv1
-        // Update the data size
-        let v1_end = w.stream_len()?;
-        // Update the data size
-        self.header.borrow_mut().data_size = v1_end - v1_start;
-        Ok(())
+        self.update_data_size(&mut w)
     }
 }
 

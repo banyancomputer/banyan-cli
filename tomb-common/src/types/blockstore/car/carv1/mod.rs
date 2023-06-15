@@ -81,7 +81,7 @@ impl CarV1 {
         w.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
         w.write_all(&header_buf)?;
-        println!("i just wrote {} bytes of header", header_buf.len());
+        // Flush
         w.flush()?;
         Ok(())
     }

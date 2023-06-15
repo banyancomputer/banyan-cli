@@ -40,6 +40,8 @@ impl V1Block {
         w.write_all(&varint_buf)?;
         w.write_all(&cid_buf)?;
         w.write_all(&self.content)?;
+        // Flush
+        w.flush()?;
         // Return size
         Ok(varint_buf.len() + cid_buf.len() + self.content.len())
     }
