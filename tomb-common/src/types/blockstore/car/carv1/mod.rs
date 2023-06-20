@@ -176,6 +176,7 @@ impl CarV1 {
 mod tests {
     use crate::types::blockstore::car::carv1::CarV1;
     use anyhow::Result;
+    use serial_test::serial;
     use std::{
         fs::{copy, remove_file, File},
         io::Seek,
@@ -185,6 +186,7 @@ mod tests {
     use wnfs::libipld::Cid;
 
     #[test]
+    #[serial]
     fn from_disk_basic() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         let mut file = File::open(car_path)?;
@@ -243,6 +245,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn write_bytes_no_offset() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
@@ -268,6 +271,7 @@ mod tests {
         Ok(())
     }
     #[test]
+    #[serial]
     fn insert_root() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");

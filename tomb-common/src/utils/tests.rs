@@ -12,12 +12,9 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::types::{
-    blockstore::{
-        car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-    },
-    pipeline::Manifest,
-};
+use crate::types::{blockstore::{
+    car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
+}, config::globalconfig::GlobalConfig};
 
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     // If the path is non-existent
@@ -58,22 +55,17 @@ pub async fn setup(
     test_name: &str,
 ) -> Result<(
     PathBuf,
-    Manifest,
+    CarV2BlockStore,
+    CarV2BlockStore,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
-    let path = Path::new("test").join(test_name);
-    ensure_path_exists_and_is_empty_dir(&path, true)?;
-    let content_path = path.join("content");
-    ensure_path_exists_and_is_empty_dir(&content_path, true)?;
-    let content_car = content_path.join("content.car");
-    let content = CarV2BlockStore::new(&content_car)?;
-
-    let tomb_path = path.join(".tomb");
-    ensure_path_exists_and_is_empty_dir(&tomb_path, true)?;
-    let meta_car = tomb_path.join("meta.car");
-    let metadata = CarV2BlockStore::new(&meta_car)?;
+    let origin: PathBuf = Path::new("test").join(test_name);
+    GlobalConfig::remove(&origin)?;
+    let config = GlobalConfig::new_bucket(&origin)?;
+    let content = config.get_metadata()?;
+    let metadata = config.get_content()?;
 
     // Remote endpoint
     let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
@@ -138,16 +130,10 @@ pub async fn setup(
         .await?;
     }
 
-    // Create the Manifest
-    let manifest_data = Manifest {
-        version: "1.1.0".to_string(),
-        content,
-        metadata,
-    };
-
     Ok((
-        tomb_path,
-        manifest_data,
+        origin,
+        metadata,
+        content,
         metadata_forest,
         content_forest,
         root_dir,

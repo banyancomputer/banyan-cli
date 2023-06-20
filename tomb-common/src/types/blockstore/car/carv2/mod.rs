@@ -120,6 +120,8 @@ impl CarV2 {
         w.write_all(&V2_PRAGMA)?;
         // Write the header
         self.header.borrow().clone().write_bytes(&mut w)?;
+        // Flush
+        w.flush()?;
         Ok(())
     }
 
@@ -168,12 +170,14 @@ impl CarV2 {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use serial_test::serial;
     use std::{fs::File, io::BufReader, path::Path, str::FromStr, vec};
     use wnfs::libipld::Cid;
 
     use crate::types::blockstore::car::carv2::CarV2;
 
     #[test]
+    #[serial]
     fn from_disk_basic() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv2-basic.car");
         let mut file = BufReader::new(File::open(car_path)?);

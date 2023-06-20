@@ -11,7 +11,10 @@
 
 use anyhow::Result;
 use clap::Parser;
-use std::{env, io::Write};
+use std::{
+    env::{self, current_dir},
+    io::Write,
+};
 use tomb::pipelines::{add, configure, pack, pull, push, unpack};
 /// Command Line Interface and tests
 pub mod cli;
@@ -30,6 +33,7 @@ use lazy_static as _;
 use rand as _;
 use serde as _;
 use serial_test as _;
+use thiserror as _;
 use wnfs as _;
 use zstd as _;
 
@@ -52,11 +56,14 @@ async fn main() -> Result<()> {
         // Execute the packing command
         cli::Commands::Pack {
             input_dir,
-            output_dir,
-            chunk_size,
             follow_links,
         } => {
-            pack::pipeline(&input_dir, &output_dir, chunk_size, follow_links).await?;
+            if let Some(input_dir) = input_dir {
+                pack::pipeline(&input_dir, follow_links).await?;
+            }
+            else {
+                pack::pipeline(&current_dir()?, follow_links).await?;
+            }
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
@@ -66,12 +73,26 @@ async fn main() -> Result<()> {
             unpack::pipeline(&input_dir, &output_dir).await?;
         }
         cli::Commands::Init {
-            dir
+            input_dir
         } => {
-            // If no dir was supplied, use the current working directory
-            let dir = dir.unwrap_or(env::current_dir()?);
             // Initialize here
-            configure::init(&dir)?;
+            if let Some(input_dir) = input_dir {
+                configure::init(&input_dir)?;
+            }
+            else {
+                configure::init(&current_dir()?)?;
+            }
+        },
+        cli::Commands::Deinit {
+            input_dir
+        } => {
+            // Initialize here
+            if let Some(input_dir) = input_dir {
+                configure::deinit(&input_dir)?;
+            }
+            else {
+                configure::deinit(&current_dir()?)?;
+            }
         },
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
         cli::Commands::Register { bucket_name: _ } =>
@@ -84,7 +105,7 @@ async fn main() -> Result<()> {
                 cli::ConfigSubCommands::SetRemote { dir, url, port } => {
                     // If no dir was supplied, use the current working directory
                     let dir = dir.unwrap_or(env::current_dir()?);
-                    configure::remote(&dir, &url, port)?;
+                    configure::remote(&url, port)?;
                 }
             }
         },

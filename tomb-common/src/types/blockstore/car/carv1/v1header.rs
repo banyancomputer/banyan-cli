@@ -115,6 +115,7 @@ impl Default for V1Header {
 mod tests {
     use super::V1Header;
     use anyhow::Result;
+    use serial_test::serial;
     use std::{
         fs::File,
         io::{BufReader, Cursor},
@@ -142,6 +143,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn read_disk() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         // Open the CARv1

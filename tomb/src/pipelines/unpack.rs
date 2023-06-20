@@ -1,12 +1,14 @@
-use crate::utils::{disk::all_from_disk, wnfsio::file_to_disk};
 use anyhow::Result;
 use async_recursion::async_recursion;
 use fs_extra::{copy_items, dir::CopyOptions};
 use std::path::Path;
+use tomb_common::utils::disk::*;
 use wnfs::{
     common::BlockStore,
     private::{PrivateForest, PrivateNode},
 };
+
+use crate::utils::wnfsio::file_to_disk;
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -35,7 +37,8 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
     // Load metadata
-    let (_, manifest, metadata_forest, content_forest, dir) = all_from_disk(&tomb_path).await?;
+    let (_, metadata, content, metadata_forest, content_forest, dir) =
+        &mut all_from_disk(&tomb_path).await?;
 
     // Update the locations of the CarV2BlockStores to be relative to the input path
     // manifest.metadata.change_dir(&tomb_path)?;
@@ -110,10 +113,10 @@ pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
         output_dir,
         Path::new(""),
         &dir.as_node(),
-        &metadata_forest,
-        &content_forest,
-        &manifest.metadata,
-        &manifest.content,
+        metadata_forest,
+        content_forest,
+        metadata,
+        content,
     )
     .await
 }

@@ -14,7 +14,7 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
     pub(crate) carv2: CarV2,
@@ -135,12 +135,31 @@ impl BlockStore for CarV2BlockStore {
     }
 }
 
+impl Serialize for CarV2BlockStore {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.path.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for CarV2BlockStore {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::types::blockstore::car::{carv1::v1block::V1Block, carv2::v2header::V2Header};
 
     use super::CarV2BlockStore;
     use anyhow::Result;
+    use serial_test::serial;
     use std::{
         fs::{copy, remove_file},
         path::Path,
@@ -152,6 +171,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[serial]
     async fn get_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-basic.car");
@@ -169,6 +189,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn put_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-basic.car");
@@ -188,6 +209,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn update_header() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-basic.car");
@@ -224,6 +246,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn insert_root() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-basic.car");

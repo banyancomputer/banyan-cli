@@ -1,5 +1,5 @@
 // use anyhow::Result;
-use crate::types::pipeline::Manifest;
+// use crate::types::pipeline::Manifest;
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use wasm_bindgen::{prelude::wasm_bindgen, JsError};
 use wnfs::{
@@ -7,11 +7,11 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-// Provide a default manifest
-#[wasm_bindgen]
-pub async fn default_manifest() -> Result<Manifest, JsError> {
-    Ok(Manifest::default())
-}
+// // Provide a default manifest
+// #[wasm_bindgen]
+// pub async fn default_manifest() -> Result<Manifest, JsError> {
+//     Ok(Manifest::default())
+// }
 
 #[wasm_bindgen]
 pub async fn save_metadata(value: String) -> Result<String, JsError> {

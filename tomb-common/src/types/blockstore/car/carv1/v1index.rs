@@ -18,7 +18,7 @@ impl V1Index {
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = V1Block::start_read(&mut r) {
-            println!("i found a block at {}", block_offset);
+            println!("i found a block at {} with cid {}", block_offset, cid);
             // Log where we found this block
             offsets.insert(cid, block_offset);
             // Skip the rest of the block
@@ -84,6 +84,7 @@ mod tests {
     use super::V1Index;
     use crate::types::blockstore::car::carv1::{v1block::V1Block, v1header::V1Header};
     use anyhow::Result;
+    use serial_test::serial;
     use std::{
         fs::File,
         io::{BufReader, Cursor, Seek, SeekFrom},
@@ -110,6 +111,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn read_disk() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         // Open the CARv1

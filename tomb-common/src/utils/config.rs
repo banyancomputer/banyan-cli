@@ -1,28 +1,28 @@
-use anyhow::Result;
-use std::{env, fs::create_dir_all, net::Ipv4Addr, path::PathBuf};
+use std::{env, fs::create_dir, path::PathBuf};
+
+const HOME_ERROR: &str = "cant find home directory";
 
 /// Grab config path from env variables + XDG spec
-pub fn tomb_config() -> Result<PathBuf> {
+pub fn xdg_config_home() -> PathBuf {
     // Construct
-    let path = PathBuf::from(format!("{}/.config/tomb", env::var("HOME")?));
+    let path = PathBuf::from(format!(
+        "{}/.config/tomb",
+        env::var("HOME").expect(HOME_ERROR)
+    ));
     // If the directory doesnt exist yet, make it!
-    create_dir_all(&path)?;
+    create_dir(&path).ok();
     // Return
-    Ok(path)
+    path
 }
 
-/// Helper function for creating the required type
-/// TODO(organizedgrime) - ipv4 sucks. switch to urls soon.
-pub fn ip_from_string(address: String) -> Ipv4Addr {
-    // Represent the string as an array of four numbers exactly
-    let numbers: [u8; 4] = address
-        .split('.')
-        .map(|s| s.parse::<u8>().unwrap())
-        .collect::<Vec<u8>>()
-        .as_slice()
-        .try_into()
-        .expect("IP Address was not formatted correctly");
-
-    // Construct the IP Address from these numbers
-    Ipv4Addr::from(numbers)
+pub fn xdg_data_home() -> PathBuf {
+    // Construct
+    let path = PathBuf::from(format!(
+        "{}/.local/share/tomb",
+        env::var("HOME").expect(HOME_ERROR)
+    ));
+    // If the directory doesnt exist yet, make it!
+    create_dir(&path).ok();
+    // Return
+    path
 }

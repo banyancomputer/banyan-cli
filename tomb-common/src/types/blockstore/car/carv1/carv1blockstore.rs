@@ -13,7 +13,7 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct CarV1BlockStore {
     pub path: PathBuf,
     pub(crate) carv1: CarV1,
@@ -118,6 +118,24 @@ impl BlockStore for CarV1BlockStore {
     }
 }
 
+impl Serialize for CarV1BlockStore {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.path.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for CarV1BlockStore {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Self::new(&PathBuf::deserialize(deserializer)?, None).unwrap())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -128,12 +146,14 @@ mod tests {
 
     use super::CarV1BlockStore;
     use anyhow::Result;
+    use serial_test::serial;
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},
     };
 
     #[tokio::test]
+    #[serial]
     async fn get_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
@@ -149,6 +169,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn put_block() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
@@ -169,6 +190,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn insert_root() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");

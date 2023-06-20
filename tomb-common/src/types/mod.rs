@@ -1,4 +1,6 @@
-/// This module contains code for interfacing with a network based blockstore
+/// This module custom BlockStore implementations
 pub mod blockstore;
+/// This module contains types for configurations
+pub mod config;
 /// This module contains types relating to packing/unpacking methodology.
 pub mod pipeline;
