@@ -12,12 +12,13 @@ mod tests {
         carv1::carv1blockstore::CarV1BlockStore, carv2::carv2blockstore::CarV2BlockStore,
     };
     use anyhow::Result;
+    use serde::{Serialize, Deserialize};
     use serial_test::serial;
     use std::{
         fs::create_dir_all,
         path::{Path, PathBuf},
     };
-    use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
+    use wnfs::common::{blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test}, BlockStore, dagcbor};
 
     #[tokio::test]
     async fn diskblockstore() -> Result<()> {
@@ -52,8 +53,7 @@ mod tests {
         let store = &CarV2BlockStore::new(&new_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
-        // bs_serialization_test(store).await
-        Ok(())
+        bs_serialization_test(store).await
     }
 
     #[tokio::test]

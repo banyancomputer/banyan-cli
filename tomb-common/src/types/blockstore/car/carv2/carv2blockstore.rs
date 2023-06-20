@@ -10,11 +10,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use wnfs::{
-    common::BlockStore,
+    common::{dagcbor, BlockStore},
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
     pub(crate) carv2: CarV2,
@@ -135,23 +135,23 @@ impl BlockStore for CarV2BlockStore {
     }
 }
 
-impl Serialize for CarV2BlockStore {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.path.serialize(serializer)
-    }
-}
+// impl Serialize for CarV2BlockStore {
+//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         self.path.serialize(serializer)
+//     }
+// }
 
-impl<'de> Deserialize<'de> for CarV2BlockStore {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
-    }
-}
+// impl<'de> Deserialize<'de> for CarV2BlockStore {
+//     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+//     where
+//         D: serde::Deserializer<'de>,
+//     {
+//         Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

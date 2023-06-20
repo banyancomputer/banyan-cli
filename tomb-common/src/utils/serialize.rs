@@ -191,15 +191,18 @@ pub async fn load_all(
 mod test {
     use anyhow::Result;
     use chrono::Utc;
+    use serial_test::serial;
     use wnfs::libipld::IpldCodec;
 
     use crate::utils::{serialize::*, tests::*};
 
     #[tokio::test]
+    #[serial]
     async fn serial_metadata_forest() -> Result<()> {
         let test_name = "serial_metadata_forest";
         // Start er up!
-        let (_, metadata, _, metadata_forest, _, _) = &mut setup(true, test_name).await?;
+        let (_, config, metadata_forest, _, _) = &mut setup(test_name).await?;
+        let metadata = &mut config.get_metadata()?;
 
         let cid = metadata
             .put_block("Hello Kitty!".as_bytes().to_vec(), IpldCodec::Raw)
@@ -224,10 +227,13 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn serial_content_forest() -> Result<()> {
         let test_name = "serial_content_forest";
         // Start er up!
-        let (_, _, content, _, content_forest, _) = &mut setup(true, test_name).await?;
+        let (_, config, _, content_forest, _) = &mut setup(test_name).await?;
+
+        let content = &mut config.get_content()?;
 
         // Store and load
         store_content_forest(content, content_forest).await?;
@@ -247,10 +253,13 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn serial_dir_object() -> Result<()> {
         let test_name = "serial_dir_local";
         // Start er up!
-        let (_, metadata, _, metadata_forest, _, dir) = &mut setup(true, test_name).await?;
+        let (_, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+
+        let metadata = &mut config.get_metadata()?;
 
         let key = &store_dir(metadata, metadata_forest, dir).await?;
         store_metadata_forest(metadata, metadata_forest).await?;
@@ -263,11 +272,17 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
+    #[ignore]
     async fn serial_dir_content() -> Result<()> {
         let test_name = "serial_dir_content";
         // Start er up!
-        let (_, metadata, content, original_metadata_forest, original_content_forest, original_dir) =
-            &mut setup(true, test_name).await?;
+        let (_, config, original_metadata_forest, original_content_forest, original_dir) =
+            &mut setup(test_name).await?;
+
+        let metadata = &mut config.get_metadata()?;
+        let content = &mut config.get_content()?;
+
         // Grab the original file
         let original_file = original_dir
             .open_file_mut(
@@ -279,6 +294,7 @@ mod test {
                 &mut thread_rng(),
             )
             .await?;
+
         // Get the content
         let original_content = original_file
             .get_content(original_content_forest, content)
@@ -312,10 +328,13 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn serial_all_hot() -> Result<()> {
         let test_name = "serial_all_hot";
         // Start er up!
-        let (_, metadata, _, metadata_forest, _, dir) = &mut setup(true, test_name).await?;
+        let (_, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+
+        let metadata = &mut config.get_metadata()?;
 
         let key = &store_all_hot(metadata, metadata_forest, dir).await?;
 
@@ -335,11 +354,14 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn serial_all() -> Result<()> {
         let test_name = "serial_all";
         // Start er up!
-        let (_, metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup(true, test_name).await?;
+        let (_, config, metadata_forest, content_forest, dir) = &mut setup(test_name).await?;
+
+        let metadata = &mut config.get_metadata()?;
+        let content = &mut config.get_content()?;
 
         let key = &store_all(metadata, content, metadata_forest, content_forest, dir).await?;
 

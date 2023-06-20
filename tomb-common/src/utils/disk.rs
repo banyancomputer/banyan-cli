@@ -1,7 +1,7 @@
 use crate::{
     types::{
         blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
-        config::{globalconfig::GlobalConfig, bucketconfig::BucketConfig},
+        config::{bucketconfig::BucketConfig, globalconfig::GlobalConfig},
     },
     utils::serialize::*,
 };
@@ -60,8 +60,14 @@ pub async fn all_to_disk(
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key =
-        store_all(&config.get_metadata()?, &config.get_metadata()?, metadata_forest, content_forest, root_dir).await?;
+    let temporal_key = store_all(
+        &config.get_metadata()?,
+        &config.get_metadata()?,
+        metadata_forest,
+        content_forest,
+        root_dir,
+    )
+    .await?;
     Ok(temporal_key)
 }
 
@@ -77,7 +83,7 @@ pub async fn all_from_disk(
     Rc<PrivateDirectory>,
 )> {
     let config = GlobalConfig::get_bucket(origin).unwrap();
-    let key = config.get_key().unwrap();
+    let key = config.get_key("root").unwrap();
     let metadata = config.get_metadata()?;
     let content = config.get_content()?;
     let (metadata_forest, content_forest, dir) = load_all(&key, &metadata, &content).await?;
@@ -86,14 +92,14 @@ pub async fn all_from_disk(
 
 /// Store all hot objects!
 pub async fn hot_to_disk(
-    tomb_path: &Path,
+    origin: &Path,
     metadata: &CarV2BlockStore,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     let temporal_key = store_all_hot(metadata, metadata_forest, root_dir).await?;
-    // manifest_to_disk(tomb_path, manifest)?;
-    key_to_disk(tomb_path, &temporal_key, "root")?;
+    let config = GlobalConfig::get_bucket(origin).unwrap();
+    config.set_key(&temporal_key, "root")?;
     Ok(temporal_key)
 }
 
@@ -107,7 +113,7 @@ pub async fn hot_from_disk(
     Rc<PrivateDirectory>,
 )> {
     let config = GlobalConfig::get_bucket(origin).unwrap();
-    let key = config.get_key().unwrap();
+    let key = config.get_key("root").unwrap();
     let metadata = config.get_metadata()?;
     let (metadata_forest, dir) = load_all_hot(&key, &metadata).await?;
     Ok((key, metadata, metadata_forest, dir))
@@ -117,16 +123,25 @@ pub async fn hot_from_disk(
 mod test {
     use crate::utils::{disk::*, tests::*};
     use anyhow::Result;
+    use serial_test::serial;
 
     #[tokio::test]
+    #[serial]
     async fn disk_key() -> Result<()> {
         let test_name = "disk_key";
         // Start er up!
-        let (tomb_path, metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup(true, test_name).await?;
+        let (tomb_path, config, metadata_forest, content_forest, dir) =
+            &mut setup(test_name).await?;
 
         // Generate key for this directory
-        let key = store_all(metadata, content, metadata_forest, content_forest, dir).await?;
+        let key = store_all(
+            &config.get_metadata()?,
+            &config.get_content()?,
+            metadata_forest,
+            content_forest,
+            dir,
+        )
+        .await?;
 
         // Store and load
         key_to_disk(&tomb_path, &key, "root")?;
@@ -139,14 +154,19 @@ mod test {
         teardown(test_name).await
     }
 
+    /*
+
     #[tokio::test]
+    #[serial]
     async fn disk_metadata() -> Result<()> {
         let test_name = "disk_metadata";
         // Setup
-        let (tomb_path, metadata, _, metadata_forest, _, root_dir) =
-            &mut setup(true, test_name).await?;
+        let (origin, config, metadata_forest, _, root_dir) =
+            &mut setup(test_name).await?;
+
         // Save to disk
-        let key = &hot_to_disk(tomb_path, metadata, metadata_forest, root_dir).await?;
+        let key = &hot_to_disk(origin, config, metadata_forest, root_dir).await?;
+
         // Reload from disk
         let (new_key, _, new_metadata_forest, new_root_dir) =
             &mut hot_from_disk(&tomb_path).await?;
@@ -167,11 +187,12 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn disk_content() -> Result<()> {
         let test_name = "disk_content";
         // Setup
         let (origin, metadata, content, metadata_forest, content_forest, root_dir) =
-            &mut setup(true, test_name).await?;
+            &mut setup(test_name).await?;
 
         let config = GlobalConfig::get_bucket(&origin).unwrap();
         // Save to disk
@@ -215,14 +236,14 @@ mod test {
         teardown(test_name).await
     }
 
-    /*
+
 
     /// Helper function, not a test
     async fn assert_serial_all_cold(local: bool) -> Result<()> {
         let test_name: &String = &format!("serial_all_cold_{}", local);
         // Start er up!
         let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, dir) =
-            setup(true, test_name).await?;
+            setup(test_name).await?;
 
         // Store and load
         let key = all_to_disk(

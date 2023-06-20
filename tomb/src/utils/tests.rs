@@ -1,7 +1,7 @@
 use anyhow::Result;
 use fake_file::{Strategy, Structure};
 use std::{
-    fs::{create_dir_all, remove_dir_all},
+    fs::remove_dir_all,
     path::{Path, PathBuf},
     process::Command,
 };

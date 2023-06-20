@@ -58,6 +58,19 @@ impl CarV2 {
         })
     }
 
+    pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
+        // Move to start
+        w.seek(SeekFrom::Start(0))?;
+        // Write pragma
+        w.write_all(&V2_PRAGMA)?;
+        // Write header
+        self.header.borrow().clone().write_bytes(&mut w)?;
+        // Write carv1
+        self.carv1.write_bytes(0, &mut r, &mut w)?;
+        // Ok
+        Ok(())
+    }
+
     pub(crate) fn verify_pragma<R: Read + Seek>(mut r: R) -> Result<()> {
         // Move to the start of the file
         r.seek(SeekFrom::Start(0))?;

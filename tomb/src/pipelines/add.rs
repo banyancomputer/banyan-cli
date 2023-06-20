@@ -33,7 +33,7 @@ pub async fn pipeline(input_file: &Path, origin: &Path, wnfs_path: &Path) -> Res
 
     // Store all the updated information, now that we've written the file
     all_to_disk(
-        &GlobalConfig::get_bucket(&origin).unwrap(),
+        &GlobalConfig::get_bucket(origin).unwrap(),
         metadata_forest,
         content_forest,
         root_dir,

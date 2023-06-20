@@ -60,8 +60,13 @@ impl GlobalConfig {
     pub fn remove(origin: &Path) -> Result<()> {
         let mut config = Self::from_disk()?;
         if let Some(bucket) = config.find_config(origin) {
+            // Remove bucket data
+            bucket.remove_data()?;
+            // Find index of bucket
             let index = config.buckets.iter().position(|b| *b == bucket).unwrap();
+            // Remove bucket config from global config
             config.buckets.remove(index);
+            // Rewrite global config
             config.to_disk()?
         }
         Ok(())
@@ -77,12 +82,10 @@ impl GlobalConfig {
     }
 
     fn find_config(&self, path: &Path) -> Option<BucketConfig> {
-        for bucket in self.buckets.clone().into_iter() {
-            if bucket.origin == path {
-                return Some(bucket);
-            }
-        }
-        None
+        self.buckets
+            .clone()
+            .into_iter()
+            .find(|bucket| bucket.origin == path)
     }
 
     fn create_config(&mut self, origin: &Path) -> Result<BucketConfig> {

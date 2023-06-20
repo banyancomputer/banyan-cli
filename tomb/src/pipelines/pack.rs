@@ -64,7 +64,7 @@ pub async fn pipeline(
     if let Some(config) = GlobalConfig::get_bucket(input_dir) {
         let metadata: CarV2BlockStore = config.get_metadata()?;
         let content: CarV2BlockStore = config.get_content()?;
-        let key = config.get_key();
+        let key = config.get_key("root");
 
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(

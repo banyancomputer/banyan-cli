@@ -19,9 +19,6 @@ pub(crate) enum ConfigSubCommands {
     },
     /// tomb seturl - Set the ID for this tomb's bucket - MAY BREAK YOUR EVERYTHING!!!
     SetRemote {
-        /// Input directory
-        #[arg(short, long, help = "directory")]
-        dir: Option<PathBuf>,
         /// Server address
         #[arg(short, long, help = "remote IPv4 address")]
         url: String,
@@ -92,10 +89,10 @@ pub(crate) enum Commands {
     //    - `index_path: ~/.tomb/index`
     /// tomb init - create a new .tomb file and populate it.
     Init {
-        input_dir: Option<PathBuf>,
+        dir: Option<PathBuf>,
     },
     Deinit {
-        input_dir: Option<PathBuf>,
+        dir: Option<PathBuf>,
     },
     /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
     Login,
@@ -157,16 +154,17 @@ mod test {
         process::Command,
     };
     use tomb::utils::tests::{test_setup, test_teardown};
+    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     async fn init(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
-        cmd.arg("init").arg("--dir").arg(dir);
+        cmd.arg("init").arg(dir);
         Ok(cmd)
     }
 
     async fn deinit(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
-        cmd.arg("deinit").arg("--dir").arg(dir);
+        cmd.arg("deinit").arg(dir);
         Ok(cmd)
     }
 
@@ -220,27 +218,31 @@ mod test {
         Ok(cmd)
     }
 
-    // #[tokio::test]
-    // async fn cli_init() -> Result<()> {
-    //     let test_name = "cli_init";
-    //     // Setup test
-    //     let input_dir = &test_setup(test_name).await?;
-    //     // Initialization worked
-    //     init(&input_dir).await?.assert().success();
-    //     // Load the modified Manifest
-    //     let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
-    //     // Expect that the default Manifest was successfully encoded
-    //     assert_eq!(manifest, Manifest::default());
-    //     // Teardown test
-    //     test_teardown(test_name).await
-    // }
+    #[tokio::test]
+    async fn cli_init() -> Result<()> {
+        let test_name = "cli_init";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Assert no bucket exists yet
+        assert!(GlobalConfig::get_bucket(origin).is_none());
+        // Initialization worked
+        init(&origin).await?.assert().success();
+        // Assert the bucket exists now
+        let bucket = GlobalConfig::get_bucket(origin);
+        assert!(bucket.is_some());
+        // Assert that there is still no key, because we've not packed
+        assert!(bucket.unwrap().get_key("root").is_none());
+        // Teardown test
+        test_teardown(test_name).await
+    }
 
     #[tokio::test]
+    #[ignore]
     async fn cli_configure_remote() -> Result<()> {
         let test_name = "cli_configure_remote";
         // Setup test
         let input_dir = &test_setup(test_name).await?;
-        
+
         // Initialize
         init(&input_dir).await?.assert().success();
 

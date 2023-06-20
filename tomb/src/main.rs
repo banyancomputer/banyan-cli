@@ -11,10 +11,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use std::{
-    env::{self, current_dir},
-    io::Write,
-};
+use std::{env::current_dir, io::Write};
 use tomb::pipelines::{add, configure, pack, pull, push, unpack};
 /// Command Line Interface and tests
 pub mod cli;
@@ -73,22 +70,22 @@ async fn main() -> Result<()> {
             unpack::pipeline(&input_dir, &output_dir).await?;
         }
         cli::Commands::Init {
-            input_dir
+            dir
         } => {
             // Initialize here
-            if let Some(input_dir) = input_dir {
-                configure::init(&input_dir)?;
+            if let Some(dir) = dir {
+                configure::init(&dir)?;
             }
             else {
                 configure::init(&current_dir()?)?;
             }
         },
         cli::Commands::Deinit {
-            input_dir
+            dir
         } => {
             // Initialize here
-            if let Some(input_dir) = input_dir {
-                configure::deinit(&input_dir)?;
+            if let Some(dir) = dir {
+                configure::deinit(&dir)?;
             }
             else {
                 configure::deinit(&current_dir()?)?;
@@ -102,9 +99,7 @@ async fn main() -> Result<()> {
                 cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
                     unimplemented!("todo... change where we stage content locally");
                 }
-                cli::ConfigSubCommands::SetRemote { dir, url, port } => {
-                    // If no dir was supplied, use the current working directory
-                    let dir = dir.unwrap_or(env::current_dir()?);
+                cli::ConfigSubCommands::SetRemote { url, port } => {
                     configure::remote(&url, port)?;
                 }
             }

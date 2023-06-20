@@ -12,9 +12,7 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::types::{blockstore::{
-    car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-}, config::globalconfig::GlobalConfig};
+use crate::types::config::{bucketconfig::BucketConfig, globalconfig::GlobalConfig};
 
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     // If the path is non-existent
@@ -51,25 +49,20 @@ pub fn ensure_path_exists_and_is_empty_dir(path: &Path, force: bool) -> Result<(
 
 // Create all of the relevant objects, using real BlockStores and real data
 pub async fn setup(
-    local: bool,
     test_name: &str,
 ) -> Result<(
     PathBuf,
-    CarV2BlockStore,
-    CarV2BlockStore,
+    BucketConfig,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
     let origin: PathBuf = Path::new("test").join(test_name);
+    create_dir_all(&origin)?;
     GlobalConfig::remove(&origin)?;
     let config = GlobalConfig::new_bucket(&origin)?;
     let content = config.get_metadata()?;
     let metadata = config.get_content()?;
-
-    // Remote endpoint
-    let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
-    let hot_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
 
     // Hot Forest and cold Forest
     let mut metadata_forest = Rc::new(PrivateForest::new());
@@ -85,59 +78,28 @@ pub async fn setup(
     ));
 
     // Open new file
-    let file = if local {
-        root_dir
-            .open_file_mut(
-                &["cats".to_string()],
-                true,
-                Utc::now(),
-                &mut metadata_forest,
-                &metadata,
-                rng,
-            )
-            .await?
-    } else {
-        root_dir
-            .open_file_mut(
-                &["cats".to_string()],
-                true,
-                Utc::now(),
-                &mut metadata_forest,
-                &hot_remote,
-                rng,
-            )
-            .await?
-    };
+    let file = root_dir
+        .open_file_mut(
+            &["cats".to_string()],
+            true,
+            Utc::now(),
+            &mut metadata_forest,
+            &metadata,
+            rng,
+        )
+        .await?;
 
     // Set file content
-    if local {
-        file.set_content(
-            Utc::now(),
-            "Hello Kitty!".as_bytes(),
-            &mut content_forest,
-            &content,
-            rng,
-        )
-        .await?;
-    } else {
-        file.set_content(
-            Utc::now(),
-            "Hello Kitty!".as_bytes(),
-            &mut content_forest,
-            &cold_remote,
-            rng,
-        )
-        .await?;
-    }
+    file.set_content(
+        Utc::now(),
+        "Hello Kitty!".as_bytes(),
+        &mut content_forest,
+        &content,
+        rng,
+    )
+    .await?;
 
-    Ok((
-        origin,
-        metadata,
-        content,
-        metadata_forest,
-        content_forest,
-        root_dir,
-    ))
+    Ok((origin, config, metadata_forest, content_forest, root_dir))
 }
 
 // Delete the temporary directory
