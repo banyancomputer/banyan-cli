@@ -55,19 +55,24 @@ pub fn key_from_disk(folder: &Path, label: &str) -> Result<TemporalKey> {
 
 /// Store everything at once!
 pub async fn all_to_disk(
-    config: &BucketConfig,
+    metadata: &CarV2BlockStore,
+    content: &CarV2BlockStore,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     let temporal_key = store_all(
-        &config.get_metadata()?,
-        &config.get_metadata()?,
+        metadata, 
+        content,
         metadata_forest,
         content_forest,
         root_dir,
     )
     .await?;
+
+    metadata.to_disk()?;
+    content.to_disk()?;
+
     Ok(temporal_key)
 }
 

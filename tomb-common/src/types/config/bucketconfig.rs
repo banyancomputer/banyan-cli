@@ -9,7 +9,7 @@ use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{create_dir, remove_dir_all},
+    fs::{create_dir, remove_dir_all, create_dir_all},
     path::{Path, PathBuf},
 };
 use wnfs::private::TemporalKey;
@@ -28,16 +28,17 @@ pub struct BucketConfig {
 impl BucketConfig {
     pub fn new(origin: &Path) -> Result<Self> {
         let bucket_name = origin.file_name().unwrap().to_str().unwrap().to_string();
-
+        // Generate a name for the generated directory
         let generated_name: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(7)
             .map(char::from)
             .collect();
-
+        // Compose the generated directory
         let generated = xdg_data_home().join(generated_name);
 
-        create_dir(&generated)?;
+        // TODO (organized grime) prevent collision
+        create_dir_all(&generated)?;
 
         Ok(Self {
             bucket_name,
@@ -65,6 +66,7 @@ impl BucketConfig {
 impl BucketConfig {
     pub fn get_metadata(&self) -> Result<CarV2BlockStore> {
         let metadata_path = &self.generated.join("meta.car");
+        println!("trying to open car file at {}", metadata_path.display());
         CarV2BlockStore::new(metadata_path)
     }
 

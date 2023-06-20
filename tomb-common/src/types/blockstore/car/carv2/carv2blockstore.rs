@@ -86,6 +86,13 @@ impl CarV2BlockStore {
         self.carv2.carv1.header.roots.borrow().clone()
     }
 
+    pub fn to_disk(&self) -> Result<()> {
+        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
+        self.carv2.write_bytes(&mut r, &mut w)?;
+        self.tmp_finish(tmp_car_path)?;
+        Ok(())
+    }
+
     fn tmp_start(&self) -> Result<(PathBuf, File, File)> {
         let r = self.get_read()?;
         let tmp_file_name = format!(

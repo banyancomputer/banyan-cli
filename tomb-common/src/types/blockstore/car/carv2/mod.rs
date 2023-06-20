@@ -10,13 +10,13 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write}, borrow::Borrow,
 };
 use wnfs::libipld::Cid;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const V2_PRAGMA_SIZE: usize = 11;
-pub(crate) const V2_PH_SIZE: u64 = 41;
+pub(crate) const V2_PH_SIZE: u64 = 51;
 
 // This is the fixed file signature associated with the CARV2 file format
 pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
@@ -35,8 +35,10 @@ impl CarV2 {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
+        println!("V2 pragma successfully verified, continuing");
         // Load in the header
         let header = V2Header::read_bytes(&mut r)?;
+        println!("V2 header successfully loaded: {:?}", header);
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
@@ -59,15 +61,16 @@ impl CarV2 {
     }
 
     pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
-        // Move to start
-        w.seek(SeekFrom::Start(0))?;
-        // Write pragma
-        w.write_all(&V2_PRAGMA)?;
-        // Write header
-        self.header.borrow().clone().write_bytes(&mut w)?;
+        // Read up to the CARv1
+        self.read_to_v1(&mut r)?;
+        // Write up to the CARv1
+        self.write_to_v1(&mut w)?;
         // Write carv1
         self.carv1.write_bytes(0, &mut r, &mut w)?;
-        // Ok
+        // The writer now contains the fully modified CARv1
+        self.update_data_size(&mut w)?;
+
+        w.flush()?;
         Ok(())
     }
 
@@ -123,7 +126,8 @@ impl CarV2 {
 
     fn read_to_v1<R: Read + Seek>(&self, mut r: R) -> Result<()> {
         // Skip past the Pragma and Header on the reader
-        r.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        // r.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        r.seek(SeekFrom::Start(self.header.borrow().data_offset + V2_PH_SIZE))?;
         Ok(())
     }
 
@@ -131,10 +135,13 @@ impl CarV2 {
         // Write the pragma and header into the writer
         w.seek(SeekFrom::Start(0))?;
         w.write_all(&V2_PRAGMA)?;
+        println!("wrote pragma");
         // Write the header
         self.header.borrow().clone().write_bytes(&mut w)?;
+        println!("wrote v2header: {:?}", self.header.borrow());
+        w.seek(SeekFrom::Start(self.header.borrow().data_offset + V2_PH_SIZE))?;
         // Flush
-        w.flush()?;
+        // w.flush()?;
         Ok(())
     }
 
@@ -184,7 +191,7 @@ impl CarV2 {
 mod tests {
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::File, io::BufReader, path::Path, str::FromStr, vec};
+    use std::{fs::File, io::{BufReader, Cursor, Read}, path::Path, str::FromStr, vec};
     use wnfs::libipld::Cid;
 
     use crate::types::blockstore::car::carv2::CarV2;
@@ -241,6 +248,32 @@ mod tests {
         assert_eq!(&carv2.carv1.header.roots.borrow().clone(), &expected_roots);
 
         // Ok
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    #[ignore]
+    fn to_from_bytes() -> Result<()> {
+        let car_path = Path::new("car-fixtures").join("carv2-indexless.car");
+        let mut file = BufReader::new(File::open(car_path)?);
+        let mut original_buf: Vec<u8> = Vec::new();
+        file.read_to_end(&mut original_buf)?;
+
+        let original = CarV2::read_bytes(&mut Cursor::new(&original_buf))?;
+
+        let mut new_buf = Cursor::new(Vec::new());
+        original.write_bytes(&mut file, &mut new_buf)?;
+
+        assert_eq!(original_buf, new_buf.clone().into_inner());
+
+        let reconstructed = CarV2::read_bytes(&mut new_buf)?;
+
+        let mut new_new_buf = Cursor::new(Vec::new());
+        reconstructed.write_bytes(&mut file, &mut new_new_buf)?;
+        
+        assert_eq!(new_buf.clone().into_inner(), new_new_buf.clone().into_inner());
+
         Ok(())
     }
 }

@@ -62,8 +62,8 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(config) = GlobalConfig::get_bucket(input_dir) {
-        let metadata: CarV2BlockStore = config.get_metadata()?;
-        let content: CarV2BlockStore = config.get_content()?;
+        let metadata = &config.get_metadata()?;
+        let content = &config.get_content()?;
         let key = config.get_key("root");
 
         // Create the root directory in which all Nodes will be stored
@@ -80,12 +80,12 @@ pub async fn pipeline(
         if let Some(key) = key {
             println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
             let (new_metadata_forest, new_content_forest) = (
-                load_metadata_forest(&metadata).await,
-                load_content_forest(&content).await,
+                load_metadata_forest(metadata).await,
+                load_content_forest(content).await,
             );
 
             if let Ok(new_metadata_forest) = new_metadata_forest &&
-           let Ok(new_dir) = load_dir(&metadata, &key, &new_metadata_forest).await {
+           let Ok(new_dir) = load_dir(metadata, &key, &new_metadata_forest).await {
             // Update the forest and root directory
             metadata_forest = new_metadata_forest;
             root_dir = new_dir;
@@ -110,8 +110,8 @@ pub async fn pipeline(
             &mut root_dir,
             &mut metadata_forest,
             &mut content_forest,
-            &metadata,
-            &content,
+            metadata,
+            content,
         )
         .await?;
 
@@ -127,13 +127,16 @@ pub async fn pipeline(
         // }
 
         // Store Forest and Dir in BlockStores and retrieve Key
-        let _ = all_to_disk(
-            &config,
+        let temporal_key = &all_to_disk(
+            metadata,
+            content,
             &mut metadata_forest,
             &mut content_forest,
             &root_dir,
         )
         .await?;
+
+        config.set_key(temporal_key, "root")?;
 
         Ok(())
     } else {
@@ -175,8 +178,8 @@ async fn process_plans(
     root_dir: &mut Rc<PrivateDirectory>,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
-    hot_store: &impl BlockStore,
-    cold_store: &impl BlockStore,
+    metadata: &impl BlockStore,
+    content: &impl BlockStore,
 ) -> Result<()> {
     // Rng
     let rng: &mut rand::rngs::ThreadRng = &mut thread_rng();
@@ -208,23 +211,23 @@ async fn process_plans(
                 let time = Utc::now();
                 // Open the PrivateFile
                 let file: &mut PrivateFile = root_dir
-                    .open_file_mut(path_segments, true, time, metadata_forest, hot_store, rng)
+                    .open_file_mut(path_segments, true, time, metadata_forest, metadata, rng)
                     .await?;
                 // Compress the data in the file on disk
-                let content = compress_file(
+                let file_content = compress_file(
                     &metadatas
                         .get(0)
                         .expect("why is there nothing in metadatas")
                         .canonicalized_path,
                 )?;
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                file.set_content(time, content.as_slice(), content_forest, cold_store, rng)
+                file.set_content(time, file_content.as_slice(), content_forest, content, rng)
                     .await?;
 
                 // Duplicates need to be linked no matter what
-                for metadata in &metadatas[1..] {
+                for meta in &metadatas[1..] {
                     // Grab the original location
-                    let dup = &metadata.original_location;
+                    let dup = &meta.original_location;
                     let dup_path_segments = &path_to_segments(dup)?;
                     // Remove the final element to represent the folder path
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
@@ -235,7 +238,7 @@ async fn process_plans(
                             true,
                             Utc::now(),
                             metadata_forest,
-                            hot_store,
+                            metadata,
                             rng,
                         )
                         .await?;
@@ -246,20 +249,20 @@ async fn process_plans(
                             dup_path_segments,
                             true,
                             metadata_forest,
-                            hot_store,
+                            metadata,
                         )
                         .await?;
                 }
             }
             // If this is a directory or symlink
-            PackPipelinePlan::Directory(metadata) => {
+            PackPipelinePlan::Directory(meta) => {
                 // Turn the canonicalized path into a vector of segments
-                let path_segments = path_to_segments(&metadata.original_location)?;
+                let path_segments = path_to_segments(&meta.original_location)?;
 
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, true, metadata_forest, hot_store)
+                    .get_node(&path_segments, true, metadata_forest, metadata)
                     .await;
 
                 // If there was an error searching for the Node or
@@ -271,7 +274,7 @@ async fn process_plans(
                             true,
                             Utc::now(),
                             metadata_forest,
-                            hot_store,
+                            metadata,
                             rng,
                         )
                         .await?;
@@ -288,9 +291,9 @@ async fn process_plans(
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
         match symlink_plan {
-            PackPipelinePlan::Symlink(metadata, symlink_target) => {
+            PackPipelinePlan::Symlink(meta, symlink_target) => {
                 // The path where the symlink will be placed
-                let symlink_segments = path_to_segments(&metadata.original_location)?;
+                let symlink_segments = path_to_segments(&meta.original_location)?;
 
                 // Link the file or folder
                 root_dir
@@ -300,7 +303,7 @@ async fn process_plans(
                         true,
                         Utc::now(),
                         metadata_forest,
-                        hot_store,
+                        metadata,
                         rng,
                     )
                     .await?;

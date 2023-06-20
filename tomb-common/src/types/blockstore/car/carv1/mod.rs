@@ -41,6 +41,7 @@ impl CarV1 {
     ) -> Result<()> {
         // Save our starting point
         let carv1_start = r.stream_position()?;
+        println!("starting carv1 write at {}", carv1_start);
         w.seek(SeekFrom::Start(carv1_start))?;
         // Write the header into a buffer
         let mut header_buf: Vec<u8> = Vec::new();

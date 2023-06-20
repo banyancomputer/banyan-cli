@@ -29,6 +29,7 @@ mod test {
     use dir_assert::assert_paths;
     use fake_file::{Strategy, Structure};
     use serial_test::serial;
+    use tomb_common::types::config::globalconfig::GlobalConfig;
     use std::{
         fs::{self, create_dir_all, metadata, File},
         io::Write,
@@ -54,6 +55,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_configure_remote() -> Result<()> {
         let test_name = "pipeline_configure_remote";
         // Create the setup conditions
@@ -65,7 +67,33 @@ mod test {
         test_teardown(test_name).await
     }
 
+    #[tokio::test]
+    #[serial]
+    async fn pipeline_pack_local() -> Result<()> {
+        let test_name = "pipeline_pack_local";
+        // Create the setup conditions
+        let origin = &test_setup(test_name).await?;
+        // Initialize
+        configure::init(origin)?;
+        // Load config
+        let mut config = GlobalConfig::get_bucket(origin).unwrap();
+        // Assert no key yet
+        assert!(config.get_key("root").is_none());
+        // Pack
+        pack::pipeline(origin, true).await?;
+        // Update config
+        config = GlobalConfig::get_bucket(origin).unwrap();
+        // Ensure content exists and works
+        assert!(config.get_key("root").is_some());
+        config.get_metadata()?;
+        // assert!(.is_ok());
+        // assert!(config.get_content().is_ok());
+        // Teardown
+        test_teardown(test_name).await
+    }
+
     /*
+
     #[tokio::test]
     async fn pipeline_pack_unpack_local() -> Result<()> {
         let test_name = "pipeline_pack_unpack_local";
@@ -77,13 +105,15 @@ mod test {
         let unpacked_dir = &input_dir.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(unpacked_dir).await?;
+        unpack::pipeline(&input_dir, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(input_dir, unpacked_dir).unwrap();
         // Teardown
         test_teardown(test_name).await
     }
 
+
+    
     #[tokio::test]
     #[serial]
     #[ignore]
