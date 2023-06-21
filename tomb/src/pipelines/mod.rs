@@ -30,7 +30,7 @@ mod test {
     use fake_file::{Strategy, Structure};
     use serial_test::serial;
     use std::{
-        fs::{self, create_dir_all, metadata, File},
+        fs::{self, create_dir_all, metadata, File, remove_dir_all},
         io::Write,
         path::PathBuf,
     };
@@ -111,36 +111,35 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /*
-
     #[tokio::test]
     #[serial]
     #[ignore]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
-        let input_dir = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Configure the remote endpoint
         configure::remote("http://127.0.0.1", 5001)?;
         // Pack locally
-        pack::pipeline(input_dir, true).await?;
+        pack::pipeline(origin, true).await?;
         // Push
-        push::pipeline(input_dir).await?;
+        push::pipeline(origin).await?;
         // Teardown
         test_teardown(test_name).await
     }
 
+    /*
     #[tokio::test]
     #[serial]
     #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init()?;
+        configure::init(origin)?;
         // Configure the remote endpoint
-        configure::remote(&input_dir, "http://127.0.0.1", 5001)?;
+        configure::remote(&origin, "http://127.0.0.1", 5001)?;
         // Pack locally
         pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
         // Send data to remote endpoint
@@ -159,20 +158,19 @@ mod test {
         // Teardown
         test_teardown(test_name).await
     }
+    */
 
     #[tokio::test]
     async fn pipeline_add_local() -> Result<()> {
         let test_name = "pipeline_add_local";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init(input_dir)?;
+        configure::init(origin)?;
         // Run the pack pipeline
-        pack::pipeline(input_dir, &output_dir, 262144, true).await?;
-        // Grab metadata
-        let tomb_path = &output_dir.join(".tomb");
+        pack::pipeline(origin, true).await?;
         // This is still in the input dir. Technically we could just
-        let input_file = &input_dir.join("hello.txt");
+        let input_file = &origin.join("hello.txt");
         // Content to be written to the file
         let file_content = String::from("This is just example text.")
             .as_bytes()
@@ -180,17 +178,19 @@ mod test {
         // Create and write to the file
         File::create(input_file)?.write_all(&file_content)?;
         // Add the input file to the WNFS
-        add::pipeline(input_file, tomb_path, input_file).await?;
+        add::pipeline(input_file, input_file, input_file).await?;
+
         // Now that the pipeline has run, grab all metadata
-        let (_, manifest, metadata_forest, content_forest, dir) =
-            &mut all_from_disk(tomb_path).await?;
+        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
+        let (_, metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+
         // Grab the file at this path
         let file = dir
             .get_node(
                 &path_to_segments(&input_file)?,
                 true,
                 metadata_forest,
-                &manifest.metadata,
+                &config.metadata,
             )
             .await?
             .unwrap()
@@ -198,7 +198,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(content_forest, &manifest.content)
+            file.get_content(content_forest, &config.content)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -209,57 +209,61 @@ mod test {
         test_teardown(test_name).await
     }
 
+    /*
     #[tokio::test]
+    #[serial]
     async fn pipeline_remove_local() -> Result<()> {
         let test_name = "pipeline_remove_local";
         // Create the setup conditions
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init(input_dir)?;
+        configure::init(origin)?;
         // Run the pack pipeline
-        pack::pipeline(input_dir, &output_dir, 262144, true).await?;
-        // Grab metadata
-        let tomb_path = &output_dir.join(".tomb");
+        pack::pipeline(origin, true).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let (_, manifest, metadata_forest, dir) = &mut hot_from_disk(tomb_path).await?;
+        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
+        let (_, metadata_forest, _, dir) = &mut config.get_all(tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, metadata_forest, &manifest.metadata)
+            .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
-        remove::pipeline(tomb_path, wnfs_path).await?;
+        remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
         let (_, manifest, metadata_forest, dir) = &mut hot_from_disk(tomb_path).await?;
         let result = dir
-            .get_node(wnfs_segments, true, metadata_forest, &manifest.metadata)
+            .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
         // Teardown
         test_teardown(test_name).await
     }
+    */ 
 
     // Helper function for structure tests
     async fn assert_pack_unpack_local(test_name: &str) -> Result<()> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
-        let (input_dir, output_dir) = &(root_path.join("input"), root_path.join("output"));
+        let origin = &root_path.join("input");
         // Initialize
-        configure::init(input_dir)?;
+        configure::init(origin)?;
         // Pack locally
-        pack::pipeline(input_dir, output_dir, 262144, true).await?;
+        pack::pipeline(origin, true).await?;
         // Create a new dir to unpack in
-        let unpacked_dir = &output_dir.parent().unwrap().join("unpacked");
+        
+        let unpacked_dir = &origin.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(output_dir, unpacked_dir).await?;
+        unpack::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
-        assert_paths(input_dir, unpacked_dir).unwrap();
+        assert_paths(origin, unpacked_dir).unwrap();
 
+        // remove_dir_all(path)
         Ok(())
     }
 
@@ -294,5 +298,4 @@ mod test {
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }
-     */
 }
