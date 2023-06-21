@@ -68,18 +68,12 @@ impl CarV2BlockStore {
         self.carv2.get_all_cids()
     }
 
-    pub fn insert_root(&self, root: &Cid) -> Result<()> {
-        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
-        self.carv2.insert_root(root, &mut r, &mut w)?;
-        self.tmp_finish(tmp_car_path)?;
-        Ok(())
+    pub fn insert_root(&self, root: &Cid) {
+        self.carv2.insert_root(root);
     }
 
-    pub fn empty_roots(&self) -> Result<()> {
-        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
-        self.carv2.empty_roots(&mut r, &mut w)?;
-        self.tmp_finish(tmp_car_path)?;
-        Ok(())
+    pub fn empty_roots(&self) {
+        self.carv2.empty_roots();
     }
 
     pub fn get_roots(&self) -> Vec<Cid> {
@@ -268,7 +262,7 @@ mod tests {
 
         assert_eq!(store.carv2.carv1.header.roots.borrow().clone().len(), 1);
         let original_data_size = store.carv2.header.borrow().data_size;
-        store.insert_root(&kitty_cid)?;
+        store.insert_root(&kitty_cid);
         let new_data_size = store.carv2.header.borrow().data_size;
         assert_ne!(original_data_size, new_data_size);
         assert_eq!(store.carv2.carv1.header.roots.borrow().clone().len(), 2);

@@ -52,6 +52,7 @@ pub async fn setup(
     test_name: &str,
 ) -> Result<(
     PathBuf,
+    GlobalConfig,
     BucketConfig,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
@@ -59,8 +60,9 @@ pub async fn setup(
 )> {
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
-    GlobalConfig::remove(&origin)?;
-    let config = GlobalConfig::new_bucket(&origin)?;
+    let mut global = GlobalConfig::from_disk()?;
+    global.remove(&origin)?;
+    let config = global.new_bucket(&origin)?;
 
     // Hot Forest and cold Forest
     let mut metadata_forest = Rc::new(PrivateForest::new());
@@ -97,7 +99,14 @@ pub async fn setup(
     )
     .await?;
 
-    Ok((origin, config, metadata_forest, content_forest, root_dir))
+    Ok((
+        origin,
+        global,
+        config,
+        metadata_forest,
+        content_forest,
+        root_dir,
+    ))
 }
 
 // Delete the temporary directory

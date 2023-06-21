@@ -36,10 +36,8 @@ impl CarV2 {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
-        println!("V2 pragma successfully verified, continuing");
         // Load in the header
         let header = V2Header::read_bytes(&mut r)?;
-        println!("V2 header successfully loaded: {:?}", header);
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
@@ -71,7 +69,6 @@ impl CarV2 {
         // The writer now contains the fully modified CARv1
         self.update_data_size(&mut w)?;
         w.flush()?;
-        println!("finished writing carv2");
         Ok(())
     }
 
@@ -158,37 +155,13 @@ impl CarV2 {
         Ok(())
     }
 
-    pub(crate) fn insert_root<R: Read + Seek, W: Write + Seek>(
-        &self,
-        root: &Cid,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
-        // Read up to the CARv1
-        self.read_to_v1(&mut r)?;
-        // Write up to the CARv1
-        self.write_to_v1(&mut w)?;
-
+    pub(crate) fn insert_root(&self, root: &Cid) {
         // Insert the root
-        self.carv1.insert_root(root, &mut r, &mut w)?;
-
-        // The writer now contains the fully modified CARv1
-        self.update_data_size(&mut w)
+        self.carv1.insert_root(root);
     }
 
-    pub(crate) fn empty_roots<R: Read + Seek, W: Write + Seek>(
-        &self,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
-        // Read up to the CARv1
-        self.read_to_v1(&mut r)?;
-        // Write up to the CARv1
-        self.write_to_v1(&mut w)?;
-        // Insert the root
-        self.carv1.empty_roots(&mut r, &mut w)?;
-        // The writer now contains the fully modified CARv1
-        self.update_data_size(&mut w)
+    pub(crate) fn empty_roots(&self) {
+        self.carv1.empty_roots();
     }
 }
 

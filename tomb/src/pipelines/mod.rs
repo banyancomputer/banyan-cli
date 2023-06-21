@@ -74,13 +74,13 @@ mod test {
         // Initialize
         configure::init(origin)?;
         // Load config
-        let mut config = GlobalConfig::get_bucket(origin).unwrap();
+        let mut config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
         // Assert no key yet
         assert!(config.get_key("root").is_err());
         // Pack
         pack::pipeline(origin, true).await?;
         // Update config
-        config = GlobalConfig::get_bucket(origin).unwrap();
+        config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
         // Ensure content exists and works
         assert!(config.get_key("root").is_ok());
         // Teardown
@@ -97,7 +97,6 @@ mod test {
         configure::init(origin)?;
         // Pack locally
         pack::pipeline(origin, true).await?;
-        println!("PACK PIPELINE FINISHED");
         // Create a new dir to unpack in
         let unpacked_dir = &origin
             .parent()
@@ -106,7 +105,6 @@ mod test {
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
         unpack::pipeline(&origin, unpacked_dir).await?;
-
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).unwrap();
         // Teardown

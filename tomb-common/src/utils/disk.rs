@@ -14,30 +14,30 @@ use std::{
 };
 use wnfs::private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey};
 
-/// Store all hot objects!
-pub async fn hot_to_disk(
-    config: &BucketConfig,
-    metadata_forest: &mut Rc<PrivateForest>,
-    root_dir: &Rc<PrivateDirectory>,
-) -> Result<TemporalKey> {
-    let temporal_key = store_all_hot(&config.metadata, metadata_forest, root_dir).await?;
-    Ok(temporal_key)
-}
+// /// Store all hot objects!
+// pub async fn hot_to_disk(
+//     config: &BucketConfig,
+//     metadata_forest: &mut Rc<PrivateForest>,
+//     root_dir: &Rc<PrivateDirectory>,
+// ) -> Result<TemporalKey> {
+//     let temporal_key = store_all_hot(&config.metadata, metadata_forest, root_dir).await?;
+//     Ok(temporal_key)
+// }
 
-/// Load all hot objects!
-pub async fn hot_from_disk(
-    origin: &Path,
-) -> Result<(
-    TemporalKey,
-    BucketConfig,
-    Rc<PrivateForest>,
-    Rc<PrivateDirectory>,
-)> {
-    let config = GlobalConfig::get_bucket(origin).unwrap();
-    let key = config.get_key("root").unwrap();
-    let (metadata_forest, dir) = load_all_hot(&key, &config.metadata).await?;
-    Ok((key, config, metadata_forest, dir))
-}
+// /// Load all hot objects!
+// pub async fn hot_from_disk(
+//     origin: &Path,
+// ) -> Result<(
+//     TemporalKey,
+//     BucketConfig,
+//     Rc<PrivateForest>,
+//     Rc<PrivateDirectory>,
+// )> {
+//     let config = GlobalConfig::get_bucket(origin).unwrap();
+//     let key = config.get_key("root").unwrap();
+//     let (metadata_forest, dir) = load_all_hot(&key, &config.metadata).await?;
+//     Ok((key, config, metadata_forest, dir))
+// }
 
 #[cfg(test)]
 mod test {
@@ -50,7 +50,7 @@ mod test {
     async fn disk_key() -> Result<()> {
         let test_name = "disk_key";
         // Start er up!
-        let (tomb_path, config, metadata_forest, content_forest, dir) =
+        let (tomb_path, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
 
         // Generate key for this directory

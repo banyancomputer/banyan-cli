@@ -224,11 +224,11 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
-        assert!(GlobalConfig::get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
         // Initialization worked
         init(&origin).await?.assert().success();
         // Assert the bucket exists now
-        let bucket = GlobalConfig::get_bucket(origin);
+        let bucket = GlobalConfig::from_disk()?.get_bucket(origin);
         assert!(bucket.is_some());
         // Assert that there is still no key, because we've not packed
         assert!(bucket.unwrap().get_key("root").is_err());

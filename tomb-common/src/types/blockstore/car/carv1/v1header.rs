@@ -24,7 +24,6 @@ impl V1Header {
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<()> {
         // Represent as DAGCBOR IPLD
         let ipld_buf = self.to_ipld_bytes()?;
-        println!("writing V1 header with ipld_buf len {}", ipld_buf.len());
         // Tally bytes in this DAGCBOR, encode as u64
         let varint_buf = encode_varint_u64(ipld_buf.len() as u64);
         // Write the varint, then the IPLD
@@ -36,7 +35,6 @@ impl V1Header {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(&mut r)?;
-        println!("reading V1 header with ipld_buf len {}", ipld_len);
         // Allocate that space
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes

@@ -32,7 +32,7 @@ impl GlobalConfig {
     }
 
     // Initialize from a reader
-    fn from_disk() -> Result<Self> {
+    pub fn from_disk() -> Result<Self> {
         let mut config_buf = Vec::new();
         match Self::get_read() {
             Ok(mut file) => {
@@ -46,38 +46,43 @@ impl GlobalConfig {
         }
     }
 
-    pub fn get_bucket(origin: &Path) -> Option<BucketConfig> {
-        Self::from_disk().unwrap().find_config(origin)
+    pub fn get_bucket(&self, origin: &Path) -> Option<BucketConfig> {
+        self.find_config(origin)
     }
 
-    pub fn new_bucket(origin: &Path) -> Result<BucketConfig> {
-        let mut config = Self::from_disk().unwrap();
-        let bucket = config.find_or_create_config(origin)?;
-        config.to_disk().unwrap();
-        Ok(bucket)
+    pub fn new_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
+        self.find_or_create_config(origin)
     }
 
-    pub fn remove(origin: &Path) -> Result<()> {
-        let mut config = Self::from_disk()?;
-        if let Some(bucket) = config.find_config(origin) {
+    pub fn remove(&mut self, origin: &Path) -> Result<()> {
+        if let Some(bucket) = self.find_config(origin) {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
-            let index = config.buckets.iter().position(|b| *b == bucket).unwrap();
+            let index = self.buckets.iter().position(|b| *b == bucket).unwrap();
             // Remove bucket config from global config
-            config.buckets.remove(index);
-            // Rewrite global config
-            config.to_disk()?
+            self.buckets.remove(index);
         }
         Ok(())
     }
-}
 
-// &self
-impl GlobalConfig {
+    pub fn update_config(&mut self, bucket: &BucketConfig) -> Result<()> {
+        // Find index
+        let index = self
+            .buckets
+            .iter()
+            .position(|b| b.origin == bucket.origin)
+            .unwrap();
+        // Update bucket at index
+        self.buckets[index] = bucket.clone();
+        // Ok
+        Ok(())
+    }
+
     // Write to disk
     pub fn to_disk(&self) -> Result<()> {
         Self::get_write()?.write_all(&dagcbor::encode(&self)?)?;
+        println!("just wrote out globalconfig: {:?}", self);
         Ok(())
     }
 
@@ -91,7 +96,6 @@ impl GlobalConfig {
     fn create_config(&mut self, origin: &Path) -> Result<BucketConfig> {
         let bucket = BucketConfig::new(origin)?;
         self.buckets.push(bucket.clone());
-        self.to_disk()?;
         Ok(bucket)
     }
 

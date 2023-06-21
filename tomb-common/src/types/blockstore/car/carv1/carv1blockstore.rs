@@ -72,18 +72,8 @@ impl CarV1BlockStore {
         self.carv1.get_all_cids()
     }
 
-    pub fn insert_root(&self, root: &Cid) -> Result<()> {
-        let mut r = self.get_read()?;
-        let tmp_file_name = format!(
-            "{}_tmp.car",
-            self.path.file_name().unwrap().to_str().unwrap()
-        );
-        let tmp_car_path = self.path.parent().unwrap().join(tmp_file_name);
-        let mut w = File::create(&tmp_car_path)?;
-        self.carv1.insert_root(root, &mut r, &mut w)?;
-        remove_file(&self.path)?;
-        rename(tmp_car_path, &self.path)?;
-        Ok(())
+    pub fn insert_root(&self, root: &Cid) {
+        self.carv1.insert_root(root);
     }
 }
 
@@ -205,7 +195,7 @@ mod tests {
             .await?;
 
         assert_eq!(store.carv1.header.roots.borrow().clone().len(), 2);
-        store.insert_root(&kitty_cid)?;
+        store.insert_root(&kitty_cid);
         assert_eq!(store.carv1.header.roots.borrow().clone().len(), 3);
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
         remove_file(new_path)?;

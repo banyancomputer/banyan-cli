@@ -26,7 +26,6 @@ impl CarV1 {
     pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Read the header
         let header = V1Header::read_bytes(&mut r)?;
-        println!("V1 header succesfully loaded {:?}", header);
         // Generate an index
         let index = V1Index::read_bytes(&mut r)?;
         Ok(Self { header, index })
@@ -115,10 +114,7 @@ impl CarV1 {
         self.index.get_all_cids()
     }
 
-    pub(crate) fn insert_root(
-        &self,
-        root: &Cid
-    ) {
+    pub(crate) fn insert_root(&self, root: &Cid) {
         // Grab reference to roots
         let mut roots = self.header.roots.borrow_mut();
         // Insert new root

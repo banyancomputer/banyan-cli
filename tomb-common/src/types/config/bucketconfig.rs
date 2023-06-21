@@ -1,4 +1,10 @@
-use crate::{types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore, utils::{config::*, serialize::*}};
+use crate::{
+    types::{
+        blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
+        config::globalconfig::GlobalConfig,
+    },
+    utils::{config::*, serialize::*},
+};
 use anyhow::{Ok, Result};
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
@@ -6,9 +12,10 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir, create_dir_all, remove_dir_all},
     io::{Read, Write},
-    path::{Path, PathBuf}, rc::Rc,
+    path::{Path, PathBuf},
+    rc::Rc,
 };
-use wnfs::private::{AesKey, TemporalKey, PrivateForest, PrivateDirectory};
+use wnfs::private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct BucketConfig {
@@ -93,7 +100,9 @@ impl BucketConfig {
         Ok(())
     }
 
-    pub async fn get_all(&self) -> Result<(
+    pub async fn get_all(
+        &self,
+    ) -> Result<(
         TemporalKey,
         Rc<PrivateForest>,
         Rc<PrivateForest>,
@@ -105,7 +114,12 @@ impl BucketConfig {
         Ok((key, metadata_forest, content_forest, dir))
     }
 
-    pub async fn set_all(&self, metadata_forest: &mut Rc<PrivateForest>, content_forest: &mut Rc<PrivateForest>, root_dir: &Rc<PrivateDirectory>) -> Result<()> {
+    pub async fn set_all(
+        &self,
+        metadata_forest: &mut Rc<PrivateForest>,
+        content_forest: &mut Rc<PrivateForest>,
+        root_dir: &Rc<PrivateDirectory>,
+    ) -> Result<()> {
         let temporal_key = store_all(
             &self.metadata,
             &self.content,
@@ -114,13 +128,14 @@ impl BucketConfig {
             root_dir,
         )
         .await?;
-    
+
         println!("save metadata roots: {:?}", self.metadata.get_roots());
-        
+
         self.metadata.to_disk()?;
         self.content.to_disk()?;
 
         self.set_key(&temporal_key, "root")?;
+
         Ok(())
     }
 }
@@ -140,3 +155,19 @@ impl BucketConfig {
 //         todo!()
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use std::path::Path;
+
+    use crate::types::config::globalconfig::GlobalConfig;
+
+    // #[test]
+    // fn bucket() -> Result<()> {
+    //     let origin = Path::new("");
+    //     let original = GlobalConfig::new_bucket(origin)?;
+
+    //     Ok(())
+    // }
+}

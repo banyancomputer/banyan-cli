@@ -57,10 +57,14 @@ pub async fn pipeline(
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
 
+    let mut global = GlobalConfig::from_disk()?;
+
     // If the user has done initialization for this directory
-    if let Some(config) = GlobalConfig::get_bucket(input_dir) {
+    if let Some(config) = global.get_bucket(input_dir) {
+        println!("just loaded in BucketConfig from disk: {:?}", config);
         let metadata = &config.metadata;
         let content = &config.content;
+        // Try to get the key of the root node
         let key = config.get_key("root");
 
         // Create the root directory in which all Nodes will be stored
@@ -124,12 +128,13 @@ pub async fn pipeline(
         // }
 
         // Store Forest and Dir in BlockStores and Key
-        config.set_all(
-            &mut metadata_forest,
-            &mut content_forest,
-            &root_dir,
-        )
-        .await
+        config
+            .set_all(&mut metadata_forest, &mut content_forest, &root_dir)
+            .await?;
+
+        global.update_config(&config)?;
+
+        global.to_disk()
     } else {
         Err(PipelineError::Uninitialized().into())
     }

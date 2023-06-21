@@ -38,9 +38,10 @@ pub(crate) async fn store_metadata_forest(
     metadata_forest: &Rc<PrivateForest>,
 ) -> Result<()> {
     // Store the forest in the hot store
-    let hot_cid = store_forest(metadata_forest, metadata).await?;
+    let metadata_cid = store_forest(metadata_forest, metadata).await?;
+    println!("s: storing metadata_forest with cid {}", metadata_cid);
     // Add PrivateForest associated roots to meta store
-    metadata.insert_root(&hot_cid)?;
+    metadata.insert_root(&metadata_cid);
     // Return Ok
     Ok(())
 }
@@ -49,6 +50,7 @@ pub(crate) async fn store_metadata_forest(
 pub async fn load_metadata_forest(metadata: &CarV2BlockStore) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let metadata_cid = &metadata.get_roots()[1];
+    println!("s: loading metadata_forest with cid {}", metadata_cid);
     // Load the forest
     load_forest(metadata_cid, metadata).await
 }
@@ -60,8 +62,9 @@ pub(crate) async fn store_content_forest(
 ) -> Result<()> {
     // Store the forest in the hot store
     let content_cid = store_forest(content_forest, content).await?;
+    println!("s: storing contnet_forest with cid {}", content_cid);
     // Add PrivateForest associated roots to meta store
-    content.insert_root(&content_cid)?;
+    content.insert_root(&content_cid);
     // Return Ok
     Ok(())
 }
@@ -70,6 +73,7 @@ pub(crate) async fn store_content_forest(
 pub async fn load_content_forest(content: &CarV2BlockStore) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let content_cid = &content.get_roots()[0];
+    println!("s: loading contnet_forest with cid {}", content_cid);
     // Load the forest
     load_forest(content_cid, content).await
 }
@@ -99,7 +103,7 @@ pub(crate) async fn store_dir(
         .await?;
 
     // Add PrivateDirectory associated roots to meta store
-    metadata.insert_root(&ref_cid)?;
+    metadata.insert_root(&ref_cid);
 
     // Return OK
     Ok(temporal_key)
@@ -113,6 +117,7 @@ pub async fn load_dir(
 ) -> Result<Rc<PrivateDirectory>> {
     // Get the PrivateRef CID
     let ref_cid = &metadata.get_roots()[0];
+    println!("loading PrivateNode dir with cid {}", ref_cid);
 
     // Construct the saturated name hash
     let (saturated_name_hash, content_cid): (HashOutput, Cid) = metadata
@@ -136,7 +141,7 @@ pub async fn store_all_hot(
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     // Empty all roots first
-    metadata.empty_roots()?;
+    metadata.empty_roots();
     // Store the dir, then the forest, then the manifest and key
     let temporal_key = store_dir(metadata, metadata_forest, root_dir).await?;
     store_metadata_forest(metadata, metadata_forest).await?;
@@ -162,8 +167,8 @@ pub async fn store_all(
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     // Empty all roots first
-    metadata.empty_roots()?;
-    content.empty_roots()?;
+    metadata.empty_roots();
+    content.empty_roots();
 
     let temporal_key = store_dir(metadata, metadata_forest, root_dir).await?;
 
@@ -201,13 +206,13 @@ mod test {
     async fn serial_metadata_forest() -> Result<()> {
         let test_name = "serial_metadata_forest";
         // Start er up!
-        let (_, config, metadata_forest, _, _) = &mut setup(test_name).await?;
+        let (_, global, config, metadata_forest, _, _) = &mut setup(test_name).await?;
 
         let cid = config
             .metadata
             .put_block("Hello Kitty!".as_bytes().to_vec(), IpldCodec::Raw)
             .await?;
-        config.metadata.insert_root(&cid)?;
+        config.metadata.insert_root(&cid);
 
         // Store and load
         store_metadata_forest(&config.metadata, metadata_forest).await?;
@@ -231,7 +236,7 @@ mod test {
     async fn serial_content_forest() -> Result<()> {
         let test_name = "serial_content_forest";
         // Start er up!
-        let (_, config, _, content_forest, _) = &mut setup(test_name).await?;
+        let (_, global, config, _, content_forest, _) = &mut setup(test_name).await?;
 
         // Store and load
         store_content_forest(&config.content, content_forest).await?;
@@ -255,7 +260,7 @@ mod test {
     async fn serial_dir_object() -> Result<()> {
         let test_name = "serial_dir_local";
         // Start er up!
-        let (_, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+        let (_, global, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
         let key = &store_dir(&config.metadata, metadata_forest, dir).await?;
         store_metadata_forest(&config.metadata, metadata_forest).await?;
@@ -273,7 +278,7 @@ mod test {
     async fn serial_dir_content() -> Result<()> {
         let test_name = "serial_dir_content";
         // Start er up!
-        let (_, config, original_metadata_forest, original_content_forest, original_dir) =
+        let (_, global, config, original_metadata_forest, original_content_forest, original_dir) =
             &mut setup(test_name).await?;
 
         // Grab the original file
@@ -327,7 +332,7 @@ mod test {
     async fn serial_all_hot() -> Result<()> {
         let test_name = "serial_all_hot";
         // Start er up!
-        let (_, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+        let (_, global, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
         let key = &store_all_hot(&config.metadata, metadata_forest, dir).await?;
 
@@ -351,7 +356,8 @@ mod test {
     async fn serial_all() -> Result<()> {
         let test_name = "serial_all";
         // Start er up!
-        let (_, config, metadata_forest, content_forest, dir) = &mut setup(test_name).await?;
+        let (_, global, config, metadata_forest, content_forest, dir) =
+            &mut setup(test_name).await?;
 
         let key = &store_all(
             &config.metadata,

@@ -4,13 +4,20 @@ use tomb_common::types::config::globalconfig::GlobalConfig;
 
 /// Create a default config for this user
 pub fn init(path: &Path) -> Result<()> {
-    GlobalConfig::new_bucket(path)?;
-    Ok(())
+    let mut global = GlobalConfig::from_disk()?;
+    global.new_bucket(path)?;
+    global.to_disk()
 }
 
 /// Remove all configuration data for this user
 pub fn deinit(path: &Path) -> Result<()> {
-    GlobalConfig::remove(path)
+    let mut global = GlobalConfig::from_disk()?;
+    global.remove(path)?;
+    global.to_disk()
+}
+
+pub fn deinit_all() -> Result<()> {
+    GlobalConfig::default().to_disk()
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
