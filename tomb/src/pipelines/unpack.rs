@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_recursion::async_recursion;
 use fs_extra::{copy_items, dir::CopyOptions};
-use std::path::Path;
+use std::{path::Path, rc::Rc};
 use tomb_common::{types::config::globalconfig::GlobalConfig, utils::disk::*};
 use wnfs::{
     common::BlockStore,
@@ -24,9 +24,14 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
-    // Load metadata
-    let (_, metadata, content, metadata_forest, content_forest, dir) =
-        &mut all_from_disk(origin).await?;
+    // let config = ;
+
+    match GlobalConfig::get_bucket(origin) {
+        Some(config) => {
+            // Load metadata
+            let (key, metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+            let metadata = &config.metadata;
+    let content = &config.content;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
@@ -38,8 +43,8 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
         output_dir: &Path,
         built_path: &Path,
         node: &PrivateNode,
-        metadata_forest: &PrivateForest,
-        content_forest: &PrivateForest,
+        metadata_forest: &Rc<PrivateForest>,
+        content_forest: &Rc<PrivateForest>,
         hot_store: &impl BlockStore,
         cold_store: &impl BlockStore,
     ) -> Result<()> {
@@ -99,4 +104,7 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
         content,
     )
     .await
+        },
+        None => todo!(),
+    }
 }

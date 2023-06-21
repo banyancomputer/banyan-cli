@@ -115,33 +115,24 @@ impl CarV1 {
         self.index.get_all_cids()
     }
 
-    pub(crate) fn insert_root<R: Read + Seek, W: Write + Seek>(
+    pub(crate) fn insert_root(
         &self,
-        root: &Cid,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
+        root: &Cid
+    ) {
         // Grab reference to roots
-        let mut new_roots = self.header.roots.borrow().clone();
+        let mut roots = self.header.roots.borrow_mut();
         // Insert new root
-        new_roots.push(*root);
-        // Update roots
-        self.update_roots(new_roots, &mut r, &mut w)?;
-        // Ok
-        Ok(())
+        roots.push(*root);
     }
 
-    pub(crate) fn empty_roots<R: Read + Seek, W: Write + Seek>(
-        &self,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
-        // Update roots
-        self.update_roots(Vec::new(), &mut r, &mut w)?;
-        // Ok
-        Ok(())
+    pub(crate) fn empty_roots(&self) {
+        // Grab reference to roots
+        let mut roots = self.header.roots.borrow_mut();
+        // Insert new root
+        *roots = Vec::new();
     }
 
+    /*
     fn update_roots<R: Read + Seek, W: Write + Seek>(
         &self,
         new_roots: Vec<Cid>,
@@ -170,6 +161,7 @@ impl CarV1 {
         // Ok
         Ok(())
     }
+     */
 }
 
 #[cfg(test)]
@@ -292,7 +284,7 @@ mod tests {
         // New root to be added
         let new_root = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
         // Insert that root, write to new file
-        car.insert_root(&new_root, &mut r, &mut w)?;
+        car.insert_root(&new_root);
 
         // Read the newly written CAR
         let mut r2 = File::open(&new_path)?;

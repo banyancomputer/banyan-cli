@@ -18,10 +18,7 @@ use std::{
     vec,
 };
 use tomb_common::{
-    types::{
-        blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
-        config::globalconfig::GlobalConfig,
-    },
+    types::config::globalconfig::GlobalConfig,
     utils::{
         disk::*,
         serialize::{load_content_forest, load_dir, load_metadata_forest},
@@ -62,8 +59,8 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(config) = GlobalConfig::get_bucket(input_dir) {
-        let metadata = &config.get_metadata()?;
-        let content = &config.get_content()?;
+        let metadata = &config.metadata;
+        let content = &config.content;
         let key = config.get_key("root");
 
         // Create the root directory in which all Nodes will be stored
@@ -77,31 +74,31 @@ pub async fn pipeline(
         let mut content_forest = Rc::new(PrivateForest::new());
 
         // If this filesystem has never been packed
-        if let Some(key) = key {
-            println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
-            let (new_metadata_forest, new_content_forest) = (
-                load_metadata_forest(metadata).await,
-                load_content_forest(content).await,
-            );
+        // if let Ok(key) = key {
+        //     println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
+        //     let (new_metadata_forest, new_content_forest) = (
+        //         load_metadata_forest(metadata).await,
+        //         load_content_forest(content).await,
+        //     );
 
-            if let Ok(new_metadata_forest) = new_metadata_forest &&
-           let Ok(new_dir) = load_dir(metadata, &key, &new_metadata_forest).await {
-            // Update the forest and root directory
-            metadata_forest = new_metadata_forest;
-            root_dir = new_dir;
-            println!("root dir and forest and original ratchet loaded from disk...");
-        }
-        // If the load was unsuccessful
-        else {
-            info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-        }
+        //     if let Ok(new_metadata_forest) = new_metadata_forest &&
+        //         let Ok(new_dir) = load_dir(metadata, &key, &new_metadata_forest).await {
+        //         // Update the forest and root directory
+        //         metadata_forest = new_metadata_forest;
+        //         root_dir = new_dir;
+        //         println!("root dir and forest and original ratchet loaded from disk...");
+        //     }
+        //     // If the load was unsuccessful
+        //     else {
+        //         info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
+        //     }
 
-            if let Ok(new_content_forest) = new_content_forest {
-                content_forest = new_content_forest;
-            }
-        } else {
-            info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        }
+        //     if let Ok(new_content_forest) = new_content_forest {
+        //         content_forest = new_content_forest;
+        //     }
+        // } else {
+        //     info!("tomb has not seen this filesystem before, starting from scratch! 💖");
+        // }
 
         // Process all of the PackPipelinePlans
         process_plans(
@@ -126,19 +123,13 @@ pub async fn pipeline(
         //     key_to_disk(tomb_path, &original_key, "original")?;
         // }
 
-        // Store Forest and Dir in BlockStores and retrieve Key
-        let temporal_key = &all_to_disk(
-            metadata,
-            content,
+        // Store Forest and Dir in BlockStores and Key
+        config.set_all(
             &mut metadata_forest,
             &mut content_forest,
             &root_dir,
         )
-        .await?;
-
-        config.set_key(temporal_key, "root")?;
-
-        Ok(())
+        .await
     } else {
         Err(PipelineError::Uninitialized().into())
     }

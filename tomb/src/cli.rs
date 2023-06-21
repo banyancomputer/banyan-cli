@@ -231,7 +231,7 @@ mod test {
         let bucket = GlobalConfig::get_bucket(origin);
         assert!(bucket.is_some());
         // Assert that there is still no key, because we've not packed
-        assert!(bucket.unwrap().get_key("root").is_none());
+        assert!(bucket.unwrap().get_key("root").is_err());
         // Teardown test
         test_teardown(test_name).await
     }

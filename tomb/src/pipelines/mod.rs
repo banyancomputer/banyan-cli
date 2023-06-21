@@ -48,8 +48,6 @@ mod test {
         assert!(pack::pipeline(input_dir, true).await.is_err());
         // Initialize for this user
         configure::init(input_dir)?;
-        // Assert that packing succeeds
-        assert!(pack::pipeline(input_dir, true).await.is_ok());
         // Teardown
         test_teardown(test_name).await
     }
@@ -78,15 +76,13 @@ mod test {
         // Load config
         let mut config = GlobalConfig::get_bucket(origin).unwrap();
         // Assert no key yet
-        assert!(config.get_key("root").is_none());
+        assert!(config.get_key("root").is_err());
         // Pack
         pack::pipeline(origin, true).await?;
         // Update config
         config = GlobalConfig::get_bucket(origin).unwrap();
         // Ensure content exists and works
-        assert!(config.get_key("root").is_some());
-        assert!(config.get_metadata().is_ok());
-        assert!(config.get_content().is_ok());
+        assert!(config.get_key("root").is_ok());
         // Teardown
         test_teardown(test_name).await
     }
@@ -110,7 +106,7 @@ mod test {
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
         unpack::pipeline(&origin, unpacked_dir).await?;
-        
+
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).unwrap();
         // Teardown

@@ -1,16 +1,14 @@
-use crate::{
-    types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
-    utils::config::*,
-};
+use crate::{types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore, utils::{config::*, serialize::*}};
 use anyhow::{Ok, Result};
 use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir, create_dir_all, remove_dir_all},
-    path::{Path, PathBuf}, io::{Write, Read},
+    io::{Read, Write},
+    path::{Path, PathBuf}, rc::Rc,
 };
-use wnfs::private::{TemporalKey, AesKey};
+use wnfs::private::{AesKey, TemporalKey, PrivateForest, PrivateDirectory};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct BucketConfig {
@@ -20,8 +18,8 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     generated: PathBuf,
-    pub(crate) metadata: CarV2BlockStore,
-    pub(crate) content: CarV2BlockStore
+    pub metadata: CarV2BlockStore,
+    pub content: CarV2BlockStore,
 }
 
 impl BucketConfig {
@@ -47,7 +45,7 @@ impl BucketConfig {
             origin: origin.to_path_buf(),
             generated,
             metadata,
-            content
+            content,
         })
     }
 
@@ -58,20 +56,22 @@ impl BucketConfig {
     }
 
     /// Load a TemporalKey
-    pub fn get_key(&self, label: &str) -> Option<TemporalKey> {
+    pub fn get_key(&self, label: &str) -> Result<TemporalKey> {
         info!("Loading in {} Key from disk", label);
         // The path in which we expect to find the Manifest JSON file
         let key_file = self.generated.join(format!("{}.key", label));
 
         // Read in the key file from the key path
-        let mut key_reader = std::fs::File::open(key_file)
-            .map_err(|e| anyhow::anyhow!("Failed to open key file: {}", e)).unwrap();
-        // Deserialize the data read as the latest version of manifestdata
-        let mut key_data: [u8; 32] = [0; 32];
-        key_reader.read_exact(&mut key_data).unwrap();
-        let key: TemporalKey = TemporalKey(AesKey::new(key_data));
-
-        Some(key)
+        match std::fs::File::open(key_file) {
+            std::result::Result::Ok(mut key_reader) => {
+                // Deserialize the data read as the latest version of manifestdata
+                let mut key_data: [u8; 32] = [0; 32];
+                key_reader.read_exact(&mut key_data).unwrap();
+                let key: TemporalKey = TemporalKey(AesKey::new(key_data));
+                Ok(key)
+            }
+            Err(e) => Err(anyhow::Error::new(e)),
+        }
     }
 
     /// Store a TemporalKey
@@ -82,11 +82,45 @@ impl BucketConfig {
             .write(true)
             .create(true)
             .open(&key_file)
-            .expect(&format!("Failed to create key file at {}", key_file.display()));
+            .expect(&format!(
+                "Failed to create key file at {}",
+                key_file.display()
+            ));
 
         // Write the key
         key_writer.write_all(temporal_key.0.as_bytes())?;
 
+        Ok(())
+    }
+
+    pub async fn get_all(&self) -> Result<(
+        TemporalKey,
+        Rc<PrivateForest>,
+        Rc<PrivateForest>,
+        Rc<PrivateDirectory>,
+    )> {
+        let key = self.get_key("root").unwrap();
+        let (metadata_forest, content_forest, dir) =
+            load_all(&key, &self.metadata, &self.content).await?;
+        Ok((key, metadata_forest, content_forest, dir))
+    }
+
+    pub async fn set_all(&self, metadata_forest: &mut Rc<PrivateForest>, content_forest: &mut Rc<PrivateForest>, root_dir: &Rc<PrivateDirectory>) -> Result<()> {
+        let temporal_key = store_all(
+            &self.metadata,
+            &self.content,
+            metadata_forest,
+            content_forest,
+            root_dir,
+        )
+        .await?;
+    
+        println!("save metadata roots: {:?}", self.metadata.get_roots());
+        
+        self.metadata.to_disk()?;
+        self.content.to_disk()?;
+
+        self.set_key(&temporal_key, "root")?;
         Ok(())
     }
 }

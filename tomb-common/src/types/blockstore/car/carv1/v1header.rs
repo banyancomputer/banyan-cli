@@ -1,4 +1,6 @@
-use crate::types::blockstore::car::varint::{encode_varint_u64, read_varint_u64, read_varint_u64_exact, encode_varint_u64_exact};
+use crate::types::blockstore::car::varint::{
+    encode_varint_u64, encode_varint_u64_exact, read_varint_u64, read_varint_u64_exact,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -186,5 +188,4 @@ mod tests {
         assert_eq!(header, new_header);
         Ok(())
     }
-
 }

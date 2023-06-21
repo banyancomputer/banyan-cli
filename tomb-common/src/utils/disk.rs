@@ -14,51 +14,13 @@ use std::{
 };
 use wnfs::private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey};
 
-
-/// Store everything at once!
-pub async fn all_to_disk(
-    config: BucketConfig,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
-    root_dir: &Rc<PrivateDirectory>,
-) -> Result<TemporalKey> {
-    let temporal_key =
-        store_all(&config.metadata, &config.content, metadata_forest, content_forest, root_dir).await?;
-
-    println!("save metadata roots: {:?}", config.metadata.get_roots());
-
-    config.metadata.to_disk()?;
-    config.content.to_disk()?;
-
-    Ok(temporal_key)
-}
-
-/// Load everything at once!
-pub async fn all_from_disk(
-    origin: &Path,
-) -> Result<(
-    TemporalKey,
-    BucketConfig,
-    Rc<PrivateForest>,
-    Rc<PrivateForest>,
-    Rc<PrivateDirectory>,
-)> {
-    let config = GlobalConfig::get_bucket(origin).unwrap();
-    let key = config.get_key("root").unwrap();
-
-    println!("load metadata roots: {:?}", config.metadata.get_roots());
-
-    let (metadata_forest, content_forest, dir) = load_all(&key, &config.metadata, &config.content).await?;
-    Ok((key, config, metadata_forest, content_forest, dir))
-}
-
 /// Store all hot objects!
 pub async fn hot_to_disk(
-    metadata: &CarV2BlockStore,
+    config: &BucketConfig,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_all_hot(metadata, metadata_forest, root_dir).await?;
+    let temporal_key = store_all_hot(&config.metadata, metadata_forest, root_dir).await?;
     Ok(temporal_key)
 }
 

@@ -140,7 +140,6 @@ pub async fn store_all_hot(
     // Store the dir, then the forest, then the manifest and key
     let temporal_key = store_dir(metadata, metadata_forest, root_dir).await?;
     store_metadata_forest(metadata, metadata_forest).await?;
-    
     Ok(temporal_key)
 }
 
@@ -313,7 +312,9 @@ mod test {
             )
             .await?;
         // Get the content
-        let new_content = file.get_content(original_content_forest, &config.content).await?;
+        let new_content = file
+            .get_content(original_content_forest, &config.content)
+            .await?;
 
         assert_eq!(original_content, new_content);
 
@@ -352,7 +353,14 @@ mod test {
         // Start er up!
         let (_, config, metadata_forest, content_forest, dir) = &mut setup(test_name).await?;
 
-        let key = &store_all(&config.metadata, &config.content, metadata_forest, content_forest, dir).await?;
+        let key = &store_all(
+            &config.metadata,
+            &config.content,
+            metadata_forest,
+            content_forest,
+            dir,
+        )
+        .await?;
 
         let (new_metadata_forest, new_content_forest, new_dir) =
             &mut load_all(key, &config.metadata, &config.content).await?;
