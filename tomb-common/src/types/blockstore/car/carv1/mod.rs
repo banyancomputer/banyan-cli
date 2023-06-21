@@ -34,7 +34,6 @@ impl CarV1 {
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
     pub(crate) fn write_bytes<R: Read + Seek, W: Write + Seek>(
         &self,
-        data_offset: i64,
         mut r: R,
         mut w: W,
     ) -> Result<()> {
@@ -42,11 +41,19 @@ impl CarV1 {
         let carv1_start = r.stream_position()?;
         println!("starting carv1 write at {}", carv1_start);
         w.seek(SeekFrom::Start(carv1_start))?;
+
+        let mut previous_header_buf: Vec<u8> = Vec::new();
+        V1Header::read_bytes(&mut r)?.write_bytes(&mut previous_header_buf)?;
+
         // Write the header into a buffer
-        let mut header_buf: Vec<u8> = Vec::new();
-        self.header.write_bytes(&mut header_buf)?;
+        let mut current_header_buf: Vec<u8> = Vec::new();
+        self.header.write_bytes(&mut current_header_buf)?;
+
+        let data_offset = (current_header_buf.len() - previous_header_buf.len()) as i64;
+        println!("computed data offset: {}", data_offset);
+
         // Compute the point where the new data will start
-        let new_data_start = carv1_start + header_buf.len() as u64;
+        let new_data_start = carv1_start + current_header_buf.len() as u64;
         // Skip to this point
         r.seek(SeekFrom::Start(new_data_start))?;
 
@@ -80,7 +87,7 @@ impl CarV1 {
         // Move back to the satart
         w.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
-        w.write_all(&header_buf)?;
+        w.write_all(&current_header_buf)?;
         // Flush
         w.flush()?;
         Ok(())
@@ -249,7 +256,7 @@ mod tests {
         let car = CarV1::read_bytes(&mut r)?;
         r.seek(std::io::SeekFrom::Start(0))?;
 
-        car.write_bytes(0, &mut r, &mut w)?;
+        car.write_bytes(&mut r, &mut w)?;
 
         // Read in the car
         let mut r2 = File::open(&new_path)?;
@@ -258,13 +265,14 @@ mod tests {
         assert_eq!(car, new_car);
         Ok(())
     }
+
     #[test]
     #[serial]
     fn insert_root() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
-        let original_path = Path::new("test").join("carv1-basic-insert-root-original.car");
-        let new_path = Path::new("test").join("carv1-basic-insert-root-updated.car");
+        let original_path = Path::new("test").join("carv1-basic-inert-root-original.car");
+        let new_path = Path::new("test").join("carv1-basic-inert-root-updated.car");
         copy(&existing_path, &original_path)?;
         copy(&existing_path, &new_path)?;
 
@@ -272,27 +280,19 @@ mod tests {
         let mut w = File::create(&new_path)?;
 
         // Read in the car
-        let car = CarV1::read_bytes(&mut r)?;
+        let mut car = CarV1::read_bytes(&mut r)?;
+
+        // Insert a root
+        car.insert_root(&Cid::default());
+
         r.seek(std::io::SeekFrom::Start(0))?;
-        //Find original roots
-        let original_roots = car.header.roots.borrow().clone();
+        car.write_bytes(&mut r, &mut w)?;
 
-        // New root to be added
-        let new_root = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
-        // Insert that root, write to new file
-        car.insert_root(&new_root);
-
-        // Read the newly written CAR
+        // Read in the car
         let mut r2 = File::open(&new_path)?;
         let new_car = CarV1::read_bytes(&mut r2)?;
-        let new_roots = new_car.header.roots.borrow().clone();
-
-        // Assert not equal
-        assert_ne!(original_roots, new_roots);
-        // Assert that the new roots contain the root added
-        assert!(new_roots.contains(&new_root));
         // Cleanup
-        remove_file(new_path)?;
+        assert_eq!(car, new_car);
         Ok(())
     }
 }

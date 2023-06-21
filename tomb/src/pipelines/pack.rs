@@ -131,7 +131,7 @@ pub async fn pipeline(
         config
             .set_all(&mut metadata_forest, &mut content_forest, &root_dir)
             .await?;
-
+        
         global.update_config(&config)?;
 
         global.to_disk()

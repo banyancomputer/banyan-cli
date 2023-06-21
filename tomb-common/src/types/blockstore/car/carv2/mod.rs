@@ -65,7 +65,7 @@ impl CarV2 {
         // Write up to the CARv1
         self.write_to_v1(&mut w)?;
         // Write carv1
-        self.carv1.write_bytes(0, &mut r, &mut w)?;
+        self.carv1.write_bytes(&mut r, &mut w)?;
         // The writer now contains the fully modified CARv1
         self.update_data_size(&mut w)?;
         w.flush()?;
