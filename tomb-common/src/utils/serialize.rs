@@ -140,6 +140,7 @@ pub async fn store_all_hot(
     // Store the dir, then the forest, then the manifest and key
     let temporal_key = store_dir(metadata, metadata_forest, root_dir).await?;
     store_metadata_forest(metadata, metadata_forest).await?;
+    
     Ok(temporal_key)
 }
 
@@ -202,21 +203,21 @@ mod test {
         let test_name = "serial_metadata_forest";
         // Start er up!
         let (_, config, metadata_forest, _, _) = &mut setup(test_name).await?;
-        let metadata = &mut config.get_metadata()?;
 
-        let cid = metadata
+        let cid = config
+            .metadata
             .put_block("Hello Kitty!".as_bytes().to_vec(), IpldCodec::Raw)
             .await?;
-        metadata.insert_root(&cid)?;
+        config.metadata.insert_root(&cid)?;
 
         // Store and load
-        store_metadata_forest(metadata, metadata_forest).await?;
-        let new_metadata_forest = &mut load_metadata_forest(metadata).await?;
+        store_metadata_forest(&config.metadata, metadata_forest).await?;
+        let new_metadata_forest = &mut load_metadata_forest(&config.metadata).await?;
 
         // Assert equality
         assert_eq!(
             new_metadata_forest
-                .diff(metadata_forest, metadata)
+                .diff(metadata_forest, &config.metadata)
                 .await?
                 .len(),
             0
@@ -233,16 +234,14 @@ mod test {
         // Start er up!
         let (_, config, _, content_forest, _) = &mut setup(test_name).await?;
 
-        let content = &mut config.get_content()?;
-
         // Store and load
-        store_content_forest(content, content_forest).await?;
-        let new_content_forest = &mut load_content_forest(content).await?;
+        store_content_forest(&config.content, content_forest).await?;
+        let new_content_forest = &mut load_content_forest(&config.content).await?;
 
         // Assert equality
         assert_eq!(
             new_content_forest
-                .diff(content_forest, content)
+                .diff(content_forest, &config.content)
                 .await?
                 .len(),
             0
@@ -259,12 +258,10 @@ mod test {
         // Start er up!
         let (_, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
-        let metadata = &mut config.get_metadata()?;
-
-        let key = &store_dir(metadata, metadata_forest, dir).await?;
-        store_metadata_forest(metadata, metadata_forest).await?;
-        let new_metadata_forest = &load_metadata_forest(metadata).await?;
-        let new_dir = &mut load_dir(metadata, key, new_metadata_forest).await?;
+        let key = &store_dir(&config.metadata, metadata_forest, dir).await?;
+        store_metadata_forest(&config.metadata, metadata_forest).await?;
+        let new_metadata_forest = &load_metadata_forest(&config.metadata).await?;
+        let new_dir = &mut load_dir(&config.metadata, key, new_metadata_forest).await?;
         // Assert equality
         assert_eq!(dir, new_dir);
         // Teardown
@@ -280,9 +277,6 @@ mod test {
         let (_, config, original_metadata_forest, original_content_forest, original_dir) =
             &mut setup(test_name).await?;
 
-        let metadata = &mut config.get_metadata()?;
-        let content = &mut config.get_content()?;
-
         // Grab the original file
         let original_file = original_dir
             .open_file_mut(
@@ -290,21 +284,21 @@ mod test {
                 true,
                 Utc::now(),
                 original_metadata_forest,
-                metadata,
+                &config.metadata,
                 &mut thread_rng(),
             )
             .await?;
 
         // Get the content
         let original_content = original_file
-            .get_content(original_content_forest, content)
+            .get_content(original_content_forest, &config.content)
             .await?;
 
-        let key = &store_dir(metadata, original_metadata_forest, original_dir).await?;
-        store_metadata_forest(metadata, original_metadata_forest).await?;
+        let key = &store_dir(&config.metadata, original_metadata_forest, original_dir).await?;
+        store_metadata_forest(&config.metadata, original_metadata_forest).await?;
 
-        let new_metadata_forest = &mut load_metadata_forest(metadata).await?;
-        let new_dir = &mut load_dir(metadata, key, new_metadata_forest).await?;
+        let new_metadata_forest = &mut load_metadata_forest(&config.metadata).await?;
+        let new_dir = &mut load_dir(&config.metadata, key, new_metadata_forest).await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 
@@ -314,12 +308,12 @@ mod test {
                 true,
                 Utc::now(),
                 new_metadata_forest,
-                metadata,
+                &config.metadata,
                 &mut thread_rng(),
             )
             .await?;
         // Get the content
-        let new_content = file.get_content(original_content_forest, content).await?;
+        let new_content = file.get_content(original_content_forest, &config.content).await?;
 
         assert_eq!(original_content, new_content);
 
@@ -334,16 +328,14 @@ mod test {
         // Start er up!
         let (_, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
-        let metadata = &mut config.get_metadata()?;
+        let key = &store_all_hot(&config.metadata, metadata_forest, dir).await?;
 
-        let key = &store_all_hot(metadata, metadata_forest, dir).await?;
-
-        let (new_metadata_forest, new_dir) = &mut load_all_hot(key, metadata).await?;
+        let (new_metadata_forest, new_dir) = &mut load_all_hot(key, &config.metadata).await?;
 
         // Assert equality
         assert_eq!(
             new_metadata_forest
-                .diff(metadata_forest, metadata)
+                .diff(metadata_forest, &config.metadata)
                 .await?
                 .len(),
             0
@@ -360,25 +352,22 @@ mod test {
         // Start er up!
         let (_, config, metadata_forest, content_forest, dir) = &mut setup(test_name).await?;
 
-        let metadata = &mut config.get_metadata()?;
-        let content = &mut config.get_content()?;
-
-        let key = &store_all(metadata, content, metadata_forest, content_forest, dir).await?;
+        let key = &store_all(&config.metadata, &config.content, metadata_forest, content_forest, dir).await?;
 
         let (new_metadata_forest, new_content_forest, new_dir) =
-            &mut load_all(key, metadata, content).await?;
+            &mut load_all(key, &config.metadata, &config.content).await?;
 
         // Assert equality
         assert_eq!(
             new_metadata_forest
-                .diff(metadata_forest, metadata)
+                .diff(metadata_forest, &config.metadata)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
             new_content_forest
-                .diff(content_forest, content)
+                .diff(content_forest, &config.content)
                 .await?
                 .len(),
             0

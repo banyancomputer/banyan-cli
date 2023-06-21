@@ -14,64 +14,21 @@ use std::{
 };
 use wnfs::private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey};
 
-/// Store a TemporalKey
-pub fn key_to_disk(folder: &Path, temporal_key: &TemporalKey, label: &str) -> Result<()> {
-    // The path in which we expect to find the Manifest JSON file
-    let key_file = folder.join(format!("{}.key", label));
-    let mut key_writer = match std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&key_file)
-    {
-        Ok(f) => f,
-        Err(e) => Err(anyhow::anyhow!(
-            "Failed to create key file at {}: {}",
-            key_file.display(),
-            e
-        ))?,
-    };
-
-    // Write the key
-    key_writer.write_all(temporal_key.0.as_bytes())?;
-
-    Ok(())
-}
-/// Load a TemporalKey
-pub fn key_from_disk(folder: &Path, label: &str) -> Result<TemporalKey> {
-    info!("Loading in {} Key from disk", label);
-    // The path in which we expect to find the Manifest JSON file
-    let key_file = folder.join(format!("{}.key", label));
-
-    // Read in the key file from the key path
-    let mut key_reader = std::fs::File::open(key_file)
-        .map_err(|e| anyhow::anyhow!("Failed to open key file: {}", e))?;
-    // Deserialize the data read as the latest version of manifestdata
-    let mut key_data: [u8; 32] = [0; 32];
-    key_reader.read_exact(&mut key_data)?;
-    let key: TemporalKey = TemporalKey(AesKey::new(key_data));
-
-    Ok(key)
-}
 
 /// Store everything at once!
 pub async fn all_to_disk(
-    metadata: &CarV2BlockStore,
-    content: &CarV2BlockStore,
+    config: BucketConfig,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
-    let temporal_key = store_all(
-        metadata, 
-        content,
-        metadata_forest,
-        content_forest,
-        root_dir,
-    )
-    .await?;
+    let temporal_key =
+        store_all(&config.metadata, &config.content, metadata_forest, content_forest, root_dir).await?;
 
-    metadata.to_disk()?;
-    content.to_disk()?;
+    println!("save metadata roots: {:?}", config.metadata.get_roots());
+
+    config.metadata.to_disk()?;
+    config.content.to_disk()?;
 
     Ok(temporal_key)
 }
@@ -81,30 +38,27 @@ pub async fn all_from_disk(
     origin: &Path,
 ) -> Result<(
     TemporalKey,
-    CarV2BlockStore,
-    CarV2BlockStore,
+    BucketConfig,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
     let config = GlobalConfig::get_bucket(origin).unwrap();
     let key = config.get_key("root").unwrap();
-    let metadata = config.get_metadata()?;
-    let content = config.get_content()?;
-    let (metadata_forest, content_forest, dir) = load_all(&key, &metadata, &content).await?;
-    Ok((key, metadata, content, metadata_forest, content_forest, dir))
+
+    println!("load metadata roots: {:?}", config.metadata.get_roots());
+
+    let (metadata_forest, content_forest, dir) = load_all(&key, &config.metadata, &config.content).await?;
+    Ok((key, config, metadata_forest, content_forest, dir))
 }
 
 /// Store all hot objects!
 pub async fn hot_to_disk(
-    origin: &Path,
     metadata: &CarV2BlockStore,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
     let temporal_key = store_all_hot(metadata, metadata_forest, root_dir).await?;
-    let config = GlobalConfig::get_bucket(origin).unwrap();
-    config.set_key(&temporal_key, "root")?;
     Ok(temporal_key)
 }
 
@@ -113,15 +67,14 @@ pub async fn hot_from_disk(
     origin: &Path,
 ) -> Result<(
     TemporalKey,
-    CarV2BlockStore,
+    BucketConfig,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
     let config = GlobalConfig::get_bucket(origin).unwrap();
     let key = config.get_key("root").unwrap();
-    let metadata = config.get_metadata()?;
-    let (metadata_forest, dir) = load_all_hot(&key, &metadata).await?;
-    Ok((key, metadata, metadata_forest, dir))
+    let (metadata_forest, dir) = load_all_hot(&key, &config.metadata).await?;
+    Ok((key, config, metadata_forest, dir))
 }
 
 #[cfg(test)]
@@ -140,8 +93,8 @@ mod test {
 
         // Generate key for this directory
         let key = store_all(
-            &config.get_metadata()?,
-            &config.get_content()?,
+            &config.metadata,
+            &config.content,
             metadata_forest,
             content_forest,
             dir,
@@ -149,8 +102,8 @@ mod test {
         .await?;
 
         // Store and load
-        key_to_disk(&tomb_path, &key, "root")?;
-        let new_key = key_from_disk(&tomb_path, "root")?;
+        config.set_key(&key, "root")?;
+        let new_key = config.get_key("root").unwrap();
 
         // Assert equality
         assert_eq!(key, new_key);

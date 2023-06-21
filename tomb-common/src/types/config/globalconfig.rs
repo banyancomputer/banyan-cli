@@ -89,10 +89,10 @@ impl GlobalConfig {
     }
 
     fn create_config(&mut self, origin: &Path) -> Result<BucketConfig> {
-        let config = BucketConfig::new(origin)?;
-        self.buckets.push(config.clone());
+        let bucket = BucketConfig::new(origin)?;
+        self.buckets.push(bucket.clone());
         self.to_disk()?;
-        Ok(config)
+        Ok(bucket)
     }
 
     fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {

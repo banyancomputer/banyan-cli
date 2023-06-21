@@ -15,7 +15,7 @@ use wnfs::libipld::Cid;
 
 use self::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
 pub(crate) struct CarV1 {
     pub header: V1Header,
     pub index: V1Index,
@@ -26,7 +26,7 @@ impl CarV1 {
     pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Read the header
         let header = V1Header::read_bytes(&mut r)?;
-        println!("i finished reading the header at {}", r.stream_position()?);
+        println!("V1 header succesfully loaded {:?}", header);
         // Generate an index
         let index = V1Index::read_bytes(&mut r)?;
         Ok(Self { header, index })
@@ -150,7 +150,6 @@ impl CarV1 {
     ) -> Result<()> {
         let mut old_header_buf: Vec<u8> = Vec::new();
         self.header.write_bytes(&mut old_header_buf)?;
-
         {
             // Grab mutable reference to roots
             let mut roots = self.header.roots.borrow_mut();

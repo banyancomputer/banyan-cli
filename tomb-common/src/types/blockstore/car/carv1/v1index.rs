@@ -9,7 +9,7 @@ use std::{
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct V1Index(pub(crate) RefCell<HashMap<Cid, u64>>);
 
 impl V1Index {

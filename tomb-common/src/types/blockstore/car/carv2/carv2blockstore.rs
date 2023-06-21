@@ -14,7 +14,7 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
     pub(crate) carv2: CarV2,

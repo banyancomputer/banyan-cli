@@ -32,14 +32,7 @@ pub async fn pipeline(input_file: &Path, origin: &Path, wnfs_path: &Path) -> Res
         .await?;
 
     // Store all the updated information, now that we've written the file
-    all_to_disk(
-        metadata,
-        content,
-        metadata_forest,
-        content_forest,
-        root_dir,
-    )
-    .await?;
+    all_to_disk(metadata, content, metadata_forest, content_forest, root_dir).await?;
     // Return Ok
     Ok(())
 }

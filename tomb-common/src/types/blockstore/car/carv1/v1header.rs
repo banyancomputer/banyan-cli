@@ -1,4 +1,4 @@
-use crate::types::blockstore::car::varint::{encode_varint_u64, read_varint_u64};
+use crate::types::blockstore::car::varint::{encode_varint_u64, read_varint_u64, read_varint_u64_exact, encode_varint_u64_exact};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,7 +12,7 @@ use wnfs::{
 };
 
 // | 16-byte varint | n-byte DAG CBOR |
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub(crate) struct V1Header {
     pub version: u64,
     pub roots: RefCell<Vec<Cid>>,
@@ -22,6 +22,7 @@ impl V1Header {
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<()> {
         // Represent as DAGCBOR IPLD
         let ipld_buf = self.to_ipld_bytes()?;
+        println!("writing V1 header with ipld_buf len {}", ipld_buf.len());
         // Tally bytes in this DAGCBOR, encode as u64
         let varint_buf = encode_varint_u64(ipld_buf.len() as u64);
         // Write the varint, then the IPLD
@@ -33,6 +34,7 @@ impl V1Header {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(&mut r)?;
+        println!("reading V1 header with ipld_buf len {}", ipld_len);
         // Allocate that space
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes
@@ -162,4 +164,27 @@ mod tests {
         // Return Ok
         Ok(())
     }
+
+    #[test]
+    fn modify_roots() -> Result<()> {
+        // Construct a V1Header
+        let header = V1Header::default();
+        {
+            let mut roots = header.roots.borrow_mut();
+            roots.push(Cid::default());
+        }
+
+        // Write the header into a buffer
+        let mut header_bytes: Vec<u8> = Vec::new();
+        header.write_bytes(&mut header_bytes)?;
+
+        // Reconstruct the header from this buffer
+        let header_cursor = Cursor::new(header_bytes);
+        let new_header = V1Header::read_bytes(header_cursor)?;
+
+        // Assert equality
+        assert_eq!(header, new_header);
+        Ok(())
+    }
+
 }

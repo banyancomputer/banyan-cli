@@ -61,8 +61,6 @@ pub async fn setup(
     create_dir_all(&origin)?;
     GlobalConfig::remove(&origin)?;
     let config = GlobalConfig::new_bucket(&origin)?;
-    let content = config.get_metadata()?;
-    let metadata = config.get_content()?;
 
     // Hot Forest and cold Forest
     let mut metadata_forest = Rc::new(PrivateForest::new());
@@ -84,7 +82,7 @@ pub async fn setup(
             true,
             Utc::now(),
             &mut metadata_forest,
-            &metadata,
+            &config.metadata,
             rng,
         )
         .await?;
@@ -94,7 +92,7 @@ pub async fn setup(
         Utc::now(),
         "Hello Kitty!".as_bytes(),
         &mut content_forest,
-        &content,
+        &config.content,
         rng,
     )
     .await?;

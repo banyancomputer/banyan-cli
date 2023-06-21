@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use fs_extra::{copy_items, dir::CopyOptions};
 use std::path::Path;
-use tomb_common::utils::disk::*;
+use tomb_common::{types::config::globalconfig::GlobalConfig, utils::disk::*};
 use wnfs::{
     common::BlockStore,
     private::{PrivateForest, PrivateNode},
@@ -20,33 +20,13 @@ use crate::utils::wnfsio::file_to_disk;
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(input_dir: &Path, output_dir: &Path) -> Result<()> {
-    // If there is an input dir specific with a valid tomb
-    let tomb_dir = input_dir.join(".tomb");
-    if tomb_dir.exists() {
-        // Copy the existing tomb over to the output dir
-        copy_items(&[tomb_dir], output_dir, &CopyOptions::new().overwrite(true))?;
-    }
-
-    // Paths representing metadata and content
-    let tomb_path = output_dir.join(".tomb");
-    // If initialization hasnt even happened
-    if !tomb_path.exists() {
-        panic!(".tomb does not exist in input or output directories");
-    }
+pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
+
     // Load metadata
     let (_, metadata, content, metadata_forest, content_forest, dir) =
-        &mut all_from_disk(&tomb_path).await?;
-
-    // Update the locations of the CarV2BlockStores to be relative to the input path
-    // manifest.metadata.change_dir(&tomb_path)?;
-    // if local {
-    //     manifest
-    //         .content
-    //         .change_dir(&input_dir.unwrap().join("content"))?
-    // }
+        &mut all_from_disk(origin).await?;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",

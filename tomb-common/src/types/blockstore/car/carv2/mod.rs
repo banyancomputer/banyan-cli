@@ -9,8 +9,9 @@ use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Borrow,
     cell::RefCell,
-    io::{Read, Seek, SeekFrom, Write}, borrow::Borrow,
+    io::{Read, Seek, SeekFrom, Write},
 };
 use wnfs::libipld::Cid;
 
@@ -23,7 +24,7 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
     0x0a, 0xa1, 0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02,
 ];
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
 pub struct CarV2 {
     header: RefCell<V2Header>,
     carv1: CarV1,
@@ -69,8 +70,8 @@ impl CarV2 {
         self.carv1.write_bytes(0, &mut r, &mut w)?;
         // The writer now contains the fully modified CARv1
         self.update_data_size(&mut w)?;
-
         w.flush()?;
+        println!("finished writing carv2");
         Ok(())
     }
 
@@ -127,7 +128,9 @@ impl CarV2 {
     fn read_to_v1<R: Read + Seek>(&self, mut r: R) -> Result<()> {
         // Skip past the Pragma and Header on the reader
         // r.seek(SeekFrom::Start(V2_PH_SIZE))?;
-        r.seek(SeekFrom::Start(self.header.borrow().data_offset + V2_PH_SIZE))?;
+        r.seek(SeekFrom::Start(
+            self.header.borrow().data_offset + V2_PH_SIZE,
+        ))?;
         Ok(())
     }
 
@@ -139,7 +142,9 @@ impl CarV2 {
         // Write the header
         self.header.borrow().clone().write_bytes(&mut w)?;
         println!("wrote v2header: {:?}", self.header.borrow());
-        w.seek(SeekFrom::Start(self.header.borrow().data_offset + V2_PH_SIZE))?;
+        w.seek(SeekFrom::Start(
+            self.header.borrow().data_offset + V2_PH_SIZE,
+        ))?;
         // Flush
         // w.flush()?;
         Ok(())
@@ -191,7 +196,13 @@ impl CarV2 {
 mod tests {
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::File, io::{BufReader, Cursor, Read}, path::Path, str::FromStr, vec};
+    use std::{
+        fs::File,
+        io::{BufReader, Cursor, Read},
+        path::Path,
+        str::FromStr,
+        vec,
+    };
     use wnfs::libipld::Cid;
 
     use crate::types::blockstore::car::carv2::CarV2;
@@ -271,8 +282,11 @@ mod tests {
 
         let mut new_new_buf = Cursor::new(Vec::new());
         reconstructed.write_bytes(&mut file, &mut new_new_buf)?;
-        
-        assert_eq!(new_buf.clone().into_inner(), new_new_buf.clone().into_inner());
+
+        assert_eq!(
+            new_buf.clone().into_inner(),
+            new_new_buf.clone().into_inner()
+        );
 
         Ok(())
     }

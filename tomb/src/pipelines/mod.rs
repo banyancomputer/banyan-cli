@@ -29,12 +29,12 @@ mod test {
     use dir_assert::assert_paths;
     use fake_file::{Strategy, Structure};
     use serial_test::serial;
-    use tomb_common::types::config::globalconfig::GlobalConfig;
     use std::{
         fs::{self, create_dir_all, metadata, File},
         io::Write,
         path::PathBuf,
     };
+    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]
@@ -85,35 +85,40 @@ mod test {
         config = GlobalConfig::get_bucket(origin).unwrap();
         // Ensure content exists and works
         assert!(config.get_key("root").is_some());
-        config.get_metadata()?;
-        // assert!(.is_ok());
-        // assert!(config.get_content().is_ok());
+        assert!(config.get_metadata().is_ok());
+        assert!(config.get_content().is_ok());
+        // Teardown
+        test_teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn pipeline_pack_unpack_local() -> Result<()> {
+        let test_name = "pipeline_pack_unpack_local";
+        // Create the setup conditions
+        let origin = &test_setup(test_name).await?;
+        // Initialize
+        configure::init(origin)?;
+        // Pack locally
+        pack::pipeline(origin, true).await?;
+        println!("PACK PIPELINE FINISHED");
+        // Create a new dir to unpack in
+        let unpacked_dir = &origin
+            .parent()
+            .unwrap()
+            .join(format!("{}_unpacked", test_name));
+        create_dir_all(unpacked_dir)?;
+        // Run the unpacking pipeline
+        unpack::pipeline(&origin, unpacked_dir).await?;
+        
+        // Assert the pre-packed and unpacked directories are identical
+        assert_paths(origin, unpacked_dir).unwrap();
         // Teardown
         test_teardown(test_name).await
     }
 
     /*
 
-    #[tokio::test]
-    async fn pipeline_pack_unpack_local() -> Result<()> {
-        let test_name = "pipeline_pack_unpack_local";
-        // Create the setup conditions
-        let input_dir= &test_setup(test_name).await?;
-        // Pack locally
-        pack::pipeline(input_dir, true).await?;
-        // Create a new dir to unpack in
-        let unpacked_dir = &input_dir.parent().unwrap().join("unpacked");
-        create_dir_all(unpacked_dir)?;
-        // Run the unpacking pipeline
-        unpack::pipeline(&input_dir, unpacked_dir).await?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(input_dir, unpacked_dir).unwrap();
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-
-    
     #[tokio::test]
     #[serial]
     #[ignore]

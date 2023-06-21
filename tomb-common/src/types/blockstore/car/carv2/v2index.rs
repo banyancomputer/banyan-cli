@@ -4,10 +4,10 @@ use std::io::{Read, Seek, Write};
 
 use crate::types::blockstore::car::varint::*;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub(crate) struct V2Index {
     codec: u128,
-    bytes: Vec<u8>
+    bytes: Vec<u8>,
 }
 
 impl V2Index {
@@ -26,5 +26,5 @@ impl V2Index {
         // Write bytes
         w.write_all(&self.bytes)?;
         Ok(())
-    }    
+    }
 }

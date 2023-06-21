@@ -17,6 +17,6 @@ pub async fn pipeline(tomb_path: &Path, wnfs_path: &Path) -> Result<()> {
     )
     .await?;
     // Stores the modified directory back to disk
-    hot_to_disk(tomb_path, metadata, metadata_forest, dir).await?;
+    hot_to_disk(metadata, metadata_forest, dir).await?;
     Ok(())
 }
