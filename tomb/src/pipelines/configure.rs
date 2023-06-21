@@ -16,7 +16,7 @@ pub fn deinit(path: &Path) -> Result<()> {
     global.to_disk()
 }
 
-/// Remove all configuration data 
+/// Remove all configuration data
 pub fn deinit_all() -> Result<()> {
     GlobalConfig::from_disk()?.remove_data()
 }

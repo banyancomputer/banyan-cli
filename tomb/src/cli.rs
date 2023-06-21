@@ -146,10 +146,8 @@ pub(crate) struct Args {
 mod test {
     use anyhow::Result;
     use assert_cmd::prelude::*;
-    use fs_extra::dir::CopyOptions;
     use serial_test::serial;
     use std::{
-        fs::{create_dir_all, metadata},
         path::Path,
         process::Command,
     };
@@ -219,6 +217,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_init() -> Result<()> {
         let test_name = "cli_init";
         // Setup test
@@ -237,6 +236,27 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
+    async fn cli_init_deinit() -> Result<()> {
+        let test_name = "cli_init_deinit";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Assert no bucket exists yet
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        // Initialization worked
+        init(origin).await?.assert().success();
+        // Assert the bucket exists now
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
+        // Deinitialize the directory
+        deinit(origin).await?.assert().success();
+        // Assert the bucket is gone again
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        // Teardown test
+        test_teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
     #[ignore]
     async fn cli_configure_remote() -> Result<()> {
         let test_name = "cli_configure_remote";
@@ -260,8 +280,8 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /*
     #[tokio::test]
+    #[serial]
     async fn cli_pack_local() -> Result<()> {
         let test_name = "cli_pack_local";
         // Setup test
@@ -275,6 +295,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_unpack_local() -> Result<()> {
         let test_name = "cli_unpack_local";
         // Setup test
@@ -289,6 +310,7 @@ mod test {
         test_teardown(test_name).await
     }
 
+    /*
     #[tokio::test]
     #[serial]
     #[ignore]

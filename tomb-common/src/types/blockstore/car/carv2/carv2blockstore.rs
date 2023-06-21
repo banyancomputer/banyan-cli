@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use wnfs::{
-    common::{dagcbor, BlockStore},
+    common::BlockStore,
     libipld::{Cid, IpldCodec},
 };
 
@@ -136,6 +136,8 @@ impl BlockStore for CarV2BlockStore {
     }
 }
 
+// TODO implement this so the whole struct need not be encoded
+
 // impl Serialize for CarV2BlockStore {
 //     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
 //     where
@@ -162,7 +164,6 @@ mod tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{copy, remove_file},
         path::Path,
         str::FromStr,
     };

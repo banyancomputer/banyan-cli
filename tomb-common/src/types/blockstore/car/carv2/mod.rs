@@ -9,7 +9,6 @@ use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
-    borrow::Borrow,
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
 };

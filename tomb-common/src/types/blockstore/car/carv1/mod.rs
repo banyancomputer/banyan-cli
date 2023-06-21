@@ -173,7 +173,7 @@ mod tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{copy, remove_file, File},
+        fs::{copy, File},
         io::Seek,
         path::Path,
         str::FromStr,
@@ -280,7 +280,7 @@ mod tests {
         let mut w = File::create(&new_path)?;
 
         // Read in the car
-        let mut car = CarV1::read_bytes(&mut r)?;
+        let car = CarV1::read_bytes(&mut r)?;
 
         // Insert a root
         car.insert_root(&Cid::default());

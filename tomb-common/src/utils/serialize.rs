@@ -206,7 +206,7 @@ mod test {
     async fn serial_metadata_forest() -> Result<()> {
         let test_name = "serial_metadata_forest";
         // Start er up!
-        let (_, global, config, metadata_forest, _, _) = &mut setup(test_name).await?;
+        let (_, _, config, metadata_forest, _, _) = &mut setup(test_name).await?;
 
         let cid = config
             .metadata
@@ -236,7 +236,7 @@ mod test {
     async fn serial_content_forest() -> Result<()> {
         let test_name = "serial_content_forest";
         // Start er up!
-        let (_, global, config, _, content_forest, _) = &mut setup(test_name).await?;
+        let (_, _, config, _, content_forest, _) = &mut setup(test_name).await?;
 
         // Store and load
         store_content_forest(&config.content, content_forest).await?;
@@ -260,7 +260,7 @@ mod test {
     async fn serial_dir_object() -> Result<()> {
         let test_name = "serial_dir_local";
         // Start er up!
-        let (_, global, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+        let (_, _, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
         let key = &store_dir(&config.metadata, metadata_forest, dir).await?;
         store_metadata_forest(&config.metadata, metadata_forest).await?;
@@ -278,7 +278,7 @@ mod test {
     async fn serial_dir_content() -> Result<()> {
         let test_name = "serial_dir_content";
         // Start er up!
-        let (_, global, config, original_metadata_forest, original_content_forest, original_dir) =
+        let (_, _, config, original_metadata_forest, original_content_forest, original_dir) =
             &mut setup(test_name).await?;
 
         // Grab the original file
@@ -332,7 +332,7 @@ mod test {
     async fn serial_all_hot() -> Result<()> {
         let test_name = "serial_all_hot";
         // Start er up!
-        let (_, global, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+        let (_, _, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
         let key = &store_all_hot(&config.metadata, metadata_forest, dir).await?;
 
@@ -356,7 +356,7 @@ mod test {
     async fn serial_all() -> Result<()> {
         let test_name = "serial_all";
         // Start er up!
-        let (_, global, config, metadata_forest, content_forest, dir) =
+        let (_, _, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
 
         let key = &store_all(

@@ -1,8 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Seek, Write};
-
-use crate::types::blockstore::car::varint::*;
+use std::io::{Read, Seek};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
 pub(crate) struct V2Index {
@@ -11,7 +9,7 @@ pub(crate) struct V2Index {
 }
 
 impl V2Index {
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Option<Self>> {
+    pub fn read_bytes<R: Read + Seek>(mut _r: R) -> Result<Option<Self>> {
         // Grab the codec
         // let codec = read_varint_u128(&mut r)?;
         // let mut bytes: Vec<u8> = Vec::new();
@@ -20,11 +18,11 @@ impl V2Index {
         Ok(None)
     }
 
-    pub fn write_bytes<W: Write + Seek>(&self, mut w: W) -> Result<()> {
-        // Write codec
-        w.write_all(&encode_varint_u128(self.codec))?;
-        // Write bytes
-        w.write_all(&self.bytes)?;
-        Ok(())
-    }
+    // pub fn write_bytes<W: Write + Seek>(&self, mut w: W) -> Result<()> {
+    //     // Write codec
+    //     w.write_all(&encode_varint_u128(self.codec))?;
+    //     // Write bytes
+    //     w.write_all(&self.bytes)?;
+    //     Ok(())
+    // }
 }

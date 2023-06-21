@@ -1,6 +1,4 @@
-use crate::types::blockstore::car::varint::{
-    encode_varint_u64, encode_varint_u64_exact, read_varint_u64, read_varint_u64_exact,
-};
+use crate::types::blockstore::car::varint::{encode_varint_u64, read_varint_u64};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{

@@ -18,7 +18,7 @@ pub mod unpack;
 mod test {
     use super::add;
     use crate::{
-        pipelines::{configure, pack, pull, push, remove, unpack},
+        pipelines::{configure, pack, push, remove, unpack},
         utils::{
             spider::path_to_segments,
             tests::{test_setup, test_setup_structured, test_teardown},
@@ -30,7 +30,7 @@ mod test {
     use fake_file::{Strategy, Structure};
     use serial_test::serial;
     use std::{
-        fs::{self, create_dir_all, metadata, remove_dir_all, File},
+        fs::{create_dir_all, File},
         io::Write,
         path::PathBuf,
     };

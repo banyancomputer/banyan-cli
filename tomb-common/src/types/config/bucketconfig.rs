@@ -1,8 +1,5 @@
 use crate::{
-    types::{
-        blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
-        config::globalconfig::GlobalConfig,
-    },
+    types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
     utils::{config::*, serialize::*},
 };
 use anyhow::{Ok, Result};
@@ -10,7 +7,7 @@ use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{create_dir, create_dir_all, remove_dir_all},
+    fs::{create_dir_all, remove_dir_all},
     io::{Read, Write},
     path::{Path, PathBuf},
     rc::Rc,
@@ -88,11 +85,8 @@ impl BucketConfig {
         let mut key_writer = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
-            .open(&key_file)
-            .expect(&format!(
-                "Failed to create key file at {}",
-                key_file.display()
-            ));
+            .open(key_file)
+            .expect("Failed to create key file");
 
         // Write the key
         key_writer.write_all(temporal_key.0.as_bytes())?;
@@ -138,36 +132,4 @@ impl BucketConfig {
 
         Ok(())
     }
-}
-
-// impl Serialize for BucketConfig {
-//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer {
-//         todo!()
-//     }
-// }
-
-// impl<'de> Deserialize<'de> for BucketConfig {
-//     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-//     where
-//         D: serde::Deserializer<'de> {
-//         todo!()
-//     }
-// }
-
-#[cfg(test)]
-mod tests {
-    use anyhow::Result;
-    use std::path::Path;
-
-    use crate::types::config::globalconfig::GlobalConfig;
-
-    // #[test]
-    // fn bucket() -> Result<()> {
-    //     let origin = Path::new("");
-    //     let original = GlobalConfig::new_bucket(origin)?;
-
-    //     Ok(())
-    // }
 }

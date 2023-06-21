@@ -17,13 +17,7 @@ use std::{
     rc::Rc,
     vec,
 };
-use tomb_common::{
-    types::config::globalconfig::GlobalConfig,
-    utils::{
-        disk::*,
-        serialize::{load_content_forest, load_dir, load_metadata_forest},
-    },
-};
+use tomb_common::types::config::globalconfig::GlobalConfig;
 use wnfs::{
     common::BlockStore,
     namefilter::Namefilter,
@@ -65,7 +59,7 @@ pub async fn pipeline(
         let metadata = &config.metadata;
         let content = &config.content;
         // Try to get the key of the root node
-        let key = config.get_key("root");
+        let _ = config.get_key("root");
 
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(
