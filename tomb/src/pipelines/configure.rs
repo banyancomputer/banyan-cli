@@ -9,15 +9,16 @@ pub fn init(path: &Path) -> Result<()> {
     global.to_disk()
 }
 
-/// Remove all configuration data for this user
+/// Remove all configuration data for a given bucket
 pub fn deinit(path: &Path) -> Result<()> {
     let mut global = GlobalConfig::from_disk()?;
     global.remove(path)?;
     global.to_disk()
 }
 
+/// Remove all configuration data 
 pub fn deinit_all() -> Result<()> {
-    GlobalConfig::default().to_disk()
+    GlobalConfig::from_disk()?.remove_data()
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place

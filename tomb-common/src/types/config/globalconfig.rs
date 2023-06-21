@@ -4,7 +4,7 @@ use super::bucketconfig::BucketConfig;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
+    fs::{File, remove_file},
     io::{Read, Write},
     path::{Path, PathBuf},
 };
@@ -63,6 +63,17 @@ impl GlobalConfig {
             // Remove bucket config from global config
             self.buckets.remove(index);
         }
+        Ok(())
+    }
+
+    pub fn remove_data(&self) -> Result<()> {
+        // Remove bucket data
+        for bucket in &self.buckets {
+            bucket.remove_data()?;
+        }
+        // Remove global
+        remove_file(Self::get_path())?;
+        // Ok
         Ok(())
     }
 

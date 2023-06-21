@@ -30,7 +30,7 @@ mod test {
     use fake_file::{Strategy, Structure};
     use serial_test::serial;
     use std::{
-        fs::{self, create_dir_all, metadata, File, remove_dir_all},
+        fs::{self, create_dir_all, metadata, remove_dir_all, File},
         io::Write,
         path::PathBuf,
     };
@@ -161,6 +161,7 @@ mod test {
     */
 
     #[tokio::test]
+    #[serial]
     async fn pipeline_add_local() -> Result<()> {
         let test_name = "pipeline_add_local";
         // Create the setup conditions
@@ -178,7 +179,7 @@ mod test {
         // Create and write to the file
         File::create(input_file)?.write_all(&file_content)?;
         // Add the input file to the WNFS
-        add::pipeline(input_file, input_file, input_file).await?;
+        add::pipeline(origin, input_file, input_file).await?;
 
         // Now that the pipeline has run, grab all metadata
         let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
@@ -209,7 +210,6 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /*
     #[tokio::test]
     #[serial]
     async fn pipeline_remove_local() -> Result<()> {
@@ -225,7 +225,7 @@ mod test {
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
         let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (_, metadata_forest, _, dir) = &mut config.get_all(tomb_path).await?;
+        let (_, metadata_forest, _, dir) = &mut config.get_all().await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -234,16 +234,18 @@ mod test {
         // Remove the PrivateFile at this Path
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
-        let (_, manifest, metadata_forest, dir) = &mut hot_from_disk(tomb_path).await?;
+        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
+        let (_, metadata_forest, _, dir) = &mut config.get_all().await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
         // Teardown
-        test_teardown(test_name).await
+        test_teardown(test_name).await?;
+
+        Ok(())
     }
-    */ 
 
     // Helper function for structure tests
     async fn assert_pack_unpack_local(test_name: &str) -> Result<()> {
@@ -255,7 +257,7 @@ mod test {
         // Pack locally
         pack::pipeline(origin, true).await?;
         // Create a new dir to unpack in
-        
+
         let unpacked_dir = &origin.parent().unwrap().join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
