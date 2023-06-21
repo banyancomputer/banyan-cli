@@ -1,8 +1,8 @@
 # TODO: add codecov.yml when we're ready to use it.
 #ignore:
-#  - "dataprep"
-#  - "dataprep-lib/bench"
-#  - "dataprep-lib/test"
+#  - "tomb"
+#  - "tomb-lib/bench"
+#  - "tomb-lib/test"
 #
 #comment:
 #  layout: "reach, diff, flags, files"
