@@ -9,7 +9,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write}
 };
 use wnfs::libipld::Cid;
 
@@ -28,6 +28,7 @@ impl CarV1 {
         let header = V1Header::read_bytes(&mut r)?;
         // Generate an index
         let index = V1Index::read_bytes(&mut r)?;
+        println!("finished reading v1index");
         Ok(Self { header, index })
     }
 
@@ -55,11 +56,13 @@ impl CarV1 {
             carv1_start + current_header_buf.len() as u64,
         ))?;
 
+        println!("preupddated v1index: {:?}", &self.index);
+
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
 
         // For each block logged in the index
-        for (cid, offset) in self.index.0.borrow().clone() {
+        for (cid, offset) in self.index.map.borrow().clone() {
             // Move to preexisting offset
             r.seek(SeekFrom::Start(offset))?;
             // Grab existing block
@@ -74,7 +77,12 @@ impl CarV1 {
             new_index.insert(block.cid, new_offset);
         }
         // Update index
-        *self.index.0.borrow_mut() = new_index.clone();
+        *self.index.map.borrow_mut() = new_index.clone();
+        *self.index.next_block.borrow_mut() += data_offset as u64;
+
+        println!("updated v1index: {:?}", &self.index);
+        // println!("updated v1index: {:?}", &self.index);
+        
 
         // Move back to the satart
         w.seek(SeekFrom::Start(carv1_start))?;
@@ -93,11 +101,14 @@ impl CarV1 {
 
     pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
         // Move to the end
-        w.seek(SeekFrom::End(0))?;
+        println!("next_block: {}, end: {}", self.index.next_block.borrow(), w.stream_len()?);
+        w.seek(SeekFrom::Start(self.index.next_block.borrow().clone()))?;
         // Insert current offset before bytes are written
         self.index.insert_offset(&block.cid, w.stream_position()?);
         // Write the bytes
         block.write_bytes(&mut w)?;
+        // Update the next block position
+        *self.index.next_block.borrow_mut() = w.stream_position()?;
         // Return Ok
         Ok(())
     }
@@ -225,8 +236,11 @@ mod tests {
         // Read in the car
         let mut r2 = File::open(&new_path)?;
         let new_car = CarV1::read_bytes(&mut r2)?;
-        // Cleanup
+
+        assert_eq!(car.header, new_car.header);
+        assert_eq!(car.index, new_car.index);
         assert_eq!(car, new_car);
+
         Ok(())
     }
 }

@@ -14,7 +14,7 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
     pub(crate) carv2: CarV2,
@@ -137,26 +137,26 @@ impl BlockStore for CarV2BlockStore {
 
 // TODO implement this so the whole struct need not be encoded
 
-// impl Serialize for CarV2BlockStore {
-//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-//     where
-//         S: serde::Serializer,
-//     {
-//         // Write to disk just in case
-//         self.to_disk().unwrap();
-//         // Serialize path
-//         self.path.serialize(serializer)
-//     }
-// }
+impl Serialize for CarV2BlockStore {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Write to disk just in case
+        self.to_disk().unwrap();
+        // Serialize path
+        self.path.serialize(serializer)
+    }
+}
 
-// impl<'de> Deserialize<'de> for CarV2BlockStore {
-//     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-//     where
-//         D: serde::Deserializer<'de>,
-//     {
-//         Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
-//     }
-// }
+impl<'de> Deserialize<'de> for CarV2BlockStore {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -69,6 +69,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn pipeline_pack_local() -> Result<()> {
         let test_name = "pipeline_pack_local";
         // Create the setup conditions

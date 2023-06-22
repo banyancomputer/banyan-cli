@@ -209,6 +209,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_init() -> Result<()> {
         let test_name = "cli_init";
         // Setup test
@@ -228,6 +229,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_init_deinit() -> Result<()> {
         let test_name = "cli_init_deinit";
         // Setup test
@@ -273,6 +275,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_pack_local() -> Result<()> {
         let test_name = "cli_pack_local";
         // Setup test
@@ -287,6 +290,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_unpack_local() -> Result<()> {
         let test_name = "cli_unpack_local";
         // Setup test

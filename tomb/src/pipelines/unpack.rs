@@ -26,8 +26,9 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
     let global = GlobalConfig::from_disk()?;
 
     if let Some(config) = global.get_bucket(origin) {
+        println!("\njust loaded in BucketConfig from disk: {:?}\n", config);
         // Load metadata
-        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, dir) = &mut config.get_all_metadata().await?;
         let metadata = &config.metadata;
         let content = &config.content;
 

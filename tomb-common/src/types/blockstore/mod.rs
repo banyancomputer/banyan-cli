@@ -46,8 +46,8 @@ mod tests {
     #[serial]
     async fn carv2blockstore() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-basic.car");
-        let new_path = Path::new("test").join("carv2-basic-v2.car");
+        let existing_path = fixture_path.join("carv2-indexless.car");
+        let new_path = Path::new("test").join("carv2-indexless-v2.car");
         std::fs::copy(existing_path, &new_path)?;
         let store = &CarV2BlockStore::new(&new_path)?;
         bs_retrieval_test(store).await?;

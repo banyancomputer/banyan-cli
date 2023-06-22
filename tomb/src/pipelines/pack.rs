@@ -55,9 +55,9 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(config) = global.get_bucket(input_dir) {
-        // println!("just loaded in BucketConfig from disk: {:?}", config);
-        let metadata = &config.metadata;
-        let content = &config.content;
+        println!("\njust loaded in BucketConfig from disk: {:?}\n", config);
+        // let metadata = &config.metadata;
+        // let content = &config.content;
         // Try to get the key of the root node
         let _ = config.get_key("root");
 
@@ -105,8 +105,8 @@ pub async fn pipeline(
             &mut root_dir,
             &mut metadata_forest,
             &mut content_forest,
-            metadata,
-            content,
+            &config.metadata,
+            &config.content,
         )
         .await?;
 
@@ -127,7 +127,6 @@ pub async fn pipeline(
             .await?;
 
         global.update_config(&config)?;
-
         global.to_disk()
     } else {
         Err(PipelineError::Uninitialized().into())

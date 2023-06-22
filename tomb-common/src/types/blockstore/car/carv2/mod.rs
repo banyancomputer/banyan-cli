@@ -25,9 +25,9 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
 pub struct CarV2 {
-    header: RefCell<V2Header>,
-    carv1: CarV1,
-    index: Option<V2Index>,
+    pub(crate) header: RefCell<V2Header>,
+    pub(crate) carv1: CarV1,
+    pub(crate) index: Option<V2Index>,
 }
 
 impl CarV2 {
@@ -108,6 +108,8 @@ impl CarV2 {
             .insert_offset(&block.cid, w.stream_position()?);
         // Write the bytes
         block.write_bytes(&mut w)?;
+        // Update the next block
+        *self.carv1.index.next_block.borrow_mut() = w.stream_position()?;
         // Update the data size
         self.update_data_size(&mut w)?;
         // Return Ok
@@ -134,9 +136,12 @@ impl CarV2 {
     fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
         // Update the data size
         let v1_end = x.seek(SeekFrom::End(0))?;
-        println!("data size: {}", v1_end);
         // Update the data size
-        self.header.borrow_mut().data_size = v1_end - V2_PH_SIZE;
+        self.header.borrow_mut().data_size = if v1_end > V2_PH_SIZE {
+            v1_end - V2_PH_SIZE
+        } else {
+            0
+        };
         Ok(())
     }
 

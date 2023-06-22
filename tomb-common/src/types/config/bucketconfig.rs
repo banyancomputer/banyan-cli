@@ -135,10 +135,6 @@ impl BucketConfig {
             root_dir,
         )
         .await?;
-
-        self.metadata.to_disk()?;
-        self.content.to_disk()?;
-
         self.set_key(&temporal_key, "root")
     }
 }

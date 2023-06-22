@@ -269,7 +269,6 @@ mod tests {
             .await?;
         // Insert root
         original.insert_root(&cid);
-
         // Write BlockStore to disk
         original.to_disk()?;
 

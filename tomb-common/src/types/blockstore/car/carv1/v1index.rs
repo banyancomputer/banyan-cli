@@ -10,27 +10,34 @@ use std::{
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
 #[derive(Debug, PartialEq, Default, Clone)]
-pub struct V1Index(pub(crate) RefCell<HashMap<Cid, u64>>);
+pub struct V1Index {
+    pub(crate) map: RefCell<HashMap<Cid, u64>>,
+    pub(crate) next_block: RefCell<u64>
+}
 
 impl V1Index {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let mut offsets = HashMap::<Cid, u64>::new();
+        let mut next_block: u64 = 0;
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = V1Block::start_read(&mut r) {
             // Log where we found this block
             offsets.insert(cid, block_offset);
             // Skip the rest of the block
-            r.seek(SeekFrom::Current(
-                varint as i64 - cid.to_bytes().len() as i64,
-            ))?;
+            r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
+            next_block = r.stream_position()?;
+            println!("read block_offset {}; next block is {}", block_offset, next_block);
         }
 
-        Ok(Self(RefCell::new(offsets)))
+        Ok(Self {
+            map: RefCell::new(offsets),
+            next_block: RefCell::new(next_block)
+        })
     }
 
     pub fn get_offset(&self, cid: &Cid) -> Result<u64> {
-        if let Some(offset) = self.0.borrow().get(cid) {
+        if let Some(offset) = self.map.borrow().get(cid) {
             Ok(*offset)
         } else {
             Err(BlockStoreError::CIDNotFound(*cid).into())
@@ -38,11 +45,11 @@ impl V1Index {
     }
 
     pub fn insert_offset(&self, cid: &Cid, offset: u64) {
-        self.0.borrow_mut().insert(*cid, offset);
+        self.map.borrow_mut().insert(*cid, offset);
     }
 
     pub fn get_all_cids(&self) -> Vec<Cid> {
-        self.0.borrow().clone().into_keys().collect()
+        self.map.borrow().clone().into_keys().collect()
     }
 }
 
@@ -52,12 +59,12 @@ impl Serialize for V1Index {
         S: serde::Serializer,
     {
         // Grab the map
-        let map: HashMap<Cid, u64> = self.0.borrow().clone();
+        let map: HashMap<Cid, u64> = self.map.borrow().clone();
         // Rewrite the map using strings
         let new_map: HashMap<String, u64> =
             map.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
         // Serialize the String based map
-        new_map.serialize(serializer)
+        (new_map, self.next_block.borrow().clone()).serialize(serializer)
     }
 }
 
@@ -67,14 +74,17 @@ impl<'de> Deserialize<'de> for V1Index {
         D: Deserializer<'de>,
     {
         // Deserialize the map
-        let map: HashMap<String, u64> = <HashMap<String, u64>>::deserialize(deserializer)?;
+        let (map, next_block): (HashMap<String, u64>, u64) = <(HashMap<String, u64>, u64)>::deserialize(deserializer)?;
         // Rewrite the map using CIDs
         let new_map: HashMap<Cid, u64> = map
             .into_iter()
             .map(|(k, v)| (Cid::from_str(&k).unwrap(), v))
             .collect();
         // Create new self
-        Ok(Self(RefCell::new(new_map)))
+        Ok(Self {
+            map: RefCell::new(new_map),
+            next_block: RefCell::new(next_block)
+        })
     }
 }
 
