@@ -47,26 +47,14 @@ pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
     Ok(compressed)
 }
 
-/// Writes content to a given path within a given WNFS filesystem, ensuring that duplicate writing is avoided
-// pub async fn write_file(
-//     path_segments: &[String],
-//     content: Vec<u8>,
-//     dir: &mut Rc<PrivateDirectory>,
-//     forest: &mut Rc<PrivateForest>,
-//     hot_store: &impl BlockStore,
-//     cold_store: &impl BlockStore,
-//     rng: &mut impl RngCore,
-// ) -> Result<()> {
-
-// }
-
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
 pub async fn file_to_disk(
     file: &Rc<PrivateFile>,
     output_dir: &Path,
     file_path: &Path,
-    content_forest: &PrivateForest,
-    cold_store: &impl BlockStore,
+    total_forest: &PrivateForest,
+    metadata: &impl BlockStore,
+    content: &impl BlockStore,
 ) -> Result<()> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {
@@ -78,16 +66,23 @@ pub async fn file_to_disk(
         // Create the file at the desired location
         let mut output_file = File::create(file_path)?;
         // Buffer for decrypted and decompressed file content
-        let mut content: Vec<u8> = Vec::new();
+        let mut content_buf: Vec<u8> = Vec::new();
         // Get and decompress bytes associated with this file
-        decompress_bytes(
-            file.get_content(content_forest, cold_store)
-                .await?
-                .as_slice(),
-            &mut content,
-        )?;
+
+        // let content_try = ;
+        if let Ok(content_try) = file.get_content(total_forest, content).await {
+            decompress_bytes(content_try.as_slice(), &mut content_buf)?;
+        }
+        else if let Ok(metadata_try) = file.get_content(total_forest, metadata).await {
+            decompress_bytes(metadata_try.as_slice(), &mut content_buf)?;
+        }
+        else {
+            println!("Oh no! couldnt find data...");
+        }
+
+        
         // Write all contents to the output file
-        output_file.write_all(&content)?;
+        output_file.write_all(&content_buf)?;
     }
 
     // Return Ok

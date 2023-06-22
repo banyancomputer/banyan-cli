@@ -20,11 +20,8 @@ pub(crate) enum ConfigSubCommands {
     /// tomb seturl - Set the ID for this tomb's bucket - MAY BREAK YOUR EVERYTHING!!!
     SetRemote {
         /// Server address
-        #[arg(short, long, help = "remote IPv4 address")]
-        url: String,
-        /// Server port
-        #[arg(short, long, help = "remote address port")]
-        port: u16,
+        #[arg(short, long, help = "full server address")]
+        address: String,
     },
 }
 
@@ -146,8 +143,9 @@ pub(crate) struct Args {
 mod test {
     use anyhow::Result;
     use assert_cmd::prelude::*;
+    use fs_extra::{file, dir};
     use serial_test::serial;
-    use std::{path::Path, process::Command};
+    use std::{path::Path, process::Command, fs::metadata};
     use tomb::utils::tests::{test_setup, test_teardown};
     use tomb_common::types::config::globalconfig::GlobalConfig;
 
@@ -163,17 +161,13 @@ mod test {
         Ok(cmd)
     }
 
-    async fn configure_remote(dir: &Path, url: &str, port: u16) -> Result<Command> {
+    async fn configure_remote(address: &str) -> Result<Command> {
         // configure set-remote --url http://127.0.0.1 --port 5001
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("configure")
             .arg("set-remote")
-            .arg("--dir")
-            .arg(dir)
-            .arg("--url")
-            .arg(url)
-            .arg("--port")
-            .arg(format!("{}", port));
+            .arg("--address")
+            .arg(address);
         Ok(cmd)
     }
 
@@ -264,7 +258,7 @@ mod test {
         init(&input_dir).await?.assert().success();
 
         // Configure remote endpoint
-        configure_remote(&input_dir, "http://127.0.0.1", 5001)
+        configure_remote("http://127.0.0.1:5001")
             .await?
             .assert()
             .success();
@@ -307,42 +301,36 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /*
     #[tokio::test]
     #[serial]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test
-        let input_dir = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(&input_dir).await?.assert().success();
+        init(origin).await?.assert().success();
         // Configure remote endpoint
-        configure_remote(&input_dir, "http://127.0.0.1", 5001)
+        configure_remote("http://127.0.0.1:5001")
             .await?
             .assert()
             .success();
         // Run pack locally and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack(origin).await?.assert().success();
+
+        let v1_path = &GlobalConfig::from_disk()?.get_bucket(origin).unwrap().content.path;
+        let v1_moved = &v1_path.parent().unwrap().join("old_content.car");
+        file::move_file(v1_path, v1_moved, &file::CopyOptions::new())?;
+
         // Run push and assert success
-        push(output_dir).await?.assert().success();
-        // Create a directory in which to reconstruct
-        let rebuild_dir = output_dir.parent().unwrap().join("rebuild");
-        create_dir_all(&rebuild_dir)?;
-        // Copy the metadata into the new directory, but no content
-        fs_extra::copy_items(
-            &[output_dir.join(".tomb")],
-            &rebuild_dir,
-            &CopyOptions::new(),
-        )?;
+        push(origin).await?.assert().success();
         // Run unpack and assert success
-        pull(&rebuild_dir).await?.assert().success();
+        pull(&origin).await?.assert().success();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(
-            metadata(&output_dir.join("content.car"))?.len(),
-            metadata(&rebuild_dir.join("content.car"))?.len(),
+            metadata(v1_path)?.len(),
+            metadata(v1_moved)?.len(),
         );
         // Teardown test
         test_teardown(test_name).await
     }
-    */
 }

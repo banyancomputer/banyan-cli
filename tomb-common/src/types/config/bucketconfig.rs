@@ -117,15 +117,12 @@ impl BucketConfig {
     pub async fn get_all(
         &self,
     ) -> Result<(
-        TemporalKey,
         Rc<PrivateForest>,
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
     )> {
         let key = self.get_key("root").unwrap();
-        let (metadata_forest, content_forest, dir) =
-            load_all(&key, &self.metadata, &self.content).await?;
-        Ok((key, metadata_forest, content_forest, dir))
+        load_all(&key, &self.metadata, &self.content).await
     }
 
     pub async fn set_all(

@@ -93,7 +93,7 @@ impl GlobalConfig {
     // Write to disk
     pub fn to_disk(&self) -> Result<()> {
         Self::get_write()?.write_all(&dagcbor::encode(&self)?)?;
-        println!("just wrote out globalconfig: {:?}", self);
+        // println!("just wrote out globalconfig: {:?}", self);
         Ok(())
     }
 

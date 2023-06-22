@@ -19,7 +19,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
 
     if let Some(mut config) = global.get_bucket(origin) {
         // Overwrite the content with new BlockStore
-        remove_file(&config.content.path)?;
+        remove_file(&config.content.path).ok();
         config.content = CarV2BlockStore::new(&config.content.path)?;
 
         // Load
@@ -43,6 +43,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
         let progress_bar = get_progress_bar(children.len() as u64)?;
 
         let remote = NetworkBlockStore::new(&global.remote);
+        println!("remote: {}", remote.addr);
 
         // For each CID found
         for child in children {

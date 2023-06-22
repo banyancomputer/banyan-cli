@@ -27,7 +27,7 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
 
     if let Some(config) = global.get_bucket(origin) {
         // Load metadata
-        let (_, metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
         let metadata = &config.metadata;
         let content = &config.content;
 
@@ -85,11 +85,14 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
                     let file_path = &output_dir.join(built_path);
                     println!("processing file {}", file_path.display());
                     // Handle the PrivateFile and write its contents to disk
-                    file_to_disk(file, output_dir, file_path, content_forest, cold_store).await?;
+                    file_to_disk(file, output_dir, file_path, content_forest, hot_store, cold_store).await?;
                 }
             }
             Ok(())
         }
+
+        // TODO (organizedgrime) consult the WNFS gods as to why this is still necessary, considering we separated out our stores
+        let total_forest = &Rc::new(content_forest.merge(metadata_forest, metadata).await?);
 
         // Run extraction on the base level with an empty built path
         process_node(
@@ -97,7 +100,7 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
             Path::new(""),
             &dir.as_node(),
             metadata_forest,
-            content_forest,
+            total_forest,
             metadata,
             content,
         )

@@ -17,7 +17,7 @@ pub async fn pipeline(origin: &Path, input_file: &Path, wnfs_path: &Path) -> Res
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
         // Get structs
-        let (_, metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
 
         // Compress the data in the file
         let content_buf = compress_file(input_file)?;

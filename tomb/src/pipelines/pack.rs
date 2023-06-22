@@ -55,7 +55,7 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(config) = global.get_bucket(input_dir) {
-        println!("just loaded in BucketConfig from disk: {:?}", config);
+        // println!("just loaded in BucketConfig from disk: {:?}", config);
         let metadata = &config.metadata;
         let content = &config.content;
         // Try to get the key of the root node
@@ -199,6 +199,7 @@ async fn process_plans(
                 let path_segments = &path_to_segments(first)?;
                 // Grab the current time
                 let time = Utc::now();
+                println!("path_segments: {:?}", path_segments);
                 // Open the PrivateFile
                 let file: &mut PrivateFile = root_dir
                     .open_file_mut(path_segments, true, time, metadata_forest, metadata, rng)

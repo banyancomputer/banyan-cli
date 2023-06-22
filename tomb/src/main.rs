@@ -99,8 +99,8 @@ async fn main() -> Result<()> {
                 cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
                     unimplemented!("todo... change where we stage content locally");
                 }
-                cli::ConfigSubCommands::SetRemote { url, port } => {
-                    configure::remote(&url, port)?;
+                cli::ConfigSubCommands::SetRemote { address } => {
+                    configure::remote(&address)?;
                 }
             }
         },

@@ -16,7 +16,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
 
     if let Some(config) = global.get_bucket(origin) {
         info!("Loaded manifest...");
-        let (_, metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
 
         // Grab all Block CIDs
         let children: Vec<Cid> = config.content.get_all_cids();
