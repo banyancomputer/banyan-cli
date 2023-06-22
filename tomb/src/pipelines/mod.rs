@@ -18,7 +18,7 @@ pub mod unpack;
 mod test {
     use super::add;
     use crate::{
-        pipelines::{configure, pack, push, remove, unpack},
+        pipelines::{configure, pack, pull, push, remove, unpack},
         utils::{
             spider::path_to_segments,
             tests::{test_setup, test_setup_structured, test_teardown},
@@ -28,9 +28,10 @@ mod test {
     use anyhow::Result;
     use dir_assert::assert_paths;
     use fake_file::{Strategy, Structure};
+    use fclones::config;
     use serial_test::serial;
     use std::{
-        fs::{create_dir_all, File},
+        fs::{create_dir_all, metadata, remove_file, File},
         io::Write,
         path::PathBuf,
     };
@@ -55,14 +56,14 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn pipeline_configure_remote() -> Result<()> {
-        let test_name = "pipeline_configure_remote";
-        // Create the setup conditions
-        let input_dir = test_setup(test_name).await?;
         // Configure the remote endpoint
-        configure::remote("http://127.0.0.1", 5001)?;
-
-        // Teardown
-        test_teardown(test_name).await
+        configure::remote("http://app.tomb.com.net.org", 5423)?;
+        // Assert it was actually modified
+        assert_eq!(
+            GlobalConfig::from_disk()?.remote,
+            "http://app.tomb.com.net.org:5423"
+        );
+        Ok(())
     }
 
     #[tokio::test]
@@ -113,11 +114,13 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
+    // #[ignore]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
+        // Initialize
+        configure::init(&origin)?;
         // Configure the remote endpoint
         configure::remote("http://127.0.0.1", 5001)?;
         // Pack locally
@@ -128,10 +131,9 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /*
     #[tokio::test]
     #[serial]
-    #[ignore]
+    // #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Create the setup conditions
@@ -139,26 +141,36 @@ mod test {
         // Initialize tomb
         configure::init(origin)?;
         // Configure the remote endpoint
-        configure::remote(&origin, "http://127.0.0.1", 5001)?;
+        configure::remote("http://127.0.0.1", 5001)?;
         // Pack locally
-        pack::pipeline(&input_dir, &output_dir, 262144, true).await?;
+        pack::pipeline(&origin, true).await?;
         // Send data to remote endpoint
-        push::pipeline(&output_dir).await?;
-
+        push::pipeline(&origin).await?;
+        // The content path of the current content BlockStore
+        let v1_content = &GlobalConfig::from_disk()?
+            .get_bucket(origin)
+            .unwrap()
+            .content
+            .path;
         // Compute size of original content
-        let d1 = metadata(&output_dir.join("content.car"))?.len();
+        let d1 = metadata(v1_content)?.len();
         // Oh no! File corruption, we lost all our data!
-        fs::remove_file(output_dir.join("content.car"))?;
+        remove_file(v1_content)?;
         // Now its time to reconstruct all our data
-        pull::pipeline(&output_dir).await?;
+        pull::pipeline(&origin).await?;
+        // The content path of the current content BlockStore
+        let v2_content = GlobalConfig::from_disk()?
+            .get_bucket(origin)
+            .unwrap()
+            .content
+            .path;
         // Compute size of reconstructed content
-        let d2 = metadata(&output_dir.join("content.car"))?.len();
+        let d2 = metadata(v2_content)?.len();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(d1, d2);
         // Teardown
         test_teardown(test_name).await
     }
-    */
 
     #[tokio::test]
     #[serial]

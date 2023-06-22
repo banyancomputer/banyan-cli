@@ -21,7 +21,7 @@ pub struct BucketConfig {
     /// The filesystem that this bucket represents
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
-    generated: PathBuf,
+    pub(crate) generated: PathBuf,
     pub metadata: CarV2BlockStore,
     pub content: CarV2BlockStore,
 }
@@ -94,6 +94,26 @@ impl BucketConfig {
         Ok(())
     }
 
+    pub async fn get_all_metadata(
+        &self,
+    ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+        let key = self.get_key("root").unwrap();
+        load_all_metadata(&key, &self.metadata).await
+    }
+
+    pub async fn set_all_metadata(
+        &self,
+        metadata_forest: &mut Rc<PrivateForest>,
+        content_forest: &mut Rc<PrivateForest>,
+        root_dir: &Rc<PrivateDirectory>,
+    ) -> Result<()> {
+        let temporal_key =
+            store_all_metadata(&self.metadata, metadata_forest, content_forest, root_dir).await?;
+
+        self.metadata.to_disk()?;
+        self.set_key(&temporal_key, "root")
+    }
+
     pub async fn get_all(
         &self,
     ) -> Result<(
@@ -123,13 +143,9 @@ impl BucketConfig {
         )
         .await?;
 
-        println!("save metadata roots: {:?}", self.metadata.get_roots());
-
         self.metadata.to_disk()?;
         self.content.to_disk()?;
 
-        self.set_key(&temporal_key, "root")?;
-
-        Ok(())
+        self.set_key(&temporal_key, "root")
     }
 }

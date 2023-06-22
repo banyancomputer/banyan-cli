@@ -25,15 +25,15 @@ pub struct NetworkBlockStore {
 
 impl NetworkBlockStore {
     /// Initializes the NetworkBlockStore
-    pub fn new(url: &str, port: u16) -> Self {
+    pub fn new(addr: &str) -> Self {
         // TODO(organizedgrime) - also add a case for https
-        if !url.starts_with("http://") {
+        if !addr.starts_with("http://") {
             panic!("Cannot initialize with bad URL");
         }
 
         // Create/return the new instance of self
         Self {
-            addr: format!("{}:{}", url, port),
+            addr: addr.to_string(),
         }
     }
 }

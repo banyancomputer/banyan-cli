@@ -22,9 +22,8 @@ pub fn deinit_all() -> Result<()> {
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
-pub fn remote(_url: &str, _port: u16) -> Result<()> {
-    // let mut config = GlobalConfig::from_disk()?;
-    // config.remote = format!("{}:{}", url, port);
-    // config.to_disk()
-    Ok(())
+pub fn remote(url: &str, port: u16) -> Result<()> {
+    let mut config = GlobalConfig::from_disk()?;
+    config.remote = format!("{}:{}", url, port);
+    config.to_disk()
 }

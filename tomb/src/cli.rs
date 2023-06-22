@@ -147,10 +147,7 @@ mod test {
     use anyhow::Result;
     use assert_cmd::prelude::*;
     use serial_test::serial;
-    use std::{
-        path::Path,
-        process::Command,
-    };
+    use std::{path::Path, process::Command};
     use tomb::utils::tests::{test_setup, test_teardown};
     use tomb_common::types::config::globalconfig::GlobalConfig;
 
@@ -313,7 +310,6 @@ mod test {
     /*
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test

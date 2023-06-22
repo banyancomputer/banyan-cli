@@ -163,10 +163,7 @@ mod tests {
     use super::CarV2BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{
-        path::Path,
-        str::FromStr,
-    };
+    use std::{path::Path, str::FromStr};
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},
