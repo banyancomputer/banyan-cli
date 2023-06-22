@@ -17,15 +17,17 @@ fn pass() {
 }
 
 #[cfg(test)]
-pub fn setup_method_example() -> Tomb {
-    let mut tomb = Tomb::new();
-    tomb.setup_method();
+pub fn helper_method_example() -> Tomb {
+    let tomb = Tomb::new();
+    // If you had a non-exported method on Tomb, you could call it here.
+    // tomb.example_method();
     tomb
 }
 
 #[wasm_bindgen_test]
 pub fn test_tomb() {
     // calling a setup function.
-    let input_tomb = setup_method_example();
-    assert!(input_tomb.is_setup());
+    let tomb = helper_method_example();
+    let _bucket_names = tomb.bucket_names().unwrap();
+    assert!(true)
 }

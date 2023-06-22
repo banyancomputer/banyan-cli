@@ -1,10 +1,17 @@
-mod utils;
 mod metadata;
+mod utils;
 
+use metadata::types::Bucket;
 use wasm_bindgen::prelude::*;
-use web_sys::console;
-
-extern crate web_sys;
+use js_sys::JsString;
+use web_sys::{ 
+    console,
+    CryptoKey,
+};
+use wnfs::{
+    common::MemoryBlockStore,
+    private::PrivateDirectory
+};
 
 // Our optional WeeAlloc allocator
 #[cfg(feature = "wee_alloc")]
@@ -18,9 +25,13 @@ macro_rules! log {
     }
 }
 
+#[allow(dead_code)]
 #[wasm_bindgen]
 pub struct Tomb {
-    pub setup: bool,
+    buckets: Vec<Bucket>,
+    metadata_service: metadata::types::Service,
+    blockstore: MemoryBlockStore,
+    private_directory: Option<PrivateDirectory>,
 }
 
 // Public methods, exported to JavaScript.
@@ -28,24 +39,65 @@ pub struct Tomb {
 impl Tomb {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
+        log!("tomb-wasm: new()");
         utils::set_panic_hook();
-        log!("Tomb initialized");
-        Tomb { setup: false }
+        Tomb { 
+            buckets: Vec::new(), 
+            metadata_service: metadata::types::Service::new("".to_string(), "".to_string()), 
+            blockstore: MemoryBlockStore::new(), 
+            private_directory: None
+        }
     }
 
-    #[wasm_bindgen]
-    pub fn is_setup(&self) -> bool {
-        self.setup
+    /// Initializes the Tomb instance with initial metadata
+    pub fn init(&mut self) -> Result<(), JsValue> {
+        log!("tomb-wasm: init()");
+        // TODO: Read buckets and write to self.buckets
+        unimplemented!()
+    }
+    
+
+    /// Return the list of buckets
+    /// # Returns
+    /// * A Vec<String> of bucket names
+    pub fn bucket_names(&self) -> Result<Vec<JsString>, JsValue> {
+        log!("tomb-wasm: bucket_names()");
+        let mut names: Vec<JsString> = Vec::new();
+        for bucket in &self.buckets {
+            names.push(bucket.name.clone().into());
+        }
+        Ok(names)
+    }
+
+    /// Load a specific bucket's metadata into memory, by name
+    /// # Arguments
+    /// * `name` - The name of the bucket to load
+    /// * `key` - The key to decrypt the bucket's metadata
+    pub fn load_bucket(&mut self, _name: String, _key: CryptoKey) -> Result<(), JsValue> {
+        log!("tomb-wasm: load_bucket()");
+        // TODO: Load metadata CAR and write to self.blockstore
+        // TODO: Load the encrypted share key
+        // TODO: Decrypt the share key
+        // TODO: Load the private directory using self.blockstore and the decrypted share key
+        unimplemented!()
+    }
+
+    /// List the entries of the current private directory at a given path
+    /// # Arguments
+    /// * `path` - The path to list
+    /// # Returns
+    /// * TODO: decide on return type
+    pub fn list(&self, _path: String) -> Result<(), JsValue> {
+        log!("tomb-wasm: list()");
+        unimplemented!()
     }
 }
 
 // Private methods, not exported to JavaScript.
 impl Tomb {
-    #[allow(dead_code)]
-    pub fn setup_method(&mut self) {
-        log!("Tomb setup_method");
-        self.setup = true;
-    }
+    // pub fn example_method(&mut self) {
+    //     log!("This is not exported to JavaScript.");
+    // }
 }
 
 
