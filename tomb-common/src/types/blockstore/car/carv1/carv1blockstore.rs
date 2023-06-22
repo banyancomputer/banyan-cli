@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{File, OpenOptions, remove_file, rename},
+    fs::{remove_file, rename, File, OpenOptions},
     io::{Seek, SeekFrom},
     path::{Path, PathBuf},
 };
@@ -99,7 +99,6 @@ impl CarV1BlockStore {
         rename(tmp_car_path, &self.path)?;
         Ok(())
     }
-
 }
 
 #[async_trait(?Send)]
@@ -256,7 +255,8 @@ mod tests {
     async fn to_from_disk_with_offset() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv1-basic.car");
-        let original_path = &Path::new("test").join("carv1-blockstore-to-from-disk-with-offset.car");
+        let original_path =
+            &Path::new("test").join("carv1-blockstore-to-from-disk-with-offset.car");
         copy(&existing_path, &original_path)?;
 
         // Read in the car
@@ -264,7 +264,9 @@ mod tests {
 
         // Write contentt
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let cid = original.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        let cid = original
+            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
+            .await?;
         // Insert root
         original.insert_root(&cid);
 
@@ -280,7 +282,17 @@ mod tests {
         assert_eq!(original, reconstructed);
 
         assert_eq!(kitty_bytes, reconstructed.get_block(&cid).await?.to_vec());
-        assert_eq!(&cid, reconstructed.carv1.header.roots.borrow().clone().last().unwrap());
+        assert_eq!(
+            &cid,
+            reconstructed
+                .carv1
+                .header
+                .roots
+                .borrow()
+                .clone()
+                .last()
+                .unwrap()
+        );
 
         Ok(())
     }

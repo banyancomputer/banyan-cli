@@ -155,7 +155,7 @@ mod tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{File, copy},
+        fs::{copy, File},
         io::BufReader,
         path::Path,
         str::FromStr,
@@ -234,7 +234,7 @@ mod tests {
             // Define reader and writer
             let mut original_file = File::open(original_path)?;
             let mut updated_file = File::create(updated_path)?;
-    
+
             // Read original CARv2
             let original = CarV2::read_bytes(&mut original_file)?;
             // Write to updated file
@@ -271,7 +271,7 @@ mod tests {
             // Define reader and writer
             let mut original_file = File::open(original_path)?;
             let mut updated_file = File::create(updated_path)?;
-    
+
             // Read original CARv2
             let original = CarV2::read_bytes(&mut original_file)?;
 
@@ -297,5 +297,4 @@ mod tests {
 
         Ok(())
     }
-
 }

@@ -33,13 +33,10 @@ impl CarV2BlockStore {
         if path.is_dir() {
             panic!("invalid path, must be file, not dir");
         }
-        // Create the file if it doesn't already exist
-        if !path.exists() {
-            File::create(path)?;
-        }
 
         // If the file is already a valid CARv2
-        if let Ok(mut file) = File::open(path) &&
+        if path.exists() &&
+           let Ok(mut file) = File::open(path) &&
            let Ok(carv2) = CarV2::read_bytes(&mut file) {
             Ok(Self {
                 path: path.to_path_buf(),
@@ -48,6 +45,8 @@ impl CarV2BlockStore {
         }
         // If we need to create the header
         else {
+            // Create the file if it doesn't already exist
+            File::create(path)?;
             // Open the file in append mode
             let mut file = OpenOptions::new().append(true).open(path)?;
             // Move to start
@@ -164,7 +163,11 @@ mod tests {
     use super::CarV2BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{path::Path, str::FromStr, fs::{copy, remove_file}};
+    use std::{
+        fs::{copy, remove_file},
+        path::Path,
+        str::FromStr,
+    };
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},
@@ -210,9 +213,10 @@ mod tests {
     async fn to_from_disk_no_offset() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-indexless.car");
-        let original_path = Path::new("test").join("carv2-indexless-blockstore-to-from-disk-no-offset.car");
+        let original_path =
+            Path::new("test").join("carv2-indexless-blockstore-to-from-disk-no-offset.car");
         copy(existing_path, &original_path)?;
-        
+
         // Load in the original store
         let original = CarV2BlockStore::new(&original_path)?;
         // Store on disk again
@@ -220,7 +224,7 @@ mod tests {
 
         let reconstructed = CarV2BlockStore::new(&original_path)?;
         // Assert that the reconstruction worked
-        assert_eq!(original, reconstructed);        
+        assert_eq!(original, reconstructed);
         Ok(())
     }
 
@@ -229,28 +233,34 @@ mod tests {
     async fn to_from_disk_with_offset() -> Result<()> {
         let fixture_path = Path::new("car-fixtures");
         let existing_path = fixture_path.join("carv2-indexless.car");
-        let original_path = Path::new("test").join("carv2-indexless-blockstore-to-from-disk-with-offset.car");
+        let original_path =
+            Path::new("test").join("carv2-indexless-blockstore-to-from-disk-with-offset.car");
         copy(existing_path, &original_path)?;
-        
+
         // Hello Kitty!
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        
+
         // Load in the original store
         let original = CarV2BlockStore::new(&original_path)?;
         // Pub block in the original store
-        let cid = original.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        let cid = original
+            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
+            .await?;
         // Insert as root
         original.insert_root(&cid);
 
         // Store on disk again
         original.to_disk()?;
-    
+
         // Reconstruct
         let reconstructed = CarV2BlockStore::new(&original_path)?;
         // Assert that the reconstruction worked
         assert_eq!(original.carv2.header, reconstructed.carv2.header);
         assert_eq!(original.carv2.index, reconstructed.carv2.index);
-        assert_eq!(original.carv2.carv1.header, reconstructed.carv2.carv1.header);
+        assert_eq!(
+            original.carv2.carv1.header,
+            reconstructed.carv2.carv1.header
+        );
         assert_eq!(original.carv2.carv1.index, reconstructed.carv2.carv1.index);
         assert_eq!(original, reconstructed);
 
@@ -259,7 +269,7 @@ mod tests {
 
         // Assert that we can still find the data
         assert_eq!(kitty_bytes, reconstructed.get_block(&cid).await?.to_vec());
-        
+
         Ok(())
     }
 

@@ -276,11 +276,11 @@ mod test {
     async fn cli_pack_local() -> Result<()> {
         let test_name = "cli_pack_local";
         // Setup test
-        let input_dir = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(&input_dir).await?.assert().success();
+        init(origin).await?.assert().success();
         // Run pack and assert success
-        pack(input_dir).await?.assert().success();
+        pack(origin).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }
@@ -290,13 +290,13 @@ mod test {
     async fn cli_unpack_local() -> Result<()> {
         let test_name = "cli_unpack_local";
         // Setup test
-        let input_dir = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(&input_dir).await?.assert().success();
+        init(origin).await?.assert().success();
         // Run pack and assert success
-        pack(input_dir).await?.assert().success();
+        pack(origin).await?.assert().success();
         // Run unpack and assert success
-        unpack(input_dir, input_dir).await?.assert().success();
+        unpack(origin, origin).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }

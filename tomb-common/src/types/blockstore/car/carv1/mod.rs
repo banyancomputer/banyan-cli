@@ -51,7 +51,9 @@ impl CarV1 {
         let data_offset = (current_header_buf.len() - previous_header_buf.len()) as i64;
 
         // Skip to the point where the new data will start
-        r.seek(SeekFrom::Start(carv1_start + current_header_buf.len() as u64))?;
+        r.seek(SeekFrom::Start(
+            carv1_start + current_header_buf.len() as u64,
+        ))?;
 
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();

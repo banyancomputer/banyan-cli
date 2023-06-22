@@ -5,10 +5,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
-    io::{Read, Write},
     path::{Path, PathBuf},
 };
-use wnfs::common::dagcbor;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalConfig {
@@ -20,7 +18,7 @@ pub struct GlobalConfig {
 // Self
 impl GlobalConfig {
     fn get_path() -> PathBuf {
-        xdg_config_home().join("global.cbor")
+        xdg_config_home().join("global.json")
     }
 
     fn get_read() -> Result<File> {
@@ -33,12 +31,8 @@ impl GlobalConfig {
 
     // Initialize from a reader
     pub fn from_disk() -> Result<Self> {
-        let mut config_buf = Vec::new();
         match Self::get_read() {
-            Ok(mut file) => {
-                file.read_to_end(&mut config_buf)?;
-                dagcbor::decode(&config_buf)
-            }
+            Ok(file) => Ok(serde_json::from_reader::<File, Self>(file)?),
             Err(_) => {
                 Self::default().to_disk()?;
                 Self::from_disk()
@@ -92,8 +86,7 @@ impl GlobalConfig {
 
     // Write to disk
     pub fn to_disk(&self) -> Result<()> {
-        Self::get_write()?.write_all(&dagcbor::encode(&self)?)?;
-        // println!("just wrote out globalconfig: {:?}", self);
+        serde_json::to_writer_pretty(Self::get_write()?, &self)?;
         Ok(())
     }
 
