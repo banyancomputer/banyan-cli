@@ -2195,6 +2195,8 @@ checksum = "bfdda3d196821d6af13126e40375cdf7da646a96114af134d5f417a9a1dc8e1a"
 dependencies = [
  "bitflags 1.2.1",
  "cfg-if 1.0.0",
+ "bitflags",
+ "cfg-if 1.0.0",
  "libc",
  "memoffset 0.7.1",
  "pin-utils",
@@ -2338,6 +2340,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "345df152bc43501c5eb9e4654ff05f794effb78d4efe3d53abc158baddc0703d"
 dependencies = [
  "bitflags 1.2.1",
+ "cfg-if 1.0.0",
+ "bitflags",
  "cfg-if 1.0.0",
  "foreign-types",
  "libc",
@@ -3664,6 +3668,9 @@ dependencies = [
  "wee_alloc",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
  "wnfs-common 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wee_alloc",
+ "wnfs 0.1.20 (git+https://github.com/banyancomputer/rs-wnfs)",
+ "wnfs-common 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "wnfs-wasm",
 ]
 
@@ -4065,6 +4072,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d743fdedc5c64377b5fc2bc036b01c7fd642205a0d96356034ae3404d49eb7fb"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "wee_alloc"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbb3b5a6b2bb17cb6ad44a2e68a43e8d2722c997da10e928665c72ec6c0a0b8e"
+dependencies = [
+ "cfg-if 0.1.10",
+ "libc",
+ "memory_units",
+ "winapi",
 ]
 
 [[package]]
