@@ -3,7 +3,6 @@ mod utils;
 
 use metadata::types::Bucket;
 use wasm_bindgen::prelude::*;
-use js_sys::JsString;
 use web_sys::{ 
     console,
     CryptoKey,
@@ -52,21 +51,14 @@ impl Tomb {
     /// Initializes the Tomb instance with initial metadata
     pub fn init(&mut self) -> Result<(), JsValue> {
         log!("tomb-wasm: init()");
-        // TODO: Read buckets and write to self.buckets
-        unimplemented!()
-    }
-    
-
-    /// Return the list of buckets
-    /// # Returns
-    /// * A Vec<String> of bucket names
-    pub fn bucket_names(&self) -> Result<Vec<JsString>, JsValue> {
-        log!("tomb-wasm: bucket_names()");
-        let mut names: Vec<JsString> = Vec::new();
-        for bucket in &self.buckets {
-            names.push(bucket.name.clone().into());
-        }
-        Ok(names)
+        // TODO: Read buckets from metadata service 
+        self.buckets = [Bucket {
+            id: "id".to_string(),
+            name: "name".to_string(),
+            owner: "owner".to_string(),
+            entrypoint: "entrypoint".to_string(),
+        }].to_vec();
+        Ok(())
     }
 
     /// Load a specific bucket's metadata into memory, by name

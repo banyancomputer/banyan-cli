@@ -28,6 +28,5 @@ pub fn helper_method_example() -> Tomb {
 pub fn test_tomb() {
     // calling a setup function.
     let tomb = helper_method_example();
-    let _bucket_names = tomb.bucket_names().unwrap();
     assert!(true)
 }

@@ -1,10 +1,10 @@
 use wasm_bindgen_futures::JsFuture;
-
 use anyhow::{Result, Error};
 
 
 #[allow(dead_code)]
 #[derive(Default, Clone)]
+#[repr(C)]
 /// Sum total of Metadata for a bucket managed by Tomb.
 pub struct Bucket {
     /// The unique identifier for the bucket.
@@ -12,10 +12,10 @@ pub struct Bucket {
     /// The name of the bucket.
     pub name: String,
     /// The uid of the owner of the bucket.
-    owner: String,
+    pub owner: String,
     // TODO: Is there a better type for this?
     /// A label into the bucket's Metadata Private Forest
-    entrypoint: String,
+    pub entrypoint: String,
 }
 
 #[allow(dead_code)]
@@ -40,9 +40,16 @@ impl Service {
     /* Read */
     /// Read all buckets accessible to the user.
     /// # Returns
-    /// * JsFuture that resolves to a Vec<Bucket>.
-    pub fn read_buckets(&self) -> Result<JsFuture, Error> {
-        unimplemented!()
+    /// * TODO: JsFuture that resolves to a Vec<Bucket>.
+    // pub fn read_buckets(&self) -> Result<JsFuture, Error> {
+    pub fn read_buckets(&self) -> Result<Vec<Bucket>, Error> {
+        let vec = vec![Bucket {
+            id: "id".to_string(),
+            name: "name".to_string(),
+            owner: "owner".to_string(),
+            entrypoint: "entrypoint".to_string(),
+        }];
+        Ok(vec)
     }
 
     /// Read the encrypted share key for a bucket.
