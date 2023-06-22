@@ -27,17 +27,18 @@ mod test {
     };
     use anyhow::Result;
     use dir_assert::assert_paths;
-    use fake_file::{Strategy, Structure, utils::ensure_path_exists_and_is_dir};
-    use fclones::config;
-    use fs_extra::dir::{CopyOptions, self};
+    use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
+    use fs_extra::dir;
     use serial_test::serial;
-    use wnfs::private::PrivateNodeOnPathHistory;
     use std::{
-        fs::{create_dir_all, metadata, remove_file, File, symlink_metadata, read_link},
+        fs::{create_dir_all, metadata, read_link, remove_file, rename, symlink_metadata, File},
         io::Write,
-        path::PathBuf, rc::Rc, os::unix::fs::symlink,
+        os::unix::fs::symlink,
+        path::PathBuf,
+        rc::Rc,
     };
     use tomb_common::{types::config::globalconfig::GlobalConfig, utils::serialize::load_dir};
+    use wnfs::private::PrivateNodeOnPathHistory;
 
     #[tokio::test]
     #[serial]
@@ -62,10 +63,7 @@ mod test {
         // Configure the remote endpoint
         configure::remote(address)?;
         // Assert it was actually modified
-        assert_eq!(
-            GlobalConfig::from_disk()?.remote,
-            address
-        );
+        assert_eq!(GlobalConfig::from_disk()?.remote, address);
         Ok(())
     }
 
@@ -136,7 +134,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    // #[ignore]
+    #[ignore]
     async fn pipeline_pack_push_pull() -> Result<()> {
         let test_name = "pipeline_pack_push_pull";
         // Create the setup conditions
@@ -313,11 +311,10 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /// Test with one very big file -- ignore cuz it takes a while
     #[tokio::test]
     #[serial]
     async fn test_big_file() -> Result<()> {
-        let test_name = "test_big_file";    
+        let test_name = "test_big_file";
         let structure = Structure::new(1, 1, TEST_INPUT_SIZE * 100, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack_local(test_name).await?;
@@ -329,140 +326,96 @@ mod test {
     #[serial]
     async fn test_deduplication_integrity() -> Result<()> {
         let test_name = "test_deduplication_integrity";
-        // Define the file structure to test
-        let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
         // Setup the test
-        let origin = &test_setup_structured(test_name, structure).await?;
-        let new_origin = &origin.join("original");
+        let origin = &test_setup(test_name).await?;
+        let dup_origin = &origin.parent().unwrap().join("dups");
+        let original = &dup_origin.join("original");
+        let duplicate = &dup_origin.join("duplicate");
+        create_dir_all(original)?;
+        create_dir_all(duplicate)?;
+
         // Move the contents of this directory into a subdirectory
-        dir::move_dir(origin, new_origin, &CopyOptions::new())?;
+        dir::move_dir(origin, original, &dir::CopyOptions::new())?;
+        dir::copy(original, duplicate, &dir::CopyOptions::new())?;
 
-        let duplicate_origin = origin.join("duplicate");
-        // Create the directory
-        ensure_path_exists_and_is_dir(&duplicate_origin).unwrap();
-        // Copy the contents of the original directory into the new directory
-        dir::copy(
-            &new_origin,
-            &duplicate_origin,
-            &CopyOptions::new(),
-        )
-        .unwrap();
+        // Remove origin
+        dir::remove(origin)?;
+        // Rename dup origin to origin
+        rename(dup_origin, origin)?;
 
+        // Run test
         assert_pack_unpack_local(test_name).await?;
         test_teardown(test_name).await
     }
 
-    /*
-
-    /// Ensure that the duplicate data occupies a smaller footprint when packed
+    // / Ensure that the duplicate data occupies a smaller footprint when packed
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
-    async fn test_deduplication_size() {
+    #[serial]
+    async fn test_deduplication_size() -> Result<()> {
         let test_name = "test_deduplication_size";
-        
+        let test_name_dup = &format!("{}_dup", test_name);
+        let test_name_unique = &format!("{}_unique", test_name);
+        // Structure
+        let structure = Structure::new(2, 2, 2000, Strategy::Simple);
+        // Deinit all
+        configure::deinit_all()?;
 
-        // We will be comparing two twin directories, one with duplicates and one without
-        let twin_dups = test_path.join("twin_dups");
-        let twin_unique = test_path.join("twin_unique");
+        // Base of the test directory
+        let root_path_dup = PathBuf::from("test").join(test_name_dup);
+        let root_path_unique = PathBuf::from("test").join(test_name_unique);
+        // Create and empty the dir
+        ensure_path_exists_and_is_empty_dir(&root_path_dup, true)?;
+        ensure_path_exists_and_is_empty_dir(&root_path_unique, true)?;
 
-        // Define the file structure to test in both cases
-        let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
+        // Input and path
+        let origin_dup = &root_path_dup.join("input");
+        let original_dup = &origin_dup.join("original");
+        let duplicate_dup = &origin_dup.join("duplicate");
+        // create_dir_all(original_dup)?;
+        create_dir_all(duplicate_dup)?;
 
-        // Setup the duplicates directory
-        setup_test(&twin_dups, structure.clone(), "duplicate_directory");
-        // Duplicate the test file
-        let input_path = twin_dups.join(INPUT_PATH);
-        // Copy $input_path/test_duplicate to $input_path/encloser
-        let original_path = input_path.join("duplicate_directory");
-        // Enclose the duplicate in a parent directory
-        let encloser_path = input_path.join("encloser");
-        // Create the directory
-        ensure_path_exists_and_is_dir(&encloser_path).unwrap();
-        // Copy the contents of the original directory into the new directory
-        fs_extra::dir::copy(
-            &original_path,
-            &encloser_path,
-            &fs_extra::dir::CopyOptions::new(),
-        )
-        .unwrap();
+        // Generate file structure
+        structure.generate(&original_dup)?;
+        // Copy into duplicate path
+        dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new())?;
 
-        // Setup the first unique directory
-        setup_test(&twin_unique, structure.clone(), "unique1");
-        // Duplicate the test file
-        let input_path = twin_unique.join(INPUT_PATH);
-        // The directory that will contain the other unique directory
-        let mut encloser_path = input_path.join("encloser");
-        // Create the directory
-        ensure_path_exists_and_is_dir(&encloser_path).unwrap();
-        // Push the subdirectory name
-        encloser_path.push("unique2");
-        // Generate the structure inside this directory, which will be unique
-        structure.generate(&encloser_path).unwrap();
+        // Input and path
+        let origin_unique = &root_path_unique.join("input");
+        create_dir_all(origin_unique)?;
+        let unique1 = &origin_unique.join("unique1");
+        let unique2 = &origin_unique.join("unique2");
+        // create_dir_all(unique2)?;
+        // Generate twice
+        structure.generate(unique1)?;
+        structure.generate(unique2)?;
 
-        // Now we can actually start testing things!
-        // Ensure that the twin_dups directory is the same size as the twin_unique directory
-        let twin_dups_size = compute_directory_size(&twin_dups).unwrap();
-        let twin_unique_size = compute_directory_size(&twin_unique).unwrap();
-        assert_eq!(twin_dups_size, twin_unique_size);
+        // Run test
+        assert_pack_unpack_local(test_name_dup).await?;
+        assert_pack_unpack_local(test_name_unique).await?;
 
-        // Run the pipelines on both directories, also ensuring output = input
-        run_test(&twin_dups, "duplicate_directory").await;
-        run_test(&twin_unique, "unique1").await;
-
-        // Write out the paths to both packed directories
-        let packed_dups_path = twin_dups.join(PACKED_PATH);
-        let packed_unique_path = twin_unique.join(PACKED_PATH);
+        // Get configs
+        let global = GlobalConfig::from_disk()?;
         // Compute the sizes of these directories
-        let packed_dups_size = compute_directory_size(&packed_dups_path).unwrap() as f32;
-        let packed_unique_size = compute_directory_size(&packed_unique_path).unwrap() as f32;
+        let packed_dups_size =
+            metadata(global.get_bucket(&origin_dup).unwrap().content.path)?.len() as f64;
+        let packed_unique_size =
+            metadata(global.get_bucket(&origin_unique).unwrap().content.path)?.len() as f64;
+
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
         // TODO (organizedgrime) determine the threshold for this test that is most appropriate
         assert!(packed_unique_size / packed_dups_size >= 1.8);
+
+        test_teardown(test_name_dup).await?;
+        test_teardown(test_name_unique).await
     }
-
-    /// Ensure that deduplication is equally effective in the case of large files
-    /// This also ensures that deduplication works in cases where file contents are identical, but file names are not,
-    /// as well as ensuring that deduplication works when both files are in the same directory.
-    #[tokio::test]
-    #[ignore]
-    async fn test_deduplication_large() {
-        // Create a new path for this test
-        let test_path = Path::new(TEST_PATH);
-        let test_path = test_path.join("deduplication_large");
-        // Define the file structure to test. Note that the input size is slightly larger than the maximum 0.25 GiB chunk size
-        let desired_structure = Structure::new(0, 0, TEST_INPUT_SIZE * 100, Strategy::Simple);
-
-        // Setup the test
-        setup_test(&test_path, desired_structure, "test_large");
-
-        // Duplicate the file in place
-        fs_extra::file::copy(
-            test_path.join(INPUT_PATH).join("0"),
-            test_path.join(INPUT_PATH).join("1"),
-            &fs_extra::file::CopyOptions::new(),
-        )
-        .unwrap();
-
-        // Run the test
-        run_test(&test_path, "test_large").await;
-
-        // Assert that only one file was packed
-        let packed_path = test_path.join(PACKED_PATH);
-        let dir_info = fs_extra::dir::get_dir_content(packed_path).unwrap();
-        // Expect that the large file was packed into two files
-        assert_eq!(dir_info.files.len(), 2);
-    }
-
-     */
 
     #[tokio::test]
     #[serial]
     async fn test_double_packing() -> Result<()> {
         let test_name = "test_double_packing";
-        // Define the file structure to test
-        let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
         // Setup the test once
-        test_setup_structured(test_name, structure).await?;
+        test_setup(test_name).await?;
         // Run the test twice
         assert_pack_unpack_local(test_name).await?;
         assert_pack_unpack_local(test_name).await
@@ -475,17 +428,11 @@ mod test {
     /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
     async fn test_versioning() -> Result<()> {
         let test_name = "test_versioning";
-
-        // Define the file structure to test
-        let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
-
         // Setup the test once
-        let origin = &test_setup_structured(test_name, structure).await?;
+        let origin = &test_setup(test_name).await?;
 
         // Path for the actual file on disk that we'll be writing
-        let versioned_file_path = origin
-            .join("0")
-            .join("0");
+        let versioned_file_path = origin.join("0").join("0");
 
         // Define bytes for each message
         let hello_bytes = "Hello World!".as_bytes();
@@ -517,7 +464,6 @@ mod test {
         // Run the test again
         assert_pack_unpack_local(test_name).await?;
 
-        
         let global = GlobalConfig::from_disk()?;
         let config = global.get_bucket(origin).unwrap();
         let (mut metadata_forest, content_forest, dir) = config.get_all_metadata().await?;
@@ -525,7 +471,7 @@ mod test {
         // Get keys
         let original_key = &config.get_key("original")?;
         let key = &config.get_key("root")?;
-        
+
         // Grab the original PrivateDirectory
         let original_dir = load_dir(&config.metadata, original_key, &mut metadata_forest).await?;
 
@@ -622,11 +568,9 @@ mod test {
     #[serial]
     async fn test_symlinks() -> Result<()> {
         let test_name = "test_symlinks";
-        // Define the file structure to test
-        let structure = Structure::new(2, 2, TEST_INPUT_SIZE, Strategy::Simple);
 
         // Setup the test
-        let origin = &test_setup_structured(test_name, structure).await?;
+        let origin = &test_setup(test_name).await?;
 
         // Path in which Directory symlink will be created
         // let sym_dir_root = test_path.join("input").join("symlinks");

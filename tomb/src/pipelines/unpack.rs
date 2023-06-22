@@ -85,7 +85,15 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
                     let file_path = &output_dir.join(built_path);
                     println!("processing file {}", file_path.display());
                     // Handle the PrivateFile and write its contents to disk
-                    file_to_disk(file, output_dir, file_path, content_forest, hot_store, cold_store).await?;
+                    file_to_disk(
+                        file,
+                        output_dir,
+                        file_path,
+                        content_forest,
+                        hot_store,
+                        cold_store,
+                    )
+                    .await?;
                 }
             }
             Ok(())

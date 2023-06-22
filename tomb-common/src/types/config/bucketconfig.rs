@@ -116,11 +116,7 @@ impl BucketConfig {
 
     pub async fn get_all(
         &self,
-    ) -> Result<(
-        Rc<PrivateForest>,
-        Rc<PrivateForest>,
-        Rc<PrivateDirectory>,
-    )> {
+    ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
         let key = self.get_key("root").unwrap();
         load_all(&key, &self.metadata, &self.content).await
     }

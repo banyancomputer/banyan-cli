@@ -72,15 +72,12 @@ pub async fn file_to_disk(
         // let content_try = ;
         if let Ok(content_try) = file.get_content(total_forest, content).await {
             decompress_bytes(content_try.as_slice(), &mut content_buf)?;
-        }
-        else if let Ok(metadata_try) = file.get_content(total_forest, metadata).await {
+        } else if let Ok(metadata_try) = file.get_content(total_forest, metadata).await {
             decompress_bytes(metadata_try.as_slice(), &mut content_buf)?;
-        }
-        else {
+        } else {
             println!("Oh no! couldnt find data...");
         }
 
-        
         // Write all contents to the output file
         output_file.write_all(&content_buf)?;
     }

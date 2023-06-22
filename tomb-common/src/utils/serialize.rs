@@ -200,12 +200,10 @@ pub async fn load_all(
 
 #[cfg(test)]
 mod test {
+    use crate::utils::{serialize::*, tests::*};
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;
-    use wnfs::libipld::IpldCodec;
-
-    use crate::utils::{serialize::*, tests::*};
 
     #[tokio::test]
     #[serial]

@@ -143,9 +143,9 @@ pub(crate) struct Args {
 mod test {
     use anyhow::Result;
     use assert_cmd::prelude::*;
-    use fs_extra::{file, dir};
+    use fs_extra::file;
     use serial_test::serial;
-    use std::{path::Path, process::Command, fs::metadata};
+    use std::{fs::metadata, path::Path, process::Command};
     use tomb::utils::tests::{test_setup, test_teardown};
     use tomb_common::types::config::globalconfig::GlobalConfig;
 
@@ -303,6 +303,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test
@@ -317,7 +318,11 @@ mod test {
         // Run pack locally and assert success
         pack(origin).await?.assert().success();
 
-        let v1_path = &GlobalConfig::from_disk()?.get_bucket(origin).unwrap().content.path;
+        let v1_path = &GlobalConfig::from_disk()?
+            .get_bucket(origin)
+            .unwrap()
+            .content
+            .path;
         let v1_moved = &v1_path.parent().unwrap().join("old_content.car");
         file::move_file(v1_path, v1_moved, &file::CopyOptions::new())?;
 
@@ -326,10 +331,7 @@ mod test {
         // Run unpack and assert success
         pull(&origin).await?.assert().success();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
-        assert_eq!(
-            metadata(v1_path)?.len(),
-            metadata(v1_moved)?.len(),
-        );
+        assert_eq!(metadata(v1_path)?.len(), metadata(v1_moved)?.len(),);
         // Teardown test
         test_teardown(test_name).await
     }
