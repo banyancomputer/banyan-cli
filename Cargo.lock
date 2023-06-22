@@ -3652,7 +3652,6 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "rand 0.8.5",
- "reqwest",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

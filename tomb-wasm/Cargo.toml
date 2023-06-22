@@ -26,12 +26,20 @@ serde_json = { workspace = true }
 # Crate dependencies
 async-trait = "0.1.68"
 console_error_panic_hook = { version = "0.1.7", optional = true }
-reqwest = "0.11.18"
 serde-wasm-bindgen = "0.5.0"
 tomb-common = { path = "../tomb-common", version = "1.1.0" }
 wasm-bindgen-futures = "0.4.37"
 wasm-streams = "0.3.0"
-web-sys = { version = "0.3.64", features = ["console", "CryptoKey"] }
+web-sys = { version = "0.3.64", features = [
+    "console",
+    "CryptoKey", 
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Window",
+]}
 wee_alloc = { version = "0.4.5", optional = true }
 wnfs-wasm = "0.1.20"
 wnfs-common = "0.1.20"

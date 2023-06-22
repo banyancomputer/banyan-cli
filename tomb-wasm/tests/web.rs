@@ -27,6 +27,6 @@ pub fn helper_method_example() -> Tomb {
 #[wasm_bindgen_test]
 pub fn test_tomb() {
     // calling a setup function.
-    let tomb = helper_method_example();
+    let _tomb = helper_method_example();
     assert!(true)
 }

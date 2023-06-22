@@ -38,7 +38,7 @@ pub struct Tomb {
 impl Tomb {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        log!("tomb-wasm: new()");
+        // log!("tomb-wasm: new()");
         utils::set_panic_hook();
         Tomb { 
             buckets: Vec::new(), 
@@ -50,7 +50,7 @@ impl Tomb {
 
     /// Initializes the Tomb instance with initial metadata
     pub fn init(&mut self) -> Result<(), JsValue> {
-        log!("tomb-wasm: init()");
+        // log!("tomb-wasm: init()");
         // TODO: Read buckets from metadata service 
         self.buckets = [Bucket {
             id: "id".to_string(),
@@ -66,7 +66,7 @@ impl Tomb {
     /// * `name` - The name of the bucket to load
     /// * `key` - The key to decrypt the bucket's metadata
     pub fn load_bucket(&mut self, _name: String, _key: CryptoKey) -> Result<(), JsValue> {
-        log!("tomb-wasm: load_bucket()");
+        // log!("tomb-wasm: load_bucket()");
         // TODO: Load metadata CAR and write to self.blockstore
         // TODO: Load the encrypted share key
         // TODO: Decrypt the share key
@@ -80,7 +80,7 @@ impl Tomb {
     /// # Returns
     /// * TODO: decide on return type
     pub fn list(&self, _path: String) -> Result<(), JsValue> {
-        log!("tomb-wasm: list()");
+        // log!("tomb-wasm: list()");
         unimplemented!()
     }
 }
