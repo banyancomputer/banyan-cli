@@ -18,7 +18,6 @@ impl V1Index {
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = V1Block::start_read(&mut r) {
-            println!("i found a block at {} with cid {}", block_offset, cid);
             // Log where we found this block
             offsets.insert(cid, block_offset);
             // Skip the rest of the block
@@ -118,14 +117,16 @@ mod tests {
         let mut file = BufReader::new(File::open(car_path)?);
         // Read the header
         let _ = V1Header::read_bytes(&mut file)?;
+        // Load index
         let index = V1Index::read_bytes(&mut file)?;
-        println!("index: {:?}", index.0);
+        // Find offset of a known block
         let block_offset = index.get_offset(&Cid::from_str(
             "bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm",
         )?)?;
+        // Move to offset
         file.seek(SeekFrom::Start(block_offset))?;
-        let block = V1Block::read_bytes(&mut file)?;
-        println!("block: {:?}", block);
+        // Successfully read the block at this offset
+        V1Block::read_bytes(&mut file)?;
         // Return Ok
         Ok(())
     }

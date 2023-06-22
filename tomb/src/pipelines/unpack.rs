@@ -48,7 +48,6 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
         ) -> Result<()> {
             match &node {
                 PrivateNode::Dir(dir) => {
-                    println!("processing dir {}", built_path.display());
                     // Create the directory we are in
                     std::fs::create_dir_all(output_dir.join(built_path))?;
                     // Obtain a list of this Node's children
@@ -83,7 +82,6 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
                 PrivateNode::File(file) => {
                     // This is where the file will be unpacked no matter what
                     let file_path = &output_dir.join(built_path);
-                    println!("processing file {}", file_path.display());
                     // Handle the PrivateFile and write its contents to disk
                     file_to_disk(
                         file,

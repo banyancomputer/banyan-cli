@@ -216,7 +216,6 @@ async fn process_plans(
 
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
-                    println!("i found a duplicate of a file! {:?}", meta);
                     // Grab the original location
                     let dup = &meta.original_location;
                     let dup_path_segments = &path_to_segments(dup)?;

@@ -33,6 +33,7 @@ pub struct CarV2 {
 impl CarV2 {
     /// Load in the CARv2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+        println!("reading v2 with stream len: {}", r.stream_len()?);
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
         // Load in the header
@@ -59,14 +60,23 @@ impl CarV2 {
     }
 
     pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
-        // Read up to the CARv1
-        self.read_to_v1(&mut r)?;
-        // Write up to the CARv1
-        self.write_to_v1(&mut w)?;
-        // Write carv1
+        // Skip to the part where the CARv1 will go
+        let data_offset = self.header.borrow().data_offset;
+        r.seek(SeekFrom::Start(data_offset))?;
+        w.seek(SeekFrom::Start(data_offset))?;
+
+        // Write the CARv1
         self.carv1.write_bytes(&mut r, &mut w)?;
-        // The writer now contains the fully modified CARv1
+        // Update our data size in the V2Header
         self.update_data_size(&mut w)?;
+
+        // Move back to the start
+        w.seek(SeekFrom::Start(0))?;
+        // Write the PRAGMA
+        w.write_all(&V2_PRAGMA)?;
+        // Write the updated V2Header header
+        self.header.borrow().clone().write_bytes(&mut w)?;
+        // Flush the writer
         w.flush()?;
         Ok(())
     }
@@ -97,9 +107,9 @@ impl CarV2 {
             .index
             .insert_offset(&block.cid, w.stream_position()?);
         // Write the bytes
-        let bytes_written = block.write_bytes(&mut w)?;
+        block.write_bytes(&mut w)?;
         // Update the data size
-        self.header.borrow_mut().data_size += bytes_written as u64;
+        self.update_data_size(&mut w)?;
         // Return Ok
         Ok(())
     }
@@ -121,34 +131,10 @@ impl CarV2 {
         self.carv1.get_all_cids()
     }
 
-    fn read_to_v1<R: Read + Seek>(&self, mut r: R) -> Result<()> {
-        // Skip past the Pragma and Header on the reader
-        // r.seek(SeekFrom::Start(V2_PH_SIZE))?;
-        r.seek(SeekFrom::Start(
-            self.header.borrow().data_offset + V2_PH_SIZE,
-        ))?;
-        Ok(())
-    }
-
-    fn write_to_v1<W: Write + Seek>(&self, mut w: W) -> Result<()> {
-        // Write the pragma and header into the writer
-        w.seek(SeekFrom::Start(0))?;
-        w.write_all(&V2_PRAGMA)?;
-        println!("wrote pragma");
-        // Write the header
-        self.header.borrow().clone().write_bytes(&mut w)?;
-        println!("wrote v2header: {:?}", self.header.borrow());
-        w.seek(SeekFrom::Start(
-            self.header.borrow().data_offset + V2_PH_SIZE,
-        ))?;
-        // Flush
-        // w.flush()?;
-        Ok(())
-    }
-
     fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
         // Update the data size
-        let v1_end = x.stream_len()?;
+        let v1_end = x.seek(SeekFrom::End(0))?;
+        println!("data size: {}", v1_end);
         // Update the data size
         self.header.borrow_mut().data_size = v1_end - V2_PH_SIZE;
         Ok(())
@@ -169,8 +155,8 @@ mod tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::File,
-        io::{BufReader, Cursor, Read},
+        fs::{File, copy},
+        io::BufReader,
         path::Path,
         str::FromStr,
         vec,
@@ -236,30 +222,80 @@ mod tests {
 
     #[test]
     #[serial]
-    #[ignore]
-    fn to_from_bytes() -> Result<()> {
-        let car_path = Path::new("car-fixtures").join("carv2-indexless.car");
-        let mut file = BufReader::new(File::open(car_path)?);
-        let mut original_buf: Vec<u8> = Vec::new();
-        file.read_to_end(&mut original_buf)?;
+    fn to_from_disk_no_offset() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
+        let original_path = &Path::new("test").join("carv2-to-from-disk-no-offset-original.car");
+        let updated_path = &Path::new("test").join("carv2-to-from-disk-no-offset-updated.car");
 
-        let original = CarV2::read_bytes(&mut Cursor::new(&original_buf))?;
+        // Copy from fixture to original path
+        copy(car_path, original_path)?;
 
-        let mut new_buf = Cursor::new(Vec::new());
-        original.write_bytes(&mut file, &mut new_buf)?;
+        let original = {
+            // Define reader and writer
+            let mut original_file = File::open(original_path)?;
+            let mut updated_file = File::create(updated_path)?;
+    
+            // Read original CARv2
+            let original = CarV2::read_bytes(&mut original_file)?;
+            // Write to updated file
+            original.write_bytes(&mut original_file, &mut updated_file)?;
+            // Return original
+            original
+        };
 
-        assert_eq!(original_buf, new_buf.clone().into_inner());
+        // Reconstruct
+        let mut updated_file = File::open(updated_path)?;
+        let reconstructed = CarV2::read_bytes(&mut updated_file)?;
 
-        let reconstructed = CarV2::read_bytes(&mut new_buf)?;
-
-        let mut new_new_buf = Cursor::new(Vec::new());
-        reconstructed.write_bytes(&mut file, &mut new_new_buf)?;
-
-        assert_eq!(
-            new_buf.clone().into_inner(),
-            new_new_buf.clone().into_inner()
-        );
+        // Assert equality
+        assert_eq!(original.header, reconstructed.header);
+        assert_eq!(original.index, reconstructed.index);
+        assert_eq!(original.carv1.header, reconstructed.carv1.header);
+        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original, reconstructed);
 
         Ok(())
     }
+
+    #[test]
+    #[serial]
+    fn to_from_disk_with_offset() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
+        let original_path = &Path::new("test").join("carv2-to-from-disk-offset-original.car");
+        let updated_path = &Path::new("test").join("carv2-to-from-disk-offset-updated.car");
+
+        // Copy from fixture to original path
+        copy(car_path, original_path)?;
+
+        let original = {
+            // Define reader and writer
+            let mut original_file = File::open(original_path)?;
+            let mut updated_file = File::create(updated_path)?;
+    
+            // Read original CARv2
+            let original = CarV2::read_bytes(&mut original_file)?;
+
+            // Insert a root
+            original.insert_root(&Cid::default());
+
+            // Write to updated file
+            original.write_bytes(&mut original_file, &mut updated_file)?;
+            // Return original
+            original
+        };
+
+        // Reconstruct
+        let mut updated_file = File::open(updated_path)?;
+        let reconstructed = CarV2::read_bytes(&mut updated_file)?;
+
+        // Assert equality
+        assert_eq!(original.header, reconstructed.header);
+        assert_eq!(original.index, reconstructed.index);
+        assert_eq!(original.carv1.header, reconstructed.carv1.header);
+        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original, reconstructed);
+
+        Ok(())
+    }
+
 }
