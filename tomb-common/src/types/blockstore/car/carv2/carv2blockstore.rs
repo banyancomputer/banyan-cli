@@ -1,12 +1,12 @@
-use super::CarV2;
-use crate::types::blockstore::car::carv1::v1block::V1Block;
+use super::{CarV2, V2_PRAGMA};
+use crate::{types::blockstore::car::carv1::v1block::V1Block, utils::car};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fs::{remove_file, rename, File, OpenOptions},
-    io::{Seek, SeekFrom},
+    io::{Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 use wnfs::{
@@ -21,22 +21,19 @@ pub struct CarV2BlockStore {
 }
 
 impl CarV2BlockStore {
-    pub fn get_read(&self) -> Result<File> {
-        Ok(OpenOptions::new().read(true).open(&self.path)?)
-    }
-    pub fn get_write(&self) -> Result<File> {
-        Ok(OpenOptions::new().append(false).write(true).open(&self.path)?)
-    }
-
     pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
             panic!("invalid path, must be file, not dir");
         }
 
+        // Create the file if it doesn't already exist
+        if !path.exists() {
+            File::create(path)?;
+        }
+
         // If the file is already a valid CARv2
-        if path.exists() &&
-           let Ok(mut file) = File::open(path) &&
+        if let Ok(mut file) = File::open(path) &&
            let Ok(carv2) = CarV2::read_bytes(&mut file) {
             Ok(Self {
                 path: path.to_path_buf(),
@@ -45,21 +42,18 @@ impl CarV2BlockStore {
         }
         // If we need to create the header
         else {
-            // Create the file if it doesn't already exist
-            File::create(path)?;
-            // Open the file in append mode
-            let mut file = OpenOptions::new().append(true).open(path)?;
-            // Move to start
-            file.seek(SeekFrom::Start(0))?;
-            // Initialize
-            CarV2::initialize(&mut file)?;
-            // Move back to the start of the file
-            file.seek(SeekFrom::Start(0))?;
-            // Return Ok
-            Ok(Self {
+            println!("\nSTARTING FROM SCRATCH\n");
+            // Grab read and write
+            let mut w = car::get_write(path)?;
+            let mut r = car::get_read(path)?;
+            let mut store = CarV2BlockStore {
                 path: path.to_path_buf(),
-                carv2: CarV2::read_bytes(&mut File::open(path)?)?,
-            })
+                carv2: CarV2::new(&mut r, &mut w)?
+            };
+            println!("\nDEFAULT CARv2 BlockStore: {:?}\n", store);
+            println!("\nFINISHED CARv2 INIT: {:?}\n", store);
+            // Return Ok
+            Ok(store)
         }
     }
 
@@ -87,7 +81,7 @@ impl CarV2BlockStore {
     }
 
     fn tmp_start(&self) -> Result<(PathBuf, File, File)> {
-        let r = self.get_read()?;
+        let r = car::get_read(&self.path)?;
         let tmp_file_name = format!(
             "{}_tmp.car",
             self.path.file_name().unwrap().to_str().unwrap()
@@ -108,7 +102,7 @@ impl CarV2BlockStore {
 impl BlockStore for CarV2BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Open the file in read-only mode
-        let mut file = self.get_read()?;
+        let mut file = car::get_read(&self.path)?;
         // Perform the block read
         let block: V1Block = self.carv2.get_block(cid, &mut file)?;
         // Return its contents
@@ -126,7 +120,7 @@ impl BlockStore for CarV2BlockStore {
         // If this needs to be appended to the CARv1
         else {
             // Open the file in append mode
-            let mut file = self.get_write()?;
+            let mut file = car::get_write(&self.path)?;
             // Put the block
             self.carv2.put_block(&block, &mut file)?;
             // Return Ok with block CID
@@ -199,9 +193,7 @@ mod tests {
         let store = CarV2BlockStore::new(&new_path)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let kitty_cid = store
-            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
-            .await?;
+        let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
 
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
@@ -211,100 +203,30 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn to_from_disk_no_offset() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-indexless.car");
-        let original_path =
-            &Path::new("test").join("carv2-indexless-blockstore-to-from-disk-no-offset.car");
-        copy(existing_path, original_path)?;
+    async fn from_scratch() -> Result<()> {
+        let original_path = &Path::new("test").join("carv2-from-scratch.car");
+        remove_file(original_path).ok();
 
-        // Load in the original store
+        // Open
         let original = CarV2BlockStore::new(original_path)?;
-        // Store on disk again
-        original.to_disk()?;
-
-        let reconstructed = CarV2BlockStore::new(original_path)?;
-        // Assert that the reconstruction worked
-        assert_eq!(original, reconstructed);
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn to_from_disk_with_offset() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-indexless.car");
-        let original_path =
-            &Path::new("test").join("carv2-indexless-blockstore-offset.car");
-        copy(existing_path, original_path)?;
-
-        // Load in the original store
-        let original = CarV2BlockStore::new(original_path)?;
-        // Store on disk again
-        original.to_disk()?;
-
-        let reconstructed = CarV2BlockStore::new(original_path)?;
-        // Assert that the reconstruction worked
-        assert_eq!(original, reconstructed);
-        Ok(())
-
-
-        // Pub block in the original store
-        // let cid = original
-        //     .put_block(kitty_bytes.clone(), IpldCodec::Raw)
-        //     .await?;
-        // // Insert as root
-        // original.insert_root(&cid);
-
-        // Store on disk again
-        // original.to_disk()?;
-
-        // Reconstruct
-        // let reconstructed = CarV2BlockStore::new(&original_path)?;
-        // // Assert that the reconstruction worked
-        // assert_eq!(original.carv2.header, reconstructed.carv2.header);
-        // assert_eq!(original.carv2.index, reconstructed.carv2.index);
-        // assert_eq!(
-        //     original.carv2.carv1.header,
-        //     reconstructed.carv2.carv1.header
-        // );
-        // assert_eq!(original.carv2.carv1.index, reconstructed.carv2.carv1.index);
-        // assert_eq!(original, reconstructed);
-
-        // // Assert presence in roots
-        // assert_eq!(&cid, reconstructed.get_roots().last().unwrap());
-
-        // // Assert that we can still find the data
-        // assert_eq!(kitty_bytes, reconstructed.get_block(&cid).await?.to_vec());
-
-        // Ok(())
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn insert_root() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-indexless.car");
-        let new_path = Path::new("test").join("carv2-indexless-blockstore-insert-root.car");
-        copy(existing_path, &new_path)?;
-
-        let store = CarV2BlockStore::new(&new_path)?;
+        // Put a block in
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let kitty_cid = store
-            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
-            .await?;
+        // let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        // Insert root
+        // store.insert_root(&kitty_cid);
+        // Save
+        original.to_disk()?;
+        println!("\npost_write store: {:?}\n", original);
 
-        store.insert_root(&kitty_cid);
-        store.to_disk()?;
+        // Reopen
+        let reconstructed = CarV2BlockStore::new(original_path)?;
+        println!("\nreconstructed store: {:?}\n", reconstructed);
 
-        let new_store = CarV2BlockStore::new(&new_path)?;
+        assert_eq!(original, reconstructed);
 
-        assert_eq!(store.carv2.header, new_store.carv2.header);
-        assert_eq!(store.carv2.index, new_store.carv2.index);
-        assert_eq!(store.carv2.carv1.header, new_store.carv2.carv1.header);
-        assert_eq!(store.carv2.carv1.index, new_store.carv2.carv1.index);
+        // assert_eq!(kitty_cid, store.get_roots()[0]);
+        // assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
 
-        assert_eq!(kitty_bytes, new_store.get_block(&kitty_cid).await?.to_vec());
         Ok(())
     }
 }

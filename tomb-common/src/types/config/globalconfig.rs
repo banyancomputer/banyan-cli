@@ -1,4 +1,6 @@
-use crate::{utils::config::xdg_config_home, types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore};
+use crate::{
+    types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore, utils::config::xdg_config_home,
+};
 
 use super::bucketconfig::BucketConfig;
 use anyhow::Result;
@@ -126,10 +128,9 @@ impl Default for GlobalConfig {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use crate::{utils::tests::*, types::config::globalconfig::GlobalConfig};
+    use crate::{types::config::globalconfig::GlobalConfig, utils::tests::*};
     use anyhow::Result;
     use serial_test::serial;
 
@@ -141,7 +142,9 @@ mod test {
         let (origin, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
 
-        config.set_all_metadata(metadata_forest, content_forest, &dir).await?;
+        config
+            .set_all_metadata(metadata_forest, content_forest, &dir)
+            .await?;
         global.update_config(config)?;
         global.to_disk()?;
 
@@ -150,13 +153,23 @@ mod test {
 
         assert_eq!(config.origin, new_config.origin);
         assert_eq!(config.generated, new_config.generated);
-        assert_eq!(config.metadata.carv2.header, new_config.metadata.carv2.header);
+        assert_eq!(
+            config.metadata.carv2.header,
+            new_config.metadata.carv2.header
+        );
         assert_eq!(config.metadata.carv2.index, new_config.metadata.carv2.index);
-        assert_eq!(config.metadata.carv2.carv1.header, new_config.metadata.carv2.carv1.header);
-        assert_eq!(config.metadata.carv2.carv1.index, new_config.metadata.carv2.carv1.index);
+        assert_eq!(
+            config.metadata.carv2.carv1.header,
+            new_config.metadata.carv2.carv1.header
+        );
+        assert_eq!(
+            config.metadata.carv2.carv1.index,
+            new_config.metadata.carv2.carv1.index
+        );
         assert_eq!(config, new_config);
 
-        let (new_metadata_forest, new_content_forest, new_dir) = &new_config.get_all_metadata().await?;
+        let (new_metadata_forest, new_content_forest, new_dir) =
+            &new_config.get_all_metadata().await?;
 
         // Assert equality
         assert_eq!(

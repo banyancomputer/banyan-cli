@@ -15,7 +15,7 @@ use wnfs::{
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub(crate) struct V1Header {
     pub version: u64,
-    pub roots: RefCell<Vec<Cid>>
+    pub roots: RefCell<Vec<Cid>>,
 }
 
 impl V1Header {
@@ -34,7 +34,11 @@ impl V1Header {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(&mut r)?;
-        println!("read v1header w varint {} at stream position {}", ipld_len, r.stream_position()?);
+        println!(
+            "read v1header w varint {} at stream position {}",
+            ipld_len,
+            r.stream_position()?
+        );
         // Allocate that space
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes
@@ -81,7 +85,7 @@ impl V1Header {
         // Return Ok with new Self
         Ok(Self {
             version,
-            roots: RefCell::new(roots)
+            roots: RefCell::new(roots),
         })
     }
 
@@ -104,10 +108,10 @@ impl V1Header {
     }
 }
 
-impl Default for V1Header {
-    fn default() -> Self {
-        Self {
-            version: 1,
+impl V1Header {
+    pub(crate) fn default(version: u64) -> Self {
+        Self { 
+            version,
             roots: RefCell::new(Vec::new())
         }
     }
@@ -130,7 +134,7 @@ mod tests {
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default();
+        let header = V1Header::default(1);
         // Write the header into a buffer
         let mut header_bytes: Vec<u8> = Vec::new();
         header.write_bytes(&mut header_bytes)?;
@@ -168,7 +172,7 @@ mod tests {
     #[test]
     fn modify_roots() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default();
+        let header = V1Header::default(1);
         {
             let mut roots = header.roots.borrow_mut();
             roots.push(Cid::default());

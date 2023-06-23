@@ -12,13 +12,13 @@ use wnfs::{common::BlockStoreError, libipld::Cid};
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct V1Index {
     pub(crate) map: RefCell<HashMap<Cid, u64>>,
-    pub(crate) next_block: RefCell<u64>
+    pub(crate) next_block: RefCell<u64>,
 }
 
 impl V1Index {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let mut offsets = HashMap::<Cid, u64>::new();
-        let mut next_block: u64 = 0;
+        let mut next_block: u64 = r.stream_position()?;
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = V1Block::start_read(&mut r) {
@@ -32,7 +32,7 @@ impl V1Index {
 
         Ok(Self {
             map: RefCell::new(offsets),
-            next_block: RefCell::new(next_block)
+            next_block: RefCell::new(next_block),
         })
     }
 
@@ -82,7 +82,8 @@ impl<'de> Deserialize<'de> for V1Index {
         D: Deserializer<'de>,
     {
         // Deserialize the map
-        let (map, next_block): (HashMap<String, u64>, u64) = <(HashMap<String, u64>, u64)>::deserialize(deserializer)?;
+        let (map, next_block): (HashMap<String, u64>, u64) =
+            <(HashMap<String, u64>, u64)>::deserialize(deserializer)?;
         // Rewrite the map using CIDs
         let new_map: HashMap<Cid, u64> = map
             .into_iter()
@@ -91,7 +92,7 @@ impl<'de> Deserialize<'de> for V1Index {
         // Create new self
         Ok(Self {
             map: RefCell::new(new_map),
-            next_block: RefCell::new(next_block)
+            next_block: RefCell::new(next_block),
         })
     }
 }
@@ -113,7 +114,7 @@ mod tests {
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default();
+        let header = V1Header::default(1);
         // Write the header into a buffer
         let mut header_bytes: Vec<u8> = Vec::new();
         header.write_bytes(&mut header_bytes)?;

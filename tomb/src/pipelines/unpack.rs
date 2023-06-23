@@ -114,7 +114,9 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
         .await?;
 
         // Set all
-        config.set_all(metadata_forest, content_forest, &dir).await?;
+        config
+            .set_all(metadata_forest, content_forest, &dir)
+            .await?;
         global.update_config(&config)?;
         global.to_disk()?;
 

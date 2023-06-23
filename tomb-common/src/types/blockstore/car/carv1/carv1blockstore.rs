@@ -1,3 +1,5 @@
+use crate::utils::car;
+
 use super::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -5,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fs::{remove_file, rename, File, OpenOptions},
-    io::{Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 use wnfs::{
@@ -13,20 +14,13 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq)]
 pub struct CarV1BlockStore {
     pub path: PathBuf,
     pub(crate) carv1: CarV1,
 }
 
 impl CarV1BlockStore {
-    pub fn get_read(&self) -> Result<File> {
-        Ok(OpenOptions::new().read(true).open(&self.path)?)
-    }
-    pub fn get_write(&self) -> Result<File> {
-        Ok(OpenOptions::new().append(false).write(true).open(&self.path)?)
-    }
-
     // Create a new CARv1 BlockStore from a file
     pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
@@ -49,18 +43,12 @@ impl CarV1BlockStore {
         }
         // If we need to create the header
         else {
-            // Open the file in append mode
-            let mut file = OpenOptions::new().append(true).open(path)?;
-            // Move to start
-            file.seek(SeekFrom::Start(0))?;
-            // Initialize this file as a CARv1
-            CarV1::initialize(&mut file)?;
-            // Move back to the start of the file
-            file.seek(SeekFrom::Start(0))?;
-            // Return Ok
+            let mut w = car::get_write(path)?;
+            let mut r = car::get_read(path)?;
+            
             Ok(Self {
                 path: path.to_path_buf(),
-                carv1: CarV1::read_bytes(&mut File::open(path)?)?
+                carv1: CarV1::new(1, &mut r, &mut w)?
             })
         }
     }
@@ -81,7 +69,7 @@ impl CarV1BlockStore {
     }
 
     fn tmp_start(&self) -> Result<(PathBuf, File, File)> {
-        let r = self.get_read()?;
+        let r = car::get_read(&self.path)?;
         let tmp_file_name = format!(
             "{}_tmp.car",
             self.path.file_name().unwrap().to_str().unwrap()
@@ -102,7 +90,7 @@ impl CarV1BlockStore {
 impl BlockStore for CarV1BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Open the file in read-only mode
-        let mut file = self.get_read()?;
+        let mut file = car::get_read(&self.path)?;
         // Perform the block read
         let block: V1Block = self.carv1.get_block(cid, &mut file)?;
         // Return its contents
@@ -120,7 +108,7 @@ impl BlockStore for CarV1BlockStore {
         // If this needs to be appended to the CARv1
         else {
             // Open the file in append mode
-            let mut file = self.get_write()?;
+            let mut file = car::get_write(&self.path)?;
             // Put the block
             self.carv1.put_block(&block, &mut file)?;
             // Return Ok with block CID
@@ -151,7 +139,7 @@ impl<'de> Deserialize<'de> for CarV1BlockStore {
 #[cfg(test)]
 mod tests {
     use std::{
-        fs::{copy, remove_file, create_dir_all},
+        fs::{copy, create_dir_all, remove_file},
         path::Path,
         str::FromStr,
     };
@@ -291,6 +279,30 @@ mod tests {
                 .last()
                 .unwrap()
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn from_scratch() -> Result<()> {
+        let original_path = &Path::new("test").join("carv2-from-scratch.car");
+        remove_file(original_path).ok();
+
+        // Open
+        let store = CarV1BlockStore::new(original_path)?;
+        // Put a block in
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        // Insert root
+        store.insert_root(&kitty_cid);
+        // Save
+        store.to_disk()?;
+
+        // Reopen
+        let store = CarV1BlockStore::new(original_path)?;
+        assert_eq!(kitty_cid, store.carv1.header.roots.borrow().clone()[0]);
+        assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
 
         Ok(())
     }

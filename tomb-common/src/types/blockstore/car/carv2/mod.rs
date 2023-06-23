@@ -23,7 +23,7 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
     0x0a, 0xa1, 0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02,
 ];
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CarV2 {
     pub(crate) header: RefCell<V2Header>,
     pub(crate) carv1: CarV1,
@@ -38,6 +38,8 @@ impl CarV2 {
         Self::verify_pragma(&mut r)?;
         // Load in the header
         let header = V2Header::read_bytes(&mut r)?;
+        // Assert we're at the right spot
+        assert_eq!(r.stream_position()?, V2_PH_SIZE);
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
@@ -60,6 +62,7 @@ impl CarV2 {
     }
 
     pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
+        println!("\nwriting: {:?}\n", self);
         // Skip to the part where the CARv1 will go
         let data_offset = self.header.borrow().data_offset;
         r.seek(SeekFrom::Start(data_offset))?;
@@ -118,17 +121,28 @@ impl CarV2 {
         Ok(())
     }
 
-    pub(crate) fn initialize<W: Write + Seek>(mut w: W) -> Result<()> {
+    pub(crate) fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
+        // Move to CARv1 no padding
+        w.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        // r.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        let carv1 = CarV1::default(2);
+        carv1.header.write_bytes(&mut w)?;
+
+        println!("STREAM LEN: {}", w.stream_position()?);
+        
+        let data_size = w.stream_position()? - V2_PH_SIZE;
+
         // Move to start
         w.seek(SeekFrom::Start(0))?;
         // Write pragma
         w.write_all(&V2_PRAGMA)?;
-        // Write new header
-        V2Header::default().write_bytes(&mut w)?;
-        // Initialize a CARv1 inside the CARv2
-        CarV1::initialize(&mut w)?;
-        // Return Ok
-        Ok(())
+        // Write header with correct data size
+        let mut header = V2Header::default();
+        header.data_size = data_size;
+        header.write_bytes(&mut w)?;
+        assert_eq!(w.stream_position()?, V2_PH_SIZE);
+        
+        Ok(Self::read_bytes(&mut r)?)
     }
 
     pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
@@ -157,13 +171,35 @@ impl CarV2 {
     }
 }
 
+impl Default for CarV2 {
+    fn default() -> Self {
+        let carv1 = CarV1::default(2);
+        // Make room for the Pragma and Header
+        carv1.index.set_next_block(51);
+        let next_block = carv1.index.get_next_block();
+
+        let header = RefCell::new(V2Header {
+            characteristics: 0,
+            data_offset: 0,
+            data_size: next_block,
+            index_offset: 0,
+        });
+
+        Self {
+            header,
+            carv1,
+            index: Default::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
     use fs_extra::{dir::CopyOptions, file};
     use serial_test::serial;
     use std::{
-        fs::{copy, File, remove_file, OpenOptions},
+        fs::{copy, remove_file, File, OpenOptions},
         io::{BufReader, Seek},
         path::Path,
         str::FromStr,
@@ -171,7 +207,7 @@ mod tests {
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
-    use crate::types::blockstore::car::{carv2::CarV2, carv1::v1block::V1Block};
+    use crate::types::blockstore::car::{carv1::v1block::V1Block, carv2::CarV2};
 
     #[test]
     #[serial]
@@ -236,7 +272,7 @@ mod tests {
 
         // Copy from fixture to original path
         remove_file(original_path).ok();
-        
+
         file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
@@ -256,7 +292,10 @@ mod tests {
         let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
 
         // Writable version of the original file
-        let mut writable_original = OpenOptions::new().append(false).write(true).open(original_path)?;
+        let mut writable_original = OpenOptions::new()
+            .append(false)
+            .write(true)
+            .open(original_path)?;
 
         // Put a new block in
         original.put_block(&block, &mut writable_original)?;
@@ -267,7 +306,7 @@ mod tests {
         for cid in &all_cids {
             assert!(original.get_block(cid, &mut original_file).is_ok());
         }
-        
+
         Ok(())
     }
 
@@ -301,7 +340,10 @@ mod tests {
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index.next_block, reconstructed.carv1.index.next_block);
+        assert_eq!(
+            original.carv1.index.next_block,
+            reconstructed.carv1.index.next_block
+        );
         assert_eq!(original.carv1.index.map, reconstructed.carv1.index.map);
         assert_eq!(original, reconstructed);
 
@@ -318,7 +360,7 @@ mod tests {
         // Copy from fixture to original path
         remove_file(original_path).ok();
         remove_file(updated_path).ok();
-        
+
         file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
@@ -333,7 +375,10 @@ mod tests {
         let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
 
         // Writable version of the original file
-        let mut writable_original = OpenOptions::new().append(false).write(true).open(original_path)?;
+        let mut writable_original = OpenOptions::new()
+            .append(false)
+            .write(true)
+            .open(original_path)?;
         original.put_block(&block, &mut writable_original)?;
 
         // Write to updated file
@@ -347,13 +392,13 @@ mod tests {
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index.next_block, reconstructed.carv1.index.next_block);
+        assert_eq!(
+            original.carv1.index.next_block,
+            reconstructed.carv1.index.next_block
+        );
         assert_eq!(original.carv1.index.map, reconstructed.carv1.index.map);
         assert_eq!(original, reconstructed);
 
-
         Ok(())
     }
-
-
 }
