@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{remove_file, rename, File, OpenOptions},
+    fs::{remove_file, rename, File},
     path::{Path, PathBuf},
 };
 use wnfs::{

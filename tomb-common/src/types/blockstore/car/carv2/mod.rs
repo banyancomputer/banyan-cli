@@ -124,12 +124,11 @@ impl CarV2 {
     pub(crate) fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
         // Move to CARv1 no padding
         w.seek(SeekFrom::Start(V2_PH_SIZE))?;
-        // r.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        // Construct a CARv1
         let carv1 = CarV1::default(2);
+        // Write CARv1 Header
         carv1.header.write_bytes(&mut w)?;
-
-        println!("STREAM LEN: {}", w.stream_position()?);
-        
+        // Compute the data size
         let data_size = w.stream_position()? - V2_PH_SIZE;
 
         // Move to start
@@ -137,8 +136,12 @@ impl CarV2 {
         // Write pragma
         w.write_all(&V2_PRAGMA)?;
         // Write header with correct data size
-        let mut header = V2Header::default();
-        header.data_size = data_size;
+        let header = V2Header {
+            characteristics: 0,
+            data_offset: V2_PH_SIZE,
+            data_size,
+            index_offset: 0,
+        };
         header.write_bytes(&mut w)?;
         assert_eq!(w.stream_position()?, V2_PH_SIZE);
         
@@ -171,36 +174,14 @@ impl CarV2 {
     }
 }
 
-impl Default for CarV2 {
-    fn default() -> Self {
-        let carv1 = CarV1::default(2);
-        // Make room for the Pragma and Header
-        carv1.index.set_next_block(51);
-        let next_block = carv1.index.get_next_block();
-
-        let header = RefCell::new(V2Header {
-            characteristics: 0,
-            data_offset: 0,
-            data_size: next_block,
-            index_offset: 0,
-        });
-
-        Self {
-            header,
-            carv1,
-            index: Default::default(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use fs_extra::{dir::CopyOptions, file};
+    use fs_extra::file;
     use serial_test::serial;
     use std::{
-        fs::{copy, remove_file, File, OpenOptions},
-        io::{BufReader, Seek},
+        fs::{remove_file, File, OpenOptions},
+        io::BufReader,
         path::Path,
         str::FromStr,
         vec,

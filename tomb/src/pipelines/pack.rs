@@ -54,7 +54,7 @@ pub async fn pipeline(
     let mut global = GlobalConfig::from_disk()?;
 
     // If the user has done initialization for this directory
-    if let Ok(config) = global.get_bucket(input_dir) {
+    if let Some(config) = global.get_bucket(input_dir) {
         println!("\njust loaded in BucketConfig from disk: {:?}\n", config);
         // let metadata = &config.metadata;
         // let content = &config.content;

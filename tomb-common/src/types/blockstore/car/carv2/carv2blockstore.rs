@@ -1,12 +1,11 @@
-use super::{CarV2, V2_PRAGMA};
+use super::CarV2;
 use crate::{types::blockstore::car::carv1::v1block::V1Block, utils::car};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{remove_file, rename, File, OpenOptions},
-    io::{Seek, SeekFrom, Write},
+    fs::{remove_file, rename, File},
     path::{Path, PathBuf},
 };
 use wnfs::{
@@ -14,7 +13,7 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
     pub(crate) carv2: CarV2,
@@ -46,11 +45,11 @@ impl CarV2BlockStore {
             // Grab read and write
             let mut w = car::get_write(path)?;
             let mut r = car::get_read(path)?;
-            let mut store = CarV2BlockStore {
+
+            let store = CarV2BlockStore {
                 path: path.to_path_buf(),
                 carv2: CarV2::new(&mut r, &mut w)?
             };
-            println!("\nDEFAULT CARv2 BlockStore: {:?}\n", store);
             println!("\nFINISHED CARv2 INIT: {:?}\n", store);
             // Return Ok
             Ok(store)
@@ -158,7 +157,7 @@ mod tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{copy, remove_file},
+        fs::remove_file,
         path::Path,
         str::FromStr,
     };
@@ -211,9 +210,9 @@ mod tests {
         let original = CarV2BlockStore::new(original_path)?;
         // Put a block in
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        // let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        let kitty_cid = original.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
         // Insert root
-        // store.insert_root(&kitty_cid);
+        original.insert_root(&kitty_cid);
         // Save
         original.to_disk()?;
         println!("\npost_write store: {:?}\n", original);
@@ -221,12 +220,13 @@ mod tests {
         // Reopen
         let reconstructed = CarV2BlockStore::new(original_path)?;
         println!("\nreconstructed store: {:?}\n", reconstructed);
+        
+        // Ensure content is still there
+        assert_eq!(kitty_cid, original.get_roots()[0]);
+        assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
 
+        // Assert equality
         assert_eq!(original, reconstructed);
-
-        // assert_eq!(kitty_cid, store.get_roots()[0]);
-        // assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
-
         Ok(())
     }
 }

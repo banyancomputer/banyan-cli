@@ -10,7 +10,7 @@ use crate::types::blockstore::car::varint::{
 pub const V2_HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
-#[derive(Debug, PartialEq, Clone, Copy, Default)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct V2Header {
     pub characteristics: u128,
     pub data_offset: u64,

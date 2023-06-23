@@ -2,7 +2,6 @@ use crate::types::blockstore::car::varint::{encode_varint_u128, read_varint_u128
 use anyhow::Result;
 use std::io::{Read, Seek, Write};
 use wnfs::libipld::{
-    cid::Version,
     multihash::{Code, MultihashDigest},
     Cid, IpldCodec,
 };

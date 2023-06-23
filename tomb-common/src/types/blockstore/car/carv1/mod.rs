@@ -16,6 +16,8 @@ use wnfs::libipld::Cid;
 
 use self::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
 
+use super::carv2::V2_PH_SIZE;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct CarV1 {
     pub header: V1Header,
@@ -153,9 +155,10 @@ impl PartialEq for CarV1 {
 impl CarV1 {
     pub(crate) fn default(version: u64) -> Self {
         let header = V1Header::default(version);
-
         let mut buf: Vec<u8> = Vec::new();
         header.write_bytes(&mut buf).unwrap();
+        
+        // Header length
         let hlen = buf.len() as u64;
 
         Self {
@@ -163,7 +166,7 @@ impl CarV1 {
             read_header_len: RefCell::new(hlen),
             index: V1Index {
                 map: RefCell::new(HashMap::new()),
-                next_block: RefCell::new(hlen),
+                next_block: RefCell::new(if version == 1 { hlen } else { hlen + V2_PH_SIZE }),
             },
         }
     }
@@ -171,7 +174,7 @@ impl CarV1 {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::carv1::{v1block::V1Block, v1header::V1Header, CarV1};
+    use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
     use anyhow::Result;
     use fs_extra::file;
     use serial_test::serial;

@@ -14,7 +14,7 @@ use std::{
 };
 use wnfs::private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
     /// The name of this bucket
     bucket_name: String,
@@ -136,45 +136,5 @@ impl BucketConfig {
         )
         .await?;
         self.set_key(&temporal_key, "root")
-    }
-}
-
-impl Serialize for BucketConfig {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // Serialize
-        self.metadata.to_disk().unwrap();
-        self.content.to_disk().unwrap();
-
-        (
-            &self.bucket_name,
-            &self.origin,
-            &self.generated,
-            &self.metadata.path,
-            &self.content.path,
-        )
-            .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for BucketConfig {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let (bucket_name, origin, generated, meta_path, content_path) =
-            <(String, PathBuf, PathBuf, PathBuf, PathBuf)>::deserialize(deserializer)?;
-
-        let x = Self {
-            bucket_name,
-            origin,
-            generated,
-            metadata: CarV2BlockStore::new(&meta_path).unwrap(),
-            content: CarV2BlockStore::new(&content_path).unwrap(),
-        };
-
-        std::result::Result::Ok(x)
     }
 }

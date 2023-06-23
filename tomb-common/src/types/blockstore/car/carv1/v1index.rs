@@ -116,12 +116,12 @@ mod tests {
         // Construct a V1Header
         let header = V1Header::default(1);
         // Write the header into a buffer
-        let mut header_bytes: Vec<u8> = Vec::new();
+        let mut header_bytes = Cursor::new(Vec::<u8>::new());
         header.write_bytes(&mut header_bytes)?;
 
         // Reconstruct the header from this buffer
-        let header_cursor = Cursor::new(header_bytes);
-        let new_header = V1Header::read_bytes(header_cursor)?;
+        header_bytes.seek(SeekFrom::Start(0))?;
+        let new_header = V1Header::read_bytes(header_bytes)?;
 
         // Assert equality
         assert_eq!(header, new_header);
