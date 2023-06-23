@@ -1,12 +1,10 @@
 mod metadata;
+#[macro_use]
 mod utils;
 
 use metadata::types::Bucket;
 use wasm_bindgen::prelude::*;
-use web_sys::{ 
-    console,
-    CryptoKey,
-};
+use web_sys::CryptoKey;
 use wnfs::{
     common::MemoryBlockStore,
     private::PrivateDirectory
@@ -17,12 +15,7 @@ use wnfs::{
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-// Our logging macro
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        console::log_1(&format!( $( $t )* ).into());
-    }
-}
+
 
 #[allow(dead_code)]
 #[wasm_bindgen]
@@ -38,7 +31,7 @@ pub struct Tomb {
 impl Tomb {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        // log!("tomb-wasm: new()");
+        log!("tomb-wasm: new()");
         utils::set_panic_hook();
         Tomb { 
             buckets: Vec::new(), 

@@ -3654,6 +3654,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "console_error_panic_hook",
+ "futures-util",
  "js-sys",
  "rand 0.8.5",
  "serde",
