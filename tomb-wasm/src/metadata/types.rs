@@ -1,9 +1,13 @@
 use wasm_bindgen_futures::JsFuture;
+use serde_wasm_bindgen;
+use serde::Deserialize;
 use anyhow::{Result, Error};
+
+use crate::utils::fetch_json;
 
 
 #[allow(dead_code)]
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug, Deserialize)]
 #[repr(C)]
 /// Sum total of Metadata for a bucket managed by Tomb.
 pub struct Bucket {
@@ -40,16 +44,13 @@ impl Service {
     /* Read */
     /// Read all buckets accessible to the user.
     /// # Returns
-    /// * TODO: JsFuture that resolves to a Vec<Bucket>.
-    // pub fn read_buckets(&self) -> Result<JsFuture, Error> {
-    pub fn read_buckets(&self) -> Result<Vec<Bucket>, Error> {
-        let vec = vec![Bucket {
-            id: "id".to_string(),
-            name: "name".to_string(),
-            owner: "owner".to_string(),
-            entrypoint: "entrypoint".to_string(),
-        }];
-        Ok(vec)
+    /// * Vec<Bucket>.
+    pub async fn read_buckets(&self) -> Result<Vec<Bucket>, Error> {
+        // TODO: Read real data, not fake data
+        let url = "https://echo.jsontest.com/id/bucket_id/name/bucket_name/owner/bucket_owner/entrypoint/bucket_entrypoint".to_string();
+        let json = fetch_json(url).await.unwrap();
+        let buckets: Vec<Bucket> = serde_wasm_bindgen::from_value(json).unwrap();
+        Ok(buckets)
     }
 
     /// Read the encrypted share key for a bucket.
@@ -68,6 +69,7 @@ impl Service {
     /// # Returns
     /// * JsFuture that resolves to a ReadableStream.
     pub fn read_metadata(&self, _bucket_id: String) -> Result<JsFuture, Error> {
+        // TODO: Open a stream to a CAR
         unimplemented!()
     } 
 

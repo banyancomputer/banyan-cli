@@ -42,15 +42,10 @@ impl Tomb {
     }
 
     /// Initializes the Tomb instance with initial metadata
-    pub fn init(&mut self) -> Result<(), JsValue> {
+    pub async fn init(&mut self) -> Result<(), JsValue> {
         // log!("tomb-wasm: init()");
         // TODO: Read buckets from metadata service 
-        self.buckets = [Bucket {
-            id: "id".to_string(),
-            name: "name".to_string(),
-            owner: "owner".to_string(),
-            entrypoint: "entrypoint".to_string(),
-        }].to_vec();
+        self.buckets = self.metadata_service.read_buckets().await.unwrap();
         Ok(())
     }
 
