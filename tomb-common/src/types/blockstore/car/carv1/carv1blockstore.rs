@@ -41,11 +41,13 @@ impl CarV1BlockStore {
                 carv1
             })
         }
-        // If we need to create the header
+        // If we need to create the CARv2 file from scratch
         else {
+            // Grab reader and writer
             let mut w = car::get_write(path)?;
             let mut r = car::get_read(path)?;
-            
+
+            // Construct new
             Ok(Self {
                 path: path.to_path_buf(),
                 carv1: CarV1::new(1, &mut r, &mut w)?

@@ -39,7 +39,6 @@ pub(crate) async fn store_metadata_forest(
 ) -> Result<()> {
     // Store the forest in the hot store
     let metadata_cid = store_forest(metadata_forest, metadata).await?;
-    println!("s: storing metadata_forest with cid {}", metadata_cid);
     // Add PrivateForest associated roots to meta store
     metadata.insert_root(&metadata_cid);
     // Return Ok
@@ -50,7 +49,6 @@ pub(crate) async fn store_metadata_forest(
 async fn load_metadata_forest(metadata: &CarV2BlockStore, i: usize) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let metadata_cid = &metadata.get_roots()[i];
-    println!("s: loading metadata_forest with cid {}", metadata_cid);
     // Load the forest
     load_forest(metadata_cid, metadata).await
 }
@@ -62,7 +60,6 @@ async fn store_content_forest(
 ) -> Result<()> {
     // Store the forest in the hot store
     let content_cid = store_forest(content_forest, content).await?;
-    println!("s: storing contnet_forest with cid {}", content_cid);
     // Add PrivateForest associated roots to meta store
     content.insert_root(&content_cid);
     // Return Ok
@@ -73,7 +70,6 @@ async fn store_content_forest(
 async fn load_content_forest(content: &CarV2BlockStore, i: usize) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let content_cid = &content.get_roots()[i];
-    println!("s: loading contnet_forest with cid {}", content_cid);
     // Load the forest
     load_forest(content_cid, content).await
 }
@@ -117,7 +113,6 @@ pub async fn load_dir(
 ) -> Result<Rc<PrivateDirectory>> {
     // Get the PrivateRef CID
     let ref_cid = &metadata.get_roots()[0];
-    println!("loading PrivateNode dir with cid {}", ref_cid);
 
     // Construct the saturated name hash
     let (saturated_name_hash, content_cid): (HashOutput, Cid) = metadata

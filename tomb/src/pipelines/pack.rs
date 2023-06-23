@@ -55,9 +55,6 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(config) = global.get_bucket(input_dir) {
-        println!("\njust loaded in BucketConfig from disk: {:?}\n", config);
-        // let metadata = &config.metadata;
-        // let content = &config.content;
         // Try to get the key of the root node
         let key = config.get_key("root");
 

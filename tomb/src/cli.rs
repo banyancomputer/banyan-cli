@@ -209,7 +209,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_init() -> Result<()> {
         let test_name = "cli_init";
         // Setup test
@@ -222,14 +221,13 @@ mod test {
         let bucket = GlobalConfig::from_disk()?.get_bucket(origin);
         assert!(bucket.is_some());
         // Assert that there is still no key, because we've not packed
-        assert!(bucket.unwrap().get_key("root").is_ok());
+        assert!(bucket.unwrap().get_key("root").is_err());
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_init_deinit() -> Result<()> {
         let test_name = "cli_init_deinit";
         // Setup test
@@ -250,7 +248,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_configure_remote() -> Result<()> {
         let test_name = "cli_configure_remote";
         // Setup test
@@ -275,7 +272,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_pack_local() -> Result<()> {
         let test_name = "cli_pack_local";
         // Setup test
@@ -290,7 +286,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn cli_unpack_local() -> Result<()> {
         let test_name = "cli_unpack_local";
         // Setup test

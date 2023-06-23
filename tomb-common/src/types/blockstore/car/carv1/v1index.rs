@@ -27,7 +27,6 @@ impl V1Index {
             // Skip the rest of the block
             r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
             next_block = r.stream_position()?;
-            println!("read block_offset {}; next block is {}", block_offset, next_block);
         }
 
         Ok(Self {
@@ -53,10 +52,9 @@ impl V1Index {
     }
 
     pub(crate) fn get_next_block(&self) -> u64 {
-        self.next_block.borrow().clone()
+        *self.next_block.borrow()
     }
     pub(crate) fn set_next_block(&self, next_block: u64) {
-        println!("manually setting next block as {}", next_block);
         *self.next_block.borrow_mut() = next_block;
     }
 }

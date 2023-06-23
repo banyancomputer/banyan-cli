@@ -57,19 +57,15 @@ impl CarV1 {
         let mut current_header_buf: Vec<u8> = Vec::new();
         self.header.write_bytes(&mut current_header_buf)?;
 
-        let data_offset =
-            current_header_buf.len() as i64 - self.read_header_len.borrow().clone() as i64;
-
-        println!("the data offset is {}", data_offset);
-
-        // println!("preupddated v1index: {:?}", &self.index);
+        // Compute data offset
+        let data_offset = current_header_buf.len() as i64 - *self.read_header_len.borrow() as i64;
 
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
 
         // Skip to the point where the old data started
         r.seek(SeekFrom::Start(
-            carv1_start + self.read_header_len.borrow().clone() as u64,
+            carv1_start + *self.read_header_len.borrow(),
         ))?;
 
         // Whiel we're able to successfully read in blocks
@@ -90,8 +86,6 @@ impl CarV1 {
         *self.index.map.borrow_mut() = new_index.clone();
         self.index
             .set_next_block((self.index.get_next_block() as i64 + data_offset) as u64);
-
-        // println!("updated v1index: {:?}", &self.index);
 
         // Move back to the satart
         w.seek(SeekFrom::Start(carv1_start))?;
@@ -139,10 +133,14 @@ impl CarV1 {
         *roots = Vec::new();
     }
 
-    pub(crate) fn new<R: Read + Seek, W: Write + Seek>(version: u64, mut r: R, mut w: W) -> Result<Self> {
+    pub(crate) fn new<R: Read + Seek, W: Write + Seek>(
+        version: u64,
+        mut r: R,
+        mut w: W,
+    ) -> Result<Self> {
         let car = Self::default(version);
         car.header.write_bytes(&mut w)?;
-        Ok(Self::read_bytes(&mut r)?)
+        Self::read_bytes(&mut r)
     }
 }
 
@@ -157,7 +155,7 @@ impl CarV1 {
         let header = V1Header::default(version);
         let mut buf: Vec<u8> = Vec::new();
         header.write_bytes(&mut buf).unwrap();
-        
+
         // Header length
         let hlen = buf.len() as u64;
 
@@ -166,7 +164,11 @@ impl CarV1 {
             read_header_len: RefCell::new(hlen),
             index: V1Index {
                 map: RefCell::new(HashMap::new()),
-                next_block: RefCell::new(if version == 1 { hlen } else { hlen + V2_PH_SIZE }),
+                next_block: RefCell::new(if version == 1 {
+                    hlen
+                } else {
+                    hlen + V2_PH_SIZE
+                }),
             },
         }
     }
@@ -321,7 +323,6 @@ mod tests {
         for cid in &all_cids {
             println!("getting block {}", cid);
             original.get_block(cid, &mut original_file)?;
-            // assert!(original.get_block(cid, &mut original_file).is_ok());
         }
 
         Ok(())

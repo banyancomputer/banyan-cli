@@ -33,7 +33,6 @@ pub struct CarV2 {
 impl CarV2 {
     /// Load in the CARv2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
-        println!("reading v2 with stream len: {}", r.stream_len()?);
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
         // Load in the header
@@ -62,7 +61,6 @@ impl CarV2 {
     }
 
     pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
-        println!("\nwriting: {:?}\n", self);
         // Skip to the part where the CARv1 will go
         let data_offset = self.header.borrow().data_offset;
         r.seek(SeekFrom::Start(data_offset))?;
@@ -144,8 +142,8 @@ impl CarV2 {
         };
         header.write_bytes(&mut w)?;
         assert_eq!(w.stream_position()?, V2_PH_SIZE);
-        
-        Ok(Self::read_bytes(&mut r)?)
+
+        Self::read_bytes(&mut r)
     }
 
     pub(crate) fn get_all_cids(&self) -> Vec<Cid> {

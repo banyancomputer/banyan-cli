@@ -39,18 +39,16 @@ impl CarV2BlockStore {
                 carv2,
             })
         }
-        // If we need to create the header
+        // If we need to create the CARv2 file from scratch
         else {
-            println!("\nSTARTING FROM SCRATCH\n");
             // Grab read and write
             let mut w = car::get_write(path)?;
             let mut r = car::get_read(path)?;
-
+            // Create new 
             let store = CarV2BlockStore {
                 path: path.to_path_buf(),
                 carv2: CarV2::new(&mut r, &mut w)?
             };
-            println!("\nFINISHED CARv2 INIT: {:?}\n", store);
             // Return Ok
             Ok(store)
         }
@@ -156,11 +154,7 @@ mod tests {
     use super::CarV2BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{
-        fs::remove_file,
-        path::Path,
-        str::FromStr,
-    };
+    use std::{fs::remove_file, path::Path, str::FromStr};
     use wnfs::{
         common::BlockStore,
         libipld::{Cid, IpldCodec},
@@ -210,7 +204,9 @@ mod tests {
         let original = CarV2BlockStore::new(original_path)?;
         // Put a block in
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let kitty_cid = original.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        let kitty_cid = original
+            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
+            .await?;
         // Insert root
         original.insert_root(&kitty_cid);
         // Save
@@ -220,7 +216,7 @@ mod tests {
         // Reopen
         let reconstructed = CarV2BlockStore::new(original_path)?;
         println!("\nreconstructed store: {:?}\n", reconstructed);
-        
+
         // Ensure content is still there
         assert_eq!(kitty_cid, original.get_roots()[0]);
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
