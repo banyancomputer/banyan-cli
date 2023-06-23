@@ -15,7 +15,7 @@ pub async fn pipeline(origin: &Path, input_file: &Path, wnfs_path: &Path) -> Res
     let mut global = GlobalConfig::from_disk()?;
 
     // Bucket config
-    if let Some(config) = global.get_bucket(origin) {
+    if let Ok(config) = global.get_bucket(origin) {
         // Get structs
         let (metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
 

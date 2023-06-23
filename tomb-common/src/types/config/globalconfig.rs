@@ -1,4 +1,4 @@
-use crate::utils::config::xdg_config_home;
+use crate::{utils::config::xdg_config_home, types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore};
 
 use super::bucketconfig::BucketConfig;
 use anyhow::Result;
@@ -40,8 +40,11 @@ impl GlobalConfig {
         }
     }
 
-    pub fn get_bucket(&self, origin: &Path) -> Option<BucketConfig> {
-        self.find_config(origin)
+    pub fn get_bucket(&self, origin: &Path) -> Result<BucketConfig> {
+        let mut config = self.find_config(origin).unwrap();
+        config.metadata = CarV2BlockStore::new(&config.metadata.path)?;
+        config.content = CarV2BlockStore::new(&config.content.path)?;
+        Ok(config)
     }
 
     pub fn new_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
@@ -123,181 +126,56 @@ impl Default for GlobalConfig {
     }
 }
 
-/*
-
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{disk::*, tests::*};
+    use crate::{utils::tests::*, types::config::globalconfig::GlobalConfig};
     use anyhow::Result;
     use serial_test::serial;
 
     #[tokio::test]
     #[serial]
-    async fn disk_key() -> Result<()> {
-        let test_name = "disk_key";
+    async fn get_set_all() -> Result<()> {
+        let test_name = "get_set_key";
         // Start er up!
-        let (tomb_path, global, config, metadata_forest, content_forest, dir) =
+        let (origin, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
 
-        // Generate key for this directory
-        let key = store_all(
-            &config.metadata,
-            &config.content,
-            metadata_forest,
-            content_forest,
-            dir,
-        )
-        .await?;
+        config.set_all_metadata(metadata_forest, content_forest, &dir).await?;
+        global.update_config(config)?;
+        global.to_disk()?;
 
-        // Store and load
-        config.set_key(&key, "root")?;
-        let new_key = config.get_key("root").unwrap();
+        let new_global = GlobalConfig::from_disk()?;
+        let new_config = &mut new_global.get_bucket(origin).unwrap();
 
-        // Assert equality
-        assert_eq!(key, new_key);
+        assert_eq!(config.origin, new_config.origin);
+        assert_eq!(config.generated, new_config.generated);
+        assert_eq!(config.metadata.carv2.header, new_config.metadata.carv2.header);
+        assert_eq!(config.metadata.carv2.index, new_config.metadata.carv2.index);
+        assert_eq!(config.metadata.carv2.carv1.header, new_config.metadata.carv2.carv1.header);
+        assert_eq!(config.metadata.carv2.carv1.index, new_config.metadata.carv2.carv1.index);
+        assert_eq!(config, new_config);
 
-        // Teardown
-        teardown(test_name).await
-    }
-
-    /*
-
-    #[tokio::test]
-    #[serial]
-    async fn disk_metadata() -> Result<()> {
-        let test_name = "disk_metadata";
-        // Setup
-        let (origin, config, metadata_forest, _, root_dir) =
-            &mut setup(test_name).await?;
-
-        // Save to disk
-        let key = &hot_to_disk(origin, config, metadata_forest, root_dir).await?;
-
-        // Reload from disk
-        let (new_key, _, new_metadata_forest, new_root_dir) =
-            &mut hot_from_disk(&tomb_path).await?;
+        let (new_metadata_forest, new_content_forest, new_dir) = &new_config.get_all_metadata().await?;
 
         // Assert equality
-        assert_eq!(key, new_key);
         assert_eq!(
             metadata_forest
-                .diff(new_metadata_forest, metadata)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(root_dir, new_root_dir);
-
-        // Teardown
-        teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn disk_content() -> Result<()> {
-        let test_name = "disk_content";
-        // Setup
-        let (origin, metadata, content, metadata_forest, content_forest, root_dir) =
-            &mut setup(test_name).await?;
-
-        let config = GlobalConfig::get_bucket(&origin).unwrap();
-        // Save to disk
-        let key = &mut all_to_disk(
-            &config,
-            metadata_forest,
-            content_forest,
-            root_dir,
-        )
-        .await?;
-        // Reload from disk
-        let (
-            new_key,
-            _,
-            _,
-            new_metadata_forest,
-            new_content_forest,
-            new_root_dir,
-        ) = &mut all_from_disk(&origin).await?;
-
-        // Assert equality
-        assert_eq!(key, new_key);
-        // assert_eq!(manifest, new_manifest);
-        assert_eq!(
-            metadata_forest
-                .diff(new_metadata_forest, metadata)
+                .diff(new_metadata_forest, &new_config.metadata)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
             content_forest
-                .diff(new_content_forest, content)
+                .diff(new_content_forest, &new_config.content)
                 .await?
                 .len(),
             0
         );
-        assert_eq!(root_dir, new_root_dir);
+        assert_eq!(dir, new_dir);
 
         // Teardown
         teardown(test_name).await
     }
-
-
-
-    /// Helper function, not a test
-    async fn assert_serial_all_cold(local: bool) -> Result<()> {
-        let test_name: &String = &format!("serial_all_cold_{}", local);
-        // Start er up!
-        let (tomb_path, mut manifest, mut metadata_forest, mut content_forest, dir) =
-            setup(test_name).await?;
-
-        // Store and load
-        let key = all_to_disk(
-            &tomb_path,
-            &mut manifest,
-            &mut metadata_forest,
-            &mut content_forest,
-            &dir
-        )
-        .await?;
-        let (new_key, new_manifest, new_metadata_forest, new_content_forest, new_dir) =
-            all_from_disk(&tomb_path).await?;
-
-        // Assert equality
-        assert_eq!(new_key, key);
-        assert_eq!(new_manifest, manifest);
-        assert_eq!(
-            new_metadata_forest
-                .diff(&metadata_forest, &new_manifest.metadata)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(
-            new_content_forest
-                .diff(&content_forest, &new_manifest.content)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(new_dir, dir);
-
-        // Teardown
-        teardown(test_name).await
-    }
-
-    #[tokio::test]
-    async fn serial_all_content() -> Result<()> {
-        assert_serial_all_cold(true).await
-    }
-
-    #[tokio::test]
-    async fn serial_all_cold_remote() -> Result<()> {
-        assert_serial_all_cold(false).await
-    }
-     */
 }
-
-
- */

@@ -17,7 +17,7 @@ use super::error::PipelineError;
 pub async fn pipeline(origin: &Path) -> Result<()> {
     let mut global = GlobalConfig::from_disk()?;
 
-    if let Some(mut config) = global.get_bucket(origin) {
+    if let Ok(mut config) = global.get_bucket(origin) {
         // Overwrite the content with new BlockStore
         remove_file(&config.content.path).ok();
         config.content = CarV2BlockStore::new(&config.content.path)?;

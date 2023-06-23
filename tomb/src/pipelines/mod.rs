@@ -42,8 +42,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_init() -> Result<()> {
-        let test_name = "pipeline_init";
+    async fn pipeline_configure_init() -> Result<()> {
+        let test_name = "pipeline_configure_init";
         // Create the setup conditions
         let input_dir = &test_setup(test_name).await?;
         // Deinitialize for user
@@ -69,7 +69,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
+    // #[ignore]
     async fn pipeline_pack_local() -> Result<()> {
         let test_name = "pipeline_pack_local";
         // Create the setup conditions

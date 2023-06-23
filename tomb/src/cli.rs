@@ -215,12 +215,12 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_err());
         // Initialization worked
         init(&origin).await?.assert().success();
         // Assert the bucket exists now
         let bucket = GlobalConfig::from_disk()?.get_bucket(origin);
-        assert!(bucket.is_some());
+        assert!(bucket.is_ok());
         // Assert that there is still no key, because we've not packed
         assert!(bucket.unwrap().get_key("root").is_err());
         // Teardown test
@@ -235,15 +235,15 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_err());
         // Initialization worked
         init(origin).await?.assert().success();
         // Assert the bucket exists now
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_ok());
         // Deinitialize the directory
         deinit(origin).await?.assert().success();
         // Assert the bucket is gone again
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_err());
         // Teardown test
         test_teardown(test_name).await
     }

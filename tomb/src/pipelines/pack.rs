@@ -54,12 +54,12 @@ pub async fn pipeline(
     let mut global = GlobalConfig::from_disk()?;
 
     // If the user has done initialization for this directory
-    if let Some(config) = global.get_bucket(input_dir) {
+    if let Ok(config) = global.get_bucket(input_dir) {
         println!("\njust loaded in BucketConfig from disk: {:?}\n", config);
         // let metadata = &config.metadata;
         // let content = &config.content;
         // Try to get the key of the root node
-        let _ = config.get_key("root");
+        let key = config.get_key("root");
 
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(
@@ -72,31 +72,14 @@ pub async fn pipeline(
         let mut content_forest = Rc::new(PrivateForest::new());
 
         // If this filesystem has never been packed
-        // if let Ok(key) = key {
-        //     println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
-        //     let (new_metadata_forest, new_content_forest) = (
-        //         load_metadata_forest(metadata).await,
-        //         load_content_forest(content).await,
-        //     );
-
-        //     if let Ok(new_metadata_forest) = new_metadata_forest &&
-        //         let Ok(new_dir) = load_dir(metadata, &key, &new_metadata_forest).await {
-        //         // Update the forest and root directory
-        //         metadata_forest = new_metadata_forest;
-        //         root_dir = new_dir;
-        //         println!("root dir and forest and original ratchet loaded from disk...");
-        //     }
-        //     // If the load was unsuccessful
-        //     else {
-        //         info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-        //     }
-
-        //     if let Ok(new_content_forest) = new_content_forest {
-        //         content_forest = new_content_forest;
-        //     }
-        // } else {
-        //     info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        // }
+        if key.is_ok() {
+            let (new_metadata_forest, new_content_forest, new_root_dir) = config.get_all().await?;
+            metadata_forest = new_metadata_forest;
+            content_forest = new_content_forest;
+            root_dir = new_root_dir;
+        } else {
+            info!("tomb has not seen this filesystem before, starting from scratch! 💖");
+        }
 
         // Process all of the PackPipelinePlans
         process_plans(

@@ -11,7 +11,7 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<()> {
     // Global config
     let mut global = GlobalConfig::from_disk()?;
     // Bucket config
-    if let Some(config) = global.get_bucket(origin) {
+    if let Ok(config) = global.get_bucket(origin) {
         let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
         // Attempt to remove the node
         dir.rm(

@@ -101,7 +101,8 @@ impl CarV2 {
 
     pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
         // Move to the end
-        w.seek(SeekFrom::End(0))?;
+        w.seek(SeekFrom::Start(self.carv1.index.get_next_block()))?;
+        // println!("next_block: {}, end: {}", self.carv1.index.get_next_block(), w.stream_len()?);
         // Insert current offset before bytes are written
         self.carv1
             .index
@@ -109,9 +110,10 @@ impl CarV2 {
         // Write the bytes
         block.write_bytes(&mut w)?;
         // Update the next block
-        *self.carv1.index.next_block.borrow_mut() = w.stream_position()?;
+        self.carv1.index.set_next_block(w.stream_position()?);
         // Update the data size
         self.update_data_size(&mut w)?;
+        w.flush()?;
         // Return Ok
         Ok(())
     }
@@ -158,17 +160,18 @@ impl CarV2 {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use fs_extra::{dir::CopyOptions, file};
     use serial_test::serial;
     use std::{
-        fs::{copy, File},
-        io::BufReader,
+        fs::{copy, File, remove_file, OpenOptions},
+        io::{BufReader, Seek},
         path::Path,
         str::FromStr,
         vec,
     };
-    use wnfs::libipld::Cid;
+    use wnfs::libipld::{Cid, IpldCodec};
 
-    use crate::types::blockstore::car::carv2::CarV2;
+    use crate::types::blockstore::car::{carv2::CarV2, carv1::v1block::V1Block};
 
     #[test]
     #[serial]
@@ -227,26 +230,68 @@ mod tests {
 
     #[test]
     #[serial]
+    fn put_get_block() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
+        let original_path = &Path::new("test").join("carv2-put-get-block.car");
+
+        // Copy from fixture to original path
+        remove_file(original_path).ok();
+        
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
+
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
+
+        // Read original CARv2
+        let original = CarV2::read_bytes(&mut original_file)?;
+        let all_cids = original.get_all_cids();
+
+        // Assert that we can query all CIDs
+        for cid in &all_cids {
+            assert!(original.get_block(cid, &mut original_file).is_ok());
+        }
+
+        // Insert a block
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+
+        // Writable version of the original file
+        let mut writable_original = OpenOptions::new().append(false).write(true).open(original_path)?;
+
+        // Put a new block in
+        original.put_block(&block, &mut writable_original)?;
+        let new_block = original.get_block(&block.cid, &mut original_file)?;
+        assert_eq!(block, new_block);
+
+        // Assert that we can still query all CIDs
+        for cid in &all_cids {
+            assert!(original.get_block(cid, &mut original_file).is_ok());
+        }
+        
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
         let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
         let original_path = &Path::new("test").join("carv2-to-from-disk-no-offset-original.car");
         let updated_path = &Path::new("test").join("carv2-to-from-disk-no-offset-updated.car");
 
+        remove_file(original_path).ok();
+        remove_file(updated_path).ok();
+
         // Copy from fixture to original path
-        copy(car_path, original_path)?;
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
-        let original = {
-            // Define reader and writer
-            let mut original_file = File::open(original_path)?;
-            let mut updated_file = File::create(updated_path)?;
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
+        let mut updated_file = File::create(updated_path)?;
 
-            // Read original CARv2
-            let original = CarV2::read_bytes(&mut original_file)?;
-            // Write to updated file
-            original.write_bytes(&mut original_file, &mut updated_file)?;
-            // Return original
-            original
-        };
+        // Read original CARv2
+        let original = CarV2::read_bytes(&mut original_file)?;
+        // Write to updated file
+        original.write_bytes(&mut original_file, &mut updated_file)?;
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
@@ -256,7 +301,8 @@ mod tests {
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original.carv1.index.next_block, reconstructed.carv1.index.next_block);
+        assert_eq!(original.carv1.index.map, reconstructed.carv1.index.map);
         assert_eq!(original, reconstructed);
 
         Ok(())
@@ -264,30 +310,34 @@ mod tests {
 
     #[test]
     #[serial]
-    fn to_from_disk_with_offset() -> Result<()> {
+    fn to_from_disk_with_data() -> Result<()> {
         let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
         let original_path = &Path::new("test").join("carv2-to-from-disk-offset-original.car");
         let updated_path = &Path::new("test").join("carv2-to-from-disk-offset-updated.car");
 
         // Copy from fixture to original path
-        copy(car_path, original_path)?;
+        remove_file(original_path).ok();
+        remove_file(updated_path).ok();
+        
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
-        let original = {
-            // Define reader and writer
-            let mut original_file = File::open(original_path)?;
-            let mut updated_file = File::create(updated_path)?;
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
+        let mut updated_file = File::create(updated_path)?;
 
-            // Read original CARv2
-            let original = CarV2::read_bytes(&mut original_file)?;
+        // Read original CARv2
+        let original = CarV2::read_bytes(&mut original_file)?;
 
-            // Insert a root
-            original.insert_root(&Cid::default());
+        // Insert a block
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
 
-            // Write to updated file
-            original.write_bytes(&mut original_file, &mut updated_file)?;
-            // Return original
-            original
-        };
+        // Writable version of the original file
+        let mut writable_original = OpenOptions::new().append(false).write(true).open(original_path)?;
+        original.put_block(&block, &mut writable_original)?;
+
+        // Write to updated file
+        original.write_bytes(&mut original_file, &mut updated_file)?;
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
@@ -297,9 +347,13 @@ mod tests {
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original.carv1.index.next_block, reconstructed.carv1.index.next_block);
+        assert_eq!(original.carv1.index.map, reconstructed.carv1.index.map);
         assert_eq!(original, reconstructed);
+
 
         Ok(())
     }
+
+
 }

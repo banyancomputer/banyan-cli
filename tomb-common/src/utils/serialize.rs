@@ -272,7 +272,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn serial_dir_content() -> Result<()> {
         let test_name = "serial_dir_content";
         // Start er up!

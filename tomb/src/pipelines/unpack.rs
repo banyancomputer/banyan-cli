@@ -23,12 +23,12 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
-    let global = GlobalConfig::from_disk()?;
+    let mut global = GlobalConfig::from_disk()?;
 
-    if let Some(config) = global.get_bucket(origin) {
+    if let Ok(config) = global.get_bucket(origin) {
         println!("\njust loaded in BucketConfig from disk: {:?}\n", config);
         // Load metadata
-        let (metadata_forest, content_forest, dir) = &mut config.get_all_metadata().await?;
+        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
         let metadata = &config.metadata;
         let content = &config.content;
 
@@ -111,7 +111,14 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<()> {
             metadata,
             content,
         )
-        .await
+        .await?;
+
+        // Set all
+        config.set_all(metadata_forest, content_forest, &dir).await?;
+        global.update_config(&config)?;
+        global.to_disk()?;
+
+        Ok(())
     } else {
         Err(PipelineError::Uninitialized().into())
     }

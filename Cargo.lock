@@ -3216,6 +3216,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "fs_extra",
  "hex",
  "log",
  "rand 0.8.5",

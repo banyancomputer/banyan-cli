@@ -17,19 +17,18 @@ use wnfs::{
 pub struct CarV1BlockStore {
     pub path: PathBuf,
     pub(crate) carv1: CarV1,
-    pub(crate) parent_offset: Option<u64>,
 }
 
 impl CarV1BlockStore {
     pub fn get_read(&self) -> Result<File> {
-        Ok(File::open(&self.path)?)
+        Ok(OpenOptions::new().read(true).open(&self.path)?)
     }
     pub fn get_write(&self) -> Result<File> {
-        Ok(OpenOptions::new().append(true).open(&self.path)?)
+        Ok(OpenOptions::new().append(false).write(true).open(&self.path)?)
     }
 
     // Create a new CARv1 BlockStore from a file
-    pub fn new(path: &Path, parent_offset: Option<u64>) -> Result<Self> {
+    pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
             panic!("invalid path, must be file, not dir");
@@ -45,8 +44,7 @@ impl CarV1BlockStore {
             let Ok(carv1) = CarV1::read_bytes(&mut file) {
             Ok(Self {
                 path: path.to_path_buf(),
-                carv1,
-                parent_offset,
+                carv1
             })
         }
         // If we need to create the header
@@ -62,8 +60,7 @@ impl CarV1BlockStore {
             // Return Ok
             Ok(Self {
                 path: path.to_path_buf(),
-                carv1: CarV1::read_bytes(&mut File::open(path)?)?,
-                parent_offset,
+                carv1: CarV1::read_bytes(&mut File::open(path)?)?
             })
         }
     }
@@ -147,14 +144,14 @@ impl<'de> Deserialize<'de> for CarV1BlockStore {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Self::new(&PathBuf::deserialize(deserializer)?, None).unwrap())
+        Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::{
-        fs::{copy, remove_file},
+        fs::{copy, remove_file, create_dir_all},
         path::Path,
         str::FromStr,
     };
@@ -175,7 +172,7 @@ mod tests {
         let new_path = Path::new("test").join("carv1-basic-get.car");
         std::fs::copy(existing_path, &new_path)?;
 
-        let store = CarV1BlockStore::new(&new_path, None)?;
+        let store = CarV1BlockStore::new(&new_path)?;
         let cid = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
         let bytes = store.get_block(&cid).await?.to_vec();
         assert_eq!(bytes, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804")?);
@@ -191,7 +188,7 @@ mod tests {
         let new_path = Path::new("test").join("carv1-basic-put.car");
         copy(existing_path, &new_path)?;
 
-        let store = CarV1BlockStore::new(&new_path, None)?;
+        let store = CarV1BlockStore::new(&new_path)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store
@@ -207,12 +204,13 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn insert_root() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let new_path = Path::new("test").join("carv1-basic-blockstore-insert-root.car");
-        copy(existing_path, &new_path)?;
+        let fixture_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let test_path = Path::new("test");
+        create_dir_all(test_path)?;
+        let new_path = &test_path.join("carv1-basic-blockstore-insert-root.car");
+        copy(fixture_path, new_path)?;
 
-        let store = CarV1BlockStore::new(&new_path, None)?;
+        let store = CarV1BlockStore::new(new_path)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store
@@ -230,18 +228,19 @@ mod tests {
     #[test]
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let original_path = &Path::new("test").join("carv1-blockstore-to-from-disk-no-offset.car");
-        copy(&existing_path, &original_path)?;
+        let fixture_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let test_path = Path::new("test");
+        create_dir_all(test_path)?;
+        let original_path = &test_path.join("carv1-blockstore-to-from-disk-no-offset.car");
+        copy(&fixture_path, &original_path)?;
 
         // Read in the car
-        let original = CarV1BlockStore::new(original_path, None)?;
+        let original = CarV1BlockStore::new(original_path)?;
         // Write it to disk
         original.to_disk()?;
 
         // Read in the new car
-        let reconstructed = CarV1BlockStore::new(original_path, None)?;
+        let reconstructed = CarV1BlockStore::new(original_path)?;
 
         // Assert equality
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
@@ -253,14 +252,14 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn to_from_disk_with_offset() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let original_path =
-            &Path::new("test").join("carv1-blockstore-to-from-disk-with-offset.car");
-        copy(&existing_path, &original_path)?;
+        let fixture_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let test_path = Path::new("test");
+        create_dir_all(test_path)?;
+        let original_path = &test_path.join("carv1-blockstore-to-from-disk-with-offset.car");
+        copy(&fixture_path, &original_path)?;
 
         // Read in the car
-        let original = CarV1BlockStore::new(original_path, None)?;
+        let original = CarV1BlockStore::new(original_path)?;
 
         // Write contentt
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
@@ -273,7 +272,7 @@ mod tests {
         original.to_disk()?;
 
         // Read in the new car
-        let reconstructed = CarV1BlockStore::new(original_path, None)?;
+        let reconstructed = CarV1BlockStore::new(original_path)?;
 
         // Assert equality
         assert_eq!(original.carv1.header, reconstructed.carv1.header);

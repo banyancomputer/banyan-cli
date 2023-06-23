@@ -51,6 +51,14 @@ impl V1Index {
     pub fn get_all_cids(&self) -> Vec<Cid> {
         self.map.borrow().clone().into_keys().collect()
     }
+
+    pub(crate) fn get_next_block(&self) -> u64 {
+        self.next_block.borrow().clone()
+    }
+    pub(crate) fn set_next_block(&self, next_block: u64) {
+        println!("manually setting next block as {}", next_block);
+        *self.next_block.borrow_mut() = next_block;
+    }
 }
 
 impl Serialize for V1Index {
@@ -64,7 +72,7 @@ impl Serialize for V1Index {
         let new_map: HashMap<String, u64> =
             map.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
         // Serialize the String based map
-        (new_map, self.next_block.borrow().clone()).serialize(serializer)
+        (new_map, self.get_next_block()).serialize(serializer)
     }
 }
 

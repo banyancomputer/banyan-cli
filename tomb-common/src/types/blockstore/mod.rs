@@ -36,7 +36,7 @@ mod tests {
         let existing_path = fixture_path.join("carv1-basic.car");
         let new_path = Path::new("test").join("carv1-basic-v1.car");
         std::fs::copy(existing_path, &new_path)?;
-        let store = &CarV1BlockStore::new(&new_path, None)?;
+        let store = &CarV1BlockStore::new(&new_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

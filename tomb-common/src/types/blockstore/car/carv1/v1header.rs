@@ -15,7 +15,7 @@ use wnfs::{
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub(crate) struct V1Header {
     pub version: u64,
-    pub roots: RefCell<Vec<Cid>>,
+    pub roots: RefCell<Vec<Cid>>
 }
 
 impl V1Header {
@@ -24,6 +24,7 @@ impl V1Header {
         let ipld_buf = self.to_ipld_bytes()?;
         // Tally bytes in this DAGCBOR, encode as u64
         let varint_buf = encode_varint_u64(ipld_buf.len() as u64);
+        println!("write v1header w varint {}", ipld_buf.len());
         // Write the varint, then the IPLD
         w.write_all(&varint_buf)?;
         w.write_all(&ipld_buf)?;
@@ -33,6 +34,7 @@ impl V1Header {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(&mut r)?;
+        println!("read v1header w varint {} at stream position {}", ipld_len, r.stream_position()?);
         // Allocate that space
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes
@@ -79,7 +81,7 @@ impl V1Header {
         // Return Ok with new Self
         Ok(Self {
             version,
-            roots: RefCell::new(roots),
+            roots: RefCell::new(roots)
         })
     }
 
@@ -106,7 +108,7 @@ impl Default for V1Header {
     fn default() -> Self {
         Self {
             version: 1,
-            roots: RefCell::new(Vec::new()),
+            roots: RefCell::new(Vec::new())
         }
     }
 }
