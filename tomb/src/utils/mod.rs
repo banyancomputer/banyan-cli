@@ -5,6 +5,7 @@ pub mod grouper;
 /// This module contains code designed to traverse directory structure and get a packing plan for directories and symlinks.
 pub mod spider;
 /// This module contains testing fns
+#[cfg(test)]
 pub mod tests;
 /// This module contains WNFS IO fns
 pub mod wnfsio;

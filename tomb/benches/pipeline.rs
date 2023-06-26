@@ -1,15 +1,15 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use dir_assert::assert_paths;
-use fake_file::{Strategy, Structure};
+use fake_file::{
+    utils::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
+    Strategy, Structure,
+};
 use fs_extra::dir;
 use lazy_static::lazy_static;
 use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
 use tomb::pipelines::{pack, unpack};
-use tomb_common::utils::tests::{
-    ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir,
-};
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {

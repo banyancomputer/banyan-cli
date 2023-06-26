@@ -1,7 +1,7 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
 #![feature(buf_read_has_data_left)]
-#![deny(unused_crate_dependencies)]
+// #![deny(unused_crate_dependencies)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 #![deny(private_in_public)]
@@ -12,27 +12,7 @@
 use anyhow::Result;
 use clap::Parser;
 use std::{env::current_dir, io::Write};
-use tomb::pipelines::{add, configure, pack, pull, push, unpack};
-/// Command Line Interface and tests
-pub mod cli;
-
-use assert_cmd as _;
-use async_recursion as _;
-use chrono as _;
-use criterion as _;
-use dir_assert as _;
-use fake_file as _;
-use fclones as _;
-use fs_extra as _;
-use indicatif as _;
-use jwalk as _;
-use lazy_static as _;
-use rand as _;
-use serde as _;
-use serial_test as _;
-use thiserror as _;
-use wnfs as _;
-use zstd as _;
+use tomb::{cli, pipelines::*};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -96,9 +76,6 @@ async fn main() -> Result<()> {
             unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
         cli::Commands::Configure { subcommand } => {
             match subcommand {
-                cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
-                    unimplemented!("todo... change where we stage content locally");
-                }
                 cli::ConfigSubCommands::SetRemote { address } => {
                     configure::remote(&address)?;
                 }
@@ -117,10 +94,12 @@ async fn main() -> Result<()> {
             // Start the Push pipeline
             push::pipeline(&dir).await?;
         },
-        cli::Commands::Add { input_file, tomb_path, wnfs_path } => {
-            add::pipeline(&input_file, &tomb_path, &wnfs_path).await?;
+        cli::Commands::Add { origin, input_file, wnfs_path } => {
+            add::pipeline(&origin, &input_file, &wnfs_path).await?;
         },
-        cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
+        cli::Commands::Remove { origin, wnfs_path } => {
+            remove::pipeline(&origin, &wnfs_path).await?;
+        }
     }
 
     Ok(())

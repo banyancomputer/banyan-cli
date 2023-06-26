@@ -3,7 +3,6 @@ use crate::{
     utils::{config::*, serialize::*},
 };
 use anyhow::{Ok, Result};
-use log::info;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -61,7 +60,6 @@ impl BucketConfig {
 
     /// Load a TemporalKey
     pub fn get_key(&self, label: &str) -> Result<TemporalKey> {
-        info!("Loading in {} Key from disk", label);
         // The path in which we expect to find the Manifest JSON file
         let key_file = self.generated.join(format!("{}.key", label));
 

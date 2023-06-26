@@ -3218,7 +3218,6 @@ dependencies = [
  "chrono",
  "fs_extra",
  "hex",
- "log",
  "rand 0.8.5",
  "reqwest",
  "serde",
@@ -3226,7 +3225,6 @@ dependencies = [
  "serial_test",
  "tokio",
  "unsigned-varint",
- "wasm-bindgen",
  "wnfs 0.1.20",
 ]
 

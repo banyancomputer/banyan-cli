@@ -1,11 +1,10 @@
 use anyhow::Result;
-use fake_file::{Strategy, Structure};
+use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use std::{
     fs::remove_dir_all,
     path::{Path, PathBuf},
     process::Command,
 };
-use tomb_common::utils::tests::ensure_path_exists_and_is_empty_dir;
 
 use crate::pipelines::configure;
 
