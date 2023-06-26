@@ -21,21 +21,21 @@ use super::carv2::V2_PH_SIZE;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct CarV1 {
     pub header: V1Header,
+    pub index: RefCell<V1Index>,
     pub(crate) read_header_len: RefCell<u64>,
-    pub index: V1Index,
 }
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
     pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+        // Track the part of the stream where the V1Header starts
         let header_start = r.stream_position()?;
-        // Read the header
+        // Read the V1Header
         let header = V1Header::read_bytes(&mut r)?;
-        // println!("finished reading v1header: {:?}", header);
+        // Determine the length of the header that we just read
         let read_header_len = RefCell::new(r.stream_position()? - header_start);
         // Generate an index
-        let index = V1Index::read_bytes(&mut r)?;
-        // println!("finished reading v1index: {:?}", index);
+        let index = RefCell::new(V1Index::read_bytes(&mut r)?);
         Ok(Self {
             header,
             index,
@@ -82,10 +82,12 @@ impl CarV1 {
                 new_index.insert(cid, new_offset);
         }
 
-        // Update index
-        *self.index.map.borrow_mut() = new_index.clone();
-        self.index
-            .set_next_block((self.index.get_next_block() as i64 + data_offset) as u64);
+        {
+            // Update index
+            let mut index = self.index.borrow_mut();
+            index.map = new_index.clone();
+            index.next_block = (index.next_block as i64 + data_offset) as u64;
+        }
 
         // Move back to the satart
         w.seek(SeekFrom::Start(carv1_start))?;
@@ -97,26 +99,27 @@ impl CarV1 {
     }
 
     pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<V1Block> {
-        let block_offset = self.index.get_offset(cid)?;
+        let block_offset = self.index.borrow().get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         V1Block::read_bytes(&mut r)
     }
 
     pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
+        let mut index = self.index.borrow_mut();
         // Move to the end
-        w.seek(SeekFrom::Start(self.index.get_next_block()))?;
+        w.seek(SeekFrom::Start(index.next_block))?;
         // Insert current offset before bytes are written
-        self.index.insert_offset(&block.cid, w.stream_position()?);
+        index.map.insert(block.cid, w.stream_position()?);
         // Write the bytes
         block.write_bytes(&mut w)?;
         // Update the next block position
-        self.index.set_next_block(w.stream_position()?);
+        index.next_block = w.stream_position()?;
         // Return Ok
         Ok(())
     }
 
     pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
-        self.index.get_all_cids()
+        self.index.borrow().clone().map.into_keys().collect()
     }
 
     pub(crate) fn insert_root(&self, root: &Cid) {
@@ -162,14 +165,14 @@ impl CarV1 {
         Self {
             header,
             read_header_len: RefCell::new(hlen),
-            index: V1Index {
-                map: RefCell::new(HashMap::new()),
-                next_block: RefCell::new(if version == 1 {
+            index: RefCell::new(V1Index {
+                map: HashMap::new(),
+                next_block: if version == 1 {
                     hlen
                 } else {
                     hlen + V2_PH_SIZE
-                }),
-            },
+                },
+            }),
         }
     }
 }
@@ -357,8 +360,7 @@ mod tests {
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.index.next_block, reconstructed.index.next_block);
-        assert_eq!(original.index.map, reconstructed.index.map);
+        assert_eq!(original.index, reconstructed.index);
         assert_eq!(original, reconstructed);
 
         Ok(())
@@ -401,8 +403,7 @@ mod tests {
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.index.next_block, reconstructed.index.next_block);
-        assert_eq!(original.index.map, reconstructed.index.map);
+        assert_eq!(original.index, reconstructed.index);
         assert_eq!(original, reconstructed);
 
         Ok(())
@@ -452,8 +453,8 @@ mod tests {
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.index.next_block, reconstructed.index.next_block);
-        assert_eq!(original.index.map, reconstructed.index.map);
+        assert_eq!(original.index, reconstructed.index);
+        assert_eq!(original.index, reconstructed.index);
 
         // assert_eq!(original, reconstructed);
 

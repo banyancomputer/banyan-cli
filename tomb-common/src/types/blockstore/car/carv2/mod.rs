@@ -95,23 +95,23 @@ impl CarV2 {
     }
 
     pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<V1Block> {
-        let block_offset = self.carv1.index.get_offset(cid)?;
+        let index = self.carv1.index.borrow();
+        let block_offset = index.get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         V1Block::read_bytes(&mut r)
     }
 
     pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
+        let mut index = self.carv1.index.borrow_mut();
         // Move to the end
-        w.seek(SeekFrom::Start(self.carv1.index.get_next_block()))?;
+        w.seek(SeekFrom::Start(index.next_block))?;
         // println!("next_block: {}, end: {}", self.carv1.index.get_next_block(), w.stream_len()?);
         // Insert current offset before bytes are written
-        self.carv1
-            .index
-            .insert_offset(&block.cid, w.stream_position()?);
+        index.map.insert(block.cid, w.stream_position()?);
         // Write the bytes
         block.write_bytes(&mut w)?;
         // Update the next block
-        self.carv1.index.set_next_block(w.stream_position()?);
+        index.next_block = w.stream_position()?;
         // Update the data size
         self.update_data_size(&mut w)?;
         w.flush()?;
@@ -319,11 +319,7 @@ mod tests {
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(
-            original.carv1.index.next_block,
-            reconstructed.carv1.index.next_block
-        );
-        assert_eq!(original.carv1.index.map, reconstructed.carv1.index.map);
+        assert_eq!(original.carv1.index, reconstructed.carv1.index);
         assert_eq!(original, reconstructed);
 
         Ok(())
@@ -371,11 +367,7 @@ mod tests {
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(
-            original.carv1.index.next_block,
-            reconstructed.carv1.index.next_block
-        );
-        assert_eq!(original.carv1.index.map, reconstructed.carv1.index.map);
+        assert_eq!(original.carv1.index, reconstructed.carv1.index);
         assert_eq!(original, reconstructed);
 
         Ok(())
