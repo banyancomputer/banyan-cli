@@ -1,14 +1,19 @@
+use js_sys::Uint8Array;
 use wasm_bindgen_futures::JsFuture;
 use serde_wasm_bindgen;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use anyhow::{Result, Error};
 
-use crate::utils::fetch_json;
 
+// TODO: move this somewhere else or extend from a common type
 
-#[allow(dead_code)]
-#[derive(Default, Clone, Debug, Deserialize)]
-#[repr(C)]
+use crate::fetch::http::{
+    get_json, get_stream
+};
+
+// TODO: Work in this file should probably be moved to tomb-common once alignment is reached on struct members and use throughout the project.
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 /// Sum total of Metadata for a bucket managed by Tomb.
 pub struct Bucket {
     /// The unique identifier for the bucket.
@@ -47,9 +52,10 @@ impl Service {
     /// * Vec<Bucket>.
     pub async fn read_buckets(&self) -> Result<Vec<Bucket>, Error> {
         // TODO: Read real data, not fake data
-        let url = "https://echo.jsontest.com/id/bucket_id/name/bucket_name/owner/bucket_owner/entrypoint/bucket_entrypoint".to_string();
-        let json = fetch_json(url).await.unwrap();
-        let buckets: Vec<Bucket> = serde_wasm_bindgen::from_value(json).unwrap();
+        let url = "http://echo.jsontest.com/id/bucket_id/name/bucket_name/owner/bucket_owner/entrypoint/bucket_entrypoint".to_string();
+        let json = get_json(url).await.unwrap();
+        let bucket = serde_wasm_bindgen::from_value(json).unwrap();
+        let buckets: Vec<Bucket> = [bucket].to_vec();
         Ok(buckets)
     }
 
@@ -59,18 +65,36 @@ impl Service {
     /// * `fingerprint` - The fingerprint of the public key the share key is encrypted with.
     /// # Returns
     /// * JsFuture that resolves to a String.
-    pub fn read_share_key(&self, _bucket_id: String, _fingerprint: String) -> Result<JsFuture, Error> {
-        unimplemented!()
+    pub async fn read_enc_share_key(&self, _bucket_id: String, _fingerprint: String) -> Result<Vec<u8>, Error> {
+        // TODO: Read real data, not fake data
+        let url = "https://www.random.org/cgi-bin/randbyte?nbytes=32";
+        let mut stream = get_stream(url.to_string()).await.unwrap();
+        let mut reader = stream.get_reader();
+        let mut chunks: Vec<u8> = vec![];
+        while let Ok(Some(result)) = reader.read().await {
+            let chunk = js_sys::Uint8Array::from(result);
+            chunks.extend(chunk.to_vec());
+        }
+        Ok(chunks)
     }
 
-    /// Return a readable stream over a CAR file describing the metadata for a bucket.
+    /// Return a Uint8Array of encrypted Metadata for a bucket. 
     /// # Arguments
     /// * `bucket_id` - The unique identifier for the bucket.
     /// # Returns
-    /// * JsFuture that resolves to a ReadableStream.
-    pub fn read_metadata(&self, _bucket_id: String) -> Result<JsFuture, Error> {
+    /// * Uint8Array - A Uint8Array of encrypted Metadata.
+    /// TODO: This should return a Reader into a CAR file inside the stream
+    pub async fn read_metadata(&self, _bucket_id: String) -> Result<Vec<u8>, Error> {
         // TODO: Open a stream to a CAR
-        unimplemented!()
+        let url: String = "https://github.com/banyancomputer/tomb/raw/alex/eng-39-tomb-wasm-binding/.github/1.car".to_string();
+        let mut stream = get_stream(url).await.unwrap();
+        let mut reader = stream.get_reader();
+        let mut chunks: Vec<u8> = vec![];
+        while let Ok(Some(result)) = reader.read().await {
+            let chunk = js_sys::Uint8Array::from(result);
+            chunks.extend(chunk.to_vec());
+        }
+        Ok(chunks)
     } 
 
     /* Update */

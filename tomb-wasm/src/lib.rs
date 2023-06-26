@@ -1,83 +1,176 @@
+// Crate Modules
+mod fetch;
+mod crypto;
 mod metadata;
-#[macro_use]
 mod utils;
 
-use metadata::types::Bucket;
+use metadata::types::{ Service as MetadataService, Bucket};
+use utils::{
+    set_panic_hook, convert_path_segments,
+    JsResult
+};
+
+// WASM Imports
 use wasm_bindgen::prelude::*;
-use web_sys::CryptoKey;
+use wasm_bindgen_futures::future_to_promise;
+use gloo::console::log;
+use js_sys::{
+    Array, Promise, Uint8Array
+};
+
+use web_sys::CryptoKeyPair;
+// WNFS Imports
 use wnfs::{
     common::MemoryBlockStore,
-    private::PrivateDirectory
+    private::{
+        PrivateDirectory,
+        PrivateForest,
+        TemporalKey, AesKey
+    },
+    namefilter::Namefilter
 };
+
+// Std / Misc Imports
+use rand::thread_rng;
+use std::rc::Rc;
+use chrono::Utc;
 
 // Our optional WeeAlloc allocator
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-
-
 #[allow(dead_code)]
 #[wasm_bindgen]
 pub struct Tomb {
     buckets: Vec<Bucket>,
-    metadata_service: metadata::types::Service,
+    metadata_service: MetadataService,
+    // TODO: @vera this should be replaced with CarV2MemoryBlockStore
     blockstore: MemoryBlockStore,
-    private_directory: Option<PrivateDirectory>,
+    // TODO: unclear to me whether these need to be wrapped in Rc 
+    // private_forest: Option<Rc<PrivateForest>>,
+    // private_directory: Option<Rc<PrivateDirectory>>
+    private_forest: Option<PrivateForest>,
+    private_directory: Option<PrivateDirectory>
 }
 
 // Public methods, exported to JavaScript.
 #[wasm_bindgen]
 impl Tomb {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
+    pub async fn new(
+        endpoint: String,
+        token: String,
+    ) -> Result<Tomb, JsValue> {
         log!("tomb-wasm: new()");
-        utils::set_panic_hook();
-        Tomb { 
-            buckets: Vec::new(), 
-            metadata_service: metadata::types::Service::new("".to_string(), "".to_string()), 
-            blockstore: MemoryBlockStore::new(), 
+        set_panic_hook();
+        let metadata_service = MetadataService::new(endpoint, token);
+        let buckets = metadata_service.read_buckets().await.unwrap();
+        Ok(Tomb { 
+            buckets, 
+            metadata_service,
+            blockstore: MemoryBlockStore::default(),
+            private_forest: None,
             private_directory: None
-        }
+        })
     }
-
-    /// Initializes the Tomb instance with initial metadata
-    pub async fn init(&mut self) -> Result<(), JsValue> {
-        // log!("tomb-wasm: init()");
-        // TODO: Read buckets from metadata service 
-        self.buckets = self.metadata_service.read_buckets().await.unwrap();
-        Ok(())
+    
+    /// Return a list of id:name pairs for all buckets accessible to the user
+    /// # Returns
+    /// * Vec<(String, String)> - A vector of id:name pairs
+    pub fn buckets(&self) -> Result<JsValue, JsValue> {
+        log!("tomb-wasm: bucket()");
+        serde_wasm_bindgen::to_value(&self.buckets)
+            .map_err(|_| JsValue::from_str("Error serializing buckets"))
     }
 
     /// Load a specific bucket's metadata into memory, by name
     /// # Arguments
     /// * `name` - The name of the bucket to load
     /// * `key` - The key to decrypt the bucket's metadata
-    pub fn load_bucket(&mut self, _name: String, _key: CryptoKey) -> Result<(), JsValue> {
-        // log!("tomb-wasm: load_bucket()");
+    #[wasm_bindgen(js_name = loadBucket)]
+    pub async fn load_bucket(&mut self, _name: String, key: JsValue) -> Result<(), JsValue> {
+        log!("tomb-wasm: load_bucket()");
+        // Read the encrypted share key from the metadata service
+        let key_pair: CryptoKeyPair = key.dyn_into().unwrap_throw();
+        let enc_share_key_bytes = self.metadata_service.read_enc_share_key("bucket_id".to_string(), "fingerprint".to_string()).await.unwrap();
+        let share_key_bytes = crypto::rsa::decrypt(&key_pair, Uint8Array::from(enc_share_key_bytes.as_slice())).await.unwrap();
+        let _share_key_bytes = share_key_bytes.to_vec();
+        // TODO: Return a temporary key    
         // TODO: Load metadata CAR and write to self.blockstore
-        // TODO: Load the encrypted share key
-        // TODO: Decrypt the share key
-        // TODO: Load the private directory using self.blockstore and the decrypted share key
-        unimplemented!()
+        let _metadata_bytes = self.metadata_service.read_metadata("bucket_id".to_string()).await.unwrap();
+        // TODO: Read the bytes into a blockstore
+        // TODO: Load the private directory and private forest using the decrypted share key 
+        // For now just test import a private directory and private forest
+        let rng = &mut thread_rng();
+        self.private_forest = Some(PrivateForest::new());
+        self.private_directory = Some(PrivateDirectory::new(
+            Namefilter::new(),
+            Utc::now(),
+            rng
+        ));
+
+        match Some(self.private_directory.as_ref().unwrap()) {
+            Some(private_directory) => {
+                // let private_directory: &mut Rc<PrivateDirectory> = &mut private_directory.clone();
+                let private_directory: &mut Rc<PrivateDirectory> = &mut Rc::new(private_directory.clone());
+                private_directory
+                    .mkdir(
+                        &["test".to_string(), "path".to_string()],
+                        true,
+                        Utc::now(),
+                        self.private_forest.as_ref().unwrap(),
+                        &self.blockstore,
+                        rng
+                    ).await.unwrap();
+            },
+            None => {
+                log!("tomb-wasm: load_bucket() - private_directory is None");
+            }
+        }
+        Ok(())
     }
 
-    /// List the entries of the current private directory at a given path
-    /// # Arguments
-    /// * `path` - The path to list
-    /// # Returns
-    /// * TODO: decide on return type
-    pub fn list(&self, _path: String) -> Result<(), JsValue> {
-        // log!("tomb-wasm: list()");
-        unimplemented!()
-    }
+    /* Private Direcotry Methods */
+
+    // /// List the entries of the current private directory at a given path
+    // /// # Arguments
+    // /// * `path_segments` - A vector of path segments to list
+    // /// # Returns
+    // /// * TODO: decide on return type
+    // pub fn ls(&self, path_segments: &Array) -> JsResult<Promise> {
+    //     log!("tomb-wasm: ls()");
+    //     let private_directory = self.private_directory_rc();
+    //     let private_forest = self.private_forest_rc();
+    //     let path_segments = convert_path_segments(path_segments)?;
+    //     Ok(
+    //         future_to_promise(async move {
+    //             let result = private_directory.ls(
+    //                 &path_segments,
+    //                 true, // Search latest -- TODO: What is this for?
+    //                 private_forest.as_ref(),
+    //                 &self.blockstore
+    //             ).await;
+
+    //             let result = result
+    //             .iter()
+    //             .flat_map(|(name, metadata)| utils::create_ls_entry(name, metadata))
+    //             .collect::<Array>();
+
+    //             Ok(result)
+    //         })
+    //     )
+    // }
 }
-
 // Private methods, not exported to JavaScript.
 impl Tomb {
-    // pub fn example_method(&mut self) {
-    //     log!("This is not exported to JavaScript.");
-    // }
+    pub fn private_forest_rc(&self) -> Rc<PrivateForest> {
+        Rc::new(self.private_forest.as_ref().unwrap().clone())
+    }
+
+    pub fn private_directory_rc(&self) -> Rc<PrivateDirectory> {
+        Rc::new(self.private_directory.as_ref().unwrap().clone())
+    }
 }
 
 

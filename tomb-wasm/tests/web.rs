@@ -17,16 +17,18 @@ fn pass() {
 }
 
 #[cfg(test)]
-pub fn helper_method_example() -> Tomb {
-    let tomb = Tomb::new();
-    // If you had a non-exported method on Tomb, you could call it here.
-    // tomb.example_method();
+pub async fn helper_method_example() -> Tomb {
+    let tomb = Tomb::new(
+        "http://test.tomb.local".to_string(),
+        "long-secure-token-here".to_string()
+    ).await.unwrap();
     tomb
 }
 
 #[wasm_bindgen_test]
-pub fn test_tomb() {
+pub async fn test_tomb() {
     // calling a setup function.
-    let _tomb = helper_method_example();
-    assert!(true)
+    let tomb = helper_method_example().await;
+    let buckets = tomb.buckets().unwrap();
+    // TODO: More in depth assertions
 }
