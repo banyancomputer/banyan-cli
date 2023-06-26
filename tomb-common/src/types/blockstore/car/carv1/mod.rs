@@ -8,6 +8,7 @@ pub(crate) mod v1index;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    cell::RefCell,
     collections::HashMap,
     io::{Read, Seek, SeekFrom, Write},
 };
@@ -15,176 +16,183 @@ use wnfs::libipld::Cid;
 
 use self::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
+use super::carv2::V2_PH_SIZE;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct CarV1 {
     pub header: V1Header,
-    pub index: V1Index,
+    pub index: RefCell<V1Index>,
+    pub(crate) read_header_len: RefCell<u64>,
 }
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
     pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
-        // Read the header
+        // Track the part of the stream where the V1Header starts
+        let header_start = r.stream_position()?;
+        // Read the V1Header
         let header = V1Header::read_bytes(&mut r)?;
-        println!("i finished reading the header at {}", r.stream_position()?);
+        // Determine the length of the header that we just read
+        let read_header_len = RefCell::new(r.stream_position()? - header_start);
         // Generate an index
-        let index = V1Index::read_bytes(&mut r)?;
-        Ok(Self { header, index })
+        let index = RefCell::new(V1Index::read_bytes(&mut r)?);
+        Ok(Self {
+            header,
+            index,
+            read_header_len,
+        })
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
     pub(crate) fn write_bytes<R: Read + Seek, W: Write + Seek>(
         &self,
-        data_offset: i64,
         mut r: R,
         mut w: W,
     ) -> Result<()> {
         // Save our starting point
         let carv1_start = r.stream_position()?;
         w.seek(SeekFrom::Start(carv1_start))?;
-        // Write the header into a buffer
-        let mut header_buf: Vec<u8> = Vec::new();
-        self.header.write_bytes(&mut header_buf)?;
-        // Compute the point where the new data will start
-        let new_data_start = carv1_start + header_buf.len() as u64;
-        // Skip to this point
-        r.seek(SeekFrom::Start(new_data_start))?;
 
-        println!("starting to write data at {}", r.stream_position()?);
+        // Write the header into a buffer
+        let mut current_header_buf: Vec<u8> = Vec::new();
+        self.header.write_bytes(&mut current_header_buf)?;
+
+        // Compute data offset
+        let data_offset = current_header_buf.len() as i64 - *self.read_header_len.borrow() as i64;
 
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
-        // For each block logged in the index
-        for (cid, offset) in self.index.0.borrow().clone() {
-            // Move to preexisting offset
-            r.seek(SeekFrom::Start(offset))?;
-            // Grab existing block
-            let block = self.get_block(&cid, &mut r)?;
-            // Compute the new offset for this block
-            let new_offset = (offset as i64 + data_offset) as u64;
 
-            println!(
-                "i found a block at {} but i'm writing it at {}",
-                offset, new_offset
-            );
-            // Seek to the new position
-            w.seek(SeekFrom::Start(new_offset))?;
-            // Write the block at that new location
-            block.write_bytes(&mut w)?;
-            // Insert the new offset into the new index
-            new_index.insert(block.cid, new_offset);
+        // Skip to the point where the old data started
+        r.seek(SeekFrom::Start(
+            carv1_start + *self.read_header_len.borrow(),
+        ))?;
+
+        // Whiel we're able to successfully read in blocks
+        while let Ok(block_offset) = r.stream_position() &&
+              let Ok((varint, cid)) = V1Block::start_read(&mut r) &&
+              let Ok(block) = V1Block::finish_read(varint, cid, &mut r) {
+                // Compute the new offset of the block
+                let new_offset = (block_offset as i64 + data_offset) as u64;
+                // Move to that offset
+                w.seek(SeekFrom::Start(new_offset))?;
+                // Write the block there
+                block.write_bytes(&mut w)?;
+                // Insert new offset into index
+                new_index.insert(cid, new_offset);
         }
-        // Update index
-        *self.index.0.borrow_mut() = new_index;
+
+        {
+            // Update index
+            let mut index = self.index.borrow_mut();
+            index.map = new_index.clone();
+            index.next_block = (index.next_block as i64 + data_offset) as u64;
+        }
 
         // Move back to the satart
         w.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
-        w.write_all(&header_buf)?;
+        w.write_all(&current_header_buf)?;
         // Flush
         w.flush()?;
         Ok(())
     }
 
     pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<V1Block> {
-        let block_offset = self.index.get_offset(cid)?;
+        let block_offset = self.index.borrow().get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         V1Block::read_bytes(&mut r)
     }
 
     pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
+        let mut index = self.index.borrow_mut();
         // Move to the end
-        w.seek(SeekFrom::End(0))?;
+        w.seek(SeekFrom::Start(index.next_block))?;
         // Insert current offset before bytes are written
-        self.index.insert_offset(&block.cid, w.stream_position()?);
+        index.map.insert(block.cid, w.stream_position()?);
         // Write the bytes
         block.write_bytes(&mut w)?;
+        // Update the next block position
+        index.next_block = w.stream_position()?;
         // Return Ok
         Ok(())
     }
 
-    pub(crate) fn initialize<W: Write + Seek>(mut w: W) -> Result<()> {
-        // Write new header
-        V1Header::default().write_bytes(&mut w)?;
-        // Ok
-        Ok(())
-    }
-
     pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
-        self.index.get_all_cids()
+        self.index.borrow().clone().map.into_keys().collect()
     }
 
-    pub(crate) fn insert_root<R: Read + Seek, W: Write + Seek>(
-        &self,
-        root: &Cid,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
+    pub(crate) fn insert_root(&self, root: &Cid) {
         // Grab reference to roots
-        let mut new_roots = self.header.roots.borrow().clone();
+        let mut roots = self.header.roots.borrow_mut();
         // Insert new root
-        new_roots.push(*root);
-        // Update roots
-        self.update_roots(new_roots, &mut r, &mut w)?;
-        // Ok
-        Ok(())
+        roots.push(*root);
     }
 
-    pub(crate) fn empty_roots<R: Read + Seek, W: Write + Seek>(
-        &self,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
-        // Update roots
-        self.update_roots(Vec::new(), &mut r, &mut w)?;
-        // Ok
-        Ok(())
+    pub(crate) fn empty_roots(&self) {
+        // Grab reference to roots
+        let mut roots = self.header.roots.borrow_mut();
+        // Insert new root
+        *roots = Vec::new();
     }
 
-    fn update_roots<R: Read + Seek, W: Write + Seek>(
-        &self,
-        new_roots: Vec<Cid>,
+    pub(crate) fn new<R: Read + Seek, W: Write + Seek>(
+        version: u64,
         mut r: R,
         mut w: W,
-    ) -> Result<()> {
-        let mut old_header_buf: Vec<u8> = Vec::new();
-        self.header.write_bytes(&mut old_header_buf)?;
+    ) -> Result<Self> {
+        let car = Self::default(version);
+        car.header.write_bytes(&mut w)?;
+        Self::read_bytes(&mut r)
+    }
+}
 
-        {
-            // Grab mutable reference to roots
-            let mut roots = self.header.roots.borrow_mut();
-            // Insert new root
-            *roots = new_roots;
+impl PartialEq for CarV1 {
+    fn eq(&self, other: &Self) -> bool {
+        self.header == other.header && self.index == other.index
+    }
+}
+
+impl CarV1 {
+    pub(crate) fn default(version: u64) -> Self {
+        let header = V1Header::default(version);
+        let mut buf: Vec<u8> = Vec::new();
+        header.write_bytes(&mut buf).unwrap();
+
+        // Header length
+        let hlen = buf.len() as u64;
+
+        Self {
+            header,
+            read_header_len: RefCell::new(hlen),
+            index: RefCell::new(V1Index {
+                map: HashMap::new(),
+                next_block: if version == 1 {
+                    hlen
+                } else {
+                    hlen + V2_PH_SIZE
+                },
+            }),
         }
-
-        let mut new_header_buf: Vec<u8> = Vec::new();
-        self.header.write_bytes(&mut new_header_buf)?;
-
-        let data_offset = new_header_buf.len() as i64 - old_header_buf.len() as i64;
-
-        println!("new roots: {:?}", self.header.roots.borrow().clone());
-        println!("\n\n\ndata_offset: {:?}\n\n\n", data_offset);
-
-        // Update the entire CARv1 on disk
-        self.write_bytes(data_offset, &mut r, &mut w)?;
-        // Ok
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::carv1::CarV1;
+    use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
     use anyhow::Result;
+    use fs_extra::file;
+    use serial_test::serial;
     use std::{
-        fs::{copy, remove_file, File},
-        io::Seek,
+        fs::{copy, remove_file, File, OpenOptions},
+        io::{Seek, SeekFrom},
         path::Path,
         str::FromStr,
     };
-    use wnfs::libipld::Cid;
+    use wnfs::libipld::{Cid, IpldCodec};
 
     #[test]
+    #[serial]
     fn from_disk_basic() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         let mut file = File::open(car_path)?;
@@ -243,64 +251,213 @@ mod tests {
     }
 
     #[test]
-    fn write_bytes_no_offset() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let original_path = Path::new("test").join("carv1-basic-write-original.car");
-        let new_path = Path::new("test").join("carv1-basic-write-updated.car");
-        copy(&existing_path, &original_path)?;
-        copy(&existing_path, &new_path)?;
+    #[serial]
+    fn insert_root() -> Result<()> {
+        let fixture_path = Path::new("car-fixtures").join("carv1-basic.car");
+        let test_path = &Path::new("test");
+        let original_path = &test_path.join("carv1-basic-inert-root-original.car");
+        let new_path = &test_path.join("carv1-basic-inert-root-updated.car");
 
-        let mut r = File::open(&original_path)?;
-        let mut w = File::create(&new_path)?;
+        copy(fixture_path, original_path)?;
+        copy(original_path, new_path)?;
+
+        let mut r = File::open(original_path)?;
+        let mut w = File::create(new_path)?;
 
         // Read in the car
         let car = CarV1::read_bytes(&mut r)?;
-        r.seek(std::io::SeekFrom::Start(0))?;
 
-        car.write_bytes(0, &mut r, &mut w)?;
+        // Insert a root
+        car.insert_root(&Cid::default());
+
+        r.seek(std::io::SeekFrom::Start(0))?;
+        car.write_bytes(&mut r, &mut w)?;
 
         // Read in the car
         let mut r2 = File::open(&new_path)?;
         let new_car = CarV1::read_bytes(&mut r2)?;
-        // Cleanup
+
+        assert_eq!(car.header, new_car.header);
+        assert_eq!(car.index, new_car.index);
         assert_eq!(car, new_car);
+
         Ok(())
     }
+
     #[test]
-    fn insert_root() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let original_path = Path::new("test").join("carv1-basic-insert-root-original.car");
-        let new_path = Path::new("test").join("carv1-basic-insert-root-updated.car");
-        copy(&existing_path, &original_path)?;
-        copy(&existing_path, &new_path)?;
+    #[serial]
+    fn put_get_block() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let original_path = &Path::new("test").join("carv1-put-get-block.car");
 
-        let mut r = File::open(&original_path)?;
-        let mut w = File::create(&new_path)?;
+        // Copy from fixture to original path
+        remove_file(original_path).ok();
 
-        // Read in the car
-        let car = CarV1::read_bytes(&mut r)?;
-        r.seek(std::io::SeekFrom::Start(0))?;
-        //Find original roots
-        let original_roots = car.header.roots.borrow().clone();
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
-        // New root to be added
-        let new_root = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
-        // Insert that root, write to new file
-        car.insert_root(&new_root, &mut r, &mut w)?;
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
 
-        // Read the newly written CAR
-        let mut r2 = File::open(&new_path)?;
-        let new_car = CarV1::read_bytes(&mut r2)?;
-        let new_roots = new_car.header.roots.borrow().clone();
+        // Read original CARv2
+        let original = CarV1::read_bytes(&mut original_file)?;
+        let all_cids = original.get_all_cids();
 
-        // Assert not equal
-        assert_ne!(original_roots, new_roots);
-        // Assert that the new roots contain the root added
-        assert!(new_roots.contains(&new_root));
-        // Cleanup
-        remove_file(new_path)?;
+        // Assert that we can query all CIDs
+        for cid in &all_cids {
+            assert!(original.get_block(cid, &mut original_file).is_ok());
+        }
+
+        // Insert a block
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+
+        // Writable version of the original file
+        let mut writable_original = OpenOptions::new()
+            .append(false)
+            .write(true)
+            .open(original_path)?;
+
+        // Put a new block in
+        original.put_block(&block, &mut writable_original)?;
+        let new_block = original.get_block(&block.cid, &mut original_file)?;
+        assert_eq!(block, new_block);
+
+        // Assert that we can still query all CIDs
+        for cid in &all_cids {
+            println!("getting block {}", cid);
+            original.get_block(cid, &mut original_file)?;
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn to_from_disk_no_offset() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let original_path = &Path::new("test").join("carv1-to-from-disk-no-offset-original.car");
+        let updated_path = &Path::new("test").join("carv1-to-from-disk-no-offset-updated.car");
+
+        remove_file(original_path).ok();
+        remove_file(updated_path).ok();
+
+        // Copy from fixture to original path
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
+
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
+        let mut updated_file = File::create(updated_path)?;
+
+        // Read original CARv1
+        let original = CarV1::read_bytes(&mut original_file)?;
+        original_file.seek(std::io::SeekFrom::Start(0))?;
+        // Write to updated file
+        original.write_bytes(&mut original_file, &mut updated_file)?;
+
+        // Reconstruct
+        let mut updated_file = File::open(updated_path)?;
+        let reconstructed = CarV1::read_bytes(&mut updated_file)?;
+
+        // Assert equality
+        assert_eq!(original.header, reconstructed.header);
+        assert_eq!(original.index, reconstructed.index);
+        assert_eq!(original, reconstructed);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn to_from_disk_with_offset() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let original_path = &Path::new("test").join("carv1-to-from-disk-offset-original.car");
+        let updated_path = &Path::new("test").join("carv1-to-from-disk-offset-updated.car");
+
+        // Copy from fixture to original path
+        remove_file(original_path).ok();
+        remove_file(updated_path).ok();
+
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
+
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
+        let mut updated_file = File::create(updated_path)?;
+
+        // Read original CARv1
+        let original = CarV1::read_bytes(&mut original_file)?;
+
+        // Insert a block as a root
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+        original.insert_root(&block.cid);
+
+        // Write to updated file
+        original_file.seek(SeekFrom::Start(0))?;
+        updated_file.seek(SeekFrom::Start(0))?;
+
+        original.write_bytes(&mut original_file, &mut updated_file)?;
+
+        // Reconstruct
+        let mut updated_file = File::open(updated_path)?;
+        let reconstructed = CarV1::read_bytes(&mut updated_file)?;
+
+        // Assert equality
+        assert_eq!(original.header, reconstructed.header);
+        assert_eq!(original.index, reconstructed.index);
+        assert_eq!(original, reconstructed);
+
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn to_from_disk_with_data() -> Result<()> {
+        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
+        let original_path = &Path::new("test").join("carv1-to-from-disk-data-original.car");
+        let updated_path = &Path::new("test").join("carv1-to-from-disk-data-updated.car");
+
+        // Copy from fixture to original path
+        remove_file(original_path).ok();
+        remove_file(updated_path).ok();
+
+        file::copy(car_path, original_path, &file::CopyOptions::new())?;
+
+        // Define reader and writer
+        let mut original_file = File::open(original_path)?;
+        let mut updated_file = File::create(updated_path)?;
+
+        // Read original CARv1
+        let original = CarV1::read_bytes(&mut original_file)?;
+
+        // Insert a block as a root
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let block = V1Block::new(kitty_bytes, IpldCodec::DagCbor)?;
+        original.insert_root(&block.cid);
+        let mut writable_original = OpenOptions::new()
+            .append(false)
+            .write(true)
+            .open(original_path)?;
+        original.put_block(&block, &mut writable_original)?;
+
+        // Write to updated file
+        original_file.seek(SeekFrom::Start(0))?;
+        updated_file.seek(SeekFrom::Start(0))?;
+
+        original.write_bytes(&mut original_file, &mut updated_file)?;
+
+        // Reconstruct
+        let mut updated_file = File::open(updated_path)?;
+        let reconstructed = CarV1::read_bytes(&mut updated_file)?;
+
+        println!("reconstructed index: {:?}", reconstructed.index);
+
+        // Assert equality
+        assert_eq!(original.header, reconstructed.header);
+        assert_eq!(original.index, reconstructed.index);
+        assert_eq!(original.index, reconstructed.index);
+
+        // assert_eq!(original, reconstructed);
+
         Ok(())
     }
 }

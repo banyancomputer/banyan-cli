@@ -2,7 +2,6 @@ use crate::types::blockstore::car::varint::{encode_varint_u128, read_varint_u128
 use anyhow::Result;
 use std::io::{Read, Seek, Write};
 use wnfs::libipld::{
-    cid::Version,
     multihash::{Code, MultihashDigest},
     Cid, IpldCodec,
 };
@@ -20,7 +19,7 @@ impl V1Block {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
         // Represent the hash as a V1 CID
-        let cid = Cid::new(Version::V1, codec.into(), hash)?;
+        let cid = Cid::new_v1(codec.into(), hash);
         let varint = (cid.to_bytes().len() + content.len()) as u128;
         // Create new
         Ok(Self {
@@ -52,6 +51,7 @@ impl V1Block {
     }
 
     pub(crate) fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
+        // println!("reading cid from offset {}", r.stream_position()?);
         // Read the varint
         let varint = read_varint_u128(&mut r)?;
         // Read the CID

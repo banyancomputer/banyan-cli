@@ -12,7 +12,7 @@ use wnfs::{
 };
 
 // | 16-byte varint | n-byte DAG CBOR |
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub(crate) struct V1Header {
     pub version: u64,
     pub roots: RefCell<Vec<Cid>>,
@@ -102,10 +102,10 @@ impl V1Header {
     }
 }
 
-impl Default for V1Header {
-    fn default() -> Self {
+impl V1Header {
+    pub(crate) fn default(version: u64) -> Self {
         Self {
-            version: 1,
+            version,
             roots: RefCell::new(Vec::new()),
         }
     }
@@ -115,6 +115,7 @@ impl Default for V1Header {
 mod tests {
     use super::V1Header;
     use anyhow::Result;
+    use serial_test::serial;
     use std::{
         fs::File,
         io::{BufReader, Cursor},
@@ -127,7 +128,7 @@ mod tests {
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default();
+        let header = V1Header::default(1);
         // Write the header into a buffer
         let mut header_bytes: Vec<u8> = Vec::new();
         header.write_bytes(&mut header_bytes)?;
@@ -142,6 +143,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn read_disk() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         // Open the CARv1
@@ -158,6 +160,28 @@ mod tests {
         // Assert that the roots loaded match the roots expected in this file
         assert_eq!(header.roots.borrow().clone(), expected_roots);
         // Return Ok
+        Ok(())
+    }
+
+    #[test]
+    fn modify_roots() -> Result<()> {
+        // Construct a V1Header
+        let header = V1Header::default(1);
+        {
+            let mut roots = header.roots.borrow_mut();
+            roots.push(Cid::default());
+        }
+
+        // Write the header into a buffer
+        let mut header_bytes: Vec<u8> = Vec::new();
+        header.write_bytes(&mut header_bytes)?;
+
+        // Reconstruct the header from this buffer
+        let header_cursor = Cursor::new(header_bytes);
+        let new_header = V1Header::read_bytes(header_cursor)?;
+
+        // Assert equality
+        assert_eq!(header, new_header);
         Ok(())
     }
 }

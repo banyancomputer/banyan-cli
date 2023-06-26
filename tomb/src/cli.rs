@@ -19,15 +19,9 @@ pub(crate) enum ConfigSubCommands {
     },
     /// tomb seturl - Set the ID for this tomb's bucket - MAY BREAK YOUR EVERYTHING!!!
     SetRemote {
-        /// Input directory
-        #[arg(short, long, help = "directory")]
-        dir: Option<PathBuf>,
         /// Server address
-        #[arg(short, long, help = "remote IPv4 address")]
-        url: String,
-        /// Server port
-        #[arg(short, long, help = "remote address port")]
-        port: u16,
+        #[arg(short, long, help = "full server address")]
+        address: String,
     },
 }
 
@@ -37,16 +31,11 @@ pub(crate) enum Commands {
     Pack {
         /// Root of the directory tree to pack.
         #[arg(short, long, help = "input directories and files")]
-        input_dir: PathBuf,
+        input_dir: Option<PathBuf>,
 
-        /// Directory that either does not exist or is empty; this is where packed data will go.
-        #[arg(short, long, help = "output directory")]
-        output_dir: PathBuf,
-
-        /// Maximum size for each chunk, defaults to 1GiB.
-        #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
-        chunk_size: u64,
-
+        // /// Maximum size for each chunk, defaults to 1GiB.
+        // #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
+        // chunk_size: u64,
         /// Whether to follow symbolic links when processing the input directory.
         #[arg(short, long, help = "follow symbolic links")]
         follow_links: bool,
@@ -97,8 +86,9 @@ pub(crate) enum Commands {
     //    - `index_path: ~/.tomb/index`
     /// tomb init - create a new .tomb file and populate it.
     Init {
-        /// Input directory
-        #[arg(short, long, help = "directory")]
+        dir: Option<PathBuf>,
+    },
+    Deinit {
         dir: Option<PathBuf>,
     },
     /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
@@ -153,47 +143,40 @@ pub(crate) struct Args {
 mod test {
     use anyhow::Result;
     use assert_cmd::prelude::*;
-    use fs_extra::dir::CopyOptions;
+    use fs_extra::file;
     use serial_test::serial;
-    use std::{
-        fs::{create_dir_all, metadata},
-        path::Path,
-        process::Command,
-    };
-    use tomb::utils::{
-        disk::manifest_from_disk,
-        tests::{test_setup, test_teardown},
-    };
-    use tomb_common::types::pipeline::Manifest;
+    use std::{fs::metadata, path::Path, process::Command};
+    use tomb::utils::tests::{test_setup, test_teardown};
+    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     async fn init(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
-        cmd.arg("init").arg("--dir").arg(dir);
+        cmd.arg("init").arg(dir);
         Ok(cmd)
     }
 
-    async fn configure_remote(dir: &Path, url: &str, port: u16) -> Result<Command> {
+    async fn deinit(dir: &Path) -> Result<Command> {
+        let mut cmd = Command::cargo_bin("tomb")?;
+        cmd.arg("deinit").arg(dir);
+        Ok(cmd)
+    }
+
+    async fn configure_remote(address: &str) -> Result<Command> {
         // configure set-remote --url http://127.0.0.1 --port 5001
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("configure")
             .arg("set-remote")
-            .arg("--dir")
-            .arg(dir)
-            .arg("--url")
-            .arg(url)
-            .arg("--port")
-            .arg(format!("{}", port));
+            .arg("--address")
+            .arg(address);
         Ok(cmd)
     }
 
     // Run the Pack pipeline through the CLI
-    async fn pack(input_dir: &Path, output_dir: &Path) -> Result<Command> {
+    async fn pack(input_dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("pack")
             .arg("--input-dir")
-            .arg(input_dir.to_str().unwrap())
-            .arg("--output-dir")
-            .arg(output_dir.to_str().unwrap());
+            .arg(input_dir.to_str().unwrap());
         Ok(cmd)
     }
 
@@ -225,36 +208,62 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_init() -> Result<()> {
         let test_name = "cli_init";
         // Setup test
-        let (input_dir, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
+        // Assert no bucket exists yet
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
         // Initialization worked
-        init(&input_dir).await?.assert().success();
-        // Load the modified Manifest
-        let manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
-        // Expect that the default Manifest was successfully encoded
-        assert_eq!(manifest, Manifest::default());
+        init(&origin).await?.assert().success();
+        // Assert the bucket exists now
+        let bucket = GlobalConfig::from_disk()?.get_bucket(origin);
+        assert!(bucket.is_some());
+        // Assert that there is still no key, because we've not packed
+        assert!(bucket.unwrap().get_key("root").is_err());
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
+    #[serial]
+    async fn cli_init_deinit() -> Result<()> {
+        let test_name = "cli_init_deinit";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Assert no bucket exists yet
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        // Initialization worked
+        init(origin).await?.assert().success();
+        // Assert the bucket exists now
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
+        // Deinitialize the directory
+        deinit(origin).await?.assert().success();
+        // Assert the bucket is gone again
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        // Teardown test
+        test_teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
     async fn cli_configure_remote() -> Result<()> {
         let test_name = "cli_configure_remote";
         // Setup test
-        let (input_dir, _) = &test_setup(test_name).await?;
-        // Initialization worked
+        let input_dir = &test_setup(test_name).await?;
+
+        // Initialize
         init(&input_dir).await?.assert().success();
 
         // Configure remote endpoint
-        configure_remote(&input_dir, "http://127.0.0.1", 5001)
+        configure_remote("http://127.0.0.1:5001")
             .await?
             .assert()
             .success();
 
         // Load the modified Manifest
-        let _manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
+        // let _manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
         // Expect that the remote endpoint was successfully updated
         // assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown test
@@ -262,29 +271,31 @@ mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_pack_local() -> Result<()> {
         let test_name = "cli_pack_local";
         // Setup test
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(&input_dir).await?.assert().success();
+        init(origin).await?.assert().success();
         // Run pack and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack(origin).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
+    #[serial]
     async fn cli_unpack_local() -> Result<()> {
         let test_name = "cli_unpack_local";
         // Setup test
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(&input_dir).await?.assert().success();
+        init(origin).await?.assert().success();
         // Run pack and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack(origin).await?.assert().success();
         // Run unpack and assert success
-        unpack(output_dir, input_dir).await?.assert().success();
+        unpack(origin, origin).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }
@@ -295,34 +306,31 @@ mod test {
     async fn cli_push_pull() -> Result<()> {
         let test_name = "cli_push_pull";
         // Setup test
-        let (input_dir, output_dir) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(&input_dir).await?.assert().success();
+        init(origin).await?.assert().success();
         // Configure remote endpoint
-        configure_remote(&input_dir, "http://127.0.0.1", 5001)
+        configure_remote("http://127.0.0.1:5001")
             .await?
             .assert()
             .success();
         // Run pack locally and assert success
-        pack(input_dir, output_dir).await?.assert().success();
+        pack(origin).await?.assert().success();
+
+        let v1_path = &GlobalConfig::from_disk()?
+            .get_bucket(origin)
+            .unwrap()
+            .content
+            .path;
+        let v1_moved = &v1_path.parent().unwrap().join("old_content.car");
+        file::move_file(v1_path, v1_moved, &file::CopyOptions::new())?;
+
         // Run push and assert success
-        push(output_dir).await?.assert().success();
-        // Create a directory in which to reconstruct
-        let rebuild_dir = output_dir.parent().unwrap().join("rebuild");
-        create_dir_all(&rebuild_dir)?;
-        // Copy the metadata into the new directory, but no content
-        fs_extra::copy_items(
-            &[output_dir.join(".tomb")],
-            &rebuild_dir,
-            &CopyOptions::new(),
-        )?;
+        push(origin).await?.assert().success();
         // Run unpack and assert success
-        pull(&rebuild_dir).await?.assert().success();
+        pull(&origin).await?.assert().success();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
-        assert_eq!(
-            metadata(&output_dir.join("content.car"))?.len(),
-            metadata(&rebuild_dir.join("content.car"))?.len(),
-        );
+        assert_eq!(metadata(v1_path)?.len(), metadata(v1_moved)?.len(),);
         // Teardown test
         test_teardown(test_name).await
     }

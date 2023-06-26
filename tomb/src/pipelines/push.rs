@@ -1,44 +1,59 @@
 use anyhow::Result;
 use std::path::Path;
+use tomb_common::types::{
+    blockstore::networkblockstore::NetworkBlockStore, config::globalconfig::GlobalConfig,
+};
+use wnfs::{common::BlockStore, libipld::Cid};
+
+use crate::{pipelines::error::PipelineError, utils::wnfsio::get_progress_bar};
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(_dir: &Path) -> Result<()> {
-    // info!("Sending blocks to remote server.");
-    // let tomb_path = dir.join(".tomb");
-    // // let _content_path = dir.join("content");
+pub async fn pipeline(origin: &Path) -> Result<()> {
+    info!("Sending blocks to remote server.");
 
-    // // Load the manifest
-    // let manifest = manifest_from_disk(&tomb_path)?;
-    // info!("Loaded manifest...");
+    // Load the manifest
+    let mut global = GlobalConfig::from_disk()?;
 
-    // // Update the locations of the CarV2BlockStores to be relative to the input path
-    // // manifest.metadata.change_dir(&tomb_path)?;
-    // // manifest.content.change_dir(&content_path)?;
-    // // manifest.cold_remote.addr = "".to_string();
+    if let Some(config) = global.get_bucket(origin) {
+        info!("Loaded manifest...");
+        let (metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
 
-    // // Grab all Block CIDs
-    // let children: Vec<Cid> = manifest.content.get_all_cids();
+        // Grab all Block CIDs
+        let children: Vec<Cid> = config.content.get_all_cids();
 
-    // // Initialize the progress bar using the number of Nodes to process
-    // let progress_bar = get_progress_bar(children.len() as u64)?;
+        // Initialize the progress bar using the number of Nodes to process
+        let progress_bar = get_progress_bar(children.len() as u64)?;
 
-    // info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
+        info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
 
-    // // For each child CID in the list
-    // for child in children {
-    //     // Grab the bytes from the local store
-    //     let bytes = manifest.content.get_block(&child).await?;
-    //     // Throw those bytes onto the remote network
-    //     manifest
-    //         .cold_remote
-    //         .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
-    //         .await?;
+        // Use the globally configured remote endpoint to create a NetworkBlockstore
+        let remote = NetworkBlockStore::new(&global.remote);
 
-    //     // Denote progress for each loop iteration
-    //     progress_bar.inc(1);
-    // }
+        // For each child CID in the list
+        for child in children {
+            // Grab the bytes from the local store
+            let bytes = config.content.get_block(&child).await?;
 
-    // info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
+            // Throw those bytes onto the remote network
+            remote
+                .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
+                .await?;
 
-    Ok(())
+            // Denote progress for each loop iteration
+            progress_bar.inc(1);
+        }
+
+        info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
+
+        config
+            .set_all(metadata_forest, content_forest, root_dir)
+            .await?;
+
+        global.update_config(&config)?;
+        global.to_disk()?;
+
+        Ok(())
+    } else {
+        Err(PipelineError::Uninitialized().into())
+    }
 }

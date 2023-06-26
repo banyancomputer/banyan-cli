@@ -12,12 +12,7 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::types::{
-    blockstore::{
-        car::carv2::carv2blockstore::CarV2BlockStore, networkblockstore::NetworkBlockStore,
-    },
-    pipeline::Manifest,
-};
+use crate::types::config::{bucketconfig::BucketConfig, globalconfig::GlobalConfig};
 
 pub fn ensure_path_exists_and_is_dir(path: &Path) -> Result<()> {
     // If the path is non-existent
@@ -54,30 +49,20 @@ pub fn ensure_path_exists_and_is_empty_dir(path: &Path, force: bool) -> Result<(
 
 // Create all of the relevant objects, using real BlockStores and real data
 pub async fn setup(
-    local: bool,
     test_name: &str,
 ) -> Result<(
     PathBuf,
-    Manifest,
+    GlobalConfig,
+    BucketConfig,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
-    let path = Path::new("test").join(test_name);
-    ensure_path_exists_and_is_empty_dir(&path, true)?;
-    let content_path = path.join("content");
-    ensure_path_exists_and_is_empty_dir(&content_path, true)?;
-    let content_car = content_path.join("content.car");
-    let content = CarV2BlockStore::new(&content_car)?;
-
-    let tomb_path = path.join(".tomb");
-    ensure_path_exists_and_is_empty_dir(&tomb_path, true)?;
-    let meta_car = tomb_path.join("meta.car");
-    let metadata = CarV2BlockStore::new(&meta_car)?;
-
-    // Remote endpoint
-    let cold_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
-    let hot_remote = NetworkBlockStore::new("http://127.0.0.1", 5001);
+    let origin: PathBuf = Path::new("test").join(test_name);
+    create_dir_all(&origin)?;
+    let mut global = GlobalConfig::from_disk()?;
+    global.remove(&origin)?;
+    let config = global.new_bucket(&origin)?;
 
     // Hot Forest and cold Forest
     let mut metadata_forest = Rc::new(PrivateForest::new());
@@ -93,61 +78,31 @@ pub async fn setup(
     ));
 
     // Open new file
-    let file = if local {
-        root_dir
-            .open_file_mut(
-                &["cats".to_string()],
-                true,
-                Utc::now(),
-                &mut metadata_forest,
-                &metadata,
-                rng,
-            )
-            .await?
-    } else {
-        root_dir
-            .open_file_mut(
-                &["cats".to_string()],
-                true,
-                Utc::now(),
-                &mut metadata_forest,
-                &hot_remote,
-                rng,
-            )
-            .await?
-    };
+    let file = root_dir
+        .open_file_mut(
+            &["cats".to_string()],
+            true,
+            Utc::now(),
+            &mut metadata_forest,
+            &config.metadata,
+            rng,
+        )
+        .await?;
 
     // Set file content
-    if local {
-        file.set_content(
-            Utc::now(),
-            "Hello Kitty!".as_bytes(),
-            &mut content_forest,
-            &content,
-            rng,
-        )
-        .await?;
-    } else {
-        file.set_content(
-            Utc::now(),
-            "Hello Kitty!".as_bytes(),
-            &mut content_forest,
-            &cold_remote,
-            rng,
-        )
-        .await?;
-    }
-
-    // Create the Manifest
-    let manifest_data = Manifest {
-        version: "1.1.0".to_string(),
-        content,
-        metadata,
-    };
+    file.set_content(
+        Utc::now(),
+        "Hello Kitty!".as_bytes(),
+        &mut content_forest,
+        &config.content,
+        rng,
+    )
+    .await?;
 
     Ok((
-        tomb_path,
-        manifest_data,
+        origin,
+        global,
+        config,
         metadata_forest,
         content_forest,
         root_dir,

@@ -1,7 +1,6 @@
 use crate::{
     types::spider::PackPipelinePlan,
     utils::{
-        disk::{all_to_disk, key_from_disk, manifest_from_disk},
         grouper::grouper,
         spider::{self, path_to_segments},
         wnfsio::{compress_file, get_progress_bar},
@@ -9,7 +8,6 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::Utc;
-use fs_extra::dir;
 use indicatif::ProgressBar;
 use log::info;
 use rand::thread_rng;
@@ -19,15 +17,14 @@ use std::{
     rc::Rc,
     vec,
 };
-use tomb_common::{
-    types::{blockstore::car::carv2::carv2blockstore::CarV2BlockStore, pipeline::Manifest},
-    utils::serialize::{load_content_forest, load_dir, load_metadata_forest},
-};
+use tomb_common::types::config::globalconfig::GlobalConfig;
 use wnfs::{
     common::BlockStore,
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
+
+use super::error::PipelineError;
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
 /// pack the input directory into the output directory and store a record of how this
@@ -45,8 +42,7 @@ use wnfs::{
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
     input_dir: &Path,
-    output_dir: &Path,
-    _chunk_size: u64,
+    // _chunk_size: u64,
     follow_links: bool,
 ) -> Result<()> {
     // Create packing plan
@@ -54,128 +50,67 @@ pub async fn pipeline(
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
-    // Path to the tomb folder
-    let tomb_path = &input_dir.join(".tomb");
-    // If initialization hasnt even happened
-    if !tomb_path.exists() {
-        panic!("Initialize this filesystem first with tomb init!");
-    }
-    // If the key has been made before
-    let first_run = !tomb_path.join("root.key").exists();
-    info!("pack first_run: {}", first_run);
 
-    // Declare the MetaData store
-    let mut metadata = CarV2BlockStore::default();
-    // Local content storage need only be valid if this is a local job
-    let mut content: CarV2BlockStore = CarV2BlockStore::new(&output_dir.join("content.car"))?;
+    let mut global = GlobalConfig::from_disk()?;
 
-    // Load the manifest
-    let manifest = manifest_from_disk(tomb_path)?;
-    // Update the BlockStores we will use if they have non-default values
-    if manifest.metadata != CarV2BlockStore::default() {
-        metadata = manifest.metadata;
-    }
-    if manifest.content != CarV2BlockStore::default() {
-        content = manifest.content;
-    }
+    // If the user has done initialization for this directory
+    if let Some(config) = global.get_bucket(input_dir) {
+        // Try to get the key of the root node
+        let key = config.get_key("root");
 
-    // Create the root directory in which all Nodes will be stored
-    let mut root_dir = Rc::new(PrivateDirectory::new(
-        Namefilter::default(),
-        Utc::now(),
-        &mut thread_rng(),
-    ));
-    // Create the PrivateForest from which Nodes will be queried
-    let mut metadata_forest = Rc::new(PrivateForest::new());
-    let mut content_forest = Rc::new(PrivateForest::new());
+        // Create the root directory in which all Nodes will be stored
+        let mut root_dir = Rc::new(PrivateDirectory::new(
+            Namefilter::default(),
+            Utc::now(),
+            &mut thread_rng(),
+        ));
+        // Create the PrivateForest from which Nodes will be queried
+        let mut metadata_forest = Rc::new(PrivateForest::new());
+        let mut content_forest = Rc::new(PrivateForest::new());
 
-    // If this filesystem has never been packed
-    if first_run {
-        info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        metadata = CarV2BlockStore::new(&tomb_path.join("meta.car"))?;
-    }
-    // If we've already packed this filesystem before
-    else {
-        println!("You've run tomb on this filesystem before! This may take some extra time, but don't worry, we're working hard to prevent duplicate work! 🔎");
-        // Load the manifest
-        let manifest = manifest_from_disk(tomb_path)?;
-        // Load in the Key
-        let key = key_from_disk(tomb_path, "root")?;
-
-        let (new_metadata_forest, new_content_forest) = (
-            load_metadata_forest(&manifest.metadata).await,
-            load_content_forest(&manifest.content).await,
-        );
-
-        if let Ok(new_metadata_forest) = new_metadata_forest &&
-           let Ok(new_dir) = load_dir(&manifest, &key, &new_metadata_forest).await {
-            // Update the forest and root directory
+        // If this filesystem has never been packed
+        if key.is_ok() {
+            let (new_metadata_forest, new_content_forest, new_root_dir) = config.get_all().await?;
             metadata_forest = new_metadata_forest;
-            root_dir = new_dir;
-            println!("root dir and forest and original ratchet loaded from disk...");
-        }
-        // If the load was unsuccessful
-        else {
-            info!("Oh no! 😵 The metadata associated with this filesystem is corrupted, we have to pack from scratch.");
-            metadata = CarV2BlockStore::new(tomb_path)?;
-        }
-
-        if let Ok(new_content_forest) = new_content_forest {
             content_forest = new_content_forest;
+            root_dir = new_root_dir;
+        } else {
+            info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
+
+        // Process all of the PackPipelinePlans
+        process_plans(
+            packing_plan,
+            progress_bar,
+            &mut root_dir,
+            &mut metadata_forest,
+            &mut content_forest,
+            &config.metadata,
+            &config.content,
+        )
+        .await?;
+
+        // if first_run {
+        //     println!("storing original dir and key");
+        //     let original_key = store_dir(
+        //         &mut manifest,
+        //         &mut metadata_forest,
+        //         &root_dir,
+        //     )
+        //     .await?;
+        //     key_to_disk(tomb_path, &original_key, "original")?;
+        // }
+
+        // Store Forest and Dir in BlockStores and Key
+        config
+            .set_all(&mut metadata_forest, &mut content_forest, &root_dir)
+            .await?;
+
+        global.update_config(&config)?;
+        global.to_disk()
+    } else {
+        Err(PipelineError::Uninitialized().into())
     }
-
-    // Process all of the PackPipelinePlans
-    process_plans(
-        packing_plan,
-        progress_bar,
-        &mut root_dir,
-        &mut metadata_forest,
-        &mut content_forest,
-        &metadata,
-        &content,
-    )
-    .await?;
-
-    // Construct the latest version of the Manifest struct
-    let mut manifest = Manifest {
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        content,
-        metadata,
-    };
-
-    // if first_run {
-    //     println!("storing original dir and key");
-    //     let original_key = store_dir(
-    //         &mut manifest,
-    //         &mut metadata_forest,
-    //         &root_dir,
-    //     )
-    //     .await?;
-    //     key_to_disk(tomb_path, &original_key, "original")?;
-    // }
-
-    // Store Forest and Dir in BlockStores and retrieve Key
-    let _ = all_to_disk(
-        tomb_path,
-        &mut manifest,
-        &mut metadata_forest,
-        &mut content_forest,
-        &root_dir,
-    )
-    .await?;
-
-    // Remove the .tomb directory from the output path if it is already there
-    let _ = std::fs::remove_dir_all(output_dir.join(".tomb"));
-    // Copy the generated metadata into the output directory
-    fs_extra::copy_items(
-        &[tomb_path],
-        output_dir,
-        &dir::CopyOptions::new().overwrite(true),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to copy tomb dir: {}", e))?;
-
-    Ok(())
 }
 
 async fn create_plans(input_dir: &Path, follow_links: bool) -> Result<Vec<PackPipelinePlan>> {
@@ -212,8 +147,8 @@ async fn process_plans(
     root_dir: &mut Rc<PrivateDirectory>,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
-    hot_store: &impl BlockStore,
-    cold_store: &impl BlockStore,
+    metadata: &impl BlockStore,
+    content: &impl BlockStore,
 ) -> Result<()> {
     // Rng
     let rng: &mut rand::rngs::ThreadRng = &mut thread_rng();
@@ -245,23 +180,23 @@ async fn process_plans(
                 let time = Utc::now();
                 // Open the PrivateFile
                 let file: &mut PrivateFile = root_dir
-                    .open_file_mut(path_segments, true, time, metadata_forest, hot_store, rng)
+                    .open_file_mut(path_segments, true, time, metadata_forest, metadata, rng)
                     .await?;
                 // Compress the data in the file on disk
-                let content = compress_file(
+                let file_content = compress_file(
                     &metadatas
                         .get(0)
                         .expect("why is there nothing in metadatas")
                         .canonicalized_path,
                 )?;
                 // Write the compressed bytes to the BlockStore / PrivateForest / PrivateDirectory
-                file.set_content(time, content.as_slice(), content_forest, cold_store, rng)
+                file.set_content(time, file_content.as_slice(), content_forest, content, rng)
                     .await?;
 
                 // Duplicates need to be linked no matter what
-                for metadata in &metadatas[1..] {
+                for meta in &metadatas[1..] {
                     // Grab the original location
-                    let dup = &metadata.original_location;
+                    let dup = &meta.original_location;
                     let dup_path_segments = &path_to_segments(dup)?;
                     // Remove the final element to represent the folder path
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
@@ -272,7 +207,7 @@ async fn process_plans(
                             true,
                             Utc::now(),
                             metadata_forest,
-                            hot_store,
+                            metadata,
                             rng,
                         )
                         .await?;
@@ -283,20 +218,20 @@ async fn process_plans(
                             dup_path_segments,
                             true,
                             metadata_forest,
-                            hot_store,
+                            metadata,
                         )
                         .await?;
                 }
             }
             // If this is a directory or symlink
-            PackPipelinePlan::Directory(metadata) => {
+            PackPipelinePlan::Directory(meta) => {
                 // Turn the canonicalized path into a vector of segments
-                let path_segments = path_to_segments(&metadata.original_location)?;
+                let path_segments = path_to_segments(&meta.original_location)?;
 
                 // When path segments are empty we are unable to perform queries on the PrivateDirectory
                 // Search through the PrivateDirectory for a Node that matches the path provided
                 let result = root_dir
-                    .get_node(&path_segments, true, metadata_forest, hot_store)
+                    .get_node(&path_segments, true, metadata_forest, metadata)
                     .await;
 
                 // If there was an error searching for the Node or
@@ -308,7 +243,7 @@ async fn process_plans(
                             true,
                             Utc::now(),
                             metadata_forest,
-                            hot_store,
+                            metadata,
                             rng,
                         )
                         .await?;
@@ -325,9 +260,9 @@ async fn process_plans(
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
         match symlink_plan {
-            PackPipelinePlan::Symlink(metadata, symlink_target) => {
+            PackPipelinePlan::Symlink(meta, symlink_target) => {
                 // The path where the symlink will be placed
-                let symlink_segments = path_to_segments(&metadata.original_location)?;
+                let symlink_segments = path_to_segments(&meta.original_location)?;
 
                 // Link the file or folder
                 root_dir
@@ -337,7 +272,7 @@ async fn process_plans(
                         true,
                         Utc::now(),
                         metadata_forest,
-                        hot_store,
+                        metadata,
                         rng,
                     )
                     .await?;

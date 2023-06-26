@@ -19,6 +19,8 @@ hex = "0.4.3"
 tokio.workspace = true
 serial_test = "2.0.0"
 chrono.workspace = true
+log = "0.4.19"
+fs_extra.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"

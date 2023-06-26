@@ -6,7 +6,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{borrow::Cow, str::from_utf8};
+use std::{borrow::Cow, str::from_utf8, time::Duration};
 use wnfs::{
     common::BlockStore,
     libipld::{Cid, IpldCodec},
@@ -25,15 +25,15 @@ pub struct NetworkBlockStore {
 
 impl NetworkBlockStore {
     /// Initializes the NetworkBlockStore
-    pub fn new(url: &str, port: u16) -> Self {
+    pub fn new(addr: &str) -> Self {
         // TODO(organizedgrime) - also add a case for https
-        if !url.starts_with("http://") {
+        if !addr.starts_with("http://") {
             panic!("Cannot initialize with bad URL");
         }
 
         // Create/return the new instance of self
         Self {
-            addr: format!("{}:{}", url, port),
+            addr: addr.to_string(),
         }
     }
 }
@@ -84,6 +84,7 @@ impl BlockStore for NetworkBlockStore {
         // curl -X POST "http://127.0.0.1:5001/api/v0/block/get?arg=<cid>"
         let response: Response = Client::new()
             .post(url)
+            .timeout(Duration::SECOND)
             .send()
             .await
             .expect("Failed to send get_block request.");

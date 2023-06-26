@@ -2,48 +2,27 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 
-use crate::types::blockstore::car::varint::*;
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Default)]
-pub(crate) struct V2Index {}
+#[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
+pub(crate) struct V2Index {
+    codec: u128,
+    bytes: Vec<u8>,
+}
 
 impl V2Index {
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Option<Self>> {
+    pub fn read_bytes<R: Read + Seek>(mut _r: R) -> Result<Option<Self>> {
         // Grab the codec
-        let _codec = read_varint_u128(&mut r)?;
+        // let codec = read_varint_u128(&mut r)?;
+        // let mut bytes: Vec<u8> = Vec::new();
+        // r.read_to_end(&mut bytes)?;
+        // Ok(Some(Self { codec, bytes }))
         Ok(None)
-
-        //TODO (organizedgrime) - implement index parsing if we want good lookup times
-        /*
-        match codec {
-            // Format 0x0400: IndexSorted
-            0x0400 => {
-                println!("IndexSorted");
-                Ok(Some(Self {
-
-                }))
-            },
-            // Format: MultihashIndexSorted
-            0x0401 => {
-                // | multihash-code (uint64) | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
-                println!("MultihashIndexSorted");
-                // let len = r.stream_len()?
-
-                // while r.stream_position()? < r.stream_len()? {
-                //     let multihash_code = read_varint_u64(&mut r)?;
-                //     let width = read_varint_u32(&mut r)?;
-                //     let count = read_varint_u64(&mut r)?;
-                //     println!("| multihash {} | width {} | count {} |", multihash_code, width, count);
-
-                //     for
-                // }
-
-                Ok(Some(Self {
-
-                }))
-            },
-            _ => Ok(None)
-        }
-         */
     }
+
+    // pub fn write_bytes<W: Write + Seek>(&self, mut w: W) -> Result<()> {
+    //     // Write codec
+    //     w.write_all(&encode_varint_u128(self.codec))?;
+    //     // Write bytes
+    //     w.write_all(&self.bytes)?;
+    //     Ok(())
+    // }
 }

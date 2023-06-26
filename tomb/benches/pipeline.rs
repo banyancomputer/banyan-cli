@@ -292,16 +292,7 @@ fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf
             // Operation needed to make sure pack doesn't fail
             || prep_pack(packed_path),
             // The routine to benchmark
-            |_| async {
-                pack::pipeline(
-                    black_box(input_path),
-                    black_box(packed_path),
-                    // TODO (amiller68) - make this configurable
-                    black_box(1073741824),
-                    black_box(false),
-                )
-                .await
-            },
+            |_| async { pack::pipeline(black_box(input_path), black_box(false)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

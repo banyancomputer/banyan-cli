@@ -10,7 +10,7 @@ use crate::types::blockstore::car::varint::{
 pub const V2_HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
-#[derive(Debug, PartialEq, Clone, Copy, Default)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct V2Header {
     pub characteristics: u128,
     pub data_offset: u64,
@@ -26,6 +26,8 @@ impl V2Header {
         bytes += w.write(&encode_varint_u64_exact(self.data_size))?;
         bytes += w.write(&encode_varint_u64_exact(self.index_offset))?;
         assert_eq!(bytes, V2_HEADER_SIZE);
+        // Flush
+        w.flush()?;
         Ok(bytes)
     }
 
@@ -77,6 +79,7 @@ mod tests {
 
     use super::V2Header;
     use anyhow::Result;
+    use serial_test::serial;
     use std::{
         fs::{self, File},
         io::{BufReader, BufWriter, Cursor, Seek, Write},
@@ -102,6 +105,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn read_disk() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv2-basic.car");
         let mut file = BufReader::new(File::open(car_path)?);
