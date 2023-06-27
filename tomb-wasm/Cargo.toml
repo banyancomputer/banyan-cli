@@ -18,7 +18,8 @@ opt-level = "s" # Optimize for binary size
 [dependencies]
 # Workspace dependencies
 anyhow = { workspace = true }
-serde = { workspace = true } 
+serde = { workspace = true }
+# TODO: Don't forget to update to our fork once this branch is merged 
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs.git", branch = "rsa" }
 rand = { workspace = true }
 chrono = { workspace = true }
