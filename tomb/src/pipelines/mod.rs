@@ -541,17 +541,6 @@ mod test {
         // Assert that the previous version of the file was retrieved correctly
         assert!(original_content != goodbye_bytes);
 
-        unsafe {
-            println!(
-                "oc: {:?}",
-                String::from_utf8_unchecked(original_content.clone())
-            );
-            println!(
-                "pc: {:?}",
-                String::from_utf8_unchecked(previous_content.clone())
-            );
-        }
-
         assert_eq!(original_content, hello_bytes);
         assert_eq!(previous_content, still_bytes);
 

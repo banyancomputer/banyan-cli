@@ -1,11 +1,12 @@
 [package]
 name = "tomb"
 description = "Where shared types and functions should live for the tomb project"
+
 # These are locked across the repository for now
-version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+version.workspace = true
 
 [dependencies]
 tomb-common = { path = "../tomb-common" }
