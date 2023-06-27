@@ -1,31 +1,29 @@
 // Crate Modules
 mod fetch;
-mod crypto;
+// mod crypto;
 mod metadata;
 mod utils;
 
-use metadata::types::{ Service as MetadataService, Bucket};
-use utils::{
-    set_panic_hook, convert_path_segments,
-    JsResult
-};
+// use crate::utils::JsResult;
+use crate::metadata::types::{ Service as MetadataService, Bucket};
 
 // WASM Imports
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::future_to_promise;
+// use wasm_bindgen_futures::future_to_promise;
 use gloo::console::log;
-use js_sys::{
-    Array, Promise, Uint8Array
-};
+// use js_sys::{
+//     Array, Promise
+// };
 
-use web_sys::CryptoKeyPair;
 // WNFS Imports
 use wnfs::{
     common::MemoryBlockStore,
     private::{
         PrivateDirectory,
         PrivateForest,
-        TemporalKey, AesKey
+        TemporalKey, KEY_BYTE_SIZE,
+        RsaPrivateKey, PrivateKey,
+        RsaPublicKey, ExchangeKey
     },
     namefilter::Namefilter
 };
@@ -63,7 +61,7 @@ impl Tomb {
         token: String,
     ) -> Result<Tomb, JsValue> {
         log!("tomb-wasm: new()");
-        set_panic_hook();
+        utils::set_panic_hook();
         let metadata_service = MetadataService::new(endpoint, token);
         let buckets = metadata_service.read_buckets().await.unwrap();
         Ok(Tomb { 
@@ -91,15 +89,28 @@ impl Tomb {
     #[wasm_bindgen(js_name = loadBucket)]
     pub async fn load_bucket(&mut self, _name: String, key: JsValue) -> Result<(), JsValue> {
         log!("tomb-wasm: load_bucket()");
-        // Read the encrypted share key from the metadata service
-        let key_pair: CryptoKeyPair = key.dyn_into().unwrap_throw();
-        let enc_share_key_bytes = self.metadata_service.read_enc_share_key("bucket_id".to_string(), "fingerprint".to_string()).await.unwrap();
-        let share_key_bytes = crypto::rsa::decrypt(&key_pair, Uint8Array::from(enc_share_key_bytes.as_slice())).await.unwrap();
-        let _share_key_bytes = share_key_bytes.to_vec();
-        // TODO: Return a temporary key    
+        // Import the key from a pkcs8 string
+        let rsa_private_key: RsaPrivateKey = utils::string_to_rsa_key(key)?;
+        // TODO: Remove this at some point
+        let rsa_public_key: RsaPublicKey = rsa_private_key.get_public_key();
+
+        // TODO: Use real bucket_id and fingerprint, and real data from the metadata service
+        // Read the encrypted share key from the metadata service and decrypt it
+        let _enc_share_key_vec = self.metadata_service.read_enc_share_key("bucket_id".to_string(), "fingerprint".to_string()).await.unwrap();
+         // TODO: Remove this at some point -- need it so long as we're using fake data, since this will fail if the key was not actually encrypted with the public key
+        let enc_share_key_vec = rsa_public_key.encrypt(&_enc_share_key_vec).await.unwrap();
+        let share_key_vec = rsa_private_key.decrypt(&enc_share_key_vec).await.unwrap();        
+        // Just make sure the share key is what we originally encrypted
+        assert_eq!(share_key_vec, _enc_share_key_vec);
+
+        // Convert the share key to a TemporalKey
+        let key_bytes = utils::expect_bytes::<KEY_BYTE_SIZE>(share_key_vec)?;
+        let _temporal_key = TemporalKey::from(key_bytes);
+        
         // TODO: Load metadata CAR and write to self.blockstore
-        let _metadata_bytes = self.metadata_service.read_metadata("bucket_id".to_string()).await.unwrap();
+        let _metadata_vec = self.metadata_service.read_metadata("bucket_id".to_string()).await.unwrap();
         // TODO: Read the bytes into a blockstore
+
         // TODO: Load the private directory and private forest using the decrypted share key 
         // For now just test import a private directory and private forest
         let rng = &mut thread_rng();
@@ -142,7 +153,7 @@ impl Tomb {
     //     log!("tomb-wasm: ls()");
     //     let private_directory = self.private_directory_rc();
     //     let private_forest = self.private_forest_rc();
-    //     let path_segments = convert_path_segments(path_segments)?;
+    //     let path_segments = utils::convert_path_segments(path_segments)?;
     //     Ok(
     //         future_to_promise(async move {
     //             let result = private_directory.ls(

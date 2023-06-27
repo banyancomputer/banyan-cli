@@ -18,8 +18,8 @@ opt-level = "s" # Optimize for binary size
 [dependencies]
 # Workspace dependencies
 anyhow = { workspace = true }
-serde = { workspace = true }
-wnfs = { workspace = true }
+serde = { workspace = true } 
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs.git", branch = "rsa" }
 rand = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
@@ -58,6 +58,7 @@ tokio-util = { version = "0.7.8", features = ["compat"] }
 gloo = { version = "0.8.1", features = ["net"] }
 rc = "0.1.1"
 wasm-streams = "0.3.0"
+base64 = "0.21.2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.36"

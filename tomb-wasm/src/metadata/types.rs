@@ -1,5 +1,5 @@
-use js_sys::Uint8Array;
-use wasm_bindgen_futures::JsFuture;
+// use js_sys::Uint8Array;
+// use wasm_bindgen_futures::JsFuture;
 use serde_wasm_bindgen;
 use serde::{Deserialize, Serialize};
 use anyhow::{Result, Error};
@@ -67,7 +67,7 @@ impl Service {
     /// * JsFuture that resolves to a String.
     pub async fn read_enc_share_key(&self, _bucket_id: String, _fingerprint: String) -> Result<Vec<u8>, Error> {
         // TODO: Read real data, not fake data
-        let url = "https://www.random.org/cgi-bin/randbyte?nbytes=32";
+        let url = "https://www.random.org/cgi-bin/randbyte?nbytes=32".to_string();
         let mut stream = get_stream(url.to_string()).await.unwrap();
         let mut reader = stream.get_reader();
         let mut chunks: Vec<u8> = vec![];
@@ -85,8 +85,8 @@ impl Service {
     /// * Uint8Array - A Uint8Array of encrypted Metadata.
     /// TODO: This should return a Reader into a CAR file inside the stream
     pub async fn read_metadata(&self, _bucket_id: String) -> Result<Vec<u8>, Error> {
-        // TODO: Open a stream to a CAR
-        let url: String = "https://github.com/banyancomputer/tomb/raw/alex/eng-39-tomb-wasm-binding/.github/1.car".to_string();
+        // TODO: Open a stream to a CAR from the metadata service -- for now this is just loading some random data
+        let url = "https://www.random.org/cgi-bin/randbyte?nbytes=1024".to_string();
         let mut stream = get_stream(url).await.unwrap();
         let mut reader = stream.get_reader();
         let mut chunks: Vec<u8> = vec![];
