@@ -1,6 +1,5 @@
 // Crate Modules
 mod fetch;
-// mod crypto;
 mod metadata;
 mod utils;
 
