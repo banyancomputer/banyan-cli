@@ -139,7 +139,7 @@ mod test {
             &mut setup(test_name).await?;
 
         config
-            .set_all_metadata(metadata_forest, content_forest, &dir)
+            .set_all(metadata_forest, content_forest, &dir)
             .await?;
         global.update_config(config)?;
         global.to_disk()?;
@@ -164,8 +164,7 @@ mod test {
         );
         assert_eq!(config, new_config);
 
-        let (new_metadata_forest, new_content_forest, new_dir) =
-            &new_config.get_all_metadata().await?;
+        let (new_metadata_forest, new_content_forest, new_dir) = &new_config.get_all().await?;
 
         // Assert equality
         assert_eq!(

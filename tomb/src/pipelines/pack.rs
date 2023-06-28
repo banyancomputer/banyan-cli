@@ -44,7 +44,7 @@ pub async fn pipeline(
     input_dir: &Path,
     // _chunk_size: u64,
     follow_links: bool,
-) -> Result<()> {
+) -> Result<(), PipelineError> {
     // Create packing plan
     let packing_plan = create_plans(input_dir, follow_links).await?;
     // TODO: optionally turn off the progress bar
@@ -70,8 +70,7 @@ pub async fn pipeline(
 
         // If this filesystem has never been packed
         if key.is_ok() {
-            let (new_metadata_forest, new_content_forest, new_root_dir) =
-                config.get_all_metadata().await?;
+            let (new_metadata_forest, new_content_forest, new_root_dir) = config.get_all().await?;
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
@@ -97,9 +96,10 @@ pub async fn pipeline(
             .await?;
 
         global.update_config(&config)?;
-        global.to_disk()
+        global.to_disk()?;
+        Ok(())
     } else {
-        Err(PipelineError::Uninitialized.into())
+        Err(PipelineError::Uninitialized)
     }
 }
 

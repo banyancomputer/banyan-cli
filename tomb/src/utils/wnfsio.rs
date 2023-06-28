@@ -52,36 +52,30 @@ pub async fn file_to_disk(
     file: &Rc<PrivateFile>,
     output_dir: &Path,
     file_path: &Path,
-    total_forest: &PrivateForest,
-    metadata: &impl BlockStore,
+    content_forest: &PrivateForest,
     content: &impl BlockStore,
-) -> Result<()> {
+) -> Result<(), PipelineError> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {
         // Write out the symlink
         symlink(output_dir.join(path), file_path)?;
         Ok(())
     }
-    // If this is a real file
-    else {
+    // If this is a real file, try to read in the content
+    else if let Ok(compressed_buf) = file.get_content(content_forest, content).await {
         // Create the file at the desired location
         let mut output_file = File::create(file_path)?;
         // Buffer for decrypted and decompressed file content
-        let mut content_buf: Vec<u8> = Vec::new();
-        // Get and decompress bytes associated with this file
-
-        // let content_try = ;
-        if let Ok(content_try) = file.get_content(total_forest, content).await {
-            decompress_bytes(content_try.as_slice(), &mut content_buf)?;
-            output_file.write_all(&mut content_buf)?;
-            Ok(())
-        } else if let Ok(metadata_try) = file.get_content(total_forest, metadata).await {
-            decompress_bytes(metadata_try.as_slice(), &mut content_buf)?;
-            output_file.write_all(&mut content_buf)?;
-            Ok(())
-        } else {
-            Err(PipelineError::FileNotFound.into())
-        }
+        let mut decompressed_buf: Vec<u8> = Vec::new();
+        // Decompress
+        decompress_bytes(compressed_buf.as_slice(), &mut decompressed_buf)?;
+        // Write out the content to disk
+        output_file.write_all(&decompressed_buf)?;
+        Ok(())
+    } else {
+        Err(PipelineError::FileNotFound(
+            file_path.to_str().unwrap().to_string(),
+        ))
     }
 }
 

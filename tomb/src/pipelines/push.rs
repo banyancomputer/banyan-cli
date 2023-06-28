@@ -8,7 +8,7 @@ use wnfs::{common::BlockStore, libipld::Cid};
 use crate::{pipelines::error::PipelineError, utils::wnfsio::get_progress_bar};
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(origin: &Path) -> Result<()> {
+pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
     info!("Sending blocks to remote server.");
 
     // Load the manifest
@@ -27,7 +27,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
         info!("The loaded metadata has revealed a FileSystem with {} blocks. Sending these to the network now...", children.len());
 
         // Use the globally configured remote endpoint to create a NetworkBlockstore
-        let remote = NetworkBlockStore::new(&global.remote);
+        let remote = NetworkBlockStore::new(&global.remote)?;
 
         // For each child CID in the list
         for child in children {
@@ -54,6 +54,6 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
 
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized.into())
+        Err(PipelineError::Uninitialized)
     }
 }

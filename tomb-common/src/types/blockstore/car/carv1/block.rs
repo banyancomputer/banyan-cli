@@ -51,7 +51,6 @@ impl Block {
     }
 
     pub(crate) fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
-        // println!("reading cid from offset {}", r.stream_position()?);
         // Read the varint
         let varint = read_varint_u128(&mut r)?;
         // Read the CID

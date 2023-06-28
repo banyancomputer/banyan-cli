@@ -14,7 +14,7 @@ use crate::utils::wnfsio::get_progress_bar;
 use super::error::PipelineError;
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(origin: &Path) -> Result<()> {
+pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
     let mut global = GlobalConfig::from_disk()?;
 
     if let Some(mut config) = global.get_bucket(origin) {
@@ -23,7 +23,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
         config.content = CarV2BlockStore::new(&config.content.path)?;
 
         // Load
-        let (metadata_forest, content_forest, root_dir) = &mut config.get_all_metadata().await?;
+        let (metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
 
         // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
         // Find CID differences as a way of tallying all Forest CIDs
@@ -42,7 +42,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
         // Initialize the progress bar using the number of Nodes to process
         let progress_bar = get_progress_bar(children.len() as u64)?;
 
-        let remote = NetworkBlockStore::new(&global.remote);
+        let remote = NetworkBlockStore::new(&global.remote)?;
 
         // For each CID found
         for child in children {
@@ -60,7 +60,7 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
         info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
 
         config
-            .set_all_metadata(metadata_forest, content_forest, root_dir)
+            .set_all(metadata_forest, content_forest, root_dir)
             .await?;
 
         // Store the modified cold forest both locally and remotely
@@ -69,6 +69,6 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
 
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized.into())
+        Err(PipelineError::Uninitialized)
     }
 }

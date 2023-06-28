@@ -10,7 +10,11 @@ use crate::utils::{spider::path_to_segments, wnfsio::compress_file};
 use super::error::PipelineError;
 
 /// The pipeline for adding an individual file to a WNFS
-pub async fn pipeline(origin: &Path, input_file: &Path, wnfs_path: &Path) -> Result<()> {
+pub async fn pipeline(
+    origin: &Path,
+    input_file: &Path,
+    wnfs_path: &Path,
+) -> Result<(), PipelineError> {
     // Global config
     let mut global = GlobalConfig::from_disk()?;
 
@@ -52,8 +56,10 @@ pub async fn pipeline(origin: &Path, input_file: &Path, wnfs_path: &Path) -> Res
 
         // Update global
         global.update_config(&config)?;
-        global.to_disk()
+        global.to_disk()?;
+        // Ok
+        Ok(())
     } else {
-        Err(PipelineError::Uninitialized.into())
+        Err(PipelineError::Uninitialized)
     }
 }

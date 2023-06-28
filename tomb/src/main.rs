@@ -1,14 +1,12 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
 #![feature(buf_read_has_data_left)]
-// #![deny(unused_crate_dependencies)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 #![deny(private_in_public)]
 #![deny(unreachable_pub)]
 
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
-
 use anyhow::Result;
 use clap::Parser;
 use std::{env::current_dir, io::Write};

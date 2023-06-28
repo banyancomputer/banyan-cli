@@ -280,8 +280,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn cli_pack_local() -> Result<()> {
-        let test_name = "cli_pack_local";
+    async fn cli_pack() -> Result<()> {
+        let test_name = "cli_pack";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -294,8 +294,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn cli_unpack_local() -> Result<()> {
-        let test_name = "cli_unpack_local";
+    async fn cli_unpack() -> Result<()> {
+        let test_name = "cli_unpack";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb

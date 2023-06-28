@@ -154,11 +154,7 @@ impl<'de> Deserialize<'de> for CarV1BlockStore {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs::{copy, create_dir_all, remove_file},
-        path::Path,
-        str::FromStr,
-    };
+    use std::{fs::remove_file, path::Path, str::FromStr};
 
     use crate::utils::tests::car_setup;
 
@@ -279,7 +275,9 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn from_scratch() -> Result<()> {
-        let original_path = &Path::new("test").join("car").join("carv1_blockstore_from_scratch.car");
+        let original_path = &Path::new("test")
+            .join("car")
+            .join("carv1_blockstore_from_scratch.car");
         remove_file(original_path).ok();
 
         // Open

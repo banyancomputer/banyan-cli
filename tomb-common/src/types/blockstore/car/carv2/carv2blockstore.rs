@@ -1,5 +1,8 @@
 use super::Car;
-use crate::{types::blockstore::car::{carv1::block::Block, error::CarError}, utils::car};
+use crate::{
+    types::blockstore::car::{carv1::block::Block, error::CarError},
+    utils::car,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
@@ -23,34 +26,34 @@ impl CarV2BlockStore {
     pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
-            panic!("invalid path, must be file, not dir");
-        }
+            Err(CarError::Directory(path.to_path_buf()).into())
+        } else {
+            // Create the file if it doesn't already exist
+            if !path.exists() {
+                File::create(path)?;
+            }
 
-        // Create the file if it doesn't already exist
-        if !path.exists() {
-            File::create(path)?;
-        }
-
-        // If the file is already a valid CARv2
-        if let Ok(mut file) = File::open(path) &&
-           let Ok(carv2) = Car::read_bytes(&mut file) {
-            Ok(Self {
-                path: path.to_path_buf(),
-                carv2,
-            })
-        }
-        // If we need to create the CARv2 file from scratch
-        else {
-            // Grab read and write
-            let mut w = car::get_write(path)?;
-            let mut r = car::get_read(path)?;
-            // Create new 
-            let store = CarV2BlockStore {
-                path: path.to_path_buf(),
-                carv2: Car::new(&mut r, &mut w)?
-            };
-            // Return Ok
-            Ok(store)
+            // If the file is already a valid CARv2
+            if let Ok(mut file) = File::open(path) &&
+            let Ok(carv2) = Car::read_bytes(&mut file) {
+                Ok(Self {
+                    path: path.to_path_buf(),
+                    carv2,
+                })
+            }
+            // If we need to create the CARv2 file from scratch
+            else {
+                // Grab read and write
+                let mut w = car::get_write(path)?;
+                let mut r = car::get_read(path)?;
+                // Create new 
+                let store = CarV2BlockStore {
+                    path: path.to_path_buf(),
+                    carv2: Car::new(&mut r, &mut w)?
+                };
+                // Return Ok
+                Ok(store)
+            }
         }
     }
 
@@ -178,7 +181,6 @@ mod tests {
     async fn get_block() -> Result<()> {
         let path = car_setup(2, "indexless", "carv2blockstore_get_block")?;
         let store = CarV2BlockStore::new(&path)?;
-        println!("roots: {:?}", store.get_roots());
         let cid = Cid::from_str("bafy2bzaced4ueelaegfs5fqu4tzsh6ywbbpfk3cxppupmxfdhbpbhzawfw5oy")?;
         let _ = store.get_block(&cid).await?.to_vec();
         Ok(())
@@ -200,7 +202,9 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn from_scratch() -> Result<()> {
-        let original_path = &Path::new("test").join("car").join("carv2_carv2blockstore_from_scratch.car");
+        let original_path = &Path::new("test")
+            .join("car")
+            .join("carv2_carv2blockstore_from_scratch.car");
         remove_file(original_path).ok();
 
         // Open
@@ -214,11 +218,9 @@ mod tests {
         original.insert_root(&kitty_cid);
         // Save
         original.to_disk()?;
-        println!("\npost_write store: {:?}\n", original);
 
         // Reopen
         let reconstructed = CarV2BlockStore::new(original_path)?;
-        println!("\nreconstructed store: {:?}\n", reconstructed);
 
         // Ensure content is still there
         assert_eq!(kitty_cid, original.get_roots()[0]);

@@ -7,7 +7,7 @@ use crate::utils::spider::path_to_segments;
 use super::error::PipelineError;
 
 /// The pipeline for removing an individual file from a WNFS
-pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<()> {
+pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineError> {
     // Global config
     let mut global = GlobalConfig::from_disk()?;
     // Bucket config
@@ -27,8 +27,9 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<()> {
 
         // Update global
         global.update_config(&config)?;
-        global.to_disk()
+        global.to_disk()?;
+        Ok(())
     } else {
-        Err(PipelineError::Uninitialized.into())
+        Err(PipelineError::Uninitialized)
     }
 }

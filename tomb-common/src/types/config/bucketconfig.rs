@@ -100,26 +100,6 @@ impl BucketConfig {
         Ok(())
     }
 
-    pub async fn get_all_metadata(
-        &self,
-    ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-        let key = self.get_key("root").unwrap();
-        load_all_metadata(&key, &self.metadata).await
-    }
-
-    pub async fn set_all_metadata(
-        &self,
-        metadata_forest: &mut Rc<PrivateForest>,
-        content_forest: &mut Rc<PrivateForest>,
-        root_dir: &Rc<PrivateDirectory>,
-    ) -> Result<()> {
-        let temporal_key =
-            store_all_metadata(&self.metadata, metadata_forest, content_forest, root_dir).await?;
-
-        self.metadata.to_disk()?;
-        self.set_key(&temporal_key, "root")
-    }
-
     pub async fn get_all(
         &self,
     ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {

@@ -8,15 +8,15 @@ pub mod networkblockstore;
 #[cfg(test)]
 mod tests {
     use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
-    use crate::{types::blockstore::car::{
-        carv1::carv1blockstore::CarV1BlockStore, carv2::carv2blockstore::CarV2BlockStore,
-    }, utils::tests::car_setup};
+    use crate::{
+        types::blockstore::car::{
+            carv1::carv1blockstore::CarV1BlockStore, carv2::carv2blockstore::CarV2BlockStore,
+        },
+        utils::tests::car_setup,
+    };
     use anyhow::Result;
     use serial_test::serial;
-    use std::{
-        fs::create_dir_all,
-        path::{Path, PathBuf},
-    };
+    use std::{fs::create_dir_all, path::PathBuf};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
 
     #[tokio::test]
@@ -53,7 +53,7 @@ mod tests {
     async fn networkblockstore() -> Result<()> {
         let dir = &PathBuf::from("test");
         create_dir_all(dir)?;
-        let store = &NetworkBlockStore::new("http://127.0.0.1:5001");
+        let store = &NetworkBlockStore::new("http://127.0.0.1:5001")?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

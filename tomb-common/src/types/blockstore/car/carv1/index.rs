@@ -74,7 +74,10 @@ impl<'de> Deserialize<'de> for Index {
 #[cfg(test)]
 mod tests {
     use super::Index;
-    use crate::{types::blockstore::car::carv1::{block::Block, header::Header}, utils::tests::car_setup};
+    use crate::{
+        types::blockstore::car::carv1::{block::Block, header::Header},
+        utils::tests::car_setup,
+    };
     use anyhow::Result;
     use serial_test::serial;
     use std::{

@@ -1,6 +1,6 @@
 // Modules
-pub mod carv1blockstore;
 pub(crate) mod block;
+pub mod carv1blockstore;
 pub(crate) mod header;
 pub(crate) mod index;
 
@@ -14,7 +14,7 @@ use std::{
 };
 use wnfs::libipld::Cid;
 
-use self::{header::Header, index::Index, block::Block};
+use self::{block::Block, header::Header, index::Index};
 use super::carv2::V2_PH_SIZE;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,8 +69,7 @@ impl Car {
 
         // Whiel we're able to successfully read in blocks
         while let Ok(block_offset) = r.stream_position() &&
-              let Ok((varint, cid)) = Block::start_read(&mut r) &&
-              let Ok(block) = Block::finish_read(varint, cid, &mut r) {
+              let Ok(block) = Block::read_bytes(&mut r) {
                 // Compute the new offset of the block
                 let new_offset = (block_offset as i64 + data_offset) as u64;
                 // Move to that offset
@@ -78,13 +77,13 @@ impl Car {
                 // Write the block there
                 block.write_bytes(&mut w)?;
                 // Insert new offset into index
-                new_index.insert(cid, new_offset);
+                new_index.insert(block.cid, new_offset);
         }
 
         {
             // Update index
             let mut index = self.index.borrow_mut();
-            index.map = new_index.clone();
+            index.map = new_index;
             index.next_block = (index.next_block as i64 + data_offset) as u64;
         }
 
@@ -178,7 +177,10 @@ impl Car {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::blockstore::car::carv1::{block::Block, Car}, utils::tests::car_setup};
+    use crate::{
+        types::blockstore::car::carv1::{block::Block, Car},
+        utils::tests::car_setup,
+    };
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -309,7 +311,6 @@ mod tests {
 
         // Assert that we can still query all CIDs
         for cid in &all_cids {
-            println!("getting block {}", cid);
             original.get_block(cid, &mut original_file)?;
         }
 
@@ -320,7 +321,10 @@ mod tests {
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
         let original_path = &car_setup(1, "basic", "to_from_disk_no_offset_original")?;
-        let updated_path = &original_path.parent().unwrap().join("carv1_to_from_disk_no_offset_updated.car");
+        let updated_path = &original_path
+            .parent()
+            .unwrap()
+            .join("carv1_to_from_disk_no_offset_updated.car");
         remove_file(updated_path).ok();
 
         // Define reader and writer
@@ -349,7 +353,10 @@ mod tests {
     #[serial]
     fn to_from_disk_with_offset() -> Result<()> {
         let original_path = &car_setup(1, "basic", "to_from_disk_with_offset_original")?;
-        let updated_path = &original_path.parent().unwrap().join("carv1_to_from_disk_with_offset_updated.car");
+        let updated_path = &original_path
+            .parent()
+            .unwrap()
+            .join("carv1_to_from_disk_with_offset_updated.car");
         remove_file(updated_path).ok();
 
         // Define reader and writer
@@ -386,7 +393,10 @@ mod tests {
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
         let original_path = &car_setup(1, "basic", "to_from_disk_with_data_original")?;
-        let updated_path = &original_path.parent().unwrap().join("carv1_to_from_disk_with_data_updated.car");
+        let updated_path = &original_path
+            .parent()
+            .unwrap()
+            .join("carv1_to_from_disk_with_data_updated.car");
         remove_file(updated_path).ok();
 
         // Define reader and writer
@@ -415,8 +425,6 @@ mod tests {
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
         let reconstructed = Car::read_bytes(&mut updated_file)?;
-
-        println!("reconstructed index: {:?}", reconstructed.index);
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);

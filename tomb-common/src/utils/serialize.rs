@@ -1,4 +1,6 @@
-use crate::types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore;
+use crate::types::{
+    blockstore::car::carv2::carv2blockstore::CarV2BlockStore, config::error::ConfigError,
+};
 use anyhow::Result;
 use rand::thread_rng;
 use std::rc::Rc;
@@ -129,33 +131,6 @@ pub async fn load_dir(
         .as_dir()
 }
 
-/// Store all hot objects!
-pub async fn store_all_metadata(
-    metadata: &CarV2BlockStore,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &Rc<PrivateForest>,
-    root_dir: &Rc<PrivateDirectory>,
-) -> Result<TemporalKey> {
-    // Empty all roots first
-    metadata.empty_roots();
-    // Store the dir, then the forest, then the manifest and key
-    let temporal_key = store_dir(metadata, metadata_forest, root_dir).await?;
-    store_metadata_forest(metadata, metadata_forest).await?;
-    store_content_forest(metadata, content_forest).await?;
-    Ok(temporal_key)
-}
-
-/// Load all hot objects!
-pub async fn load_all_metadata(
-    key: &TemporalKey,
-    metadata: &CarV2BlockStore,
-) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-    let metadata_forest = load_metadata_forest(metadata, 1).await?;
-    let content_forest = load_content_forest(metadata, 2).await?;
-    let dir = load_dir(metadata, key, &metadata_forest).await?;
-    Ok((metadata_forest, content_forest, dir))
-}
-
 /// Store everything at once!
 pub async fn store_all(
     metadata: &CarV2BlockStore,
@@ -168,10 +143,11 @@ pub async fn store_all(
     metadata.empty_roots();
     content.empty_roots();
 
+    // Store the PrivateDirectory
     let temporal_key = store_dir(metadata, metadata_forest, root_dir).await?;
+    // Store the Metadata PrivateForest
     store_metadata_forest(metadata, metadata_forest).await?;
-
-    store_content_forest(metadata, content_forest).await?;
+    // Store the Content PrivateForest in the content
     store_content_forest(content, content_forest).await?;
 
     Ok(temporal_key)
@@ -184,13 +160,16 @@ pub async fn load_all(
     content: &CarV2BlockStore,
 ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     let metadata_forest = load_metadata_forest(metadata, 1).await?;
-    let content_forest = if let Ok(forest) = load_content_forest(metadata, 2).await {
-        forest
-    } else {
-        load_content_forest(content, 0).await?
-    };
     let dir = load_dir(metadata, key, &metadata_forest).await?;
-    Ok((metadata_forest, content_forest, dir))
+
+    // If we manage to load the Content PrivateForest from content
+    if let Ok(content_forest) = load_content_forest(content, 0).await {
+        Ok((metadata_forest, content_forest, dir))
+    }
+    // If we fail
+    else {
+        Err(ConfigError::MissingMetadata("Content PrivateForest".to_string()).into())
+    }
 }
 
 #[cfg(test)]
@@ -251,7 +230,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn serial_dir_object() -> Result<()> {
-        let test_name = "serial_dir_local";
+        let test_name = "serial_dir_object";
         // Start er up!
         let (_, _, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
@@ -315,32 +294,6 @@ mod test {
 
         assert_eq!(original_content, new_content);
 
-        // Teardown
-        teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn serial_all_metadata() -> Result<()> {
-        let test_name = "serial_all_metadata";
-        // Start er up!
-        let (_, _, config, metadata_forest, content_forest, dir) = &mut setup(test_name).await?;
-
-        let key =
-            &store_all_metadata(&config.metadata, metadata_forest, content_forest, dir).await?;
-
-        let (new_metadata_forest, _, new_dir) =
-            &mut load_all_metadata(key, &config.metadata).await?;
-
-        // Assert equality
-        assert_eq!(
-            new_metadata_forest
-                .diff(metadata_forest, &config.metadata)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(dir, new_dir);
         // Teardown
         teardown(test_name).await
     }

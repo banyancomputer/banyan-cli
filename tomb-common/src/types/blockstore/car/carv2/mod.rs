@@ -105,7 +105,6 @@ impl Car {
         let mut index = self.carv1.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::Start(index.next_block))?;
-        // println!("next_block: {}, end: {}", self.carv1.index.get_next_block(), w.stream_len()?);
         // Insert current offset before bytes are written
         index.map.insert(block.cid, w.stream_position()?);
         // Write the bytes
@@ -175,18 +174,18 @@ impl Car {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use fs_extra::file;
     use serial_test::serial;
     use std::{
         fs::{remove_file, File, OpenOptions},
-        io::BufReader,
-        path::Path,
         str::FromStr,
         vec,
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
-    use crate::{types::blockstore::car::{carv1::block::Block, carv2::Car}, utils::tests::car_setup};
+    use crate::{
+        types::blockstore::car::{carv1::block::Block, carv2::Car},
+        utils::tests::car_setup,
+    };
 
     #[test]
     #[serial]
@@ -287,7 +286,10 @@ mod tests {
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
         let original_path = &car_setup(2, "indexless", "to_from_disk_no_offset_original")?;
-        let updated_path = &original_path.parent().unwrap().join("carv2_to_from_disk_no_offset_updated.car");
+        let updated_path = &original_path
+            .parent()
+            .unwrap()
+            .join("carv2_to_from_disk_no_offset_updated.car");
         remove_file(updated_path).ok();
 
         // Define reader and writer
@@ -317,7 +319,10 @@ mod tests {
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
         let original_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
-        let updated_path = &original_path.parent().unwrap().join("carv2_to_from_disk_with_data_updated.car");
+        let updated_path = &original_path
+            .parent()
+            .unwrap()
+            .join("carv2_to_from_disk_with_data_updated.car");
         // Copy from fixture to original path
         remove_file(updated_path).ok();
 

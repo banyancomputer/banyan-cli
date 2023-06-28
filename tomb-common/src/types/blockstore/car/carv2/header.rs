@@ -73,9 +73,10 @@ impl<'de> Deserialize<'de> for Header {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::blockstore::car::carv2::{
-        header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE,
-    }, utils::tests::car_setup};
+    use crate::{
+        types::blockstore::car::carv2::{header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE},
+        utils::tests::car_setup,
+    };
 
     use super::Header;
     use anyhow::Result;
@@ -123,7 +124,9 @@ mod tests {
 
     #[test]
     fn from_scratch() -> Result<()> {
-        let path = &Path::new("test").join("car").join("carv2_header_from_scratch.car");
+        let path = &Path::new("test")
+            .join("car")
+            .join("carv2_header_from_scratch.car");
         let mut file = File::create(path)?;
         // Write the pragma
         file.write_all(&V2_PRAGMA)?;

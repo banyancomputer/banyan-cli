@@ -1,4 +1,7 @@
-use crate::types::blockstore::car::varint::{encode_varint_u64, read_varint_u64};
+use crate::types::blockstore::car::{
+    error::CarError,
+    varint::{encode_varint_u64, read_varint_u64},
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -44,43 +47,29 @@ impl Header {
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
     pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self> {
         let ipld: Ipld = dagcbor::decode(bytes)?;
-        // If the IPLD is a true map
-        let map = if let Ipld::Map(map) = ipld {
-            map
-        } else {
-            panic!()
-        };
-
-        let roots = match map.get("roots") {
-            Some(Ipld::List(roots_ipld)) => {
-                let mut roots = Vec::with_capacity(roots_ipld.len());
-                for root in roots_ipld {
-                    if let Ipld::Link(cid) = root {
-                        roots.push(*cid);
-                    } else {
-                        panic!()
-                    }
+        // If the IPLD is a true map and the correct keys exist within it
+        if let Ipld::Map(map) = ipld &&
+            let Some(Ipld::Integer(int)) = map.get("version") &&
+            let Some(Ipld::List(roots_ipld)) = map.get("roots") {
+            // Helper function for interpreting a given Cid as a Link
+            fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CarError> {
+                if let Ipld::Link(cid) = ipld {
+                    Ok(*cid)
+                } else {
+                    Err(CarError::MalformedV1Header)
                 }
-                roots
             }
-            Some(ipld) => {
-                println!("expected list but found: {:?}", ipld);
-                panic!()
-            }
-            None => Vec::new(),
-        };
+            // Interpret all of the roots as CIDs
+            let roots = roots_ipld.iter().map(ipld_to_cid).collect::<Result<Vec<Cid>, CarError>>()?;
 
-        let version = match map.get("version") {
-            Some(Ipld::Integer(int)) => *int as u64,
-            Some(_) => panic!(),
-            None => panic!(),
-        };
-
-        // Return Ok with new Self
-        Ok(Self {
-            version,
-            roots: RefCell::new(roots),
-        })
+            // Return Ok with new Self
+            Ok(Self {
+                version: *int as u64,
+                roots: RefCell::new(roots),
+            })
+        } else {
+            Err(CarError::MalformedV1Header.into())
+        }
     }
 
     /// Transforms this object into a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1

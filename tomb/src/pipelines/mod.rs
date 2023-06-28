@@ -71,8 +71,8 @@ mod test {
     #[tokio::test]
     #[serial]
     // #[ignore]
-    async fn pipeline_pack_local() -> Result<()> {
-        let test_name = "pipeline_pack_local";
+    async fn pipeline_pack() -> Result<()> {
+        let test_name = "pipeline_pack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
@@ -93,8 +93,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_pack_unpack_local() -> Result<()> {
-        let test_name = "pipeline_pack_unpack_local";
+    async fn pipeline_pack_unpack() -> Result<()> {
+        let test_name = "pipeline_pack_unpack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
@@ -177,8 +177,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_add_local() -> Result<()> {
-        let test_name = "pipeline_add_local";
+    async fn pipeline_add() -> Result<()> {
+        let test_name = "pipeline_add";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -227,8 +227,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_remove_local() -> Result<()> {
-        let test_name = "pipeline_remove_local";
+    async fn pipeline_remove() -> Result<()> {
+        let test_name = "pipeline_remove";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -263,7 +263,7 @@ mod test {
     }
 
     // Helper function for structure tests
-    async fn assert_pack_unpack_local(test_name: &str) -> Result<()> {
+    async fn assert_pack_unpack(test_name: &str) -> Result<()> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
@@ -289,7 +289,7 @@ mod test {
         let test_name = "pipeline_structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -299,7 +299,7 @@ mod test {
         let test_name = "pipeline_structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -309,7 +309,7 @@ mod test {
         let test_name = "pipeline_structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -317,9 +317,9 @@ mod test {
     #[serial]
     async fn test_big_file() -> Result<()> {
         let test_name = "test_big_file";
-        let structure = Structure::new(1, 1, TEST_INPUT_SIZE * 100, Strategy::Simple);
+        let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -346,7 +346,7 @@ mod test {
         rename(dup_origin, origin)?;
 
         // Run test
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -393,8 +393,8 @@ mod test {
         structure.generate(unique2)?;
 
         // Run test
-        assert_pack_unpack_local(test_name_dup).await?;
-        assert_pack_unpack_local(test_name_unique).await?;
+        assert_pack_unpack(test_name_dup).await?;
+        assert_pack_unpack(test_name_unique).await?;
 
         // Get configs
         let global = GlobalConfig::from_disk()?;
@@ -419,8 +419,10 @@ mod test {
         // Setup the test once
         test_setup(test_name).await?;
         // Run the test twice
-        assert_pack_unpack_local(test_name).await?;
-        assert_pack_unpack_local(test_name).await
+        assert_pack_unpack(test_name).await?;
+        assert_pack_unpack(test_name).await?;
+        // Teardown
+        test_teardown(test_name).await
     }
 
     // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
@@ -449,26 +451,24 @@ mod test {
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
 
-        println!("running for the first time...");
-
         // Run the test
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
 
         // Write "Still there, World?" out to the same file
         File::create(&versioned_file_path)?.write_all(still_bytes)?;
 
         // Run the test again
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
 
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
 
         // Run the test again
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (mut metadata_forest, content_forest, dir) = config.get_all_metadata().await?;
+        let (mut metadata_forest, content_forest, dir) = config.get_all().await?;
 
         // Get keys
         let original_key = &config.get_key("original")?;
@@ -589,8 +589,9 @@ mod test {
         assert_eq!(file_original, read_link(file_sym)?);
 
         // Run the test on the created filesystem
-        assert_pack_unpack_local(test_name).await?;
+        assert_pack_unpack(test_name).await?;
 
-        Ok(())
+        // Teardown
+        test_teardown(test_name).await
     }
 }

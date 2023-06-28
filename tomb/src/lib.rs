@@ -2,7 +2,7 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
 #![feature(buf_read_has_data_left)]
-// #![deny(unused_crate_dependencies)]
+#![deny(unused_crate_dependencies)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 #![deny(private_in_public)]
@@ -34,9 +34,13 @@
 * 7. TODO (laudiacay): Make car file with it.
 */
 
-// Used by benchmarking and testing
-// use clap as _;
-// use env_logger as _;
+// We only use this in main.rs
+use env_logger as _;
+
+#[cfg(test)]
+use criterion as _;
+#[cfg(test)]
+use lazy_static as _;
 
 #[allow(unused_extern_crates)]
 extern crate core;

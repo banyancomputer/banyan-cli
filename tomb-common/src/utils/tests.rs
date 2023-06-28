@@ -1,5 +1,5 @@
 use std::{
-    fs::{create_dir_all, create_dir},
+    fs::create_dir_all,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -84,9 +84,14 @@ pub async fn teardown(test_name: &str) -> Result<()> {
 }
 
 // Create a copy of a given fixture to play around with
-pub fn car_setup(version: usize, fixture_suffix: &str, test_name: &str) -> Result<PathBuf, std::io::Error> {
+pub fn car_setup(
+    version: usize,
+    fixture_suffix: &str,
+    test_name: &str,
+) -> Result<PathBuf, std::io::Error> {
     // The existing path
-    let fixture_path = Path::new("car-fixtures").join(format!("carv{}-{}.car", version, fixture_suffix));
+    let fixture_path =
+        Path::new("car-fixtures").join(format!("carv{}-{}.car", version, fixture_suffix));
     // Root of testing dir
     let test_path = &Path::new("test").join("car");
     // Create it it doesn't exist
