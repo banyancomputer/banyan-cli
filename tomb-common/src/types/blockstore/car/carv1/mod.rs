@@ -1,6 +1,6 @@
 // Modules
 pub(crate) mod block;
-pub mod carv1blockstore;
+pub mod blockstore;
 pub(crate) mod header;
 pub(crate) mod index;
 
@@ -29,7 +29,7 @@ impl Car {
     pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Track the part of the stream where the V1Header starts
         let header_start = r.stream_position()?;
-        // Read the V1Header
+        // Read the Header
         let header = Header::read_bytes(&mut r)?;
         // Determine the length of the header that we just read
         let read_header_len = RefCell::new(r.stream_position()? - header_start);

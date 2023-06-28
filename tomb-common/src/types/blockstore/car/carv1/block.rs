@@ -18,7 +18,7 @@ impl Block {
     pub fn new(content: Vec<u8>, codec: IpldCodec) -> Result<Self> {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
-        // Represent the hash as a V1 CID
+        // Represent the hash as a CID V1
         let cid = Cid::new_v1(codec.into(), hash);
         let varint = (cid.to_bytes().len() + content.len()) as u128;
         // Create new

@@ -1,11 +1,9 @@
-use crate::types::{
-    blockstore::car::carv2::carv2blockstore::CarV2BlockStore, config::error::ConfigError,
-};
+use crate::types::{blockstore::car::carv2::blockstore::BlockStore, config::error::ConfigError};
 use anyhow::Result;
 use rand::thread_rng;
 use std::rc::Rc;
 use wnfs::{
-    common::{AsyncSerialize, BlockStore, HashOutput},
+    common::{AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, TemporalKey},
 };
@@ -13,7 +11,7 @@ use wnfs::{
 /// Store a given PrivateForest in a given Store
 pub(crate) async fn store_forest(
     forest: &Rc<PrivateForest>,
-    store: &impl BlockStore,
+    store: &impl WnfsBlockStore,
 ) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(store).await?;
@@ -24,7 +22,7 @@ pub(crate) async fn store_forest(
 }
 
 /// Load a given PrivateForest from a given Store
-pub async fn load_forest(cid: &Cid, store: &impl BlockStore) -> Result<Rc<PrivateForest>> {
+pub async fn load_forest(cid: &Cid, store: &impl WnfsBlockStore) -> Result<Rc<PrivateForest>> {
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
@@ -36,7 +34,7 @@ pub async fn load_forest(cid: &Cid, store: &impl BlockStore) -> Result<Rc<Privat
 
 /// Store the hot PrivateForest
 pub(crate) async fn store_metadata_forest(
-    metadata: &CarV2BlockStore,
+    metadata: &BlockStore,
     metadata_forest: &Rc<PrivateForest>,
 ) -> Result<()> {
     // Store the forest in the hot store
@@ -48,7 +46,7 @@ pub(crate) async fn store_metadata_forest(
 }
 
 /// Load the hot PrivateForest
-async fn load_metadata_forest(metadata: &CarV2BlockStore, i: usize) -> Result<Rc<PrivateForest>> {
+async fn load_metadata_forest(metadata: &BlockStore, i: usize) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let metadata_cid = &metadata.get_roots()[i];
     // Load the forest
@@ -57,7 +55,7 @@ async fn load_metadata_forest(metadata: &CarV2BlockStore, i: usize) -> Result<Rc
 
 /// Store the cold PrivateForest
 async fn store_content_forest(
-    content: &CarV2BlockStore,
+    content: &BlockStore,
     content_forest: &Rc<PrivateForest>,
 ) -> Result<()> {
     // Store the forest in the hot store
@@ -69,7 +67,7 @@ async fn store_content_forest(
 }
 
 /// Load the cold PrivateForest
-async fn load_content_forest(content: &CarV2BlockStore, i: usize) -> Result<Rc<PrivateForest>> {
+async fn load_content_forest(content: &BlockStore, i: usize) -> Result<Rc<PrivateForest>> {
     // Get the CID from the hot store
     let content_cid = &content.get_roots()[i];
     // Load the forest
@@ -78,7 +76,7 @@ async fn load_content_forest(content: &CarV2BlockStore, i: usize) -> Result<Rc<P
 
 /// Store a PrivateDirectory
 pub(crate) async fn store_dir(
-    metadata: &CarV2BlockStore,
+    metadata: &BlockStore,
     metadata_forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
 ) -> Result<TemporalKey> {
@@ -109,7 +107,7 @@ pub(crate) async fn store_dir(
 
 /// Load a PrivateDirectory
 pub async fn load_dir(
-    metadata: &CarV2BlockStore,
+    metadata: &BlockStore,
     key: &TemporalKey,
     metadata_forest: &Rc<PrivateForest>,
 ) -> Result<Rc<PrivateDirectory>> {
@@ -133,8 +131,8 @@ pub async fn load_dir(
 
 /// Store everything at once!
 pub async fn store_all(
-    metadata: &CarV2BlockStore,
-    content: &CarV2BlockStore,
+    metadata: &BlockStore,
+    content: &BlockStore,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
@@ -156,8 +154,8 @@ pub async fn store_all(
 /// Load everything at once!
 pub async fn load_all(
     key: &TemporalKey,
-    metadata: &CarV2BlockStore,
-    content: &CarV2BlockStore,
+    metadata: &BlockStore,
+    content: &BlockStore,
 ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     let metadata_forest = load_metadata_forest(metadata, 1).await?;
     let dir = load_dir(metadata, key, &metadata_forest).await?;

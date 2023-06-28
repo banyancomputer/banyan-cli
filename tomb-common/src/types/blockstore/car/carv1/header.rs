@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn read_write_bytes() -> Result<()> {
-        // Construct a V1Header
+        // Construct a Header
         let header = Header::default(1);
         // Write the header into a buffer
         let mut header_bytes: Vec<u8> = Vec::new();
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn modify_roots() -> Result<()> {
-        // Construct a V1Header
+        // Construct a Header
         let header = Header::default(1);
         {
             let mut roots = header.roots.borrow_mut();

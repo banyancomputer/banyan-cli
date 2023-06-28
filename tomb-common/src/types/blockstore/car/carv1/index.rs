@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn read_write_bytes() -> Result<()> {
-        // Construct a V1Header
+        // Construct a Header
         let header = Header::default(1);
         // Write the header into a buffer
         let mut header_bytes = Cursor::new(Vec::<u8>::new());

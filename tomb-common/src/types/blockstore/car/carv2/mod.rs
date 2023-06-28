@@ -1,5 +1,5 @@
 // Modules
-pub mod carv2blockstore;
+pub mod blockstore;
 pub(crate) mod header;
 pub(crate) mod index;
 
@@ -18,7 +18,7 @@ use wnfs::libipld::Cid;
 pub(crate) const PRAGMA_SIZE: usize = 11;
 pub(crate) const PH_SIZE: u64 = 51;
 
-// This is the fixed file signature associated with the CARV2 file format
+// This is the fixed file signature associated with the CARv2 file format
 pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
     0x0a, 0xa1, 0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02,
 ];
@@ -68,14 +68,14 @@ impl Car {
 
         // Write the CARv1
         self.car.write_bytes(&mut r, &mut w)?;
-        // Update our data size in the V2Header
+        // Update our data size in the Header
         self.update_data_size(&mut w)?;
 
         // Move back to the start
         w.seek(SeekFrom::Start(0))?;
         // Write the PRAGMA
         w.write_all(&PRAGMA)?;
-        // Write the updated V2Header header
+        // Write the updated Header
         self.header.borrow().clone().write_bytes(&mut w)?;
         // Flush the writer
         w.flush()?;
@@ -122,9 +122,9 @@ impl Car {
         // Move to CARv1 no padding
         w.seek(SeekFrom::Start(PH_SIZE))?;
         // Construct a CARv1
-        let carv1 = CarV1::default(2);
+        let car = CarV1::default(2);
         // Write CARv1 Header
-        carv1.header.write_bytes(&mut w)?;
+        car.header.write_bytes(&mut w)?;
         // Compute the data size
         let data_size = w.stream_position()? - PH_SIZE;
 

@@ -1,5 +1,5 @@
 use crate::{
-    types::blockstore::car::carv2::carv2blockstore::CarV2BlockStore,
+    types::blockstore::car::carv2::blockstore::BlockStore,
     utils::{config::*, serialize::*},
 };
 use anyhow::{Ok, Result};
@@ -26,11 +26,11 @@ pub struct BucketConfig {
     ///     Metadata PrivateForest,
     ///     Content PrivateForest
     /// ]
-    pub metadata: CarV2BlockStore,
+    pub metadata: BlockStore,
     /// roots: [
     ///     Content PrivateForest
     /// ]
-    pub content: CarV2BlockStore,
+    pub content: BlockStore,
 }
 
 impl BucketConfig {
@@ -48,8 +48,8 @@ impl BucketConfig {
         // TODO (organized grime) prevent collision
         create_dir_all(&generated)?;
 
-        let metadata = CarV2BlockStore::new(&generated.join("meta.car"))?;
-        let content = CarV2BlockStore::new(&generated.join("content.car"))?;
+        let metadata = BlockStore::new(&generated.join("meta.car"))?;
+        let content = BlockStore::new(&generated.join("content.car"))?;
 
         Ok(Self {
             bucket_name,

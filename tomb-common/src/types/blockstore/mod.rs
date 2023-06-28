@@ -9,9 +9,7 @@ pub mod networkblockstore;
 mod tests {
     use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
     use crate::{
-        types::blockstore::car::{
-            carv1::carv1blockstore::CarV1BlockStore, carv2::carv2blockstore::CarV2BlockStore,
-        },
+        types::blockstore::car::{carv1, carv2},
         utils::tests::car_setup,
     };
     use anyhow::Result;
@@ -33,7 +31,7 @@ mod tests {
     #[serial]
     async fn carv1blockstore() -> Result<()> {
         let car_path = &car_setup(1, "basic", "blockstore")?;
-        let store = &CarV1BlockStore::new(car_path)?;
+        let store = &carv1::blockstore::BlockStore::new(car_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await
@@ -43,7 +41,7 @@ mod tests {
     #[serial]
     async fn carv2blockstore() -> Result<()> {
         let car_path = &car_setup(2, "indexless", "blockstore")?;
-        let store = &CarV2BlockStore::new(car_path)?;
+        let store = &carv2::blockstore::BlockStore::new(car_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await
