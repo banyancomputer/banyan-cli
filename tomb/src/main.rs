@@ -37,8 +37,7 @@ async fn main() -> Result<()> {
         } => {
             if let Some(input_dir) = input_dir {
                 pack::pipeline(&input_dir, follow_links).await?;
-            }
-            else {
+            } else {
                 pack::pipeline(&current_dir()?, follow_links).await?;
             }
         }

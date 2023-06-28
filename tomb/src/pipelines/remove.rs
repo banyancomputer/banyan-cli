@@ -29,6 +29,6 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<()> {
         global.update_config(&config)?;
         global.to_disk()
     } else {
-        Err(PipelineError::Uninitialized().into())
+        Err(PipelineError::Uninitialized.into())
     }
 }

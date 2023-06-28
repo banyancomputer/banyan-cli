@@ -2,7 +2,8 @@
 pub mod add;
 /// This module contains configuration functions for the cli
 pub mod configure;
-mod error;
+/// Pipeline Errors
+pub mod error;
 /// This module contains the pack pipeline function, which is the main entry point for packing new data.
 pub mod pack;
 /// This module contains the pull pipeline function, which downloads packed content from disk to a remote server.

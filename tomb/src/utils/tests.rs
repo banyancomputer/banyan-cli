@@ -29,7 +29,7 @@ pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Res
     // Generate file structure
     structure.generate(&input_path)?;
     // Deinitialize existing data / metadata
-    // configure::deinit(&input_path)?;
+    configure::deinit(&input_path).ok();
     // Return all paths
     Ok(input_path)
 }

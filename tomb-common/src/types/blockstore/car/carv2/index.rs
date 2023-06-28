@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 use std::io::{Read, Seek};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Default, Clone)]
-pub(crate) struct V2Index {
+pub(crate) struct Index {
     codec: u128,
     bytes: Vec<u8>,
 }
 
-impl V2Index {
+impl Index {
     pub fn read_bytes<R: Read + Seek>(mut _r: R) -> Result<Option<Self>> {
         // Grab the codec
         // let codec = read_varint_u128(&mut r)?;

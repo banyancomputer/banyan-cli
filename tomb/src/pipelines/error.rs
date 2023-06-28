@@ -4,10 +4,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub(crate) enum PipelineError {
     #[error("Directory has not been initialized")]
-    Uninitialized(),
-    // #[error("Cannot find specified CID in block store: {0}")]
-    // CIDNotFound(Cid),
-
-    // #[error("Lock poisoned")]
-    // LockPoisoned,
+    Uninitialized,
+    #[error("File not found in Content BlockStore")]
+    FileNotFound,
 }

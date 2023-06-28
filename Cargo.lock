@@ -3223,6 +3223,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "thiserror",
  "tokio",
  "unsigned-varint",
  "wnfs 0.1.20",

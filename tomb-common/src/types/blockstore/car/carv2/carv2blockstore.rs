@@ -1,8 +1,8 @@
-use super::CarV2;
-use crate::{types::blockstore::car::carv1::v1block::V1Block, utils::car};
+use super::Car;
+use crate::{types::blockstore::car::{carv1::block::Block, error::CarError}, utils::car};
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fs::{remove_file, rename, File},
@@ -16,7 +16,7 @@ use wnfs::{
 #[derive(Debug, PartialEq, Clone)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
-    pub(crate) carv2: CarV2,
+    pub(crate) carv2: Car,
 }
 
 impl CarV2BlockStore {
@@ -33,7 +33,7 @@ impl CarV2BlockStore {
 
         // If the file is already a valid CARv2
         if let Ok(mut file) = File::open(path) &&
-           let Ok(carv2) = CarV2::read_bytes(&mut file) {
+           let Ok(carv2) = Car::read_bytes(&mut file) {
             Ok(Self {
                 path: path.to_path_buf(),
                 carv2,
@@ -47,7 +47,7 @@ impl CarV2BlockStore {
             // Create new 
             let store = CarV2BlockStore {
                 path: path.to_path_buf(),
-                carv2: CarV2::new(&mut r, &mut w)?
+                carv2: Car::new(&mut r, &mut w)?
             };
             // Return Ok
             Ok(store)
@@ -101,14 +101,14 @@ impl BlockStore for CarV2BlockStore {
         // Open the file in read-only mode
         let mut file = car::get_read(&self.path)?;
         // Perform the block read
-        let block: V1Block = self.carv2.get_block(cid, &mut file)?;
+        let block: Block = self.carv2.get_block(cid, &mut file)?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Create a block with this content
-        let block = V1Block::new(bytes, codec)?;
+        let block = Block::new(bytes, codec)?;
         // If this CID already exists in the store
         if self.get_block(&block.cid).await.is_ok() {
             // Return OK
@@ -126,17 +126,19 @@ impl BlockStore for CarV2BlockStore {
     }
 }
 
-// TODO implement this so the whole struct need not be encoded
-
 impl Serialize for CarV2BlockStore {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        // Write to disk just in case
-        self.to_disk().unwrap();
-        // Serialize path
-        self.path.serialize(serializer)
+        // If we successfully save ourself to disk
+        if self.to_disk().is_ok() {
+            // Serialize the Path
+            self.path.serialize(serializer)
+        } else {
+            // Create a new Car Error
+            Err(SerError::custom(CarError::FailToSave))
+        }
     }
 }
 
@@ -145,7 +147,16 @@ impl<'de> Deserialize<'de> for CarV2BlockStore {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
+        // Grab the Path
+        let path = PathBuf::deserialize(deserializer)?;
+        // If we successfully load ourself from disk
+        if let Ok(new_store) = Self::new(&path) {
+            // Return loaded object
+            Ok(new_store)
+        } else {
+            // Create a new Car Error
+            Err(DeError::custom(CarError::FailToLoad(path)))
+        }
     }
 }
 

@@ -150,8 +150,8 @@ pub async fn load_all_metadata(
     key: &TemporalKey,
     metadata: &CarV2BlockStore,
 ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-    let content_forest = load_content_forest(metadata, 1).await?;
     let metadata_forest = load_metadata_forest(metadata, 1).await?;
+    let content_forest = load_content_forest(metadata, 2).await?;
     let dir = load_dir(metadata, key, &metadata_forest).await?;
     Ok((metadata_forest, content_forest, dir))
 }

@@ -1,4 +1,4 @@
-use super::v1block::V1Block;
+use super::block::Block;
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
@@ -9,18 +9,18 @@ use std::{
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
 #[derive(Debug, PartialEq, Default, Clone)]
-pub struct V1Index {
+pub struct Index {
     pub(crate) map: HashMap<Cid, u64>,
     pub(crate) next_block: u64,
 }
 
-impl V1Index {
+impl Index {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let mut map = HashMap::<Cid, u64>::new();
         let mut next_block: u64 = r.stream_position()?;
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
-              let Ok((varint, cid)) = V1Block::start_read(&mut r) {
+              let Ok((varint, cid)) = Block::start_read(&mut r) {
             // Log where we found this block
             map.insert(cid, block_offset);
             // Skip the rest of the block
@@ -40,7 +40,7 @@ impl V1Index {
     }
 }
 
-impl Serialize for V1Index {
+impl Serialize for Index {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -53,7 +53,7 @@ impl Serialize for V1Index {
     }
 }
 
-impl<'de> Deserialize<'de> for V1Index {
+impl<'de> Deserialize<'de> for Index {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -73,8 +73,8 @@ impl<'de> Deserialize<'de> for V1Index {
 
 #[cfg(test)]
 mod tests {
-    use super::V1Index;
-    use crate::types::blockstore::car::carv1::{v1block::V1Block, v1header::V1Header};
+    use super::Index;
+    use crate::types::blockstore::car::carv1::{block::Block, header::Header};
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -88,14 +88,14 @@ mod tests {
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default(1);
+        let header = Header::default(1);
         // Write the header into a buffer
         let mut header_bytes = Cursor::new(Vec::<u8>::new());
         header.write_bytes(&mut header_bytes)?;
 
         // Reconstruct the header from this buffer
         header_bytes.seek(SeekFrom::Start(0))?;
-        let new_header = V1Header::read_bytes(header_bytes)?;
+        let new_header = Header::read_bytes(header_bytes)?;
 
         // Assert equality
         assert_eq!(header, new_header);
@@ -109,9 +109,9 @@ mod tests {
         // Open the CARv1
         let mut file = BufReader::new(File::open(car_path)?);
         // Read the header
-        let _ = V1Header::read_bytes(&mut file)?;
+        let _ = Header::read_bytes(&mut file)?;
         // Load index
-        let index = V1Index::read_bytes(&mut file)?;
+        let index = Index::read_bytes(&mut file)?;
         // Find offset of a known block
         let block_offset = index.get_offset(&Cid::from_str(
             "bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm",
@@ -119,7 +119,7 @@ mod tests {
         // Move to offset
         file.seek(SeekFrom::Start(block_offset))?;
         // Successfully read the block at this offset
-        V1Block::read_bytes(&mut file)?;
+        Block::read_bytes(&mut file)?;
         // Return Ok
         Ok(())
     }

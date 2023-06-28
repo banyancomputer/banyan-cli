@@ -21,7 +21,15 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
+    /// roots: [
+    ///     PrivateDirectory,
+    ///     Metadata PrivateForest,
+    ///     Content PrivateForest
+    /// ]
     pub metadata: CarV2BlockStore,
+    /// roots: [
+    ///     Content PrivateForest
+    /// ]
     pub content: CarV2BlockStore,
 }
 

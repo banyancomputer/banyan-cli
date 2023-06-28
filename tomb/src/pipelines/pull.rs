@@ -69,6 +69,6 @@ pub async fn pipeline(origin: &Path) -> Result<()> {
 
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized().into())
+        Err(PipelineError::Uninitialized.into())
     }
 }

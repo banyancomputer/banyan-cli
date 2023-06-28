@@ -1,11 +1,11 @@
 // Modules
 pub mod carv2blockstore;
-pub(crate) mod v2header;
-pub(crate) mod v2index;
+pub(crate) mod header;
+pub(crate) mod index;
 
 // Code
-use self::{v2header::V2Header, v2index::V2Index};
-use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
+use self::{header::Header, index::Index};
+use crate::types::blockstore::car::carv1::{block::Block, Car as CarV1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -24,19 +24,19 @@ pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
 ];
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct CarV2 {
-    pub(crate) header: RefCell<V2Header>,
+pub struct Car {
+    pub(crate) header: RefCell<Header>,
     pub(crate) carv1: CarV1,
-    pub(crate) index: Option<V2Index>,
+    pub(crate) index: Option<Index>,
 }
 
-impl CarV2 {
+impl Car {
     /// Load in the CARv2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
         // Load in the header
-        let header = V2Header::read_bytes(&mut r)?;
+        let header = Header::read_bytes(&mut r)?;
         // Assert we're at the right spot
         assert_eq!(r.stream_position()?, V2_PH_SIZE);
         // Seek to the data offset
@@ -46,9 +46,9 @@ impl CarV2 {
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
         // Load the index if one is present
-        let index: Option<V2Index> = if header.index_offset != 0 {
+        let index: Option<Index> = if header.index_offset != 0 {
             // Load in the index
-            V2Index::read_bytes(&mut r)?
+            Index::read_bytes(&mut r)?
         } else {
             None
         };
@@ -94,14 +94,14 @@ impl CarV2 {
         Ok(())
     }
 
-    pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<V1Block> {
+    pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         let index = self.carv1.index.borrow();
         let block_offset = index.get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
-        V1Block::read_bytes(&mut r)
+        Block::read_bytes(&mut r)
     }
 
-    pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
+    pub(crate) fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.carv1.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::Start(index.next_block))?;
@@ -134,7 +134,7 @@ impl CarV2 {
         // Write pragma
         w.write_all(&V2_PRAGMA)?;
         // Write header with correct data size
-        let header = V2Header {
+        let header = Header {
             characteristics: 0,
             data_offset: V2_PH_SIZE,
             data_size,
@@ -186,14 +186,14 @@ mod tests {
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
-    use crate::types::blockstore::car::{carv1::v1block::V1Block, carv2::CarV2};
+    use crate::types::blockstore::car::{carv1::block::Block, carv2::Car};
 
     #[test]
     #[serial]
     fn from_disk_basic() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv2-basic.car");
         let mut file = BufReader::new(File::open(car_path)?);
-        let carv2 = CarV2::read_bytes(&mut file)?;
+        let carv2 = Car::read_bytes(&mut file)?;
         // Assert that this index was in an unrecognized format
         assert_eq!(carv2.index, None);
 
@@ -258,7 +258,7 @@ mod tests {
         let mut original_file = File::open(original_path)?;
 
         // Read original CARv2
-        let original = CarV2::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
         let all_cids = original.get_all_cids();
 
         // Assert that we can query all CIDs
@@ -268,7 +268,7 @@ mod tests {
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
 
         // Writable version of the original file
         let mut writable_original = OpenOptions::new()
@@ -307,13 +307,13 @@ mod tests {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv2
-        let original = CarV2::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
         // Write to updated file
         original.write_bytes(&mut original_file, &mut updated_file)?;
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = CarV2::read_bytes(&mut updated_file)?;
+        let reconstructed = Car::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -343,11 +343,11 @@ mod tests {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv2
-        let original = CarV2::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
 
         // Writable version of the original file
         let mut writable_original = OpenOptions::new()
@@ -361,7 +361,7 @@ mod tests {
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = CarV2::read_bytes(&mut updated_file)?;
+        let reconstructed = Car::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);

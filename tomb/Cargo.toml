@@ -9,7 +9,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-tomb-common = { path = "../tomb-common" }
+tomb-common = { path = "../tomb-common", version = "1.1.0" }
 wnfs.workspace = true
 anyhow.workspace = true
 jwalk.workspace = true

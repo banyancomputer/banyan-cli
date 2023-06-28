@@ -6,7 +6,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::types::shared::CompressionScheme;
+use crate::{pipelines::error::PipelineError, types::shared::CompressionScheme};
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio as _;
@@ -60,6 +60,7 @@ pub async fn file_to_disk(
     if let Some(path) = file.symlink_origin() {
         // Write out the symlink
         symlink(output_dir.join(path), file_path)?;
+        Ok(())
     }
     // If this is a real file
     else {
@@ -72,18 +73,16 @@ pub async fn file_to_disk(
         // let content_try = ;
         if let Ok(content_try) = file.get_content(total_forest, content).await {
             decompress_bytes(content_try.as_slice(), &mut content_buf)?;
+            output_file.write_all(&mut content_buf)?;
+            Ok(())
         } else if let Ok(metadata_try) = file.get_content(total_forest, metadata).await {
             decompress_bytes(metadata_try.as_slice(), &mut content_buf)?;
+            output_file.write_all(&mut content_buf)?;
+            Ok(())
         } else {
-            println!("Oh no! couldnt find data...");
+            Err(PipelineError::FileNotFound.into())
         }
-
-        // Write all contents to the output file
-        output_file.write_all(&content_buf)?;
     }
-
-    // Return Ok
-    Ok(())
 }
 
 /// Create a progress bar for displaying progress through a task with a predetermined style

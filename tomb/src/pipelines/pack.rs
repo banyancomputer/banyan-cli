@@ -70,7 +70,8 @@ pub async fn pipeline(
 
         // If this filesystem has never been packed
         if key.is_ok() {
-            let (new_metadata_forest, new_content_forest, new_root_dir) = config.get_all().await?;
+            let (new_metadata_forest, new_content_forest, new_root_dir) =
+                config.get_all_metadata().await?;
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
@@ -90,17 +91,6 @@ pub async fn pipeline(
         )
         .await?;
 
-        // if first_run {
-        //     println!("storing original dir and key");
-        //     let original_key = store_dir(
-        //         &mut manifest,
-        //         &mut metadata_forest,
-        //         &root_dir,
-        //     )
-        //     .await?;
-        //     key_to_disk(tomb_path, &original_key, "original")?;
-        // }
-
         // Store Forest and Dir in BlockStores and Key
         config
             .set_all(&mut metadata_forest, &mut content_forest, &root_dir)
@@ -109,7 +99,7 @@ pub async fn pipeline(
         global.update_config(&config)?;
         global.to_disk()
     } else {
-        Err(PipelineError::Uninitialized().into())
+        Err(PipelineError::Uninitialized.into())
     }
 }
 

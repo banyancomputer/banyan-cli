@@ -11,14 +11,14 @@ pub const V2_HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct V2Header {
+pub struct Header {
     pub characteristics: u128,
     pub data_offset: u64,
     pub data_size: u64,
     pub index_offset: u64,
 }
 
-impl V2Header {
+impl Header {
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
         let mut bytes = 0;
         bytes += w.write(&encode_varint_u128_exact(self.characteristics))?;
@@ -51,7 +51,7 @@ impl V2Header {
     }
 }
 
-impl Serialize for V2Header {
+impl Serialize for Header {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -60,7 +60,7 @@ impl Serialize for V2Header {
     }
 }
 
-impl<'de> Deserialize<'de> for V2Header {
+impl<'de> Deserialize<'de> for Header {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -74,10 +74,10 @@ impl<'de> Deserialize<'de> for V2Header {
 #[cfg(test)]
 mod tests {
     use crate::types::blockstore::car::carv2::{
-        v2header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE,
+        header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE,
     };
 
-    use super::V2Header;
+    use super::Header;
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn read_write_bytes() -> Result<()> {
-        let header = V2Header {
+        let header = Header {
             characteristics: 0,
             data_offset: 50,
             data_size: 50,
@@ -99,7 +99,7 @@ mod tests {
         header.write_bytes(&mut header_bytes)?;
 
         let header_cursor = Cursor::new(header_bytes);
-        let new_header = V2Header::read_bytes(header_cursor)?;
+        let new_header = Header::read_bytes(header_cursor)?;
         assert_eq!(header, new_header);
         Ok(())
     }
@@ -112,7 +112,7 @@ mod tests {
         // Skip the pragma
         file.seek(std::io::SeekFrom::Start(V2_PRAGMA_SIZE as u64))?;
         // Read the header
-        let header = V2Header::read_bytes(&mut file)?;
+        let header = Header::read_bytes(&mut file)?;
         // Characteristics are 0
         assert_eq!(header.characteristics, 0);
         assert_eq!(header.data_offset, 51);
@@ -128,7 +128,7 @@ mod tests {
         // Write the pragma
         file.write_all(&V2_PRAGMA)?;
         // Read the header
-        let header = V2Header {
+        let header = Header {
             characteristics: 0,
             data_offset: 50,
             data_size: 50,

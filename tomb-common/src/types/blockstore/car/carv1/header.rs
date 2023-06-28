@@ -13,12 +13,12 @@ use wnfs::{
 
 // | 16-byte varint | n-byte DAG CBOR |
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub(crate) struct V1Header {
+pub(crate) struct Header {
     pub version: u64,
     pub roots: RefCell<Vec<Cid>>,
 }
 
-impl V1Header {
+impl Header {
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<()> {
         // Represent as DAGCBOR IPLD
         let ipld_buf = self.to_ipld_bytes()?;
@@ -102,7 +102,7 @@ impl V1Header {
     }
 }
 
-impl V1Header {
+impl Header {
     pub(crate) fn default(version: u64) -> Self {
         Self {
             version,
@@ -113,7 +113,7 @@ impl V1Header {
 
 #[cfg(test)]
 mod tests {
-    use super::V1Header;
+    use super::Header;
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -128,14 +128,14 @@ mod tests {
     #[test]
     fn read_write_bytes() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default(1);
+        let header = Header::default(1);
         // Write the header into a buffer
         let mut header_bytes: Vec<u8> = Vec::new();
         header.write_bytes(&mut header_bytes)?;
 
         // Reconstruct the header from this buffer
         let header_cursor = Cursor::new(header_bytes);
-        let new_header = V1Header::read_bytes(header_cursor)?;
+        let new_header = Header::read_bytes(header_cursor)?;
 
         // Assert equality
         assert_eq!(header, new_header);
@@ -149,7 +149,7 @@ mod tests {
         // Open the CARv1
         let mut file = BufReader::new(File::open(car_path)?);
         // Read the header
-        let header = V1Header::read_bytes(&mut file)?;
+        let header = Header::read_bytes(&mut file)?;
         // Assert version is correct
         assert_eq!(header.version, 1);
         // Construct a vector of the roots we're expecting to find
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn modify_roots() -> Result<()> {
         // Construct a V1Header
-        let header = V1Header::default(1);
+        let header = Header::default(1);
         {
             let mut roots = header.roots.borrow_mut();
             roots.push(Cid::default());
@@ -178,7 +178,7 @@ mod tests {
 
         // Reconstruct the header from this buffer
         let header_cursor = Cursor::new(header_bytes);
-        let new_header = V1Header::read_bytes(header_cursor)?;
+        let new_header = Header::read_bytes(header_cursor)?;
 
         // Assert equality
         assert_eq!(header, new_header);

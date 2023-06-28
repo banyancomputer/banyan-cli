@@ -8,13 +8,13 @@ use wnfs::libipld::{
 
 // | 19-byte varint | x-byte Cid | x-byte content |
 #[derive(PartialEq, Debug)]
-pub(crate) struct V1Block {
+pub(crate) struct Block {
     pub varint: u128,
     pub cid: Cid,
     pub content: Vec<u8>,
 }
 
-impl V1Block {
+impl Block {
     pub fn new(content: Vec<u8>, codec: IpldCodec) -> Result<Self> {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
@@ -80,7 +80,7 @@ impl V1Block {
 mod tests {
     use std::io::Cursor;
 
-    use super::V1Block;
+    use super::Block;
     use anyhow::Result;
     use wnfs::libipld::IpldCodec;
 
@@ -88,15 +88,15 @@ mod tests {
     fn read_write_bytes() -> Result<()> {
         // Raw bytes
         let data_example = "Hello Kitty!".as_bytes().to_vec();
-        // Create new V1Block with these content bytes
-        let block = V1Block::new(data_example, IpldCodec::Raw)?;
+        // Create new Block with these content bytes
+        let block = Block::new(data_example, IpldCodec::Raw)?;
         // Create a buffer and fill with serialized verison
         let mut block_bytes: Vec<u8> = Vec::new();
         block.write_bytes(&mut block_bytes)?;
         // Reader with Seek
         let block_cursor = Cursor::new(block_bytes);
         // Reconstruct
-        let new_block = V1Block::read_bytes(block_cursor)?;
+        let new_block = Block::read_bytes(block_cursor)?;
         // Assert equality of reconstruction
         assert_eq!(block, new_block);
         // Ok

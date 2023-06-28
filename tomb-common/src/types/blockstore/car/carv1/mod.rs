@@ -1,8 +1,8 @@
 // Modules
 pub mod carv1blockstore;
-pub(crate) mod v1block;
-pub(crate) mod v1header;
-pub(crate) mod v1index;
+pub(crate) mod block;
+pub(crate) mod header;
+pub(crate) mod index;
 
 // Code
 use anyhow::Result;
@@ -14,28 +14,27 @@ use std::{
 };
 use wnfs::libipld::Cid;
 
-use self::{v1block::V1Block, v1header::V1Header, v1index::V1Index};
-
+use self::{header::Header, index::Index, block::Block};
 use super::carv2::V2_PH_SIZE;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct CarV1 {
-    pub header: V1Header,
-    pub index: RefCell<V1Index>,
+pub(crate) struct Car {
+    pub header: Header,
+    pub index: RefCell<Index>,
     pub(crate) read_header_len: RefCell<u64>,
 }
 
-impl CarV1 {
+impl Car {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
     pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Track the part of the stream where the V1Header starts
         let header_start = r.stream_position()?;
         // Read the V1Header
-        let header = V1Header::read_bytes(&mut r)?;
+        let header = Header::read_bytes(&mut r)?;
         // Determine the length of the header that we just read
         let read_header_len = RefCell::new(r.stream_position()? - header_start);
         // Generate an index
-        let index = RefCell::new(V1Index::read_bytes(&mut r)?);
+        let index = RefCell::new(Index::read_bytes(&mut r)?);
         Ok(Self {
             header,
             index,
@@ -70,8 +69,8 @@ impl CarV1 {
 
         // Whiel we're able to successfully read in blocks
         while let Ok(block_offset) = r.stream_position() &&
-              let Ok((varint, cid)) = V1Block::start_read(&mut r) &&
-              let Ok(block) = V1Block::finish_read(varint, cid, &mut r) {
+              let Ok((varint, cid)) = Block::start_read(&mut r) &&
+              let Ok(block) = Block::finish_read(varint, cid, &mut r) {
                 // Compute the new offset of the block
                 let new_offset = (block_offset as i64 + data_offset) as u64;
                 // Move to that offset
@@ -98,13 +97,13 @@ impl CarV1 {
         Ok(())
     }
 
-    pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<V1Block> {
+    pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         let block_offset = self.index.borrow().get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
-        V1Block::read_bytes(&mut r)
+        Block::read_bytes(&mut r)
     }
 
-    pub(crate) fn put_block<W: Write + Seek>(&self, block: &V1Block, mut w: W) -> Result<()> {
+    pub(crate) fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::Start(index.next_block))?;
@@ -147,15 +146,15 @@ impl CarV1 {
     }
 }
 
-impl PartialEq for CarV1 {
+impl PartialEq for Car {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header && self.index == other.index
     }
 }
 
-impl CarV1 {
+impl Car {
     pub(crate) fn default(version: u64) -> Self {
-        let header = V1Header::default(version);
+        let header = Header::default(version);
         let mut buf: Vec<u8> = Vec::new();
         header.write_bytes(&mut buf).unwrap();
 
@@ -165,7 +164,7 @@ impl CarV1 {
         Self {
             header,
             read_header_len: RefCell::new(hlen),
-            index: RefCell::new(V1Index {
+            index: RefCell::new(Index {
                 map: HashMap::new(),
                 next_block: if version == 1 {
                     hlen
@@ -179,7 +178,7 @@ impl CarV1 {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::carv1::{v1block::V1Block, CarV1};
+    use crate::types::blockstore::car::carv1::{block::Block, Car};
     use anyhow::Result;
     use fs_extra::file;
     use serial_test::serial;
@@ -196,7 +195,7 @@ mod tests {
     fn from_disk_basic() -> Result<()> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         let mut file = File::open(car_path)?;
-        let car = CarV1::read_bytes(&mut file)?;
+        let car = Car::read_bytes(&mut file)?;
 
         // Header tests exist separately, let's just ensure content is correct!
 
@@ -265,7 +264,7 @@ mod tests {
         let mut w = File::create(new_path)?;
 
         // Read in the car
-        let car = CarV1::read_bytes(&mut r)?;
+        let car = Car::read_bytes(&mut r)?;
 
         // Insert a root
         car.insert_root(&Cid::default());
@@ -275,7 +274,7 @@ mod tests {
 
         // Read in the car
         let mut r2 = File::open(&new_path)?;
-        let new_car = CarV1::read_bytes(&mut r2)?;
+        let new_car = Car::read_bytes(&mut r2)?;
 
         assert_eq!(car.header, new_car.header);
         assert_eq!(car.index, new_car.index);
@@ -299,7 +298,7 @@ mod tests {
         let mut original_file = File::open(original_path)?;
 
         // Read original CARv2
-        let original = CarV1::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
         let all_cids = original.get_all_cids();
 
         // Assert that we can query all CIDs
@@ -309,7 +308,7 @@ mod tests {
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
 
         // Writable version of the original file
         let mut writable_original = OpenOptions::new()
@@ -349,14 +348,14 @@ mod tests {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv1
-        let original = CarV1::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
         original_file.seek(std::io::SeekFrom::Start(0))?;
         // Write to updated file
         original.write_bytes(&mut original_file, &mut updated_file)?;
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = CarV1::read_bytes(&mut updated_file)?;
+        let reconstructed = Car::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -384,11 +383,11 @@ mod tests {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv1
-        let original = CarV1::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = V1Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
         original.insert_root(&block.cid);
 
         // Write to updated file
@@ -399,7 +398,7 @@ mod tests {
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = CarV1::read_bytes(&mut updated_file)?;
+        let reconstructed = Car::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -427,11 +426,11 @@ mod tests {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv1
-        let original = CarV1::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut original_file)?;
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = V1Block::new(kitty_bytes, IpldCodec::DagCbor)?;
+        let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
         original.insert_root(&block.cid);
         let mut writable_original = OpenOptions::new()
             .append(false)
@@ -447,7 +446,7 @@ mod tests {
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = CarV1::read_bytes(&mut updated_file)?;
+        let reconstructed = Car::read_bytes(&mut updated_file)?;
 
         println!("reconstructed index: {:?}", reconstructed.index);
 

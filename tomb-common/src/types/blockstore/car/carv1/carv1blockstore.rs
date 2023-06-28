@@ -1,9 +1,8 @@
+use super::{super::error::CarError, block::Block, Car};
 use crate::utils::car;
-
-use super::{v1block::V1Block, CarV1};
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fs::{remove_file, rename, File},
@@ -17,7 +16,7 @@ use wnfs::{
 #[derive(Debug, PartialEq)]
 pub struct CarV1BlockStore {
     pub path: PathBuf,
-    pub(crate) carv1: CarV1,
+    pub(crate) carv1: Car,
 }
 
 impl CarV1BlockStore {
@@ -25,33 +24,33 @@ impl CarV1BlockStore {
     pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
-            panic!("invalid path, must be file, not dir");
-        }
+            Err(CarError::Directory(path.to_path_buf()).into())
+        } else {
+            // Create the file if it doesn't already exist
+            if !path.exists() {
+                File::create(path)?;
+            }
 
-        // Create the file if it doesn't already exist
-        if !path.exists() {
-            File::create(path)?;
-        }
+            // Open the file in reading mode
+            if let Ok(mut file) = File::open(path) &&
+                let Ok(carv1) = Car::read_bytes(&mut file) {
+                Ok(Self {
+                    path: path.to_path_buf(),
+                    carv1
+                })
+            }
+            // If we need to create the CARv2 file from scratch
+            else {
+                // Grab reader and writer
+                let mut w = car::get_write(path)?;
+                let mut r = car::get_read(path)?;
 
-        // Open the file in reading mode
-        if let Ok(mut file) = File::open(path) &&
-            let Ok(carv1) = CarV1::read_bytes(&mut file) {
-            Ok(Self {
-                path: path.to_path_buf(),
-                carv1
-            })
-        }
-        // If we need to create the CARv2 file from scratch
-        else {
-            // Grab reader and writer
-            let mut w = car::get_write(path)?;
-            let mut r = car::get_read(path)?;
-
-            // Construct new
-            Ok(Self {
-                path: path.to_path_buf(),
-                carv1: CarV1::new(1, &mut r, &mut w)?
-            })
+                // Construct new
+                Ok(Self {
+                    path: path.to_path_buf(),
+                    carv1: Car::new(1, &mut r, &mut w)?
+                })
+            }
         }
     }
 
@@ -70,7 +69,7 @@ impl CarV1BlockStore {
         Ok(())
     }
 
-    fn tmp_start(&self) -> Result<(PathBuf, File, File)> {
+    fn tmp_start(&self) -> Result<(PathBuf, File, File), std::io::Error> {
         let r = car::get_read(&self.path)?;
         let tmp_file_name = format!(
             "{}_tmp.car",
@@ -81,7 +80,7 @@ impl CarV1BlockStore {
         Ok((tmp_car_path, r, w))
     }
 
-    fn tmp_finish(&self, tmp_car_path: PathBuf) -> Result<()> {
+    fn tmp_finish(&self, tmp_car_path: PathBuf) -> Result<(), std::io::Error> {
         remove_file(&self.path)?;
         rename(tmp_car_path, &self.path)?;
         Ok(())
@@ -94,14 +93,14 @@ impl BlockStore for CarV1BlockStore {
         // Open the file in read-only mode
         let mut file = car::get_read(&self.path)?;
         // Perform the block read
-        let block: V1Block = self.carv1.get_block(cid, &mut file)?;
+        let block: Block = self.carv1.get_block(cid, &mut file)?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Create a block with this content
-        let block = V1Block::new(bytes, codec)?;
+        let block = Block::new(bytes, codec)?;
         // If this CID already exists in the store
         if self.get_block(&block.cid).await.is_ok() {
             // Return OK
@@ -124,8 +123,14 @@ impl Serialize for CarV1BlockStore {
     where
         S: serde::Serializer,
     {
-        self.to_disk().unwrap();
-        self.path.serialize(serializer)
+        // If we successfully save ourself to disk
+        if self.to_disk().is_ok() {
+            // Serialize the Path
+            self.path.serialize(serializer)
+        } else {
+            // Create a new Car Error
+            Err(SerError::custom(CarError::FailToSave))
+        }
     }
 }
 
@@ -134,7 +139,16 @@ impl<'de> Deserialize<'de> for CarV1BlockStore {
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Self::new(&PathBuf::deserialize(deserializer)?).unwrap())
+        // Grab the Path
+        let path = PathBuf::deserialize(deserializer)?;
+        // If we successfully load ourself from disk
+        if let Ok(new_store) = Self::new(&path) {
+            // Return loaded object
+            Ok(new_store)
+        } else {
+            // Create a new Car Error
+            Err(DeError::custom(CarError::FailToLoad(path)))
+        }
     }
 }
 

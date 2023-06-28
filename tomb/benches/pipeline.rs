@@ -339,7 +339,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
 /// Run our end to end pipeline benchmarks sequentially on multiple Input Directories
 /// # Arguments
 /// * `c` - Criterion object
-pub fn pipeline_benchmark(c: &mut Criterion) {
+fn pipeline_benchmark(c: &mut Criterion) {
     // Setup the bench - populate the input directory
     setup_bench();
 
