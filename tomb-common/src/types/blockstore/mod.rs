@@ -8,9 +8,9 @@ pub mod networkblockstore;
 #[cfg(test)]
 mod tests {
     use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
-    use crate::types::blockstore::car::{
+    use crate::{types::blockstore::car::{
         carv1::carv1blockstore::CarV1BlockStore, carv2::carv2blockstore::CarV2BlockStore,
-    };
+    }, utils::tests::car_setup};
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -32,11 +32,8 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn carv1blockstore() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let new_path = Path::new("test").join("carv1-basic-v1.car");
-        std::fs::copy(existing_path, &new_path)?;
-        let store = &CarV1BlockStore::new(&new_path)?;
+        let car_path = &car_setup(1, "basic", "blockstore")?;
+        let store = &CarV1BlockStore::new(car_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await
@@ -45,11 +42,8 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn carv2blockstore() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-indexless.car");
-        let new_path = Path::new("test").join("carv2-indexless-v2.car");
-        std::fs::copy(existing_path, &new_path)?;
-        let store = &CarV2BlockStore::new(&new_path)?;
+        let car_path = &car_setup(2, "indexless", "blockstore")?;
+        let store = &CarV2BlockStore::new(car_path)?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

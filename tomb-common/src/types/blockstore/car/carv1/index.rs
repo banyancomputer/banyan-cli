@@ -74,13 +74,12 @@ impl<'de> Deserialize<'de> for Index {
 #[cfg(test)]
 mod tests {
     use super::Index;
-    use crate::types::blockstore::car::carv1::{block::Block, header::Header};
+    use crate::{types::blockstore::car::carv1::{block::Block, header::Header}, utils::tests::car_setup};
     use anyhow::Result;
     use serial_test::serial;
     use std::{
         fs::File,
-        io::{BufReader, Cursor, Seek, SeekFrom},
-        path::Path,
+        io::{Cursor, Seek, SeekFrom},
         str::FromStr,
     };
     use wnfs::libipld::Cid;
@@ -105,9 +104,9 @@ mod tests {
     #[test]
     #[serial]
     fn read_disk() -> Result<()> {
-        let car_path = Path::new("car-fixtures").join("carv1-basic.car");
+        let car_path = &car_setup(1, "basic", "index_read_disk")?;
         // Open the CARv1
-        let mut file = BufReader::new(File::open(car_path)?);
+        let mut file = File::open(car_path)?;
         // Read the header
         let _ = Header::read_bytes(&mut file)?;
         // Load index

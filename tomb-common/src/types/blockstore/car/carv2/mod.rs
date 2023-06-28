@@ -186,13 +186,13 @@ mod tests {
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
-    use crate::types::blockstore::car::{carv1::block::Block, carv2::Car};
+    use crate::{types::blockstore::car::{carv1::block::Block, carv2::Car}, utils::tests::car_setup};
 
     #[test]
     #[serial]
     fn from_disk_basic() -> Result<()> {
-        let car_path = Path::new("car-fixtures").join("carv2-basic.car");
-        let mut file = BufReader::new(File::open(car_path)?);
+        let car_path = car_setup(2, "basic", "from_disk_basic")?;
+        let mut file = File::open(car_path)?;
         let carv2 = Car::read_bytes(&mut file)?;
         // Assert that this index was in an unrecognized format
         assert_eq!(carv2.index, None);
@@ -246,24 +246,18 @@ mod tests {
     #[test]
     #[serial]
     fn put_get_block() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
-        let original_path = &Path::new("test").join("carv2-put-get-block.car");
-
-        // Copy from fixture to original path
-        remove_file(original_path).ok();
-
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
+        let car_path = &car_setup(2, "indexless", "put_get_block")?;
 
         // Define reader and writer
-        let mut original_file = File::open(original_path)?;
+        let mut car_file = File::open(car_path)?;
 
         // Read original CARv2
-        let original = Car::read_bytes(&mut original_file)?;
+        let original = Car::read_bytes(&mut car_file)?;
         let all_cids = original.get_all_cids();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
-            assert!(original.get_block(cid, &mut original_file).is_ok());
+            assert!(original.get_block(cid, &mut car_file).is_ok());
         }
 
         // Insert a block
@@ -274,16 +268,16 @@ mod tests {
         let mut writable_original = OpenOptions::new()
             .append(false)
             .write(true)
-            .open(original_path)?;
+            .open(car_path)?;
 
         // Put a new block in
         original.put_block(&block, &mut writable_original)?;
-        let new_block = original.get_block(&block.cid, &mut original_file)?;
+        let new_block = original.get_block(&block.cid, &mut car_file)?;
         assert_eq!(block, new_block);
 
         // Assert that we can still query all CIDs
         for cid in &all_cids {
-            assert!(original.get_block(cid, &mut original_file).is_ok());
+            assert!(original.get_block(cid, &mut car_file).is_ok());
         }
 
         Ok(())
@@ -292,15 +286,9 @@ mod tests {
     #[test]
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
-        let original_path = &Path::new("test").join("carv2-to-from-disk-no-offset-original.car");
-        let updated_path = &Path::new("test").join("carv2-to-from-disk-no-offset-updated.car");
-
-        remove_file(original_path).ok();
+        let original_path = &car_setup(2, "indexless", "to_from_disk_no_offset_original")?;
+        let updated_path = &original_path.parent().unwrap().join("carv2_to_from_disk_no_offset_updated.car");
         remove_file(updated_path).ok();
-
-        // Copy from fixture to original path
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
         let mut original_file = File::open(original_path)?;
@@ -328,15 +316,10 @@ mod tests {
     #[test]
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv2-indexless.car");
-        let original_path = &Path::new("test").join("carv2-to-from-disk-offset-original.car");
-        let updated_path = &Path::new("test").join("carv2-to-from-disk-offset-updated.car");
-
+        let original_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
+        let updated_path = &original_path.parent().unwrap().join("carv2_to_from_disk_with_data_updated.car");
         // Copy from fixture to original path
-        remove_file(original_path).ok();
         remove_file(updated_path).ok();
-
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
         let mut original_file = File::open(original_path)?;

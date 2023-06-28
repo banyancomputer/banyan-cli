@@ -1,5 +1,5 @@
 use std::{
-    fs::create_dir_all,
+    fs::{create_dir_all, create_dir},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -81,4 +81,22 @@ pub async fn teardown(test_name: &str) -> Result<()> {
     let path = Path::new("test").join(test_name);
     std::fs::remove_dir_all(path)?;
     Ok(())
+}
+
+// Create a copy of a given fixture to play around with
+pub fn car_setup(version: usize, fixture_suffix: &str, test_name: &str) -> Result<PathBuf, std::io::Error> {
+    // The existing path
+    let fixture_path = Path::new("car-fixtures").join(format!("carv{}-{}.car", version, fixture_suffix));
+    // Root of testing dir
+    let test_path = &Path::new("test").join("car");
+    // Create it it doesn't exist
+    create_dir_all(test_path).ok();
+    // The new path
+    let new_path = test_path.join(format!("carv{}_{}.car", version, test_name));
+    // Remove file if it's already there
+    std::fs::remove_file(&new_path).ok();
+    // Copy file from fixture path to tmp path
+    std::fs::copy(fixture_path, &new_path)?;
+    // Return Ok with new path
+    Ok(new_path)
 }

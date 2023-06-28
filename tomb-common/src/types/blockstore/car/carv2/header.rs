@@ -73,16 +73,16 @@ impl<'de> Deserialize<'de> for Header {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::carv2::{
+    use crate::{types::blockstore::car::carv2::{
         header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE,
-    };
+    }, utils::tests::car_setup};
 
     use super::Header;
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{self, File},
-        io::{BufReader, BufWriter, Cursor, Seek, Write},
+        fs::File,
+        io::{Cursor, Seek, Write},
         path::Path,
     };
 
@@ -107,8 +107,8 @@ mod tests {
     #[test]
     #[serial]
     fn read_disk() -> Result<()> {
-        let car_path = Path::new("car-fixtures").join("carv2-basic.car");
-        let mut file = BufReader::new(File::open(car_path)?);
+        let car_path = car_setup(2, "basic", "read_disk")?;
+        let mut file = File::open(car_path)?;
         // Skip the pragma
         file.seek(std::io::SeekFrom::Start(V2_PRAGMA_SIZE as u64))?;
         // Read the header
@@ -122,9 +122,9 @@ mod tests {
     }
 
     #[test]
-    fn write_disk() -> Result<()> {
-        let path = Path::new("carv2-new.car");
-        let mut file = BufWriter::new(File::create(path)?);
+    fn from_scratch() -> Result<()> {
+        let path = &Path::new("test").join("car").join("carv2_header_from_scratch.car");
+        let mut file = File::create(path)?;
         // Write the pragma
         file.write_all(&V2_PRAGMA)?;
         // Read the header
@@ -136,8 +136,6 @@ mod tests {
         };
         let bytes = header.write_bytes(&mut file)?;
         assert_eq!(bytes, V2_HEADER_SIZE);
-        // Remove the temporary file
-        fs::remove_file(path)?;
         Ok(())
     }
 }

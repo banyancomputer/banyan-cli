@@ -162,6 +162,8 @@ impl<'de> Deserialize<'de> for CarV2BlockStore {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::tests::car_setup;
+
     use super::CarV2BlockStore;
     use anyhow::Result;
     use serial_test::serial;
@@ -174,41 +176,31 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn get_block() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-indexless.car");
-        let new_path = Path::new("test").join("carv2-indexless-get.car");
-        std::fs::copy(existing_path, &new_path)?;
-        let store = CarV2BlockStore::new(&new_path)?;
+        let path = car_setup(2, "indexless", "carv2blockstore_get_block")?;
+        let store = CarV2BlockStore::new(&path)?;
         println!("roots: {:?}", store.get_roots());
         let cid = Cid::from_str("bafy2bzaced4ueelaegfs5fqu4tzsh6ywbbpfk3cxppupmxfdhbpbhzawfw5oy")?;
         let _ = store.get_block(&cid).await?.to_vec();
-        std::fs::remove_file(new_path)?;
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn put_block() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv2-indexless.car");
-        let new_path = Path::new("test").join("carv2-indexless-put.car");
-        std::fs::copy(existing_path, &new_path)?;
-
-        let store = CarV2BlockStore::new(&new_path)?;
-
+        let path = car_setup(2, "indexless", "carv2blockstore_put_block")?;
+        let store = CarV2BlockStore::new(&path)?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
 
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
-        std::fs::remove_file(new_path)?;
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn from_scratch() -> Result<()> {
-        let original_path = &Path::new("test").join("carv2-from-scratch.car");
+        let original_path = &Path::new("test").join("car").join("carv2_carv2blockstore_from_scratch.car");
         remove_file(original_path).ok();
 
         // Open

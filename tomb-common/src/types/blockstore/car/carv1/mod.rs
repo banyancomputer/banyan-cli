@@ -178,14 +178,12 @@ impl Car {
 
 #[cfg(test)]
 mod tests {
-    use crate::types::blockstore::car::carv1::{block::Block, Car};
+    use crate::{types::blockstore::car::carv1::{block::Block, Car}, utils::tests::car_setup};
     use anyhow::Result;
-    use fs_extra::file;
     use serial_test::serial;
     use std::{
-        fs::{copy, remove_file, File, OpenOptions},
+        fs::{remove_file, File, OpenOptions},
         io::{Seek, SeekFrom},
-        path::Path,
         str::FromStr,
     };
     use wnfs::libipld::{Cid, IpldCodec};
@@ -193,7 +191,7 @@ mod tests {
     #[test]
     #[serial]
     fn from_disk_basic() -> Result<()> {
-        let car_path = Path::new("car-fixtures").join("carv1-basic.car");
+        let car_path = &car_setup(1, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
         let car = Car::read_bytes(&mut file)?;
 
@@ -252,15 +250,10 @@ mod tests {
     #[test]
     #[serial]
     fn insert_root() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures").join("carv1-basic.car");
-        let test_path = &Path::new("test");
-        let original_path = &test_path.join("carv1-basic-inert-root-original.car");
-        let new_path = &test_path.join("carv1-basic-inert-root-updated.car");
+        let car_path = &car_setup(1, "basic", "insert_root_original")?;
+        let new_path = &car_setup(1, "basic", "insert_root_updated")?;
 
-        copy(fixture_path, original_path)?;
-        copy(original_path, new_path)?;
-
-        let mut r = File::open(original_path)?;
+        let mut r = File::open(car_path)?;
         let mut w = File::create(new_path)?;
 
         // Read in the car
@@ -286,16 +279,9 @@ mod tests {
     #[test]
     #[serial]
     fn put_get_block() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let original_path = &Path::new("test").join("carv1-put-get-block.car");
-
-        // Copy from fixture to original path
-        remove_file(original_path).ok();
-
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
-
+        let car_path = &car_setup(1, "basic", "put_get_block")?;
         // Define reader and writer
-        let mut original_file = File::open(original_path)?;
+        let mut original_file = File::open(car_path)?;
 
         // Read original CARv2
         let original = Car::read_bytes(&mut original_file)?;
@@ -314,7 +300,7 @@ mod tests {
         let mut writable_original = OpenOptions::new()
             .append(false)
             .write(true)
-            .open(original_path)?;
+            .open(car_path)?;
 
         // Put a new block in
         original.put_block(&block, &mut writable_original)?;
@@ -333,15 +319,9 @@ mod tests {
     #[test]
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let original_path = &Path::new("test").join("carv1-to-from-disk-no-offset-original.car");
-        let updated_path = &Path::new("test").join("carv1-to-from-disk-no-offset-updated.car");
-
-        remove_file(original_path).ok();
+        let original_path = &car_setup(1, "basic", "to_from_disk_no_offset_original")?;
+        let updated_path = &original_path.parent().unwrap().join("carv1_to_from_disk_no_offset_updated.car");
         remove_file(updated_path).ok();
-
-        // Copy from fixture to original path
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
         let mut original_file = File::open(original_path)?;
@@ -368,15 +348,9 @@ mod tests {
     #[test]
     #[serial]
     fn to_from_disk_with_offset() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let original_path = &Path::new("test").join("carv1-to-from-disk-offset-original.car");
-        let updated_path = &Path::new("test").join("carv1-to-from-disk-offset-updated.car");
-
-        // Copy from fixture to original path
-        remove_file(original_path).ok();
+        let original_path = &car_setup(1, "basic", "to_from_disk_with_offset_original")?;
+        let updated_path = &original_path.parent().unwrap().join("carv1_to_from_disk_with_offset_updated.car");
         remove_file(updated_path).ok();
-
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
         let mut original_file = File::open(original_path)?;
@@ -411,15 +385,9 @@ mod tests {
     #[test]
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
-        let car_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let original_path = &Path::new("test").join("carv1-to-from-disk-data-original.car");
-        let updated_path = &Path::new("test").join("carv1-to-from-disk-data-updated.car");
-
-        // Copy from fixture to original path
-        remove_file(original_path).ok();
+        let original_path = &car_setup(1, "basic", "to_from_disk_with_data_original")?;
+        let updated_path = &original_path.parent().unwrap().join("carv1_to_from_disk_with_data_updated.car");
         remove_file(updated_path).ok();
-
-        file::copy(car_path, original_path, &file::CopyOptions::new())?;
 
         // Define reader and writer
         let mut original_file = File::open(original_path)?;

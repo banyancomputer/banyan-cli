@@ -160,6 +160,8 @@ mod tests {
         str::FromStr,
     };
 
+    use crate::utils::tests::car_setup;
+
     use super::CarV1BlockStore;
     use anyhow::Result;
     use serial_test::serial;
@@ -171,12 +173,8 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn get_block() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let new_path = Path::new("test").join("carv1-basic-get.car");
-        std::fs::copy(existing_path, &new_path)?;
-
-        let store = CarV1BlockStore::new(&new_path)?;
+        let car_path = &car_setup(1, "basic", "get_block")?;
+        let store = CarV1BlockStore::new(&car_path)?;
         let cid = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
         let bytes = store.get_block(&cid).await?.to_vec();
         assert_eq!(bytes, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804")?);
@@ -187,34 +185,22 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn put_block() -> Result<()> {
-        let fixture_path = Path::new("car-fixtures");
-        let existing_path = fixture_path.join("carv1-basic.car");
-        let new_path = Path::new("test").join("carv1-basic-put.car");
-        copy(existing_path, &new_path)?;
-
-        let store = CarV1BlockStore::new(&new_path)?;
-
+        let car_path = &car_setup(1, "basic", "put_block")?;
+        let store = CarV1BlockStore::new(&car_path)?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store
             .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
             .await?;
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
-
-        remove_file(new_path)?;
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn insert_root() -> Result<()> {
-        let fixture_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let test_path = Path::new("test");
-        create_dir_all(test_path)?;
-        let new_path = &test_path.join("carv1-basic-blockstore-insert-root.car");
-        copy(fixture_path, new_path)?;
-
-        let store = CarV1BlockStore::new(new_path)?;
+        let car_path = &car_setup(1, "basic", "insert_root")?;
+        let store = CarV1BlockStore::new(car_path)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store
@@ -225,26 +211,21 @@ mod tests {
         store.insert_root(&kitty_cid);
         assert_eq!(store.carv1.header.roots.borrow().clone().len(), 3);
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
-        remove_file(new_path)?;
         Ok(())
     }
 
     #[test]
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
-        let fixture_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let test_path = Path::new("test");
-        create_dir_all(test_path)?;
-        let original_path = &test_path.join("carv1-blockstore-to-from-disk-no-offset.car");
-        copy(&fixture_path, &original_path)?;
+        let car_path = &car_setup(1, "basic", "blockstore_to_from_disk_no_offset")?;
 
         // Read in the car
-        let original = CarV1BlockStore::new(original_path)?;
+        let original = CarV1BlockStore::new(car_path)?;
         // Write it to disk
         original.to_disk()?;
 
         // Read in the new car
-        let reconstructed = CarV1BlockStore::new(original_path)?;
+        let reconstructed = CarV1BlockStore::new(car_path)?;
 
         // Assert equality
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
@@ -256,14 +237,10 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn to_from_disk_with_offset() -> Result<()> {
-        let fixture_path = &Path::new("car-fixtures").join("carv1-basic.car");
-        let test_path = Path::new("test");
-        create_dir_all(test_path)?;
-        let original_path = &test_path.join("carv1-blockstore-to-from-disk-with-offset.car");
-        copy(&fixture_path, &original_path)?;
+        let car_path = &car_setup(1, "basic", "blockstore_to_from_disk_with_offset")?;
 
         // Read in the car
-        let original = CarV1BlockStore::new(original_path)?;
+        let original = CarV1BlockStore::new(car_path)?;
 
         // Write contentt
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
@@ -276,7 +253,7 @@ mod tests {
         original.to_disk()?;
 
         // Read in the new car
-        let reconstructed = CarV1BlockStore::new(original_path)?;
+        let reconstructed = CarV1BlockStore::new(car_path)?;
 
         // Assert equality
         assert_eq!(original.carv1.header, reconstructed.carv1.header);
@@ -302,7 +279,7 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn from_scratch() -> Result<()> {
-        let original_path = &Path::new("test").join("carv2-from-scratch.car");
+        let original_path = &Path::new("test").join("car").join("carv1_blockstore_from_scratch.car");
         remove_file(original_path).ok();
 
         // Open
