@@ -257,12 +257,12 @@ mod test {
         let pub_key = priv_key.get_public_key();
 
         let public_key_modulus = pub_key.get_public_key_modulus()?;
-        let key_pair_from_modulus = RsaPublicKey::from_modulus(&public_key_modulus)
+        let pub_key_from_modulus = RsaPublicKey::from_modulus(&public_key_modulus)
             .await
             ?;
 
         let plaintext = b"Hello, world!";
-        let ciphertext = key_pair_from_modulus.encrypt(plaintext).await?;
+        let ciphertext = pub_key_from_modulus.encrypt(plaintext).await?;
         let decrypted = priv_key.decrypt(&ciphertext).await?;
 
         assert_eq!(plaintext, &decrypted[..]);
