@@ -21,7 +21,7 @@ mod tests {
 
     #[tokio::test]
     async fn diskblockstore() -> Result<()> {
-        let dir = &PathBuf::from("test");
+        let dir = &PathBuf::from("test").join("diskblockstore");
         create_dir_all(dir)?;
         let store = &DiskBlockStore::new(dir);
         bs_retrieval_test(store).await?;

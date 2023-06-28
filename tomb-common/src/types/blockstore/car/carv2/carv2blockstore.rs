@@ -19,7 +19,7 @@ use wnfs::{
 #[derive(Debug, PartialEq, Clone)]
 pub struct CarV2BlockStore {
     pub path: PathBuf,
-    pub(crate) carv2: Car,
+    pub(crate) car: Car,
 }
 
 impl CarV2BlockStore {
@@ -35,10 +35,10 @@ impl CarV2BlockStore {
 
             // If the file is already a valid CARv2
             if let Ok(mut file) = File::open(path) &&
-            let Ok(carv2) = Car::read_bytes(&mut file) {
+            let Ok(car) = Car::read_bytes(&mut file) {
                 Ok(Self {
                     path: path.to_path_buf(),
-                    carv2,
+                    car,
                 })
             }
             // If we need to create the CARv2 file from scratch
@@ -49,7 +49,7 @@ impl CarV2BlockStore {
                 // Create new 
                 let store = CarV2BlockStore {
                     path: path.to_path_buf(),
-                    carv2: Car::new(&mut r, &mut w)?
+                    car: Car::new(&mut r, &mut w)?
                 };
                 // Return Ok
                 Ok(store)
@@ -58,24 +58,24 @@ impl CarV2BlockStore {
     }
 
     pub fn get_all_cids(&self) -> Vec<Cid> {
-        self.carv2.get_all_cids()
+        self.car.get_all_cids()
     }
 
     pub fn insert_root(&self, root: &Cid) {
-        self.carv2.insert_root(root);
+        self.car.insert_root(root);
     }
 
     pub fn empty_roots(&self) {
-        self.carv2.empty_roots();
+        self.car.empty_roots();
     }
 
     pub fn get_roots(&self) -> Vec<Cid> {
-        self.carv2.carv1.header.roots.borrow().clone()
+        self.car.car.header.roots.borrow().clone()
     }
 
     pub fn to_disk(&self) -> Result<()> {
         let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
-        self.carv2.write_bytes(&mut r, &mut w)?;
+        self.car.write_bytes(&mut r, &mut w)?;
         self.tmp_finish(tmp_car_path)?;
         Ok(())
     }
@@ -104,7 +104,7 @@ impl BlockStore for CarV2BlockStore {
         // Open the file in read-only mode
         let mut file = car::get_read(&self.path)?;
         // Perform the block read
-        let block: Block = self.carv2.get_block(cid, &mut file)?;
+        let block: Block = self.car.get_block(cid, &mut file)?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
@@ -122,7 +122,7 @@ impl BlockStore for CarV2BlockStore {
             // Open the file in append mode
             let mut file = car::get_write(&self.path)?;
             // Put the block
-            self.carv2.put_block(&block, &mut file)?;
+            self.car.put_block(&block, &mut file)?;
             // Return Ok with block CID
             Ok(block.cid)
         }

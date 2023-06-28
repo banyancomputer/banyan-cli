@@ -15,18 +15,18 @@ use std::{
 use wnfs::libipld::Cid;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
-pub(crate) const V2_PRAGMA_SIZE: usize = 11;
-pub(crate) const V2_PH_SIZE: u64 = 51;
+pub(crate) const PRAGMA_SIZE: usize = 11;
+pub(crate) const PH_SIZE: u64 = 51;
 
 // This is the fixed file signature associated with the CARV2 file format
-pub(crate) const V2_PRAGMA: [u8; V2_PRAGMA_SIZE] = [
+pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
     0x0a, 0xa1, 0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02,
 ];
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Car {
     pub(crate) header: RefCell<Header>,
-    pub(crate) carv1: CarV1,
+    pub(crate) car: CarV1,
     pub(crate) index: Option<Index>,
 }
 
@@ -38,11 +38,11 @@ impl Car {
         // Load in the header
         let header = Header::read_bytes(&mut r)?;
         // Assert we're at the right spot
-        assert_eq!(r.stream_position()?, V2_PH_SIZE);
+        assert_eq!(r.stream_position()?, PH_SIZE);
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
-        let carv1 = CarV1::read_bytes(&mut r)?;
+        let car = CarV1::read_bytes(&mut r)?;
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
         // Load the index if one is present
@@ -55,7 +55,7 @@ impl Car {
         // Create the new object
         Ok(Self {
             header: RefCell::new(header),
-            carv1,
+            car,
             index,
         })
     }
@@ -67,14 +67,14 @@ impl Car {
         w.seek(SeekFrom::Start(data_offset))?;
 
         // Write the CARv1
-        self.carv1.write_bytes(&mut r, &mut w)?;
+        self.car.write_bytes(&mut r, &mut w)?;
         // Update our data size in the V2Header
         self.update_data_size(&mut w)?;
 
         // Move back to the start
         w.seek(SeekFrom::Start(0))?;
         // Write the PRAGMA
-        w.write_all(&V2_PRAGMA)?;
+        w.write_all(&PRAGMA)?;
         // Write the updated V2Header header
         self.header.borrow().clone().write_bytes(&mut w)?;
         // Flush the writer
@@ -86,23 +86,23 @@ impl Car {
         // Move to the start of the file
         r.seek(SeekFrom::Start(0))?;
         // Read the pragma
-        let mut pragma: [u8; V2_PRAGMA_SIZE] = [0; V2_PRAGMA_SIZE];
+        let mut pragma: [u8; PRAGMA_SIZE] = [0; PRAGMA_SIZE];
         r.read_exact(&mut pragma)?;
         // Ensure correctness
-        assert_eq!(pragma, V2_PRAGMA);
+        assert_eq!(pragma, PRAGMA);
         // Return Ok
         Ok(())
     }
 
     pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
-        let index = self.carv1.index.borrow();
+        let index = self.car.index.borrow();
         let block_offset = index.get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         Block::read_bytes(&mut r)
     }
 
     pub(crate) fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
-        let mut index = self.carv1.index.borrow_mut();
+        let mut index = self.car.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::Start(index.next_block))?;
         // Insert current offset before bytes are written
@@ -120,41 +120,41 @@ impl Car {
 
     pub(crate) fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
         // Move to CARv1 no padding
-        w.seek(SeekFrom::Start(V2_PH_SIZE))?;
+        w.seek(SeekFrom::Start(PH_SIZE))?;
         // Construct a CARv1
         let carv1 = CarV1::default(2);
         // Write CARv1 Header
         carv1.header.write_bytes(&mut w)?;
         // Compute the data size
-        let data_size = w.stream_position()? - V2_PH_SIZE;
+        let data_size = w.stream_position()? - PH_SIZE;
 
         // Move to start
         w.seek(SeekFrom::Start(0))?;
         // Write pragma
-        w.write_all(&V2_PRAGMA)?;
+        w.write_all(&PRAGMA)?;
         // Write header with correct data size
         let header = Header {
             characteristics: 0,
-            data_offset: V2_PH_SIZE,
+            data_offset: PH_SIZE,
             data_size,
             index_offset: 0,
         };
         header.write_bytes(&mut w)?;
-        assert_eq!(w.stream_position()?, V2_PH_SIZE);
+        assert_eq!(w.stream_position()?, PH_SIZE);
 
         Self::read_bytes(&mut r)
     }
 
     pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
-        self.carv1.get_all_cids()
+        self.car.get_all_cids()
     }
 
     fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
         // Update the data size
         let v1_end = x.seek(SeekFrom::End(0))?;
         // Update the data size
-        self.header.borrow_mut().data_size = if v1_end > V2_PH_SIZE {
-            v1_end - V2_PH_SIZE
+        self.header.borrow_mut().data_size = if v1_end > PH_SIZE {
+            v1_end - PH_SIZE
         } else {
             0
         };
@@ -163,11 +163,11 @@ impl Car {
 
     pub(crate) fn insert_root(&self, root: &Cid) {
         // Insert the root
-        self.carv1.insert_root(root);
+        self.car.insert_root(root);
     }
 
     pub(crate) fn empty_roots(&self) {
-        self.carv1.empty_roots();
+        self.car.empty_roots();
     }
 }
 
@@ -197,7 +197,7 @@ mod tests {
         assert_eq!(carv2.index, None);
 
         // Assert version is correct
-        assert_eq!(&carv2.carv1.header.version, &1);
+        assert_eq!(&carv2.car.header.version, &1);
 
         // CIDs
         let block_cids = vec![
@@ -236,7 +236,7 @@ mod tests {
             "QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z",
         )?];
         // Assert roots are correct
-        assert_eq!(&carv2.carv1.header.roots.borrow().clone(), &expected_roots);
+        assert_eq!(&carv2.car.header.roots.borrow().clone(), &expected_roots);
 
         // Ok
         Ok(())
@@ -308,8 +308,8 @@ mod tests {
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
-        assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original.car.header, reconstructed.car.header);
+        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         Ok(())
@@ -354,8 +354,8 @@ mod tests {
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.index, reconstructed.index);
-        assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original.car.header, reconstructed.car.header);
+        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         Ok(())

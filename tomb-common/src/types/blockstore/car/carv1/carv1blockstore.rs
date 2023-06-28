@@ -16,7 +16,7 @@ use wnfs::{
 #[derive(Debug, PartialEq)]
 pub struct CarV1BlockStore {
     pub path: PathBuf,
-    pub(crate) carv1: Car,
+    pub(crate) car: Car,
 }
 
 impl CarV1BlockStore {
@@ -33,10 +33,10 @@ impl CarV1BlockStore {
 
             // Open the file in reading mode
             if let Ok(mut file) = File::open(path) &&
-                let Ok(carv1) = Car::read_bytes(&mut file) {
+                let Ok(car) = Car::read_bytes(&mut file) {
                 Ok(Self {
                     path: path.to_path_buf(),
-                    carv1
+                    car
                 })
             }
             // If we need to create the CARv2 file from scratch
@@ -48,23 +48,23 @@ impl CarV1BlockStore {
                 // Construct new
                 Ok(Self {
                     path: path.to_path_buf(),
-                    carv1: Car::new(1, &mut r, &mut w)?
+                    car: Car::new(1, &mut r, &mut w)?
                 })
             }
         }
     }
 
     pub fn get_all_cids(&self) -> Vec<Cid> {
-        self.carv1.get_all_cids()
+        self.car.get_all_cids()
     }
 
     pub fn insert_root(&self, root: &Cid) {
-        self.carv1.insert_root(root);
+        self.car.insert_root(root);
     }
 
     pub fn to_disk(&self) -> Result<()> {
         let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
-        self.carv1.write_bytes(&mut r, &mut w)?;
+        self.car.write_bytes(&mut r, &mut w)?;
         self.tmp_finish(tmp_car_path)?;
         Ok(())
     }
@@ -93,7 +93,7 @@ impl BlockStore for CarV1BlockStore {
         // Open the file in read-only mode
         let mut file = car::get_read(&self.path)?;
         // Perform the block read
-        let block: Block = self.carv1.get_block(cid, &mut file)?;
+        let block: Block = self.car.get_block(cid, &mut file)?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
@@ -111,7 +111,7 @@ impl BlockStore for CarV1BlockStore {
             // Open the file in append mode
             let mut file = car::get_write(&self.path)?;
             // Put the block
-            self.carv1.put_block(&block, &mut file)?;
+            self.car.put_block(&block, &mut file)?;
             // Return Ok with block CID
             Ok(block.cid)
         }
@@ -203,9 +203,9 @@ mod tests {
             .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
             .await?;
 
-        assert_eq!(store.carv1.header.roots.borrow().clone().len(), 2);
+        assert_eq!(store.car.header.roots.borrow().clone().len(), 2);
         store.insert_root(&kitty_cid);
-        assert_eq!(store.carv1.header.roots.borrow().clone().len(), 3);
+        assert_eq!(store.car.header.roots.borrow().clone().len(), 3);
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
         Ok(())
     }
@@ -224,8 +224,8 @@ mod tests {
         let reconstructed = CarV1BlockStore::new(car_path)?;
 
         // Assert equality
-        assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original.car.header, reconstructed.car.header);
+        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
         Ok(())
     }
@@ -252,15 +252,15 @@ mod tests {
         let reconstructed = CarV1BlockStore::new(car_path)?;
 
         // Assert equality
-        assert_eq!(original.carv1.header, reconstructed.carv1.header);
-        assert_eq!(original.carv1.index, reconstructed.carv1.index);
+        assert_eq!(original.car.header, reconstructed.car.header);
+        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         assert_eq!(kitty_bytes, reconstructed.get_block(&cid).await?.to_vec());
         assert_eq!(
             &cid,
             reconstructed
-                .carv1
+                .car
                 .header
                 .roots
                 .borrow()
@@ -292,7 +292,7 @@ mod tests {
 
         // Reopen
         let store = CarV1BlockStore::new(original_path)?;
-        assert_eq!(kitty_cid, store.carv1.header.roots.borrow().clone()[0]);
+        assert_eq!(kitty_cid, store.car.header.roots.borrow().clone()[0]);
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
 
         Ok(())

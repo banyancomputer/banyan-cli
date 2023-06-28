@@ -149,18 +149,15 @@ mod test {
 
         assert_eq!(config.origin, new_config.origin);
         assert_eq!(config.generated, new_config.generated);
+        assert_eq!(config.metadata.car.header, new_config.metadata.car.header);
+        assert_eq!(config.metadata.car.index, new_config.metadata.car.index);
         assert_eq!(
-            config.metadata.carv2.header,
-            new_config.metadata.carv2.header
-        );
-        assert_eq!(config.metadata.carv2.index, new_config.metadata.carv2.index);
-        assert_eq!(
-            config.metadata.carv2.carv1.header,
-            new_config.metadata.carv2.carv1.header
+            config.metadata.car.car.header,
+            new_config.metadata.car.car.header
         );
         assert_eq!(
-            config.metadata.carv2.carv1.index,
-            new_config.metadata.carv2.carv1.index
+            config.metadata.car.car.index,
+            new_config.metadata.car.car.index
         );
         assert_eq!(config, new_config);
 

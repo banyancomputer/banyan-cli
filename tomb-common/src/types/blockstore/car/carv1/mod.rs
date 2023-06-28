@@ -15,7 +15,7 @@ use std::{
 use wnfs::libipld::Cid;
 
 use self::{block::Block, header::Header, index::Index};
-use super::carv2::V2_PH_SIZE;
+use super::carv2::PH_SIZE;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct Car {
@@ -165,11 +165,7 @@ impl Car {
             read_header_len: RefCell::new(hlen),
             index: RefCell::new(Index {
                 map: HashMap::new(),
-                next_block: if version == 1 {
-                    hlen
-                } else {
-                    hlen + V2_PH_SIZE
-                },
+                next_block: if version == 1 { hlen } else { hlen + PH_SIZE },
             }),
         }
     }

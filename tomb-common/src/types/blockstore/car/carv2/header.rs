@@ -7,7 +7,7 @@ use crate::types::blockstore::car::varint::{
     read_varint_u64_exact,
 };
 
-pub const V2_HEADER_SIZE: usize = 40;
+pub const HEADER_SIZE: usize = 40;
 
 // | 16-byte characteristics | 8-byte data offset | 8-byte data size | 8-byte index offset |
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -25,7 +25,7 @@ impl Header {
         bytes += w.write(&encode_varint_u64_exact(self.data_offset))?;
         bytes += w.write(&encode_varint_u64_exact(self.data_size))?;
         bytes += w.write(&encode_varint_u64_exact(self.index_offset))?;
-        assert_eq!(bytes, V2_HEADER_SIZE);
+        assert_eq!(bytes, HEADER_SIZE);
         // Flush
         w.flush()?;
         Ok(bytes)
@@ -74,7 +74,7 @@ impl<'de> Deserialize<'de> for Header {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::blockstore::car::carv2::{header::V2_HEADER_SIZE, V2_PRAGMA, V2_PRAGMA_SIZE},
+        types::blockstore::car::carv2::{header::HEADER_SIZE, PRAGMA, PRAGMA_SIZE},
         utils::tests::car_setup,
     };
 
@@ -111,7 +111,7 @@ mod tests {
         let car_path = car_setup(2, "basic", "read_disk")?;
         let mut file = File::open(car_path)?;
         // Skip the pragma
-        file.seek(std::io::SeekFrom::Start(V2_PRAGMA_SIZE as u64))?;
+        file.seek(std::io::SeekFrom::Start(PRAGMA_SIZE as u64))?;
         // Read the header
         let header = Header::read_bytes(&mut file)?;
         // Characteristics are 0
@@ -129,7 +129,7 @@ mod tests {
             .join("carv2_header_from_scratch.car");
         let mut file = File::create(path)?;
         // Write the pragma
-        file.write_all(&V2_PRAGMA)?;
+        file.write_all(&PRAGMA)?;
         // Read the header
         let header = Header {
             characteristics: 0,
@@ -138,7 +138,7 @@ mod tests {
             index_offset: 0,
         };
         let bytes = header.write_bytes(&mut file)?;
-        assert_eq!(bytes, V2_HEADER_SIZE);
+        assert_eq!(bytes, HEADER_SIZE);
         Ok(())
     }
 }
