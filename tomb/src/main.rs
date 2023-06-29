@@ -30,21 +30,21 @@ async fn main() -> Result<()> {
     match cli.command {
         // Execute the packing command
         cli::Commands::Pack {
-            input_dir,
+            origin,
             follow_links,
         } => {
-            if let Some(input_dir) = input_dir {
-                pack::pipeline(&input_dir, follow_links).await?;
+            if let Some(origin) = origin {
+                pack::pipeline(&origin, follow_links).await?;
             } else {
                 pack::pipeline(&current_dir()?, follow_links).await?;
             }
         }
         // Execute the unpacking command
         cli::Commands::Unpack {
-            input_dir,
-            output_dir,
+            origin,
+            unpacked,
         } => {
-            unpack::pipeline(&input_dir, &output_dir).await?;
+            unpack::pipeline(&origin, &unpacked).await?;
         }
         cli::Commands::Init {
             dir

@@ -120,20 +120,6 @@ impl Car {
         self.index.borrow().clone().map.into_keys().collect()
     }
 
-    pub(crate) fn insert_root(&self, root: &Cid) {
-        // Grab reference to roots
-        let mut roots = self.header.roots.borrow_mut();
-        // Insert new root
-        roots.push(*root);
-    }
-
-    pub(crate) fn empty_roots(&self) {
-        // Grab reference to roots
-        let mut roots = self.header.roots.borrow_mut();
-        // Insert new root
-        *roots = Vec::new();
-    }
-
     pub(crate) fn new<R: Read + Seek, W: Write + Seek>(
         version: u64,
         mut r: R,
@@ -142,6 +128,19 @@ impl Car {
         let car = Self::default(version);
         car.header.write_bytes(&mut w)?;
         Self::read_bytes(&mut r)
+    }
+
+    pub(crate) fn set_root(&self, root: &Cid) {
+        *self.header.roots.borrow_mut() = vec![*root];
+    }
+
+    pub(crate) fn get_root(&self) -> Option<Cid> {
+        let roots = self.header.roots.borrow();
+        if roots.len() > 0 {
+            Some(roots[0])
+        } else {
+            None
+        }
     }
 }
 
@@ -247,9 +246,9 @@ mod tests {
 
     #[test]
     #[serial]
-    fn insert_root() -> Result<()> {
-        let car_path = &car_setup(1, "basic", "insert_root_original")?;
-        let new_path = &car_setup(1, "basic", "insert_root_updated")?;
+    fn set_root() -> Result<()> {
+        let car_path = &car_setup(1, "basic", "set_root_original")?;
+        let new_path = &car_setup(1, "basic", "set_root_updated")?;
 
         let mut r = File::open(car_path)?;
         let mut w = File::create(new_path)?;
@@ -258,7 +257,7 @@ mod tests {
         let car = Car::read_bytes(&mut r)?;
 
         // Insert a root
-        car.insert_root(&Cid::default());
+        car.set_root(&Cid::default());
 
         r.seek(std::io::SeekFrom::Start(0))?;
         car.write_bytes(&mut r, &mut w)?;
@@ -365,7 +364,7 @@ mod tests {
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
-        original.insert_root(&block.cid);
+        original.set_root(&block.cid);
 
         // Write to updated file
         original_file.seek(SeekFrom::Start(0))?;
@@ -405,7 +404,7 @@ mod tests {
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
-        original.insert_root(&block.cid);
+        original.set_root(&block.cid);
         let mut writable_original = OpenOptions::new()
             .append(false)
             .write(true)

@@ -24,7 +24,7 @@ pub enum Commands {
     Pack {
         /// Root of the directory tree to pack.
         #[arg(short, long, help = "input directories and files")]
-        input_dir: Option<PathBuf>,
+        origin: Option<PathBuf>,
 
         // /// Maximum size for each chunk, defaults to 1GiB.
         // #[arg(short, long, help = "target chunk size", default_value = "1073741824")]
@@ -36,13 +36,13 @@ pub enum Commands {
     },
     /// Reconstructing a filesystem from an encrypted WNFS CAR file
     Unpack {
-        /// Input directory in which packed files are stored.
-        #[arg(short, long, help = "input directory")]
-        input_dir: PathBuf,
+        /// Origin path
+        #[arg(short, long, help = "path to original filesystem")]
+        origin: PathBuf,
 
         /// Output directory in which reinflated files will be unpacked.
-        #[arg(short, long, help = "output directory")]
-        output_dir: PathBuf,
+        #[arg(short, long, help = "output directory for filesystem reconstruction")]
+        unpacked: PathBuf,
     },
     /// Add an individual file or folder to an existing bucket
     Add {
@@ -152,9 +152,14 @@ mod test {
     use crate::utils::tests::*;
     use anyhow::Result;
     use assert_cmd::prelude::*;
+    use dir_assert::assert_paths;
     use fs_extra::file;
     use serial_test::serial;
-    use std::{fs::metadata, path::Path, process::Command};
+    use std::{
+        fs::{create_dir, metadata},
+        path::Path,
+        process::Command,
+    };
     use tomb_common::types::config::globalconfig::GlobalConfig;
 
     async fn init(dir: &Path) -> Result<Command> {
@@ -180,22 +185,22 @@ mod test {
     }
 
     // Run the Pack pipeline through the CLI
-    async fn pack(input_dir: &Path) -> Result<Command> {
+    async fn pack(origin: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("pack")
-            .arg("--input-dir")
-            .arg(input_dir.to_str().unwrap());
+            .arg("--origin")
+            .arg(origin.to_str().unwrap());
         Ok(cmd)
     }
 
     // Run the Unpack pipeline through the CLI
-    async fn unpack(input_dir: &Path, output_dir: &Path) -> Result<Command> {
+    async fn unpack(origin: &Path, unpacked: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("unpack")
-            .arg("--input-dir")
-            .arg(input_dir.to_str().unwrap())
-            .arg("--output-dir")
-            .arg(output_dir.to_str().unwrap());
+            .arg("--origin")
+            .arg(origin.to_str().unwrap())
+            .arg("--unpacked")
+            .arg(unpacked.to_str().unwrap());
         Ok(cmd)
     }
 
@@ -302,8 +307,13 @@ mod test {
         init(origin).await?.assert().success();
         // Run pack and assert success
         pack(origin).await?.assert().success();
+        // Create unpacked dir
+        let unpacked = &origin.parent().unwrap().join("unpacked");
+        create_dir(unpacked).ok();
         // Run unpack and assert success
-        unpack(origin, origin).await?.assert().success();
+        unpack(origin, unpacked).await?.assert().success();
+        // Assert equality
+        assert_paths(origin, unpacked).unwrap();
         // Teardown test
         test_teardown(test_name).await
     }

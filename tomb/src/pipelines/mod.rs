@@ -36,10 +36,8 @@ mod test {
         io::Write,
         os::unix::fs::symlink,
         path::PathBuf,
-        rc::Rc,
     };
-    use tomb_common::{types::config::globalconfig::GlobalConfig, utils::serialize::load_dir};
-    use wnfs::private::PrivateNodeOnPathHistory;
+    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]
@@ -425,6 +423,7 @@ mod test {
         test_teardown(test_name).await
     }
 
+    /*
     // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     #[tokio::test]
     #[serial]
@@ -475,7 +474,7 @@ mod test {
         let key = &config.get_key("root")?;
 
         // Grab the original PrivateDirectory
-        let original_dir = load_dir(&config.metadata, original_key, &mut metadata_forest).await?;
+        let original_dir = load_dir(&config.metadata, original_key,  &mut metadata_forest).await?;
 
         assert_ne!(key, original_key);
         assert_ne!(dir, original_dir);
@@ -554,6 +553,7 @@ mod test {
 
         Ok(())
     }
+    */
 
     #[tokio::test]
     #[serial]

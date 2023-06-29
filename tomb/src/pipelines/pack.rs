@@ -41,12 +41,12 @@ use super::error::PipelineError;
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
-    input_dir: &Path,
+    origin: &Path,
     // _chunk_size: u64,
     follow_links: bool,
 ) -> Result<(), PipelineError> {
     // Create packing plan
-    let packing_plan = create_plans(input_dir, follow_links).await?;
+    let packing_plan = create_plans(origin, follow_links).await?;
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
@@ -54,7 +54,7 @@ pub async fn pipeline(
     let mut global = GlobalConfig::from_disk()?;
 
     // If the user has done initialization for this directory
-    if let Some(config) = global.get_bucket(input_dir) {
+    if let Some(config) = global.get_bucket(origin) {
         // Try to get the key of the root node
         let key = config.get_key("root");
 
@@ -103,26 +103,26 @@ pub async fn pipeline(
     }
 }
 
-async fn create_plans(input_dir: &Path, follow_links: bool) -> Result<Vec<PackPipelinePlan>> {
+async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PackPipelinePlan>> {
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
     // Vector holding all the PackPipelinePlans for packing
     let mut packing_plan: Vec<PackPipelinePlan> = vec![];
 
-    info!("🔍 Deduplicating the filesystem at {}", input_dir.display());
+    info!("🔍 Deduplicating the filesystem at {}", origin.display());
     // Group the filesystem provided to detect duplicates
-    let group_plans = grouper(input_dir, follow_links, &mut seen_files)?;
+    let group_plans = grouper(origin, follow_links, &mut seen_files)?;
     // Extend the packing plan
     packing_plan.extend(group_plans);
 
     // TODO fix setting follow_links / do it right
     info!(
         "📁 Finding directories and symlinks to back up starting at {}",
-        input_dir.display()
+        origin.display()
     );
 
     // Spider the filesystem provided to include directories and symlinks
-    let spidered_files = spider::spider(input_dir, follow_links, &mut seen_files).await?;
+    let spidered_files = spider::spider(origin, follow_links, &mut seen_files).await?;
     // Extend the packing plan
     packing_plan.extend(spidered_files);
 

@@ -161,13 +161,12 @@ impl Car {
         Ok(())
     }
 
-    pub(crate) fn insert_root(&self, root: &Cid) {
-        // Insert the root
-        self.car.insert_root(root);
+    pub(crate) fn set_root(&self, root: &Cid) {
+        self.car.set_root(root);
     }
 
-    pub(crate) fn empty_roots(&self) {
-        self.car.empty_roots();
+    pub(crate) fn get_root(&self) -> Option<Cid> {
+        self.car.get_root()
     }
 }
 

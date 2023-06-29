@@ -10,18 +10,18 @@ use std::{
 
 /// Walks the input directory and returns a list of all the files and directories in it.
 /// # Arguments
-/// * `input_dir` - The path to the directory to be walked.
+/// * `origin` - The path to the directory to be walked.
 /// * `follow_links` - Whether or not to follow symlinks. (currently not supported)
 /// # Returns
 /// A `Result`, which can either succeed or fail. If it succeeds, it returns a vector of SpiderMetadata. If it fails, it returns an error.
 // TODO (organizedgrime): add support for following symlinks
 pub async fn spider(
-    input_dir: &Path,
+    origin: &Path,
     _follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
 ) -> Result<Vec<PackPipelinePlan>> {
     // Canonicalize the path
-    let path_root = input_dir.canonicalize()?;
+    let path_root = origin.canonicalize()?;
 
     // Walk the contents of the input directory and get a list of them
     let walk_dir = WalkDir::new(&path_root)
