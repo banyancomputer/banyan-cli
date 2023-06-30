@@ -12,7 +12,7 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineErr
     let mut global = GlobalConfig::from_disk()?;
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
-        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, dir, key_manager) = &mut config.get_all().await?;
         // Attempt to remove the node
         dir.rm(
             &path_to_segments(wnfs_path)?,
@@ -23,7 +23,9 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineErr
         .await?;
 
         // Stores the modified directory back to disk
-        config.set_all(metadata_forest, content_forest, dir).await?;
+        config
+            .set_all(metadata_forest, content_forest, dir, key_manager)
+            .await?;
 
         // Update global
         global.update_config(&config)?;

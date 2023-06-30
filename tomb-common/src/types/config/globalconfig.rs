@@ -125,10 +125,8 @@ impl Default for GlobalConfig {
 
 #[cfg(test)]
 mod test {
-    use crate::{types::config::globalconfig::GlobalConfig, utils::tests::*};
-    use anyhow::Result;
-    use serial_test::serial;
 
+    /*
     #[tokio::test]
     #[serial]
     #[ignore]
@@ -183,4 +181,5 @@ mod test {
         // Teardown
         teardown(test_name).await
     }
+     */
 }

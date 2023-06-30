@@ -78,13 +78,13 @@ mod test {
         // Load config
         let mut config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
         // Assert no key yet
-        assert!(config.get_key("root").is_err());
+        assert!(config.private_key_from_disk().is_err());
         // Pack
         pack::pipeline(origin, true).await?;
         // Update config
         config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
         // Ensure content exists and works
-        assert!(config.get_key("root").is_ok());
+        assert!(config.private_key_from_disk().is_ok());
         // Teardown
         test_teardown(test_name).await
     }
@@ -196,7 +196,7 @@ mod test {
 
         // Now that the pipeline has run, grab all metadata
         let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, dir, _) = &mut config.get_all().await?;
 
         // Grab the file at this path
         let file = dir
@@ -238,7 +238,7 @@ mod test {
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
         let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir) = &mut config.get_all().await?;
+        let (metadata_forest, _, dir, _) = &mut config.get_all().await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -248,7 +248,7 @@ mod test {
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
         let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir) = &mut config.get_all().await?;
+        let (metadata_forest, _, dir, _) = &mut config.get_all().await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;

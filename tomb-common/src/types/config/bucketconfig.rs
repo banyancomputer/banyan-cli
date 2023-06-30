@@ -7,14 +7,15 @@ use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir_all, remove_dir_all},
-    io::{Read, Write},
     path::{Path, PathBuf},
     rc::Rc,
 };
 use wnfs::{
     libipld::Cid,
-    private::{AesKey, PrivateDirectory, PrivateForest, TemporalKey},
+    private::{PrivateDirectory, PrivateForest, RsaPrivateKey},
 };
+
+use super::keymanager::KeyManager;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
@@ -24,14 +25,17 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
-    /// roots: [
-    ///     PrivateDirectory,
-    ///     Metadata PrivateForest,
-    ///     Content PrivateForest
+    /// metadata roots: [
+    ///     IPLD::Map (
+    ///         "private_ref" -> Ipld::Link(private_ref_cid)
+    ///         "metadata_forest" -> Ipld::Link(metadata_forest_cid)
+    ///     )
     /// ]
     pub metadata: BlockStore,
-    /// roots: [
-    ///     Content PrivateForest
+    /// content roots: [
+    ///     IPLD::Map(
+    ///         "content_forest" -> Ipld::Link(content_forest_cid)
+    ///     )
     /// ]
     pub content: BlockStore,
 }
@@ -156,45 +160,33 @@ impl BucketConfig {
 
     */
 
-    /// Load a TemporalKey
-    pub fn get_key(&self, label: &str) -> Result<TemporalKey> {
+    pub fn private_key_from_disk(&self) -> Result<RsaPrivateKey> {
         // The path in which we expect to find the Manifest JSON file
-        let key_file = self.generated.join(format!("{}.key", label));
-
-        // Read in the key file from the key path
-        match std::fs::File::open(key_file) {
-            std::result::Result::Ok(mut key_reader) => {
-                // Deserialize the data read as the latest version of manifestdata
-                let mut key_data: [u8; 32] = [0; 32];
-                key_reader.read_exact(&mut key_data).unwrap();
-                let key: TemporalKey = TemporalKey(AesKey::new(key_data));
-                Ok(key)
-            }
-            Err(e) => Err(anyhow::Error::new(e)),
-        }
+        let key_path = self.generated.join("root.pem");
+        let private_key = RsaPrivateKey::from_pem_file(key_path)?;
+        Ok(private_key)
     }
 
     /// Store a TemporalKey
-    pub fn set_key(&self, temporal_key: &TemporalKey, label: &str) -> Result<()> {
+    pub fn private_key_to_disk(&self, private_key: &RsaPrivateKey) -> Result<()> {
         // The path in which we expect to find the Manifest JSON file
-        let key_file = &self.generated.join(format!("{}.key", label));
-        let mut key_writer = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(key_file)
-            .expect("Failed to create key file");
-
-        // Write the key
-        key_writer.write_all(temporal_key.0.as_bytes())?;
-
+        let key_path = &self.generated.join("root.pem");
+        private_key.to_pem_file(key_path)?;
         Ok(())
     }
 
     pub async fn get_all(
         &self,
-    ) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
-        let key = self.get_key("root").unwrap();
-        load_all(&key, &self.metadata, &self.content).await
+    ) -> Result<(
+        Rc<PrivateForest>,
+        Rc<PrivateForest>,
+        Rc<PrivateDirectory>,
+        KeyManager,
+    )> {
+        // Load RsaPrivateKey
+        let private_key = self.private_key_from_disk()?;
+        // Load all
+        load_all(&private_key, &self.metadata, &self.content).await
     }
 
     pub async fn set_all(
@@ -202,15 +194,20 @@ impl BucketConfig {
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
         root_dir: &Rc<PrivateDirectory>,
+        key_manager: &KeyManager,
     ) -> Result<()> {
-        let temporal_key = store_all(
+        // Store all
+        let private_key = store_all(
             &self.metadata,
             &self.content,
             metadata_forest,
             content_forest,
             root_dir,
+            key_manager,
         )
         .await?;
-        self.set_key(&temporal_key, "root")
+        // Save RsaPrivateKey
+        self.private_key_to_disk(&private_key)?;
+        Ok(())
     }
 }

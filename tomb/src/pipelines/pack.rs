@@ -17,7 +17,7 @@ use std::{
     rc::Rc,
     vec,
 };
-use tomb_common::types::config::globalconfig::GlobalConfig;
+use tomb_common::types::config::{globalconfig::GlobalConfig, keymanager::KeyManager};
 use wnfs::{
     common::BlockStore,
     namefilter::Namefilter,
@@ -56,7 +56,7 @@ pub async fn pipeline(
     // If the user has done initialization for this directory
     if let Some(config) = global.get_bucket(origin) {
         // Try to get the key of the root node
-        let key = config.get_key("root");
+        let key = config.private_key_from_disk();
 
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(
@@ -70,7 +70,8 @@ pub async fn pipeline(
 
         // If this filesystem has never been packed
         if key.is_ok() {
-            let (new_metadata_forest, new_content_forest, new_root_dir) = config.get_all().await?;
+            let (new_metadata_forest, new_content_forest, new_root_dir, _) =
+                config.get_all().await?;
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
@@ -92,7 +93,12 @@ pub async fn pipeline(
 
         // Store Forest and Dir in BlockStores and Key
         config
-            .set_all(&mut metadata_forest, &mut content_forest, &root_dir)
+            .set_all(
+                &mut metadata_forest,
+                &mut content_forest,
+                &root_dir,
+                &KeyManager::default(),
+            )
             .await?;
 
         global.update_config(&config)?;

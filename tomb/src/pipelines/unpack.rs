@@ -28,7 +28,7 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
 
     if let Some(config) = global.get_bucket(origin) {
         // Load metadata
-        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, dir, key_manager) = &mut config.get_all().await?;
         let metadata = &config.metadata;
         let content = &config.content;
 
@@ -103,7 +103,9 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
         .await?;
 
         // Set all
-        config.set_all(metadata_forest, content_forest, dir).await?;
+        config
+            .set_all(metadata_forest, content_forest, dir, key_manager)
+            .await?;
         global.update_config(&config)?;
         global.to_disk()?;
 
