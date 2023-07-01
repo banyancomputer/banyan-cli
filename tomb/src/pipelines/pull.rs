@@ -14,6 +14,7 @@ use super::error::PipelineError;
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
     let mut global = GlobalConfig::from_disk()?;
+    let wrapping_key = global.wrapping_key_from_disk()?;
 
     if let Some(mut config) = global.get_bucket(origin) {
         // Overwrite the content with new BlockStore
@@ -22,7 +23,7 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
 
         // Load
         let (metadata_forest, content_forest, root_dir, key_manager) =
-            &mut config.get_all().await?;
+            &mut config.get_all(&wrapping_key).await?;
 
         // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
         // Find CID differences as a way of tallying all Forest CIDs
@@ -59,7 +60,13 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
         info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
 
         config
-            .set_all(metadata_forest, content_forest, root_dir, key_manager)
+            .set_all(
+                &wrapping_key,
+                metadata_forest,
+                content_forest,
+                root_dir,
+                key_manager,
+            )
             .await?;
 
         // Store the modified cold forest both locally and remotely

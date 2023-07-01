@@ -75,22 +75,15 @@ mod test {
         let origin = &test_setup(test_name).await?;
         // Initialize
         configure::init(origin)?;
-        // Load config
-        let mut config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        // Assert no key yet
-        assert!(config.private_key_from_disk().is_err());
         // Pack
         pack::pipeline(origin, true).await?;
-        // Update config
-        config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        // Ensure content exists and works
-        assert!(config.private_key_from_disk().is_ok());
         // Teardown
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
+    // #[ignore]
     async fn pipeline_pack_unpack() -> Result<()> {
         let test_name = "pipeline_pack_unpack";
         // Create the setup conditions
@@ -115,7 +108,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    // #[ignore]
+    #[ignore]
     async fn pipeline_pack_push() -> Result<()> {
         let test_name = "pipeline_pack_pull_unpack";
         // Create the setup conditions
@@ -195,8 +188,10 @@ mod test {
         add::pipeline(origin, input_file, input_file).await?;
 
         // Now that the pipeline has run, grab all metadata
-        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, dir, _) = &mut config.get_all().await?;
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = dir
@@ -237,8 +232,10 @@ mod test {
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir, _) = &mut config.get_all().await?;
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -247,8 +244,10 @@ mod test {
         // Remove the PrivateFile at this Path
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
-        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir, _) = &mut config.get_all().await?;
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;

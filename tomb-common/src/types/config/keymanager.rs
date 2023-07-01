@@ -24,28 +24,43 @@ impl Default for KeyManager {
 }
 
 impl KeyManager {
-    pub fn update_key(&self, temporal_key: &TemporalKey) {
+    pub async fn update_temporal_key(&self, temporal_key: &TemporalKey) -> Result<()> {
+        // Update the TemporalKey
         *self.root.borrow_mut() = temporal_key.clone();
-        // TODO
+        // Now that the TemporalKey has changed, reencrypt using all the existing RsaPublicKeys
+        let map = self.map.borrow().clone();
+        // For each Public Key present in the map
+        for (der, _) in map {
+            // Reconstruct the PublicKey form the DER hex
+            let public_key = RsaPublicKey::from_der(&hex::decode(&der)?)?;
+            // Reencrypt the TemporalKey using this
+            let new_encrypted_temporal_key = public_key.encrypt(temporal_key.0.as_bytes()).await?;
+            // Insert the reencrypted version of the TemporalKey
+            self.map
+                .borrow_mut()
+                .insert(der, new_encrypted_temporal_key);
+        }
+
+        Ok(())
     }
 
     pub async fn insert(&self, key: &RsaPublicKey) -> Result<()> {
         let root = self.root.borrow().clone();
         // Encrypt the bytes
         let encrypted_key = key.encrypt(root.0.as_bytes()).await?;
-        // Grab the fingerprint
-        let fingerprint = hex::encode(key.get_sha1_fingerprint()?);
+        // Grab the public
+        let der = hex::encode(key.to_der()?);
         // Insert into the hashmap
-        self.map.borrow_mut().insert(fingerprint, encrypted_key);
+        self.map.borrow_mut().insert(der, encrypted_key);
         Ok(())
     }
 
     pub async fn retrieve(&self, key: &RsaPrivateKey) -> Result<TemporalKey> {
         // Grab the fingerprint
-        let fingerprint = hex::encode(key.get_public_key().get_sha1_fingerprint()?);
+        let der = hex::encode(key.get_public_key().to_der()?);
         // Grab the encrypted key associated with the fingerprint
         let map = self.map.borrow().clone();
-        if let Some(encrypted_key) = map.get(&fingerprint) {
+        if let Some(encrypted_key) = map.get(&der) {
             // Decrypt
             let aes_buf = key.decrypt(encrypted_key).await?;
             // Create struct

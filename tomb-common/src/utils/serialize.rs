@@ -101,20 +101,13 @@ pub async fn store_all(
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
     key_manager: &KeyManager,
-) -> Result<RsaPrivateKey> {
+) -> Result<()> {
     // Construct new map for metadata
     let mut metadata_map = BTreeMap::new();
     // Store PrivateDirectory in the metadata BlockStore, retrieving the new TemporalKey and cid of remaining PrivateRef components
     let (private_ref_cid, temporal_key) = store_dir(metadata, metadata_forest, root_dir).await?;
     // Update the temporal key in the key manager
-    key_manager.update_key(&temporal_key);
-
-    // TODO
-    let new_private_key = RsaPrivateKey::new()?;
-    key_manager
-        .insert(&new_private_key.get_public_key())
-        .await?;
-
+    key_manager.update_temporal_key(&temporal_key).await?;
     // Put the key manager in
     let key_manager_cid = metadata.put_serializable(key_manager).await?;
     // Store the metadata PrivateForest in the metadata BlockStore
@@ -140,14 +133,12 @@ pub async fn store_all(
     let content_root_cid = content.put_serializable(&Ipld::Map(content_map)).await?;
     // Set the root of the content BlockStore
     content.set_root(&content_root_cid);
-
-    // Return RsaPrivateKey
-    Ok(new_private_key)
+    Ok(())
 }
 
 /// Load everything at once!
 pub async fn load_all(
-    private_key: &RsaPrivateKey,
+    wrapping_key: &RsaPrivateKey,
     metadata: &BlockStore,
     content: &BlockStore,
 ) -> Result<(
@@ -173,7 +164,7 @@ pub async fn load_all(
                 let metadata_forest = load_forest(metadata_forest_cid, metadata).await?;
                 let content_forest = load_forest(content_forest_cid, content).await?;
                 let key_mangaer = metadata.get_deserializable::<KeyManager>(key_manager_cid).await?;
-                let temporal_key = &key_mangaer.retrieve(private_key).await?;
+                let temporal_key = &key_mangaer.retrieve(wrapping_key).await?;
                 let directory = load_dir(metadata, temporal_key, private_ref_cid, &metadata_forest).await?;
                 // Return Ok with loaded objects
                 Ok((metadata_forest, content_forest, directory, key_mangaer))
@@ -190,7 +181,7 @@ pub async fn load_all(
         Err(ConfigError::MissingMetadata("One or both BlockStores are missing roots".to_string()).into())
     }
 }
-/*
+
 #[cfg(test)]
 mod test {
     use crate::utils::{serialize::*, tests::*};
@@ -200,14 +191,14 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_metadata_forest() -> Result<()> {
+    async fn serial_forest() -> Result<()> {
         let test_name = "serial_metadata_forest";
         // Start er up!
         let (_, _, config, metadata_forest, _, _) = &mut setup(test_name).await?;
 
         // Store and load
-        store_metadata_forest(&config.metadata, metadata_forest).await?;
-        let new_metadata_forest = &mut load_metadata_forest(&config.metadata, 0).await?;
+        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata).await?;
+        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
 
         // Assert equality
         assert_eq!(
@@ -224,39 +215,22 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_content_forest() -> Result<()> {
-        let test_name = "serial_content_forest";
-        // Start er up!
-        let (_, _, config, _, content_forest, _) = &mut setup(test_name).await?;
-
-        // Store and load
-        store_content_forest(&config.content, content_forest).await?;
-        let new_content_forest = &mut load_content_forest(&config.content, 0).await?;
-
-        // Assert equality
-        assert_eq!(
-            new_content_forest
-                .diff(content_forest, &config.content)
-                .await?
-                .len(),
-            0
-        );
-
-        // Teardown
-        teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
     async fn serial_dir_object() -> Result<()> {
         let test_name = "serial_dir_object";
         // Start er up!
         let (_, _, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
-        let key = &store_dir(&config.metadata, metadata_forest, dir).await?;
-        store_metadata_forest(&config.metadata, metadata_forest).await?;
-        let new_metadata_forest = &load_metadata_forest(&config.metadata, 1).await?;
-        let new_dir = &mut load_dir(&config.metadata, key, new_metadata_forest).await?;
+        let (private_ref_cid, temporal_key) =
+            &store_dir(&config.metadata, metadata_forest, dir).await?;
+        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata).await?;
+        let new_metadata_forest = &load_forest(&metadata_forest_cid, &config.metadata).await?;
+        let new_dir = &mut load_dir(
+            &config.metadata,
+            temporal_key,
+            private_ref_cid,
+            new_metadata_forest,
+        )
+        .await?;
         // Assert equality
         assert_eq!(dir, new_dir);
         // Teardown
@@ -288,11 +262,18 @@ mod test {
             .get_content(original_content_forest, &config.content)
             .await?;
 
-        let key = &store_dir(&config.metadata, original_metadata_forest, original_dir).await?;
-        store_metadata_forest(&config.metadata, original_metadata_forest).await?;
+        let (private_ref_cid, temporal_key) =
+            &store_dir(&config.metadata, original_metadata_forest, original_dir).await?;
+        let metadata_forest_cid = store_forest(original_metadata_forest, &config.metadata).await?;
 
-        let new_metadata_forest = &mut load_metadata_forest(&config.metadata, 1).await?;
-        let new_dir = &mut load_dir(&config.metadata, key, new_metadata_forest).await?;
+        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
+        let new_dir = &mut load_dir(
+            &config.metadata,
+            temporal_key,
+            private_ref_cid,
+            new_metadata_forest,
+        )
+        .await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 
@@ -322,19 +303,24 @@ mod test {
     async fn serial_all() -> Result<()> {
         let test_name = "serial_all";
         // Start er up!
-        let (_, _, config, metadata_forest, content_forest, dir) = &mut setup(test_name).await?;
+        let (_, global, config, metadata_forest, content_forest, dir) =
+            &mut setup(test_name).await?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let key_manager = &KeyManager::default();
+        key_manager.insert(&wrapping_key.get_public_key()).await?;
 
-        let key = &store_all(
+        let _ = &store_all(
             &config.metadata,
             &config.content,
             metadata_forest,
             content_forest,
             dir,
+            key_manager,
         )
         .await?;
 
-        let (new_metadata_forest, new_content_forest, new_dir) =
-            &mut load_all(key, &config.metadata, &config.content).await?;
+        let (new_metadata_forest, new_content_forest, new_dir, _) =
+            &mut load_all(&wrapping_key, &config.metadata, &config.content).await?;
 
         // Assert equality
         assert_eq!(
@@ -356,4 +342,3 @@ mod test {
         teardown(test_name).await
     }
 }
- */

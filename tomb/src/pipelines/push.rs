@@ -13,11 +13,12 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
 
     // Load the manifest
     let mut global = GlobalConfig::from_disk()?;
+    let wrapping_key = global.wrapping_key_from_disk()?;
 
     if let Some(config) = global.get_bucket(origin) {
         info!("Loaded manifest...");
         let (metadata_forest, content_forest, root_dir, key_manager) =
-            &mut config.get_all().await?;
+            &mut config.get_all(&wrapping_key).await?;
 
         // Grab all Block CIDs
         let children: Vec<Cid> = config.content.get_all_cids();
@@ -47,7 +48,13 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
         info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
 
         config
-            .set_all(metadata_forest, content_forest, root_dir, key_manager)
+            .set_all(
+                &wrapping_key,
+                metadata_forest,
+                content_forest,
+                root_dir,
+                key_manager,
+            )
             .await?;
 
         global.update_config(&config)?;

@@ -77,127 +77,32 @@ impl BucketConfig {
         Ok(())
     }
 
-    /*
-
-    async fn get_existing_keys(&self) -> Result<Vec<(RsaPublicKey, Vec<u8>)>> {
-        // Get the existing cid associated with our list of public keys
-        let keys_cid = self.metadata.get_roots()[3];
-
-        // Create new list
-        let mut keys: Vec<(RsaPublicKey, Vec<u8>)> = Vec::new();
-
-        // If we can grab a list of IPLDs from this cid
-        if let Ipld::List(list) = self.metadata.get_deserializable::<Ipld>(&keys_cid).await? {
-            // Iterate over them
-            for ipld in list.into_iter() {
-                if let Ipld::Map(map) = ipld {
-                    if let Ipld::Bytes(public_bytes) = map.get("public_key").unwrap() &&
-                        let Ipld::Bytes(encrypted_bytes) = map.get("encrypted_key").unwrap() {
-                        // Construct RSA Public Keys using these bytes as the DER bytes
-                        keys.push((RsaPublicKey::from_der(&public_bytes)?, encrypted_bytes.to_vec()));
-                    }
-                }
-            }
-        }
-
-        Ok(keys)
-    }
-
-    async fn save_keys(&self, keys: &Vec<(RsaPublicKey, Vec<u8>)>) -> Result<()> {
-        // Create the IPLD that we're going to serialize
-        let ipld = Ipld::List(keys.iter().map(|(public_key, encrypted_key)| {
-            let mut map = BTreeMap::new();
-            map.insert("public_key".to_string(), Ipld::Bytes(public_key.to_der().unwrap()));
-            map.insert("encrypted_key".to_string(), Ipld::Bytes(encrypted_key.to_vec()));
-            Ipld::Map(map)
-        }).collect());
-        // New CID for the keys
-        let new_keys_cid = self.metadata.put_serializable(&ipld).await?;
-        // Overwrite the CID at this index
-        self.metadata.carv2.carv1.header.roots.borrow_mut()[0] = new_keys_cid;
-        // Return Ok
-        Ok(())
-    }
-
-
-    async fn update_keys(&self, temporal_key: &TemporalKey) -> Result<()> {
-        // Create new list
-        let mut keys: Vec<(RsaPublicKey, Vec<u8>)> = Vec::new();
-        // Grab existing list
-        for (key, _) in self.get_existing_keys().await? {
-            // Append this key and an encrypted copy of the temporal key to the new list
-            keys.push((key.clone(), key.encrypt(temporal_key.0.as_bytes()).await?))
-        }
-        // Save these updated keys back into the Metadata CAR
-        self.save_keys(&keys).await?;
-
-        Ok(())
-    }
-
-
-    // /// Adds a public key to the permissioned list of public keys which are used to
-    // pub async fn add_public_key(&self, new_key: &RsaPublicKey) -> Result<()> {
-    //     // Grab the fingerprint of the file being added
-    //     let new_fingerprint = new_key.get_sha1_fingerprint()?;
-    //     // Grab existing public keys
-    //     let mut keys = self.get_existing_public_keys().await?;
-
-    //     // If the key does not already exist in the current list
-    //     if keys.iter().find(|&key| key.get_sha1_fingerprint().unwrap() == new_fingerprint).is_none() {
-    //         // Append the new keys to the list
-    //         keys.push(new_key.clone());
-    //         // Re-store them in the metadata CAR
-    //         self.save_public_keys(&keys).await?;
-    //     }
-
-    //     Ok(())
-    // }
-
-    ///
-    fn get_existing_temporal_keys() {
-
-    }
-
-    */
-
-    pub fn private_key_from_disk(&self) -> Result<RsaPrivateKey> {
-        // The path in which we expect to find the Manifest JSON file
-        let key_path = self.generated.join("root.pem");
-        let private_key = RsaPrivateKey::from_pem_file(key_path)?;
-        Ok(private_key)
-    }
-
-    /// Store a TemporalKey
-    pub fn private_key_to_disk(&self, private_key: &RsaPrivateKey) -> Result<()> {
-        // The path in which we expect to find the Manifest JSON file
-        let key_path = &self.generated.join("root.pem");
-        private_key.to_pem_file(key_path)?;
-        Ok(())
-    }
-
     pub async fn get_all(
         &self,
+        wrapping_key: &RsaPrivateKey,
     ) -> Result<(
         Rc<PrivateForest>,
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
         KeyManager,
     )> {
-        // Load RsaPrivateKey
-        let private_key = self.private_key_from_disk()?;
         // Load all
-        load_all(&private_key, &self.metadata, &self.content).await
+        load_all(wrapping_key, &self.metadata, &self.content).await
     }
 
     pub async fn set_all(
         &self,
+        wrapping_key: &RsaPrivateKey,
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
         root_dir: &Rc<PrivateDirectory>,
         key_manager: &KeyManager,
     ) -> Result<()> {
+        // Insert the public key into the key manager if it's not already present
+        key_manager.insert(&wrapping_key.get_public_key()).await?;
+
         // Store all
-        let private_key = store_all(
+        store_all(
             &self.metadata,
             &self.content,
             metadata_forest,
@@ -206,8 +111,6 @@ impl BucketConfig {
             key_manager,
         )
         .await?;
-        // Save RsaPrivateKey
-        self.private_key_to_disk(&private_key)?;
         Ok(())
     }
 }

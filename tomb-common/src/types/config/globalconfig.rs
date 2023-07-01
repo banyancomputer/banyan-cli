@@ -7,11 +7,13 @@ use std::{
     fs::{remove_file, File},
     path::{Path, PathBuf},
 };
+use wnfs::private::RsaPrivateKey;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalConfig {
     version: String,
     pub remote: String,
+    pub wrapping_key_path: PathBuf,
     buckets: Vec<BucketConfig>,
 }
 
@@ -34,7 +36,7 @@ impl GlobalConfig {
         match Self::get_read() {
             Ok(file) => Ok(serde_json::from_reader::<File, Self>(file)?),
             Err(_) => {
-                Self::default().to_disk()?;
+                Self::default()?.to_disk()?;
                 Self::from_disk()
             }
         }
@@ -111,15 +113,36 @@ impl GlobalConfig {
             Ok(self.create_config(path)?)
         }
     }
-}
 
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self {
+    fn default() -> Result<Self> {
+        // Path of the wrapping_key file
+        let wrapping_key_path = xdg_config_home().join("wrapping_key.pem");
+        // Load if it already exists
+        let wrapping_key = if wrapping_key_path.exists() {
+            RsaPrivateKey::from_pem_file(&wrapping_key_path)?
+        } else {
+            RsaPrivateKey::new()?
+        };
+
+        // Save the key to disk
+        wrapping_key.to_pem_file(&wrapping_key_path)?;
+
+        // Create new Global Config
+        Ok(Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
             remote: "".to_string(),
+            wrapping_key_path,
             buckets: Vec::new(),
-        }
+        })
+    }
+
+    pub fn wrapping_key_from_disk(&self) -> Result<RsaPrivateKey> {
+        RsaPrivateKey::from_pem_file(&self.wrapping_key_path)
+    }
+
+    pub fn wrapping_key_to_disk(&self, wrapping_key: &RsaPrivateKey) -> Result<()> {
+        wrapping_key.to_pem_file(&self.wrapping_key_path)?;
+        Ok(())
     }
 }
 

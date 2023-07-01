@@ -18,10 +18,10 @@ unsigned-varint = "0.7.1"
 rand.workspace = true
 thiserror = "1.0.40"
 hex = "0.4.3"
+chrono.workspace = true
 
 [dev-dependencies]
 fs_extra.workspace = true
-chrono.workspace = true
 tokio.workspace = true
 serial_test = "2.0.0"
 
