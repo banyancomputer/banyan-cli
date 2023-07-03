@@ -16,6 +16,12 @@ pub enum RsaError {
     #[error("Decryption failed: {0}")]
     DecryptionFailed(anyhow::Error),
 
+    #[error("Import from der file failed: {0}")]
+    ImportFromDerFileFailed(anyhow::Error),
+
+    #[error("Export to der file failed: {0}")]
+    ExportToDerFileFailed(anyhow::Error),
+
     #[error("Export to pem file failed: {0}")]
     ExportToPemFileFailed(anyhow::Error),
 

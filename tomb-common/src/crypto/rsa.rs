@@ -1,22 +1,15 @@
 use crate::error::RsaError;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use wnfs::private::{
-    ExchangeKey, PrivateKey,
-};
 use rsa::{
-    pkcs8::{
-        DecodePrivateKey, EncodePrivateKey,
-        LineEnding
-    },
+    pkcs8::{DecodePrivateKey, EncodePrivateKey, LineEnding},
+    rand_core,
     traits::PublicKeyParts,
-    BigUint, Oaep, rand_core,
-};
-use spki::{
-    DecodePublicKey, EncodePublicKey,
-    SubjectPublicKeyInfoOwned,
+    BigUint, Oaep,
 };
 use sha2::Sha256;
+use spki::{DecodePublicKey, EncodePublicKey, SubjectPublicKeyInfoOwned};
+use wnfs::private::{ExchangeKey, PrivateKey};
 
 //--------------------------------------------------------------------------------------------------
 // Constants
@@ -64,15 +57,27 @@ impl RsaPublicKey {
     /// # Arguments
     /// path - The path to the file to read from.
     pub fn from_pem_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
-        let key = rsa::RsaPublicKey::read_public_key_pem_file(path)?;
+        let key = rsa::RsaPublicKey::read_public_key_pem_file(path)
+            .map_err(|e| anyhow!(RsaError::ImportFromPemFileFailed(anyhow!(e))))?;
         Ok(Self(key))
+    }
+
+    /// Export the public key to DER bytes.
+    pub fn to_der(&self) -> Result<Vec<u8>> {
+        let doc = self
+            .0
+            .to_public_key_der()
+            .map_err(|e| anyhow!(RsaError::ExportToDerFileFailed(anyhow!(e))))?;
+        let vec = doc.as_bytes().to_vec();
+        Ok(vec)
     }
 
     /// Read the public key from DER bytes.
     /// # Arguments
     /// bytes - The DER bytes to read from.
     pub fn from_der(bytes: &[u8]) -> Result<Self> {
-        let key = rsa::RsaPublicKey::from_public_key_der(bytes)?;
+        let key = rsa::RsaPublicKey::from_public_key_der(bytes)
+            .map_err(|e| anyhow!(RsaError::ImportFromDerFileFailed(anyhow!(e))))?;
         Ok(Self(key))
     }
 }
@@ -102,8 +107,19 @@ impl RsaPrivateKey {
     /// # Arguments
     /// path - The path to the file to read from.
     pub fn from_pem_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
-        let key = rsa::RsaPrivateKey::read_pkcs8_pem_file(path)?;
+        let key = rsa::RsaPrivateKey::read_pkcs8_pem_file(path)
+            .map_err(|e| anyhow!(RsaError::ImportFromPemFileFailed(anyhow!(e))))?;
         Ok(Self(key))
+    }
+
+    /// Exports the private key to DER bytes.
+    pub fn to_der(&self) -> Result<Vec<u8>> {
+        let doc = self
+            .0
+            .to_pkcs8_der()
+            .map_err(|e| anyhow!(RsaError::ExportToDerFileFailed(anyhow!(e))))?;
+        let vec = doc.as_bytes().to_vec();
+        Ok(vec)
     }
 
     /// Reads the private key from DER bytes.
@@ -111,7 +127,8 @@ impl RsaPrivateKey {
     /// # Arguments
     /// bytes - The DER bytes to read from.
     pub fn from_der(bytes: &[u8]) -> Result<Self> {
-        let key = rsa::RsaPrivateKey::from_pkcs8_der(bytes)?;
+        let key = rsa::RsaPrivateKey::from_pkcs8_der(bytes)
+            .map_err(|e| anyhow!(RsaError::ImportFromDerFileFailed(anyhow!(e))))?;
         Ok(Self(key))
     }
 
@@ -188,10 +205,7 @@ mod test {
         std::fs::remove_file(path)?;
 
         let ciphertext_from_file = pub_key.encrypt(plaintext).await?;
-        let decrypted_from_file = priv_key_from_file
-            .decrypt(&ciphertext_from_file)
-            .await
-            ?;
+        let decrypted_from_file = priv_key_from_file.decrypt(&ciphertext_from_file).await?;
 
         assert_eq!(plaintext, &decrypted_from_file[..]);
         Ok(())
@@ -238,16 +252,45 @@ mod test {
         Ok(())
     }
 
+    #[async_std::test]
+    async fn test_rsa_pub_key_to_der() -> Result<()> {
+        let priv_key = RsaPrivateKey::new()?;
+        let pub_key = priv_key.get_public_key();
+        let plaintext = b"Hello, world!";
+
+        let pub_key_der = pub_key.to_der()?;
+        let pub_key_from_der = RsaPublicKey::from_der(&pub_key_der)?;
+
+        let ciphertext = pub_key_from_der.encrypt(plaintext).await?;
+        let decrypted = priv_key.decrypt(&ciphertext).await?;
+
+        assert_eq!(plaintext, &decrypted[..]);
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn test_rsa_priv_key_to_der() -> Result<()> {
+        let priv_key = RsaPrivateKey::new()?;
+        let pub_key = priv_key.get_public_key();
+        let plaintext = b"Hello, world!";
+
+        let priv_key_der = priv_key.to_der()?;
+        let priv_key_from_der = RsaPrivateKey::from_der(&priv_key_der)?;
+
+        let ciphertext = pub_key.encrypt(plaintext).await?;
+        let decrypted = priv_key_from_der.decrypt(&ciphertext).await?;
+
+        assert_eq!(plaintext, &decrypted[..]);
+        Ok(())
+    }
+
     #[test]
     fn test_rsa_pub_key_fingerprint() -> Result<()> {
         const SPKI_STRING: &str = "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA1SRtDiytKr0oswH8oEam8MyRPrhYGywYF7zitYen/6mkjgzoabdx7lHfQNhdW84030a5jjmwGrZwoJ12E9vgtatEUYBf6+Oa8wThtigk7/mPgdrBLNsQrTusjrlSsG+zFKDL8fnzu3CaJRHUFqGbmpSJG2aRDEOeBWuVIMFfRbmH2mz7XQlDm3hkHkTefvq9HED8mHcUD9bSLFJjT8Ks6m2XguFmYs5VfiyMVQgmsWrCpvMmqjKzJzmLDnjEIU85eU+kM6vme4BLkMh9OtEOUODusfZe20QlOMqPBcmGEgZeDnYPsKGAVTm/W3y7GUkzxFT6YQDnn9PqMB+nAAL8BeptHc1rkc1U/+UlGuvnI4zawUsPqCL8F7tQR9SHcBHGJkhxdJQVlGOehzHsbKG53vwevLO5pxZ9LkDCzrRV7zs45PI4zJkm856PVbXKMv9jZmt4dv4V5PLx+8nGOmwUZy2HGIJHCpgXQiPsV1AlavXohhIKAwwDbMwyd9Q38/vVAgMBAAE=";
         let spki_bytes = general_purpose::STANDARD.decode(SPKI_STRING)?;
         let pub_key = RsaPublicKey::from_der(&spki_bytes)?;
         let bytes = pub_key.get_fingerprint()?;
-        assert_eq!(
-            bytes,
-            "kuJM7XLygGHer1leDr+oXAbmMRFuNmULAcqkI9IoLn0="
-        );
+        assert_eq!(bytes, "kuJM7XLygGHer1leDr+oXAbmMRFuNmULAcqkI9IoLn0=");
         Ok(())
     }
 
@@ -257,9 +300,7 @@ mod test {
         let pub_key = priv_key.get_public_key();
 
         let public_key_modulus = pub_key.get_public_key_modulus()?;
-        let pub_key_from_modulus = RsaPublicKey::from_modulus(&public_key_modulus)
-            .await
-            ?;
+        let pub_key_from_modulus = RsaPublicKey::from_modulus(&public_key_modulus).await?;
 
         let plaintext = b"Hello, world!";
         let ciphertext = pub_key_from_modulus.encrypt(plaintext).await?;
