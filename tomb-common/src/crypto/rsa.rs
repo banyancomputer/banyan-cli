@@ -1,6 +1,7 @@
 use crate::error::RsaError;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use hex::ToHex;
 use rsa::{
     pkcs8::{DecodePrivateKey, EncodePrivateKey, LineEnding},
     rand_core,
@@ -40,7 +41,9 @@ impl RsaPublicKey {
     pub fn get_fingerprint(&self) -> Result<String> {
         let document = self.0.to_public_key_der()?;
         let spki = SubjectPublicKeyInfoOwned::try_from(document.as_bytes())?;
-        let fingerprint = spki.fingerprint_base64()?;
+        // let fingerprint = spki.finfingerprint_bytesse64()?;
+        let fingerprint_bytes = spki.fingerprint_bytes()?;
+        let fingerprint = fingerprint_bytes.encode_hex::<String>();
         Ok(fingerprint)
     }
 
@@ -289,8 +292,10 @@ mod test {
         const SPKI_STRING: &str = "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA1SRtDiytKr0oswH8oEam8MyRPrhYGywYF7zitYen/6mkjgzoabdx7lHfQNhdW84030a5jjmwGrZwoJ12E9vgtatEUYBf6+Oa8wThtigk7/mPgdrBLNsQrTusjrlSsG+zFKDL8fnzu3CaJRHUFqGbmpSJG2aRDEOeBWuVIMFfRbmH2mz7XQlDm3hkHkTefvq9HED8mHcUD9bSLFJjT8Ks6m2XguFmYs5VfiyMVQgmsWrCpvMmqjKzJzmLDnjEIU85eU+kM6vme4BLkMh9OtEOUODusfZe20QlOMqPBcmGEgZeDnYPsKGAVTm/W3y7GUkzxFT6YQDnn9PqMB+nAAL8BeptHc1rkc1U/+UlGuvnI4zawUsPqCL8F7tQR9SHcBHGJkhxdJQVlGOehzHsbKG53vwevLO5pxZ9LkDCzrRV7zs45PI4zJkm856PVbXKMv9jZmt4dv4V5PLx+8nGOmwUZy2HGIJHCpgXQiPsV1AlavXohhIKAwwDbMwyd9Q38/vVAgMBAAE=";
         let spki_bytes = general_purpose::STANDARD.decode(SPKI_STRING)?;
         let pub_key = RsaPublicKey::from_der(&spki_bytes)?;
-        let bytes = pub_key.get_fingerprint()?;
-        assert_eq!(bytes, "kuJM7XLygGHer1leDr+oXAbmMRFuNmULAcqkI9IoLn0=");
+        let fingerprint = pub_key.get_fingerprint()?;
+        println!("{}", fingerprint);
+
+        assert_eq!(fingerprint, "92e24ced72f28061deaf595e0ebfa85c06e631116e36650b01caa423d2282e7d");
         Ok(())
     }
 

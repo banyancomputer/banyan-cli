@@ -3591,6 +3591,7 @@ dependencies = [
  "async-std",
  "async-trait",
  "base64 0.21.2",
+ "hex",
  "hex-literal",
  "rand 0.8.5",
  "reqwest",
