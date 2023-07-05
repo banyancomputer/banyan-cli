@@ -5,5 +5,6 @@
 #![feature(file_create_new)]
 #![feature(duration_constants)]
 // #![deny(unused_crate_dependencies)]
+pub mod crypto;
 pub mod types;
 pub mod utils;
