@@ -1,4 +1,4 @@
-name: 🛡 Weekly Dependency Advisories
+name: Weekly Dependency Advisories
 on:
   schedule:
     # Run every Monday at 10am ET (2pm UTC)
