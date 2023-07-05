@@ -4,12 +4,12 @@ branches:
       required_pull_request_reviews:
         required_approving_review_count: 1
         dismiss_stale_reviews: true
-        require_code_owner_reviews: true
-        required_status_checks:
-          strict: true
-          contexts:
-            - advisories/cargo-audit
-            - advisories/cargo-deny
-            - audits/cargo-deny
-
-        enforce_admins: false
+      required_status_checks:
+        strict: true
+        contexts:
+          - advisories/cargo-audit
+          - advisories/cargo-deny
+          - audits/cargo-deny
+      enforce_admins: null
+      restrictions: null
+      required_linear_history: false
