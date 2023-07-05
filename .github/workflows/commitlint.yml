@@ -10,7 +10,3 @@ jobs:
         with:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v5
-      - name: Add annotation on failure
-        run: |
-          echo "::error::CommitLint checks failed"
-        if: failure()
