@@ -1,4 +1,4 @@
-name: Dependency Security & License Audit
+name: 🛡 Dependency Security & License Audit
 on:
   - pull_request
 jobs:
