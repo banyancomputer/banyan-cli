@@ -1,2 +1,2 @@
-pub mod rsa;
 pub mod error;
+pub mod rsa;
