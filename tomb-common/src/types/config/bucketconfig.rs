@@ -15,7 +15,7 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest, RsaPrivateKey, PrivateNodeOnPathHistory},
 };
 
-use super::keymanager::KeyManager;
+use super::keys::manager::Manager;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
@@ -62,6 +62,12 @@ impl BucketConfig {
         metadata.set_root(&Cid::default());
         content.set_root(&Cid::default());
 
+        // TODO organizedgrime: this shouldn't be necessary. Can elaborate why it is required in edge cases, but hotfixing for now.
+        metadata.to_disk()?;
+        content.to_disk()?;
+        let metadata = BlockStore::new(&generated.join("meta.car"))?;
+        let content = BlockStore::new(&generated.join("content.car"))?;
+
         Ok(Self {
             bucket_name,
             origin: origin.to_path_buf(),
@@ -84,7 +90,7 @@ impl BucketConfig {
         Rc<PrivateForest>,
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
-        KeyManager,
+        Manager,
     )> {
         // Load all
         load_all(wrapping_key, &self.metadata, &self.content).await
@@ -103,7 +109,7 @@ impl BucketConfig {
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
         root_dir: &Rc<PrivateDirectory>,
-        key_manager: &KeyManager,
+        key_manager: &Manager,
     ) -> Result<()> {
         // Insert the public key into the key manager if it's not already present
         key_manager.insert(&wrapping_key.get_public_key()).await?;

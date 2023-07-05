@@ -1,19 +1,19 @@
 use crate::utils::config::xdg_config_home;
 
-use super::bucketconfig::BucketConfig;
+use super::{bucketconfig::BucketConfig, error::ConfigError};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, io::{Read, Write},
 };
-use wnfs::private::RsaPrivateKey;
+use wnfs::{private::RsaPrivateKey, common::dagcbor};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GlobalConfig {
     version: String,
-    pub remote: String,
     pub wrapping_key_path: PathBuf,
+    pub remote: String,
     buckets: Vec<BucketConfig>,
 }
 
@@ -31,14 +31,31 @@ impl GlobalConfig {
         File::create(Self::get_path()).map_err(anyhow::Error::new)
     }
 
+    // Write to disk
+    pub fn to_disk(&self) -> Result<()> {
+        // serde_json::to_writer_pretty(Self::get_write()?, &self)?;
+        let mut writer = Self::get_write()?;
+        writer.write_all(&dagcbor::encode(self)?)?;
+        Ok(())
+    }
+
     // Initialize from a reader
     pub fn from_disk() -> Result<Self> {
-        match Self::get_read() {
-            Ok(file) => Ok(serde_json::from_reader::<File, Self>(file)?),
-            Err(_) => {
-                Self::default()?.to_disk()?;
-                Self::from_disk()
+        if let Ok(mut file) = Self::get_read() {
+            let mut byte_buf: Vec<u8> = Vec::new();
+            file.read_to_end(&mut byte_buf)?;
+            // If we successfully deserialize
+            if let Ok(config) = dagcbor::decode(&byte_buf) {
+                Ok(config)
             }
+            // If we fail to reconstruct
+            else {
+                Err(ConfigError::BadConfig.into())
+            }
+        }
+        else {
+            Self::default()?.to_disk()?;
+            Self::from_disk()
         }
     }
 
@@ -83,12 +100,6 @@ impl GlobalConfig {
         // Update bucket at index
         self.buckets[index] = bucket.clone();
         // Ok
-        Ok(())
-    }
-
-    // Write to disk
-    pub fn to_disk(&self) -> Result<()> {
-        serde_json::to_writer_pretty(Self::get_write()?, &self)?;
         Ok(())
     }
 
@@ -148,6 +159,67 @@ impl GlobalConfig {
 
 #[cfg(test)]
 mod test {
+    use anyhow::Result;
+    use std::{fs::remove_file, path::Path};
+    use serial_test::serial;
+    use crate::{utils::config::xdg_config_home, types::config::globalconfig::GlobalConfig};
+
+    #[test]
+    #[serial]
+    fn to_from_disk() -> Result<()> {
+        // The known path of the global config file
+        let known_path = xdg_config_home().join("global.json");
+        // Remove it if it exists
+        if known_path.exists() { remove_file(&known_path)?; }
+        // Create default
+        let original = GlobalConfig::default()?;
+        // Save to disk
+        original.to_disk()?;
+        // Load from disk
+        let reconstructed = GlobalConfig::from_disk()?;
+        assert_eq!(original, reconstructed);
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn from_disk_direct() -> Result<()> {
+        // The known path of the global config file
+        let known_path = xdg_config_home().join("global.json");
+        // Remove it if it exists
+        if known_path.exists() { remove_file(&known_path)?; }
+        // Load from disk
+        let reconstructed = GlobalConfig::from_disk()?;
+        // Assert that it is just the default config
+        assert_eq!(GlobalConfig::default()?, reconstructed);
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn add_bucket() -> Result<()> {
+        // The known path of the global config file
+        let known_path = xdg_config_home().join("global.json");
+        // Remove it if it exists
+        if known_path.exists() { remove_file(&known_path)?; }
+
+        let origin = Path::new("test");
+
+        // Load from disk
+        let mut original = GlobalConfig::from_disk()?;
+        let original_bucket = original.new_bucket(origin)?;
+
+        // Serialize to disk
+        original.to_disk()?;
+        let reconstructed = GlobalConfig::from_disk()?;
+        let reconstructed_bucket = reconstructed.get_bucket(origin).unwrap();
+
+        // Assert equality
+        assert_eq!(original, reconstructed);
+        assert_eq!(original_bucket, reconstructed_bucket);
+
+        Ok(())
+    }
 
     /*
     #[tokio::test]

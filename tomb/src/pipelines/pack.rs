@@ -7,7 +7,7 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::types::config::{globalconfig::GlobalConfig, keymanager::KeyManager};
+use tomb_common::types::config::{globalconfig::GlobalConfig, keys::manager::Manager};
 use wnfs::{
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest},
@@ -55,14 +55,15 @@ pub async fn pipeline(
         let mut metadata_forest = Rc::new(PrivateForest::new());
         let mut content_forest = Rc::new(PrivateForest::new());
 
+        let mut key_manager = Manager::default();
+
         // If this filesystem has already been packed
-        if false {
-            // TODO
-            let (new_metadata_forest, new_content_forest, new_root_dir, _) =
-                config.get_all(&wrapping_key).await?;
+        if let Ok((new_metadata_forest, new_content_forest, new_root_dir, new_key_manager)) = config.get_all(&wrapping_key).await {
+            // Update structs
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
+            key_manager = new_key_manager;
         } else {
             info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
@@ -86,7 +87,7 @@ pub async fn pipeline(
                 &mut metadata_forest,
                 &mut content_forest,
                 &root_dir,
-                &KeyManager::default(),
+                &key_manager,
             )
             .await?;
 

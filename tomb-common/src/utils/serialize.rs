@@ -1,6 +1,6 @@
 use crate::types::{
     blockstore::car::carv2::blockstore::BlockStore,
-    config::{error::ConfigError, keymanager::KeyManager},
+    config::{error::ConfigError, keys::manager::Manager},
 };
 use anyhow::Result;
 use rand::thread_rng;
@@ -100,7 +100,7 @@ pub async fn store_all(
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-    key_manager: &KeyManager,
+    key_manager: &Manager,
 ) -> Result<()> {
     // Construct new map for metadata
     let mut metadata_map = BTreeMap::new();
@@ -177,7 +177,7 @@ pub async fn load_all(
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
-    KeyManager,
+    Manager,
 )> {
     // The metadata root is valid and the content root is valid
     if let Some(metadata_root) = metadata.get_root() &&
@@ -195,7 +195,7 @@ pub async fn load_all(
                 // Load in the objects
                 let metadata_forest = load_forest(metadata_forest_cid, metadata).await?;
                 let content_forest = load_forest(content_forest_cid, content).await?;
-                let key_manager = metadata.get_deserializable::<KeyManager>(key_manager_cid).await?;
+                let key_manager = metadata.get_deserializable::<Manager>(key_manager_cid).await?;
                 let current_key = &key_manager.retrieve_current(wrapping_key).await?;
                 let current_directory = load_dir(metadata, current_key, current_private_ref_cid, &metadata_forest).await?;
                 // Return Ok with loaded objectsd
@@ -338,7 +338,7 @@ mod test {
         let (_, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
         let wrapping_key = global.wrapping_key_from_disk()?;
-        let key_manager = &KeyManager::default();
+        let key_manager = &Manager::default();
         key_manager.insert(&wrapping_key.get_public_key()).await?;
 
         let _ = &store_all(
