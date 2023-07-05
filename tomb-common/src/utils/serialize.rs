@@ -4,12 +4,12 @@ use crate::types::{
 };
 use anyhow::Result;
 use rand::thread_rng;
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, rc::Rc, vec};
 use wnfs::{
     common::{AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
     private::{
-        PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, RsaPrivateKey, TemporalKey,
+        PrivateDirectory, PrivateForest, PrivateNode, PrivateRef, RsaPrivateKey, TemporalKey, PrivateNodeOnPathHistory,
     },
 };
 
@@ -108,6 +108,15 @@ pub async fn store_all(
     let (private_ref_cid, temporal_key) = store_dir(metadata, metadata_forest, root_dir).await?;
     // Update the temporal key in the key manager
     key_manager.update_temporal_key(&temporal_key).await?;
+    // If we've yet to initialize our originals
+    if let Some(metadata_root) = metadata.get_root() && 
+        let Ok(Ipld::Map(map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await &&
+        let Some(Ipld::Link(_)) = map.get("original_private_ref") { } else {
+            println!("storing original private ref and original key!");
+        // Insert private ref and set original key in key manager
+        metadata_map.insert("original_private_ref".to_string(), Ipld::Link(private_ref_cid));
+        key_manager.set_original_key(&temporal_key).await?;
+    }
     // Put the key manager in
     let key_manager_cid = metadata.put_serializable(key_manager).await?;
     // Store the metadata PrivateForest in the metadata BlockStore
@@ -117,7 +126,7 @@ pub async fn store_all(
         "metadata_forest".to_string(),
         Ipld::Link(metadata_forest_cid),
     );
-    metadata_map.insert("private_ref".to_string(), Ipld::Link(private_ref_cid));
+    metadata_map.insert("current_private_ref".to_string(), Ipld::Link(private_ref_cid));
     metadata_map.insert("key_manager".to_string(), Ipld::Link(key_manager_cid));
     // Put the metadata IPLD Map into the metadata BlockStore
     let metadata_root_cid = metadata.put_serializable(&Ipld::Map(metadata_map)).await?;
@@ -136,11 +145,34 @@ pub async fn store_all(
     Ok(())
 }
 
+pub async fn load_history(
+    wrapping_key: &RsaPrivateKey,
+    metadata: &BlockStore,
+    content: &BlockStore
+) -> Result<PrivateNodeOnPathHistory> {
+    let (metadata_forest, _, current_directory, key_manager) = load_all(wrapping_key, metadata, content).await?;
+
+    // Grab the original key
+    let original_key = &key_manager.retrieve_original(wrapping_key).await?;
+    if let Some(metadata_root) = metadata.get_root() &&
+       let Ok(Ipld::Map(metadata_map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await &&
+       let Some(Ipld::Link(original_private_ref_cid)) = metadata_map.get("original_private_ref") {
+            //
+           let original_directory = load_dir(metadata, original_key, original_private_ref_cid, &metadata_forest).await?;
+       
+           PrivateNodeOnPathHistory::of(current_directory, original_directory, 1_000_000, &[], true, metadata_forest, metadata).await
+    }
+    else {
+        Err(ConfigError::MissingMetadata("Missing original PrivateRef in Metadata IPLD".to_string()).into())
+    }
+}
+
+
 /// Load everything at once!
 pub async fn load_all(
     wrapping_key: &RsaPrivateKey,
     metadata: &BlockStore,
-    content: &BlockStore,
+    content: &BlockStore
 ) -> Result<(
     Rc<PrivateForest>,
     Rc<PrivateForest>,
@@ -156,18 +188,18 @@ pub async fn load_all(
         {
             // If we are able to find all CIDs
             if let Some(Ipld::Link(metadata_forest_cid)) = metadata_map.get("metadata_forest") &&
-            let Some(Ipld::Link(private_ref_cid)) = metadata_map.get("private_ref") &&
+            let Some(Ipld::Link(current_private_ref_cid)) = metadata_map.get("current_private_ref") &&
             let Some(Ipld::Link(key_manager_cid)) = metadata_map.get("key_manager") &&
             let Some(Ipld::Link(content_forest_cid)) = content_map.get("content_forest")
             {
                 // Load in the objects
                 let metadata_forest = load_forest(metadata_forest_cid, metadata).await?;
                 let content_forest = load_forest(content_forest_cid, content).await?;
-                let key_mangaer = metadata.get_deserializable::<KeyManager>(key_manager_cid).await?;
-                let temporal_key = &key_mangaer.retrieve(wrapping_key).await?;
-                let directory = load_dir(metadata, temporal_key, private_ref_cid, &metadata_forest).await?;
-                // Return Ok with loaded objects
-                Ok((metadata_forest, content_forest, directory, key_mangaer))
+                let key_manager = metadata.get_deserializable::<KeyManager>(key_manager_cid).await?;
+                let current_key = &key_manager.retrieve_current(wrapping_key).await?;
+                let current_directory = load_dir(metadata, current_key, current_private_ref_cid, &metadata_forest).await?;
+                // Return Ok with loaded objectsd
+                Ok((metadata_forest, content_forest, current_directory, key_manager))
             }
             else {
                 Err(ConfigError::MissingMetadata("One or both BlockStores are missing CIDs".to_string()).into())

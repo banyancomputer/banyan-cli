@@ -5,64 +5,57 @@ use thiserror::Error;
 use wnfs::private::{AesKey, ExchangeKey, PrivateKey, RsaPrivateKey, RsaPublicKey, TemporalKey};
 
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
-#[derive(Serialize, Deserialize)]
 pub struct KeyManager {
     // The unencrypted TemporalKey
     root: RefCell<TemporalKey>,
+    original: RefCell<TemporalKey>,
     // A map from RSA Public Key fingerprints to their encrypted Temporal Keys
-    pub map: RefCell<HashMap<String, Vec<u8>>>,
+    pub root_map: KeyMapper,
+    pub original_map: KeyMapper,
 }
 
-impl Default for KeyManager {
-    fn default() -> Self {
-        let default_aes_bytes: [u8; 32] = [0; 32];
-        Self {
-            root: RefCell::new(TemporalKey(AesKey::new(default_aes_bytes))),
-            map: RefCell::new(HashMap::new()),
-        }
-    }
-}
+#[derive(Default, Serialize, Deserialize)]
+pub struct KeyMapper(RefCell<HashMap<String, (Vec<u8>, Vec<u8>)>>);
 
-impl KeyManager {
-    pub async fn update_temporal_key(&self, temporal_key: &TemporalKey) -> Result<()> {
-        // Update the TemporalKey
-        *self.root.borrow_mut() = temporal_key.clone();
-        // Now that the TemporalKey has changed, reencrypt using all the existing RsaPublicKeys
-        let map = self.map.borrow().clone();
+impl KeyMapper {
+    pub async fn update_temporal_key(&self, new_key: &TemporalKey) -> Result<()> {
+        let map = self.0.borrow().clone();
         // For each Public Key present in the map
-        for (der, _) in map {
-            // Reconstruct the PublicKey form the DER hex
-            let public_key = RsaPublicKey::from_der(&hex::decode(&der)?)?;
+        for (fingerprint, (der, _)) in map {
+            let public_key = RsaPublicKey::from_der(&der)?;
             // Reencrypt the TemporalKey using this
-            let new_encrypted_temporal_key = public_key.encrypt(temporal_key.0.as_bytes()).await?;
+            let new_encrypted_root_key = public_key.encrypt(new_key.0.as_bytes()).await?;
             // Insert the reencrypted version of the TemporalKey
-            self.map
+            self
+                .0
                 .borrow_mut()
-                .insert(der, new_encrypted_temporal_key);
+                .insert(fingerprint, (der, new_encrypted_root_key));
         }
 
         Ok(())
     }
 
-    pub async fn insert(&self, key: &RsaPublicKey) -> Result<()> {
-        let root = self.root.borrow().clone();
+    pub async fn insert_public_key(&self, temporal_key: &TemporalKey, new_key: &RsaPublicKey) -> Result<()> {
         // Encrypt the bytes
-        let encrypted_key = key.encrypt(root.0.as_bytes()).await?;
-        // Grab the public
-        let der = hex::encode(key.to_der()?);
+        let encrypted_temoral_key = new_key.encrypt(temporal_key.0.as_bytes()).await?;
+        // Grab the public key's fingerprint and der bytes
+        let fingerprint = hex::encode(new_key.get_sha1_fingerprint()?);
+        let der = new_key.to_der()?;
         // Insert into the hashmap
-        self.map.borrow_mut().insert(der, encrypted_key);
+        self.0.borrow_mut().insert(fingerprint.clone(), (der, encrypted_temoral_key));
+        // Return Ok
         Ok(())
     }
 
-    pub async fn retrieve(&self, key: &RsaPrivateKey) -> Result<TemporalKey> {
+    pub async fn reconstruct(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
         // Grab the fingerprint
-        let der = hex::encode(key.get_public_key().to_der()?);
+        let fingerprint = hex::encode(private_key.get_public_key().get_sha1_fingerprint()?);
+        // Clone map to prevent usage in async calls
+        let map = self.0.borrow().clone();
         // Grab the encrypted key associated with the fingerprint
-        let map = self.map.borrow().clone();
-        if let Some(encrypted_key) = map.get(&der) {
+        if let Some((_, encrypted_temporal_key)) = map.get(&fingerprint) {
             // Decrypt
-            let aes_buf = key.decrypt(encrypted_key).await?;
+            let aes_buf = private_key.decrypt(encrypted_temporal_key).await?;
             // Create struct
             let temporal_key = TemporalKey(AesKey::new(aes_buf.as_slice().try_into()?));
             // Return
@@ -71,21 +64,77 @@ impl KeyManager {
             Err(KeyError::Missing.into())
         }
     }
+ }
 
-    // pub async fn initialize_if_empty(&self) -> Result<()> {
-    //     // If we've not stored any keys yet
-    //     if self.map.borrow().len() == 0 {
-    //         // Create PrivateKey
-    //         let new_key = RsaPrivateKey::new()?;
-    //         // Insert the newly generated PublicKey
-    //         self.insert(&new_key.get_public_key()).await?;
-    //         // Serialize the PrivateKey to disk
+impl KeyManager {
+    pub async fn update_temporal_key(&self, new_key: &TemporalKey) -> Result<()> {
+        // Update the TemporalKey
+        *self.root.borrow_mut() = new_key.clone();
+        self.root_map.update_temporal_key(new_key).await?;
+        Ok(())
+    }
 
-    //         Ok(())
-    //     } else {
-    //         Ok(())
-    //     }
-    // }
+    pub async fn set_original_key(&self, new_key: &TemporalKey) -> Result<()> {
+        // Update the TemporalKey
+        *self.original.borrow_mut() = new_key.clone();
+        self.original_map.update_temporal_key(new_key).await?;
+        Ok(())
+    }
+
+    pub async fn insert(&self, new_key: &RsaPublicKey) -> Result<()> {
+        let root = self.root.borrow().clone();
+        let original = self.original.borrow().clone();
+        
+        self.root_map.insert_public_key(&root, new_key).await?;
+        self.original_map.insert_public_key(&original, new_key).await?;
+
+        Ok(())
+    }
+
+    pub async fn retrieve_current(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
+        self.root_map.reconstruct(&private_key).await
+    }
+
+    pub async fn retrieve_original(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
+        self.original_map.reconstruct(&private_key).await
+    }
+}
+
+impl Default for KeyManager {
+    fn default() -> Self {
+        let default_aes_bytes: [u8; 32] = [0; 32];
+        Self {
+            root: RefCell::new(TemporalKey(AesKey::new(default_aes_bytes))),
+            original: RefCell::new(TemporalKey(AesKey::new(default_aes_bytes))),
+            root_map: Default::default(),
+            original_map: Default::default(),
+        }
+    }
+}
+
+impl Serialize for KeyManager {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        (&self.root_map, &self.original_map).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for KeyManager {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let (root_map, original_map) = <(KeyMapper, KeyMapper)>::deserialize(deserializer)?;
+        let default = Self::default();
+        Ok(Self {
+            root: default.root,
+            original: default.original,
+            root_map,
+            original_map
+        })
+    }
 }
 
 /// Key errors.

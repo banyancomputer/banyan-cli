@@ -44,7 +44,11 @@ async fn main() -> Result<()> {
             origin,
             unpacked,
         } => {
-            unpack::pipeline(&origin, &unpacked).await?;
+            if let Some(origin) = origin {
+                unpack::pipeline(&origin, &unpacked).await?;
+            } else {
+                unpack::pipeline(&current_dir()?, &unpacked).await?;
+            }
         }
         cli::Commands::Init {
             dir

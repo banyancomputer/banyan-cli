@@ -38,7 +38,7 @@ pub enum Commands {
     Unpack {
         /// Origin path
         #[arg(short, long, help = "path to original filesystem")]
-        origin: PathBuf,
+        origin: Option<PathBuf>,
 
         /// Output directory in which reinflated files will be unpacked.
         #[arg(short, long, help = "output directory for filesystem reconstruction")]

@@ -84,8 +84,8 @@ mod test {
     #[tokio::test]
     #[serial]
     // #[ignore]
-    async fn pipeline_pack_unpack() -> Result<()> {
-        let test_name = "pipeline_pack_unpack";
+    async fn pipeline_unpack() -> Result<()> {
+        let test_name = "pipeline_unpack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
@@ -422,11 +422,9 @@ mod test {
         test_teardown(test_name).await
     }
 
-    /*
     // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     #[tokio::test]
     #[serial]
-    #[ignore]
     /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
     async fn test_versioning() -> Result<()> {
         let test_name = "test_versioning";
@@ -465,30 +463,10 @@ mod test {
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (mut metadata_forest, content_forest, dir) = config.get_all().await?;
-
-        // Get keys
-        let original_key = &config.get_key("original")?;
-        let key = &config.get_key("root")?;
-
-        // Grab the original PrivateDirectory
-        let original_dir = load_dir(&config.metadata, original_key,  &mut metadata_forest).await?;
-
-        assert_ne!(key, original_key);
-        assert_ne!(dir, original_dir);
-
-        let mut iterator = PrivateNodeOnPathHistory::of(
-            dir,
-            original_dir,
-            1_000_000,
-            &[],
-            true,
-            Rc::clone(&metadata_forest),
-            &config.metadata,
-        )
-        .await
-        .unwrap();
+        let (metadata_forest, content_forest, _, _) = &mut config.get_all(&wrapping_key).await?;
+        let mut iterator = config.get_history(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> =
@@ -503,7 +481,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, &mut metadata_forest, &config.metadata)
+            .get_node(&path_segments, true, metadata_forest, &config.metadata)
             .await
             .unwrap()
             .unwrap()
@@ -552,7 +530,6 @@ mod test {
 
         Ok(())
     }
-    */
 
     #[tokio::test]
     #[serial]
