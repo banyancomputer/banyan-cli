@@ -7,7 +7,8 @@ branches:
       required_status_checks:
         strict: true
         contexts:
-          - "Dependency Security & License Audit"
+          - "cargo-deny (advisories)"
+          - "cargo-deny (bans licenses sources)"
       enforce_admins: null
       restrictions: null
       required_linear_history: false
