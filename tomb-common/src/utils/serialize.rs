@@ -4,7 +4,7 @@ use crate::types::{
 };
 use anyhow::Result;
 use rand::thread_rng;
-use std::{collections::BTreeMap, rc::Rc, vec};
+use std::{collections::BTreeMap, rc::Rc};
 use wnfs::{
     common::{AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
@@ -100,14 +100,15 @@ pub async fn store_all(
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-    key_manager: &Manager,
+    key_manager: &mut Manager,
 ) -> Result<()> {
     // Construct new map for metadata
     let mut metadata_map = BTreeMap::new();
     // Store PrivateDirectory in the metadata BlockStore, retrieving the new TemporalKey and cid of remaining PrivateRef components
     let (private_ref_cid, temporal_key) = store_dir(metadata, metadata_forest, root_dir).await?;
+    println!("store_all temporal_key: {}", hex::encode(temporal_key.0.as_bytes()));
     // Update the temporal key in the key manager
-    key_manager.update_temporal_key(&temporal_key).await?;
+    key_manager.update_current_key(&temporal_key).await?;
     // If we've yet to initialize our originals
     if let Some(metadata_root) = metadata.get_root() && 
         let Ok(Ipld::Map(map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await &&
@@ -117,6 +118,7 @@ pub async fn store_all(
         metadata_map.insert("original_private_ref".to_string(), Ipld::Link(private_ref_cid));
         key_manager.set_original_key(&temporal_key).await?;
     }
+    println!("key_manager pre_serial: {:?}", key_manager);
     // Put the key manager in
     let key_manager_cid = metadata.put_serializable(key_manager).await?;
     // Store the metadata PrivateForest in the metadata BlockStore
@@ -338,7 +340,7 @@ mod test {
         let (_, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
         let wrapping_key = global.wrapping_key_from_disk()?;
-        let key_manager = &Manager::default();
+        let mut key_manager = Manager::default();
         key_manager.insert(&wrapping_key.get_public_key()).await?;
 
         let _ = &store_all(
@@ -347,7 +349,7 @@ mod test {
             metadata_forest,
             content_forest,
             dir,
-            key_manager,
+            &mut key_manager,
         )
         .await?;
 

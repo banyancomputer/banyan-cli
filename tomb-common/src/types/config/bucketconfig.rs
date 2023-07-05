@@ -109,7 +109,7 @@ impl BucketConfig {
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
         root_dir: &Rc<PrivateDirectory>,
-        key_manager: &Manager,
+        key_manager: &mut Manager,
     ) -> Result<()> {
         // Insert the public key into the key manager if it's not already present
         key_manager.insert(&wrapping_key.get_public_key()).await?;

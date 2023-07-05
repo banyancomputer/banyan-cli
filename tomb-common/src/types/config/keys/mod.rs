@@ -24,7 +24,7 @@ mod tests {
     #[serial]
     async fn put_get_original() -> Result<()> {
         // Key manager
-        let key_manager = Manager::default();
+        let mut key_manager = Manager::default();
 
         // Grab rsa private
         let wrapping_key = grab_rsa_private_key()?;
@@ -49,7 +49,7 @@ mod tests {
     #[serial]
     async fn put_get_current() -> Result<()> {
         // Key manager
-        let key_manager = Manager::default();
+        let mut key_manager = Manager::default();
 
         // Grab rsa private
         let wrapping_key = grab_rsa_private_key()?;
@@ -60,7 +60,7 @@ mod tests {
         let current = random_temporal_key();
 
         // Set the current key
-        key_manager.update_temporal_key(&current).await?;
+        key_manager.update_current_key(&current).await?;
 
         let reconstructed_current = key_manager.retrieve_current(&wrapping_key).await?;
 
@@ -72,18 +72,59 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn post_update_insertion() -> Result<()> {
+    async fn insert_get_current() -> Result<()> {
         // Key manager
-        let key_manager = Manager::default();
+        let mut key_manager = Manager::default();
+        // Grab RsaPrivateKey
+        let wrapping_key = grab_rsa_private_key()?;
+        // Grab temporal keys
+        let current = random_temporal_key();
+        // Set the current key
+        key_manager.update_current_key(&current).await?;
+        // Insert public key post-hoc
+        key_manager.insert(&wrapping_key.get_public_key()).await?;
+        // Reconstruct the key
+        let reconstructed_current = key_manager.retrieve_current(&wrapping_key).await?;
+        // Assert that the current and reconstructed keys are matching
+        assert_eq!(current, reconstructed_current);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn insert_get_original() -> Result<()> {
+        // Key manager
+        let mut key_manager = Manager::default();
+        // Grab RsaPrivateKey
+        let wrapping_key = grab_rsa_private_key()?;
+        // Grab temporal keys
+        let original = random_temporal_key();
+        // Set the current key
+        key_manager.set_original_key(&original).await?;
+        // Insert public key post-hoc
+        key_manager.insert(&wrapping_key.get_public_key()).await?;
+        // Reconstruct the key
+        let reconstructed_original = key_manager.retrieve_original(&wrapping_key).await?;
+        // Assert that the current and reconstructed keys are matching
+        assert_eq!(original, reconstructed_original);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn insert_get_both() -> Result<()> {
+        // Key manager
+        let mut key_manager = Manager::default();
 
         // Grab RsaPrivateKey
         let wrapping_key = grab_rsa_private_key()?;
         // Grab temporal keys
         let original = random_temporal_key();
         let current = random_temporal_key();
+        
         // Set the both keys
-        key_manager.set_original_key(&current).await?;
-        key_manager.update_temporal_key(&current).await?;
+        key_manager.set_original_key(&original).await?;
+        key_manager.update_current_key(&current).await?;
 
         // Insert public key post-hoc
         key_manager.insert(&wrapping_key.get_public_key()).await?;

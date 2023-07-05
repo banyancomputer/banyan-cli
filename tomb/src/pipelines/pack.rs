@@ -59,6 +59,7 @@ pub async fn pipeline(
 
         // If this filesystem has already been packed
         if let Ok((new_metadata_forest, new_content_forest, new_root_dir, new_key_manager)) = config.get_all(&wrapping_key).await {
+            println!("zomg! have seen this before: {:?}", key_manager);
             // Update structs
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
@@ -87,7 +88,7 @@ pub async fn pipeline(
                 &mut metadata_forest,
                 &mut content_forest,
                 &root_dir,
-                &key_manager,
+                &mut key_manager,
             )
             .await?;
 
