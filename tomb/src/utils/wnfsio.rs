@@ -6,7 +6,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::types::shared::CompressionScheme;
+use crate::{pipelines::error::PipelineError, types::shared::CompressionScheme};
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio as _;
@@ -47,49 +47,36 @@ pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
     Ok(compressed)
 }
 
-/// Writes content to a given path within a given WNFS filesystem, ensuring that duplicate writing is avoided
-// pub async fn write_file(
-//     path_segments: &[String],
-//     content: Vec<u8>,
-//     dir: &mut Rc<PrivateDirectory>,
-//     forest: &mut Rc<PrivateForest>,
-//     hot_store: &impl BlockStore,
-//     cold_store: &impl BlockStore,
-//     rng: &mut impl RngCore,
-// ) -> Result<()> {
-
-// }
-
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
 pub async fn file_to_disk(
     file: &Rc<PrivateFile>,
     output_dir: &Path,
     file_path: &Path,
-    cold_forest: &PrivateForest,
-    cold_store: &impl BlockStore,
-) -> Result<()> {
+    content_forest: &PrivateForest,
+    content: &impl BlockStore,
+) -> Result<(), PipelineError> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {
         // Write out the symlink
         symlink(output_dir.join(path), file_path)?;
+        Ok(())
     }
-    // If this is a real file
-    else {
+    // If this is a real file, try to read in the content
+    else if let Ok(compressed_buf) = file.get_content(content_forest, content).await {
         // Create the file at the desired location
         let mut output_file = File::create(file_path)?;
         // Buffer for decrypted and decompressed file content
-        let mut content: Vec<u8> = Vec::new();
-        // Get and decompress bytes associated with this file
-        decompress_bytes(
-            file.get_content(cold_forest, cold_store).await?.as_slice(),
-            &mut content,
-        )?;
-        // Write all contents to the output file
-        output_file.write_all(&content)?;
+        let mut decompressed_buf: Vec<u8> = Vec::new();
+        // Decompress
+        decompress_bytes(compressed_buf.as_slice(), &mut decompressed_buf)?;
+        // Write out the content to disk
+        output_file.write_all(&decompressed_buf)?;
+        Ok(())
+    } else {
+        Err(PipelineError::FileNotFound(
+            file_path.to_str().unwrap().to_string(),
+        ))
     }
-
-    // Return Ok
-    Ok(())
 }
 
 /// Create a progress bar for displaying progress through a task with a predetermined style

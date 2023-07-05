@@ -36,14 +36,13 @@ categories = [
 
 [workspace.dependencies]
 # Dependencies
-anyhow = { version = "1", features = ["backtrace"] }
 clap = { version = "4.0.32", features = ["derive"] }
+anyhow = { version = "1", features = ["backtrace"] }
+tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
 jwalk = "0.8.1"
 rand = "0.8.4"
-serde_json = { version = "1.0.72", features = ["std"] }
-serde ={ version= "1.0.152", features = ["derive"] }
-tokio = { version = "1.24", features = ["full", "io-util", "fs"] }
-
+serde = {version= "^1", features = ["derive"]}
+serde_json = { version = "^1", features = ["std"]}
 # Dev dependencies
 criterion = { version = "0.4.0", features = ["async_tokio"] }
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "0.2.0" }

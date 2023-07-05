@@ -1,12 +1,14 @@
-use crate::utils::{disk::all_from_disk, wnfsio::file_to_disk};
 use anyhow::Result;
 use async_recursion::async_recursion;
-use fs_extra::{copy_items, dir::CopyOptions};
-use std::path::Path;
+use std::{path::Path, rc::Rc};
+use tomb_common::types::config::globalconfig::GlobalConfig;
 use wnfs::{
     common::BlockStore,
     private::{PrivateForest, PrivateNode},
 };
+
+use super::error::PipelineError;
+use crate::utils::wnfsio::file_to_disk;
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -18,117 +20,95 @@ use wnfs::{
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(input_dir: Option<&Path>, output_dir: &Path) -> Result<()> {
-    // If there is an input dir specific with a valid tomb
-    if let Some(input_dir) = input_dir && let tomb_dir = input_dir.join(".tomb") && tomb_dir.exists() {
-        // Copy the existing tomb over to the output dir
-        copy_items(&[tomb_dir], output_dir, &CopyOptions::new().overwrite(true))?;
-    }
-
-    // Paths representing metadata and content
-    let tomb_path = output_dir.join(".tomb");
-    // If initialization hasnt even happened
-    if !tomb_path.exists() {
-        panic!(".tomb does not exist in input or output directories");
-    }
+pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineError> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
-    // If this is a local unpack
-    let local = input_dir.is_some();
-    // Load metadata
-    let (_, manifest, hot_forest, cold_forest, dir) = all_from_disk(local, &tomb_path).await?;
 
-    // Update the locations of the CarBlockStores to be relative to the input path
-    // manifest.hot_local.change_dir(&tomb_path)?;
-    // if local {
-    //     manifest
-    //         .cold_local
-    //         .change_dir(&input_dir.unwrap().join("content"))?
-    // }
+    let mut global = GlobalConfig::from_disk()?;
 
-    info!(
-        "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
-        output_dir.display()
-    );
+    if let Some(config) = global.get_bucket(origin) {
+        // Load metadata
+        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let metadata = &config.metadata;
+        let content = &config.content;
 
-    #[async_recursion(?Send)]
-    async fn process_node(
-        output_dir: &Path,
-        built_path: &Path,
-        node: &PrivateNode,
-        hot_forest: &PrivateForest,
-        cold_forest: &PrivateForest,
-        hot_store: &impl BlockStore,
-        cold_store: &impl BlockStore,
-    ) -> Result<()> {
-        match &node {
-            PrivateNode::Dir(dir) => {
-                println!("processing dir {}", built_path.display());
-                // Create the directory we are in
-                std::fs::create_dir_all(output_dir.join(built_path))?;
-                // Obtain a list of this Node's children
-                let node_names: Vec<String> = dir
-                    .ls(&Vec::new(), true, hot_forest, hot_store)
-                    .await?
-                    .into_iter()
-                    .map(|(l, _)| l)
-                    .collect();
+        info!(
+            "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
+            output_dir.display()
+        );
 
-                // For each of those children
-                for node_name in node_names {
-                    // Fetch the Node with the given name
-                    if let Some(node) = dir
-                        .get_node(&[node_name.clone()], true, hot_forest, hot_store)
+        #[async_recursion(?Send)]
+        async fn process_node(
+            output_dir: &Path,
+            built_path: &Path,
+            node: &PrivateNode,
+            metadata_forest: &Rc<PrivateForest>,
+            content_forest: &Rc<PrivateForest>,
+            metadata: &impl BlockStore,
+            content: &impl BlockStore,
+        ) -> Result<()> {
+            match &node {
+                PrivateNode::Dir(dir) => {
+                    // Create the directory we are in
+                    std::fs::create_dir_all(output_dir.join(built_path))?;
+                    // Obtain a list of this Node's children
+                    let node_names: Vec<String> = dir
+                        .ls(&Vec::new(), true, metadata_forest, metadata)
                         .await?
-                    {
-                        // Recurse with newly found node and await
-                        process_node(
-                            output_dir,
-                            &built_path.join(node_name),
-                            &node,
-                            hot_forest,
-                            cold_forest,
-                            hot_store,
-                            cold_store,
-                        )
-                        .await?;
+                        .into_iter()
+                        .map(|(l, _)| l)
+                        .collect();
+
+                    // For each of those children
+                    for node_name in node_names {
+                        // Fetch the Node with the given name
+                        if let Some(node) = dir
+                            .get_node(&[node_name.clone()], true, metadata_forest, metadata)
+                            .await?
+                        {
+                            // Recurse with newly found node and await
+                            process_node(
+                                output_dir,
+                                &built_path.join(node_name),
+                                &node,
+                                metadata_forest,
+                                content_forest,
+                                metadata,
+                                content,
+                            )
+                            .await?;
+                        }
                     }
                 }
+                PrivateNode::File(file) => {
+                    // This is where the file will be unpacked no matter what
+                    let file_path = &output_dir.join(built_path);
+                    // Handle the PrivateFile and write its contents to disk
+                    file_to_disk(file, output_dir, file_path, content_forest, content).await?;
+                }
             }
-            PrivateNode::File(file) => {
-                // This is where the file will be unpacked no matter what
-                let file_path = &output_dir.join(built_path);
-                println!("processing file {}", file_path.display());
-                // Handle the PrivateFile and write its contents to disk
-                file_to_disk(file, output_dir, file_path, cold_forest, cold_store).await?;
-            }
+            Ok(())
         }
-        Ok(())
-    }
 
-    if local {
         // Run extraction on the base level with an empty built path
         process_node(
             output_dir,
             Path::new(""),
             &dir.as_node(),
-            &hot_forest,
-            &cold_forest,
-            &manifest.hot_local,
-            &manifest.cold_local,
+            metadata_forest,
+            content_forest,
+            metadata,
+            content,
         )
-        .await
+        .await?;
+
+        // Set all
+        config.set_all(metadata_forest, content_forest, dir).await?;
+        global.update_config(&config)?;
+        global.to_disk()?;
+
+        Ok(())
     } else {
-        // Run extraction on the base level with an empty built path
-        process_node(
-            output_dir,
-            Path::new(""),
-            &dir.as_node(),
-            &hot_forest,
-            &cold_forest,
-            &manifest.hot_remote,
-            &manifest.cold_remote,
-        )
-        .await
+        Err(PipelineError::Uninitialized)
     }
 }

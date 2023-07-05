@@ -1,4 +1,3 @@
-use crate::error::RsaError;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use hex::ToHex;
@@ -11,6 +10,8 @@ use rsa::{
 use sha2::Sha256;
 use spki::{DecodePublicKey, EncodePublicKey, SubjectPublicKeyInfoOwned};
 use wnfs::private::{ExchangeKey, PrivateKey};
+
+use crate::crypto::error::RsaError;
 
 //--------------------------------------------------------------------------------------------------
 // Constants
@@ -295,7 +296,10 @@ mod test {
         let fingerprint = pub_key.get_fingerprint()?;
         println!("{}", fingerprint);
 
-        assert_eq!(fingerprint, "92e24ced72f28061deaf595e0ebfa85c06e631116e36650b01caa423d2282e7d");
+        assert_eq!(
+            fingerprint,
+            "92e24ced72f28061deaf595e0ebfa85c06e631116e36650b01caa423d2282e7d"
+        );
         Ok(())
     }
 

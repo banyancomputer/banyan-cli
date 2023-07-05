@@ -1,38 +1,37 @@
 use anyhow::Result;
-use fake_file::{Strategy, Structure};
+use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use std::{
-    fs::{create_dir_all, remove_dir_all},
+    fs::remove_dir_all,
     path::{Path, PathBuf},
     process::Command,
 };
 
-use super::fs::ensure_path_exists_and_is_empty_dir;
+use crate::pipelines::configure;
 
 /// Set up temporary filesystem for test cases
-pub async fn test_setup(test_name: &str) -> Result<(PathBuf, PathBuf)> {
+pub async fn test_setup(test_name: &str) -> Result<PathBuf> {
     // Run the structured test setup with a default Structure
     test_setup_structured(test_name, Structure::new(2, 2, 2000, Strategy::Simple)).await
 }
 
 /// Set up a temporary filesystem for test cases according to specified structure
-pub async fn test_setup_structured(
-    test_name: &str,
-    structure: Structure,
-) -> Result<(PathBuf, PathBuf)> {
+pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Result<PathBuf> {
+    // Deinit all
+    configure::deinit_all()?;
     // Base of the test directory
     let root_path = PathBuf::from("test").join(test_name);
     // Remove anything that might already be there
     remove_dir_all(&root_path).ok();
     // Create and empty the dir
     ensure_path_exists_and_is_empty_dir(&root_path, true)?;
-    // Input and output paths
+    // Input and path
     let input_path = root_path.join("input");
-    let output_path = root_path.join("output");
-    create_dir_all(&output_path)?;
     // Generate file structure
     structure.generate(&input_path)?;
+    // Deinitialize existing data / metadata
+    configure::deinit(&input_path).ok();
     // Return all paths
-    Ok((input_path, output_path))
+    Ok(input_path)
 }
 
 /// Remove contents of temporary dir

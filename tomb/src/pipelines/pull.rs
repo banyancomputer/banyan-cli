@@ -1,77 +1,72 @@
-use anyhow::Result;
-use std::{collections::HashSet, path::Path, rc::Rc};
-use wnfs::{common::BlockStore, private::PrivateForest};
+use std::{collections::HashSet, fs::remove_file, path::Path, rc::Rc};
 
-use crate::utils::{
-    disk::{manifest_from_disk, manifest_to_disk},
-    fs::ensure_path_exists_and_is_empty_dir,
-    wnfsio::get_progress_bar,
+use anyhow::Result;
+use tomb_common::types::{
+    blockstore::{car::carv2::blockstore::BlockStore, networkblockstore::NetworkBlockStore},
+    config::globalconfig::GlobalConfig,
 };
-use tomb_common::{
-    types::blockstore::{carblockstore::CarBlockStore, networkblockstore::NetworkBlockStore},
-    utils::serialize::{load_cold_forest, store_cold_forest},
-};
+use wnfs::{common::BlockStore as WnfsBlockStore, private::PrivateForest};
+
+use crate::utils::wnfsio::get_progress_bar;
+
+use super::error::PipelineError;
 
 /// Takes locally packed car file data and throws it onto a server
-pub async fn pipeline(dir: &Path) -> Result<()> {
-    // Represent relative directories for .tomb and content
-    let tomb_path = dir.join(".tomb");
-    let content_path = dir.join("content");
-    // Load the Manifest
-    let mut manifest = manifest_from_disk(&tomb_path)?;
-    // If this remote endpoint has not actually been configured
-    if manifest.cold_remote == NetworkBlockStore::default() {
-        panic!("Configure the remote endpoint for this filesystem using tomb config remote before running this command");
-    }
+pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
+    let mut global = GlobalConfig::from_disk()?;
 
-    // // Ensure that there is a .tomb path
-    // ensure_path_exists_and_is_dir(&tomb_path)?;
-    // Empty the packed contents if there are any
-    ensure_path_exists_and_is_empty_dir(&content_path, true)?;
+    if let Some(mut config) = global.get_bucket(origin) {
+        // Overwrite the content with new BlockStore
+        remove_file(&config.content.path).ok();
+        config.content = BlockStore::new(&config.content.path)?;
 
-    // // Update the locations of the CarBlockStores to be relative to the input path
-    // manifest.hot_local.change_dir(&tomb_path)?;
+        // Load
+        let (metadata_forest, content_forest, root_dir) = &mut config.get_all().await?;
 
-    // Erase the old content store, assume all data has been lost
-    manifest.cold_local = CarBlockStore::new(&content_path, None);
-
-    // Load the cold forest from the remote endpoint
-    let cold_forest = load_cold_forest(&manifest.roots, &manifest.cold_remote).await?;
-
-    // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
-    // Find CID differences as a way of tallying all Forest CIDs
-    let differences = cold_forest
-        .diff(&Rc::new(PrivateForest::new()), &manifest.cold_local)
-        .await?;
-
-    let mut children = HashSet::new();
-    for difference in differences {
-        if let Some(difference1) = difference.value1 {
-            children.extend(difference1);
-        }
-    }
-
-    // TODO: optionally turn off the progress bar
-    // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = get_progress_bar(children.len() as u64)?;
-    // For each CID found
-    for child in children {
-        // Grab the bytes from the remote network
-        let bytes = manifest.cold_remote.get_block(&child).await?;
-        // Throw those bytes onto the local store
-        manifest
-            .cold_local
-            .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
+        // TODO (organizedgrime) submit a pull request on WNFS to make this simpler. This is so clunky.
+        // Find CID differences as a way of tallying all Forest CIDs
+        let differences = content_forest
+            .diff(&Rc::new(PrivateForest::new()), &config.content)
             .await?;
-        // Denote progress for each loop iteration
-        progress_bar.inc(1);
+
+        let mut children = HashSet::new();
+        for difference in differences {
+            if let Some(difference1) = difference.value1 {
+                children.extend(difference1);
+            }
+        }
+
+        // TODO: optionally turn off the progress bar
+        // Initialize the progress bar using the number of Nodes to process
+        let progress_bar = get_progress_bar(children.len() as u64)?;
+
+        let remote = NetworkBlockStore::new(&global.remote)?;
+
+        // For each CID found
+        for child in children {
+            // Grab the bytes from the remote network
+            let bytes = remote.get_block(&child).await?;
+            // Throw those bytes onto the local store
+            config
+                .content
+                .put_block(bytes.to_vec(), wnfs::libipld::IpldCodec::Raw)
+                .await?;
+            // Denote progress for each loop iteration
+            progress_bar.inc(1);
+        }
+
+        info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
+
+        config
+            .set_all(metadata_forest, content_forest, root_dir)
+            .await?;
+
+        // Store the modified cold forest both locally and remotely
+        global.update_config(&config)?;
+        global.to_disk()?;
+
+        Ok(())
+    } else {
+        Err(PipelineError::Uninitialized)
     }
-
-    info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
-
-    // Store the modified cold forest both locally and remotely
-    store_cold_forest(&mut manifest.roots, &manifest.cold_local, &cold_forest).await?;
-    store_cold_forest(&mut manifest.roots, &manifest.cold_remote, &cold_forest).await?;
-    // Store the modified manifest
-    manifest_to_disk(&tomb_path, &manifest)
 }

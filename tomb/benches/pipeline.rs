@@ -1,15 +1,15 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use dir_assert::assert_paths;
-use fake_file::{Strategy, Structure};
+use fake_file::{
+    utils::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
+    Strategy, Structure,
+};
 use fs_extra::dir;
 use lazy_static::lazy_static;
 use log::{error, info};
 use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
 use tokio::runtime::Runtime;
-use tomb::{
-    pipelines::{pack, unpack},
-    utils::fs::{ensure_path_exists_and_is_dir, ensure_path_exists_and_is_empty_dir},
-};
+use tomb::pipelines::{pack, unpack};
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
@@ -292,16 +292,7 @@ fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf
             // Operation needed to make sure pack doesn't fail
             || prep_pack(packed_path),
             // The routine to benchmark
-            |_| async {
-                pack::pipeline(
-                    black_box(input_path),
-                    Some(black_box(packed_path)),
-                    // TODO (amiller68) - make this configurable
-                    black_box(1073741824),
-                    black_box(false),
-                )
-                .await
-            },
+            |_| async { pack::pipeline(black_box(input_path), black_box(false)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -336,9 +327,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path),
             // The routine to benchmark
-            |_| async {
-                unpack::pipeline(Some(black_box(packed_path)), black_box(unpacked_path)).await
-            },
+            |_| async { unpack::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -350,7 +339,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
 /// Run our end to end pipeline benchmarks sequentially on multiple Input Directories
 /// # Arguments
 /// * `c` - Criterion object
-pub fn pipeline_benchmark(c: &mut Criterion) {
+fn pipeline_benchmark(c: &mut Criterion) {
     // Setup the bench - populate the input directory
     setup_bench();
 

@@ -34,16 +34,13 @@
 * 7. TODO (laudiacay): Make car file with it.
 */
 
-// Used by benchmarking and testing
-use assert_cmd as _;
-use clap as _;
-use criterion as _;
-use dir_assert as _;
+// We only use this in main.rs
 use env_logger as _;
-use fake_file as _;
-use fs_extra as _;
+
+#[cfg(test)]
+use criterion as _;
+#[cfg(test)]
 use lazy_static as _;
-use serial_test as _;
 
 #[allow(unused_extern_crates)]
 extern crate core;
@@ -51,6 +48,8 @@ extern crate core;
 #[macro_use]
 extern crate log;
 
+/// This module contains the CLI
+pub mod cli;
 /// This module contains both the pack_pipeline and the unpack_pipeline, which allow the main CLI to run packing an unpacking pipelines.
 pub mod pipelines;
 /// This module contains types unique to this project.

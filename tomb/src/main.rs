@@ -1,37 +1,16 @@
 #![feature(io_error_more)]
 #![feature(let_chains)]
 #![feature(buf_read_has_data_left)]
-#![deny(unused_crate_dependencies)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 #![deny(private_in_public)]
 #![deny(unreachable_pub)]
 
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
-
 use anyhow::Result;
 use clap::Parser;
-use std::{env, io::Write};
-use tomb::pipelines::{add, configure, pack, pull, push, unpack};
-/// Command Line Interface and tests
-pub mod cli;
-
-use assert_cmd as _;
-use async_recursion as _;
-use chrono as _;
-use criterion as _;
-use dir_assert as _;
-use fake_file as _;
-use fclones as _;
-use fs_extra as _;
-use indicatif as _;
-use jwalk as _;
-use lazy_static as _;
-use rand as _;
-use serde as _;
-use serial_test as _;
-use wnfs as _;
-use zstd as _;
+use std::{env::current_dir, io::Write};
+use tomb::{cli, pipelines::*};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -52,17 +31,12 @@ async fn main() -> Result<()> {
         // Execute the packing command
         cli::Commands::Pack {
             input_dir,
-            output_dir,
-            chunk_size,
             follow_links,
         } => {
-            match output_dir {
-                Some(output_dir) => {
-                    pack::pipeline(&input_dir, Some(&output_dir), chunk_size, follow_links).await?;
-                },
-                None => {
-                    pack::pipeline(&input_dir, None, chunk_size, follow_links).await?;
-                },
+            if let Some(input_dir) = input_dir {
+                pack::pipeline(&input_dir, follow_links).await?;
+            } else {
+                pack::pipeline(&current_dir()?, follow_links).await?;
             }
         }
         // Execute the unpacking command
@@ -70,35 +44,37 @@ async fn main() -> Result<()> {
             input_dir,
             output_dir,
         } => {
-            match input_dir {
-                Some(input_dir) => {
-                    unpack::pipeline(Some(&input_dir), &output_dir).await?;
-                },
-                None => {
-                    unpack::pipeline(None, &output_dir).await?;
-                },
-            }
+            unpack::pipeline(&input_dir, &output_dir).await?;
         }
         cli::Commands::Init {
             dir
         } => {
-            // If no dir was supplied, use the current working directory
-            let dir = dir.unwrap_or(env::current_dir()?);
             // Initialize here
-            configure::init(&dir)?;
+            if let Some(dir) = dir {
+                configure::init(&dir)?;
+            }
+            else {
+                configure::init(&current_dir()?)?;
+            }
+        },
+        cli::Commands::Deinit {
+            dir
+        } => {
+            // Initialize here
+            if let Some(dir) = dir {
+                configure::deinit(&dir)?;
+            }
+            else {
+                configure::deinit(&current_dir()?)?;
+            }
         },
         cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
         cli::Commands::Register { bucket_name: _ } =>
             unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
         cli::Commands::Configure { subcommand } => {
             match subcommand {
-                cli::ConfigSubCommands::ContentScratchPath { path: _ } => {
-                    unimplemented!("todo... change where we stage content locally");
-                }
-                cli::ConfigSubCommands::SetRemote { dir, url, port } => {
-                    // If no dir was supplied, use the current working directory
-                    let dir = dir.unwrap_or(env::current_dir()?);
-                    configure::remote(&dir, &url, port)?;
+                cli::ConfigSubCommands::SetRemote { address } => {
+                    configure::remote(&address)?;
                 }
             }
         },
@@ -115,10 +91,12 @@ async fn main() -> Result<()> {
             // Start the Push pipeline
             push::pipeline(&dir).await?;
         },
-        cli::Commands::Add { local, input_file, tomb_path, wnfs_path } => {
-            add::pipeline(local, &input_file, &tomb_path, &wnfs_path).await?;
+        cli::Commands::Add { origin, input_file, wnfs_path } => {
+            add::pipeline(&origin, &input_file, &wnfs_path).await?;
         },
-        cli::Commands::Remove { tomb_path: _, wnfs_path: _ } => todo!("remove")
+        cli::Commands::Remove { origin, wnfs_path } => {
+            remove::pipeline(&origin, &wnfs_path).await?;
+        }
     }
 
     Ok(())
