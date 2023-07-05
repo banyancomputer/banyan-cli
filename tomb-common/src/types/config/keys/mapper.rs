@@ -5,36 +5,50 @@ use wnfs::private::{AesKey, ExchangeKey, PrivateKey, RsaPrivateKey, RsaPublicKey
 
 use super::error::KeyError;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq)]
 pub struct Mapper(HashMap<String, (Vec<u8>, Vec<u8>)>);
 
 impl Mapper {
     pub async fn update_temporal_key(&mut self, new_key: &TemporalKey) -> Result<()> {
-        println!("updating encrypted keys! for t_k: {}", hex::encode(new_key.0.as_bytes()));
+        println!(
+            "updating encrypted keys! for t_k: {}",
+            hex::encode(new_key.0.as_bytes())
+        );
         // For each Public Key present in the map
         for (fingerprint, (der, _)) in self.0.clone() {
             let public_key = RsaPublicKey::from_der(&der)?;
             // Reencrypt the TemporalKey using this
             let new_encrypted_root_key = public_key.encrypt(new_key.0.as_bytes()).await?;
             // Insert the reencrypted version of the TemporalKey
-            self
-                .0
-                .insert(fingerprint, (der, new_encrypted_root_key));
+            self.0.insert(fingerprint, (der, new_encrypted_root_key));
         }
 
         Ok(())
     }
 
-    pub async fn insert_public_key(&mut self, temporal_key: &TemporalKey, new_key: &RsaPublicKey) -> Result<()> {
-        println!("inserting public key! for t_k: {}", hex::encode(temporal_key.0.as_bytes()));
-        // Encrypt the bytes
-        let encrypted_temoral_key = new_key.encrypt(temporal_key.0.as_bytes()).await?;
+    pub async fn insert_public_key(
+        &mut self,
+        temporal_key: &Option<TemporalKey>,
+        new_key: &RsaPublicKey,
+    ) -> Result<()> {
         // Grab the public key's fingerprint
         let fingerprint = hex::encode(new_key.get_sha1_fingerprint()?);
         // Represent the public key as DER bytes
         let der = new_key.to_der()?;
-        // Insert into the hashmap, using fingerprint as key
-        self.0.insert(fingerprint, (der, encrypted_temoral_key));
+
+        // If there is a valid temporal key
+        if let Some(temporal_key) = temporal_key {
+            // Encrypt the bytes
+            let encrypted_temoral_key = new_key.encrypt(temporal_key.0.as_bytes()).await?;
+            // Insert into the hashmap, using fingerprint as key
+            self.0.insert(fingerprint, (der, encrypted_temoral_key));
+        }
+        // If a valid key does not yet exist
+        else {
+            // Insert an empty array as the "encrypted" bytes
+            self.0.insert(fingerprint, (der, vec![]));
+        }
+
         // Return Ok
         Ok(())
     }

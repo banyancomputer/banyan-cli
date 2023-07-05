@@ -1,14 +1,14 @@
+pub mod error;
 pub mod manager;
 pub mod mapper;
-pub mod error;
 
 #[cfg(test)]
 mod tests {
+    use crate::types::config::{globalconfig::GlobalConfig, keys::manager::Manager};
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
-    use wnfs::private::{TemporalKey, AesKey, RsaPrivateKey};
-    use crate::types::config::{globalconfig::GlobalConfig, keys::manager::Manager};
+    use wnfs::private::{AesKey, RsaPrivateKey, TemporalKey};
 
     fn random_temporal_key() -> TemporalKey {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
@@ -121,7 +121,7 @@ mod tests {
         // Grab temporal keys
         let original = random_temporal_key();
         let current = random_temporal_key();
-        
+
         // Set the both keys
         key_manager.set_original_key(&original).await?;
         key_manager.update_current_key(&current).await?;
@@ -139,5 +139,4 @@ mod tests {
 
         Ok(())
     }
-
 }

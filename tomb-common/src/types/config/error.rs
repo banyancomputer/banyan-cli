@@ -8,5 +8,5 @@ pub(crate) enum ConfigError {
     #[error("Remote URL specified is not in a valid format: {0}")]
     BadEndpoint(String),
     #[error("The configuration file failed to deserialize correctly.")]
-    BadConfig
+    BadConfig,
 }

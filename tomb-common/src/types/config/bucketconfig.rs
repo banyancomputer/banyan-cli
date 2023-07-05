@@ -12,7 +12,7 @@ use std::{
 };
 use wnfs::{
     libipld::Cid,
-    private::{PrivateDirectory, PrivateForest, RsaPrivateKey, PrivateNodeOnPathHistory},
+    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory, RsaPrivateKey},
 };
 
 use super::keys::manager::Manager;
@@ -98,7 +98,7 @@ impl BucketConfig {
 
     pub async fn get_history(
         &self,
-        wrapping_key: &RsaPrivateKey
+        wrapping_key: &RsaPrivateKey,
     ) -> Result<PrivateNodeOnPathHistory> {
         load_history(wrapping_key, &self.metadata, &self.content).await
     }

@@ -5,9 +5,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
-    path::{Path, PathBuf}, io::{Read, Write},
+    io::{Read, Write},
+    path::{Path, PathBuf},
 };
-use wnfs::{private::RsaPrivateKey, common::dagcbor};
+use wnfs::{common::dagcbor, private::RsaPrivateKey};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GlobalConfig {
@@ -52,8 +53,7 @@ impl GlobalConfig {
             else {
                 Err(ConfigError::BadConfig.into())
             }
-        }
-        else {
+        } else {
             Self::default()?.to_disk()?;
             Self::from_disk()
         }
@@ -159,10 +159,10 @@ impl GlobalConfig {
 
 #[cfg(test)]
 mod test {
+    use crate::{types::config::globalconfig::GlobalConfig, utils::config::xdg_config_home};
     use anyhow::Result;
-    use std::{fs::remove_file, path::Path};
     use serial_test::serial;
-    use crate::{utils::config::xdg_config_home, types::config::globalconfig::GlobalConfig};
+    use std::{fs::remove_file, path::Path};
 
     #[test]
     #[serial]
@@ -170,7 +170,9 @@ mod test {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
         // Remove it if it exists
-        if known_path.exists() { remove_file(&known_path)?; }
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
         // Create default
         let original = GlobalConfig::default()?;
         // Save to disk
@@ -187,7 +189,9 @@ mod test {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
         // Remove it if it exists
-        if known_path.exists() { remove_file(&known_path)?; }
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
         // Load from disk
         let reconstructed = GlobalConfig::from_disk()?;
         // Assert that it is just the default config
@@ -201,7 +205,9 @@ mod test {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
         // Remove it if it exists
-        if known_path.exists() { remove_file(&known_path)?; }
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
 
         let origin = Path::new("test");
 

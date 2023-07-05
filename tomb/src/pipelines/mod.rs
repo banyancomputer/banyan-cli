@@ -482,8 +482,7 @@ mod test {
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, true, metadata_forest, &config.metadata)
-            .await
-            .unwrap()
+            .await?
             .unwrap()
             .as_file()?;
 
