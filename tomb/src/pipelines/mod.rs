@@ -23,7 +23,7 @@ mod test {
         utils::{
             spider::path_to_segments,
             tests::{test_setup, test_setup_structured, test_teardown},
-            wnfsio::decompress_bytes,
+            wnfsio::{self, decompress_bytes},
         },
     };
     use anyhow::Result;
@@ -36,30 +36,30 @@ mod test {
         io::Write,
         os::unix::fs::symlink,
         path::PathBuf,
-        rc::Rc,
     };
-    use tomb_common::{types::config::globalconfig::GlobalConfig, utils::serialize::load_dir};
-    use wnfs::private::PrivateNodeOnPathHistory;
+    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_configure_init() -> Result<()> {
-        let test_name = "pipeline_configure_init";
+    async fn init() -> Result<()> {
+        let test_name = "init";
         // Create the setup conditions
-        let input_dir = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Deinitialize for user
-        configure::deinit(input_dir)?;
+        configure::deinit(origin)?;
         // Assert that packing fails
-        assert!(pack::pipeline(input_dir, true).await.is_err());
+        assert!(pack::pipeline(origin, true).await.is_err());
         // Initialize for this user
-        configure::init(input_dir)?;
+        configure::init(origin)?;
+        // Assert that a config exists for this bucket now
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
         // Teardown
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_configure_remote() -> Result<()> {
+    async fn configure_remote() -> Result<()> {
         let address = "http://app.tomb.com.net.org:5423";
         // Configure the remote endpoint
         configure::remote(address)?;
@@ -70,31 +70,22 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    // #[ignore]
-    async fn pipeline_pack() -> Result<()> {
-        let test_name = "pipeline_pack";
+    async fn pack() -> Result<()> {
+        let test_name = "pack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
         configure::init(origin)?;
-        // Load config
-        let mut config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        // Assert no key yet
-        assert!(config.get_key("root").is_err());
         // Pack
         pack::pipeline(origin, true).await?;
-        // Update config
-        config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        // Ensure content exists and works
-        assert!(config.get_key("root").is_ok());
         // Teardown
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_pack_unpack() -> Result<()> {
-        let test_name = "pipeline_pack_unpack";
+    async fn unpack() -> Result<()> {
+        let test_name = "unpack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
@@ -117,9 +108,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    // #[ignore]
-    async fn pipeline_pack_push() -> Result<()> {
-        let test_name = "pipeline_pack_pull_unpack";
+    async fn pack_push() -> Result<()> {
+        let test_name = "pack_pull_unpack";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
@@ -137,8 +127,8 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore]
-    async fn pipeline_pack_push_pull() -> Result<()> {
-        let test_name = "pipeline_pack_push_pull";
+    async fn pack_push_pull() -> Result<()> {
+        let test_name = "pack_push_pull";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -162,7 +152,7 @@ mod test {
         // Now its time to reconstruct all our data
         pull::pipeline(&origin).await?;
         // The content path of the current content BlockStore
-        let v2_content = GlobalConfig::from_disk()?
+        let v2_content = &GlobalConfig::from_disk()?
             .get_bucket(origin)
             .unwrap()
             .content
@@ -177,8 +167,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_add() -> Result<()> {
-        let test_name = "pipeline_add";
+    async fn add() -> Result<()> {
+        let test_name = "add";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -197,8 +187,10 @@ mod test {
         add::pipeline(origin, input_file, input_file).await?;
 
         // Now that the pipeline has run, grab all metadata
-        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = dir
@@ -227,8 +219,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_remove() -> Result<()> {
-        let test_name = "pipeline_remove";
+    async fn remove() -> Result<()> {
+        let test_name = "remove";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -239,8 +231,10 @@ mod test {
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir) = &mut config.get_all().await?;
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -249,8 +243,10 @@ mod test {
         // Remove the PrivateFile at this Path
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
-        let config = GlobalConfig::from_disk()?.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir) = &mut config.get_all().await?;
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -285,8 +281,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_structure_simple() -> Result<()> {
-        let test_name = "pipeline_structure_simple";
+    async fn structure_simple() -> Result<()> {
+        let test_name = "structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack(test_name).await?;
@@ -295,8 +291,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_structure_deep() -> Result<()> {
-        let test_name = "pipeline_structure_deep";
+    async fn structure_deep() -> Result<()> {
+        let test_name = "structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack(test_name).await?;
@@ -305,8 +301,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pipeline_structure_wide() -> Result<()> {
-        let test_name = "pipeline_structure_deep";
+    async fn structure_wide() -> Result<()> {
+        let test_name = "structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack(test_name).await?;
@@ -315,8 +311,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn test_big_file() -> Result<()> {
-        let test_name = "test_big_file";
+    async fn big_file() -> Result<()> {
+        let test_name = "big_file";
         let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
         assert_pack_unpack(test_name).await?;
@@ -326,8 +322,8 @@ mod test {
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
     #[serial]
-    async fn test_deduplication_integrity() -> Result<()> {
-        let test_name = "test_deduplication_integrity";
+    async fn deduplication_integrity() -> Result<()> {
+        let test_name = "deduplication_integrity";
         // Setup the test
         let origin = &test_setup(test_name).await?;
         let dup_origin = &origin.parent().unwrap().join("dups");
@@ -354,8 +350,8 @@ mod test {
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
     #[serial]
-    async fn test_deduplication_size() -> Result<()> {
-        let test_name = "test_deduplication_size";
+    async fn deduplication_size() -> Result<()> {
+        let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
         let test_name_unique = &format!("{}_unique", test_name);
         // Structure
@@ -414,8 +410,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn test_double_packing() -> Result<()> {
-        let test_name = "test_double_packing";
+    async fn double_packing() -> Result<()> {
+        let test_name = "double_packing";
         // Setup the test once
         test_setup(test_name).await?;
         // Run the test twice
@@ -429,9 +425,9 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore]
-    /// This test fails randomly and succeeds randomly- TODO fix or just wait until WNFS people fix their code.
-    async fn test_versioning() -> Result<()> {
-        let test_name = "test_versioning";
+    // TODO this test case doesn't handle compression yet
+    async fn versioning_complex() -> Result<()> {
+        let test_name = "versioning_complex";
         // Setup the test once
         let origin = &test_setup(test_name).await?;
 
@@ -467,34 +463,10 @@ mod test {
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (mut metadata_forest, content_forest, dir) = config.get_all().await?;
-
-        // Get keys
-        let original_key = &config.get_key("original")?;
-        let key = &config.get_key("root")?;
-
-        // Grab the original PrivateDirectory
-        let original_dir = load_dir(&config.metadata, original_key, &mut metadata_forest).await?;
-
-        assert_ne!(key, original_key);
-        assert_ne!(dir, original_dir);
-
-        let mut iterator = PrivateNodeOnPathHistory::of(
-            dir,
-            original_dir,
-            1_000_000,
-            &[],
-            true,
-            Rc::clone(&metadata_forest),
-            &config.metadata,
-        )
-        .await
-        .unwrap();
-
-        // Describe path of the PrivateFile relative to the root directory
-        let path_segments: Vec<String> =
-            vec!["versioning".to_string(), "0".to_string(), "0".to_string()];
+        let (metadata_forest, content_forest, _, _) = &mut config.get_all(&wrapping_key).await?;
+        let mut iterator = config.get_history(&wrapping_key).await?;
 
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
@@ -502,12 +474,13 @@ mod test {
             .await?
             .unwrap()
             .as_dir()?;
+        // Describe path of the PrivateFile relative to the root directory
+        let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, &mut metadata_forest, &config.metadata)
-            .await
-            .unwrap()
+            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .await?
             .unwrap()
             .as_file()?;
 
@@ -557,8 +530,99 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn test_symlinks() -> Result<()> {
-        let test_name = "test_symlinks";
+    #[ignore]
+    async fn versioning_simple() -> Result<()> {
+        let test_name = "versioning_simple";
+        let structure = Structure::new(1, 1, 2000, Strategy::Simple);
+        // Setup the test once
+        let origin = &test_setup_structured(test_name, structure).await?;
+
+        // Path for the actual file on disk that we'll be writing
+        let versioned_file_path = origin.join("0");
+
+        // Define bytes for each message
+        let hello_bytes = "Hello World!".as_bytes();
+        let goodbye_bytes = "Goodbye World!".as_bytes();
+
+        println!("hb: {:?}\ngb: {:?}", hello_bytes, goodbye_bytes);
+
+        // Write "Hello World!" out to the file; v0
+        File::create(&versioned_file_path)?.write_all(hello_bytes)?;
+        // Run the test
+        assert_pack_unpack(test_name).await?;
+        // Write "Goodbye World!" out to the same file
+        File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
+        // Run the test again
+        assert_pack_unpack(test_name).await?;
+
+        let global = GlobalConfig::from_disk()?;
+        let wrapping_key = global.wrapping_key_from_disk()?;
+        let config = global.get_bucket(origin).unwrap();
+        let (metadata_forest, content_forest, current_dir, _) =
+            &mut config.get_all(&wrapping_key).await?;
+
+        // Describe path of the PrivateFile relative to the root directory
+        let path_segments: Vec<String> = vec!["0".to_string()];
+        let current_file = current_dir
+            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .await?
+            .unwrap()
+            .as_file()?;
+        let current_content = current_file
+            .get_content(&content_forest, &config.content)
+            .await?;
+        let mut current_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            current_content.as_slice(),
+            &mut current_content_decompressed,
+        )?;
+        assert_eq!(goodbye_bytes, current_content_decompressed);
+
+        // Now grab history
+        let mut iterator = config.get_history(&wrapping_key).await?;
+
+        // Get the previous version of the root of the PrivateDirectory
+        let previous_root = iterator
+            .get_previous(&config.metadata)
+            .await?
+            .unwrap()
+            .as_dir()?;
+
+        // Grab the previous version of the PrivateFile
+        let previous_file = previous_root
+            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .await?
+            .unwrap()
+            .as_file()?;
+
+        // Grab the previous version of the PrivateFile content
+        let previous_content = previous_file
+            .get_content(&content_forest, &config.content)
+            .await
+            .unwrap();
+        let mut previous_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            previous_content.as_slice(),
+            &mut previous_content_decompressed,
+        )?;
+
+        // Assert that the previous version of the file was retrieved correctly
+        assert_eq!(previous_content_decompressed, hello_bytes);
+
+        // Assert that there are no more previous versions to find
+        assert!(iterator
+            .get_previous(&config.metadata)
+            .await
+            .unwrap()
+            .is_none());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn symlinks() -> Result<()> {
+        let test_name = "symlinks";
 
         // Setup the test
         let origin = &test_setup(test_name).await?;

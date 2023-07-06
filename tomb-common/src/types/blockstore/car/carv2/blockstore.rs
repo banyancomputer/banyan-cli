@@ -61,16 +61,12 @@ impl BlockStore {
         self.car.get_all_cids()
     }
 
-    pub fn insert_root(&self, root: &Cid) {
-        self.car.insert_root(root);
+    pub fn set_root(&self, root: &Cid) {
+        self.car.set_root(root);
     }
 
-    pub fn empty_roots(&self) {
-        self.car.empty_roots();
-    }
-
-    pub fn get_roots(&self) -> Vec<Cid> {
-        self.car.car.header.roots.borrow().clone()
+    pub fn get_root(&self) -> Option<Cid> {
+        self.car.get_root()
     }
 
     pub fn to_disk(&self) -> Result<()> {
@@ -215,7 +211,7 @@ mod tests {
             .put_block(kitty_bytes.clone(), IpldCodec::Raw)
             .await?;
         // Insert root
-        original.insert_root(&kitty_cid);
+        original.set_root(&kitty_cid);
         // Save
         original.to_disk()?;
 
@@ -223,7 +219,7 @@ mod tests {
         let reconstructed = BlockStore::new(original_path)?;
 
         // Ensure content is still there
-        assert_eq!(kitty_cid, original.get_roots()[0]);
+        assert_eq!(kitty_cid, original.get_root().unwrap());
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
 
         // Assert equality

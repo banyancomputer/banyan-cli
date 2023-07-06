@@ -58,8 +58,12 @@ impl BlockStore {
         self.car.get_all_cids()
     }
 
-    pub fn insert_root(&self, root: &Cid) {
-        self.car.insert_root(root);
+    pub fn set_root(&self, root: &Cid) {
+        self.car.set_root(root);
+    }
+
+    pub fn get_root(&self) -> Option<Cid> {
+        self.car.get_root()
     }
 
     pub fn to_disk(&self) -> Result<()> {
@@ -194,18 +198,16 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn insert_root() -> Result<()> {
-        let car_path = &car_setup(1, "basic", "insert_root")?;
+    async fn set_root() -> Result<()> {
+        let car_path = &car_setup(1, "basic", "set_root")?;
         let store = BlockStore::new(car_path)?;
 
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store
             .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
             .await?;
-
-        assert_eq!(store.car.header.roots.borrow().clone().len(), 2);
-        store.insert_root(&kitty_cid);
-        assert_eq!(store.car.header.roots.borrow().clone().len(), 3);
+        store.set_root(&kitty_cid);
+        assert_eq!(kitty_cid, store.get_root().unwrap());
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
         Ok(())
     }
@@ -244,7 +246,7 @@ mod tests {
             .put_block(kitty_bytes.clone(), IpldCodec::Raw)
             .await?;
         // Insert root
-        original.insert_root(&cid);
+        original.set_root(&cid);
         // Write BlockStore to disk
         original.to_disk()?;
 
@@ -286,7 +288,7 @@ mod tests {
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
         // Insert root
-        store.insert_root(&kitty_cid);
+        store.set_root(&kitty_cid);
         // Save
         store.to_disk()?;
 

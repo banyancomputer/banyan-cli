@@ -1,4 +1,4 @@
-use crate::utils::config::xdg_config_home;
+use crate::{crypto::rsa::RsaPrivateKey, utils::config::xdg_config_home};
 
 use super::bucketconfig::BucketConfig;
 use anyhow::Result;
@@ -8,9 +8,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GlobalConfig {
     version: String,
+    pub wrapping_key_path: PathBuf,
     pub remote: String,
     buckets: Vec<BucketConfig>,
 }
@@ -29,14 +30,20 @@ impl GlobalConfig {
         File::create(Self::get_path()).map_err(anyhow::Error::new)
     }
 
+    // Write to disk
+    pub fn to_disk(&self) -> Result<()> {
+        serde_json::to_writer_pretty(Self::get_write()?, &self)?;
+        Ok(())
+    }
+
     // Initialize from a reader
     pub fn from_disk() -> Result<Self> {
-        match Self::get_read() {
-            Ok(file) => Ok(serde_json::from_reader::<File, Self>(file)?),
-            Err(_) => {
-                Self::default().to_disk()?;
-                Self::from_disk()
-            }
+        if let Ok(file) = Self::get_read() &&
+           let Ok(config) = serde_json::from_reader(file) {
+                Ok(config)
+        } else {
+            Self::default()?.to_disk()?;
+            Self::from_disk()
         }
     }
 
@@ -84,12 +91,6 @@ impl GlobalConfig {
         Ok(())
     }
 
-    // Write to disk
-    pub fn to_disk(&self) -> Result<()> {
-        serde_json::to_writer_pretty(Self::get_write()?, &self)?;
-        Ok(())
-    }
-
     fn find_config(&self, path: &Path) -> Option<BucketConfig> {
         self.buckets
             .clone()
@@ -111,24 +112,110 @@ impl GlobalConfig {
             Ok(self.create_config(path)?)
         }
     }
-}
 
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self {
+    fn default() -> Result<Self> {
+        // Path of the wrapping_key file
+        let wrapping_key_path = xdg_config_home().join("wrapping_key.pem");
+        // Load if it already exists
+        let wrapping_key = if wrapping_key_path.exists() {
+            RsaPrivateKey::from_pem_file(&wrapping_key_path)?
+        } else {
+            RsaPrivateKey::new()?
+        };
+
+        // Save the key to disk
+        wrapping_key.to_pem_file(&wrapping_key_path)?;
+
+        // Create new Global Config
+        Ok(Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
             remote: "".to_string(),
+            wrapping_key_path,
             buckets: Vec::new(),
-        }
+        })
+    }
+
+    pub fn wrapping_key_from_disk(&self) -> Result<RsaPrivateKey> {
+        RsaPrivateKey::from_pem_file(&self.wrapping_key_path)
+    }
+
+    pub fn wrapping_key_to_disk(&self, wrapping_key: &RsaPrivateKey) -> Result<()> {
+        wrapping_key.to_pem_file(&self.wrapping_key_path)?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{types::config::globalconfig::GlobalConfig, utils::tests::*};
+    use crate::{types::config::globalconfig::GlobalConfig, utils::config::xdg_config_home};
     use anyhow::Result;
     use serial_test::serial;
+    use std::{fs::remove_file, path::Path};
 
+    #[test]
+    #[serial]
+    fn to_from_disk() -> Result<()> {
+        // The known path of the global config file
+        let known_path = xdg_config_home().join("global.json");
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        // Create default
+        let original = GlobalConfig::default()?;
+        // Save to disk
+        original.to_disk()?;
+        // Load from disk
+        let reconstructed = GlobalConfig::from_disk()?;
+        assert_eq!(original, reconstructed);
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn from_disk_direct() -> Result<()> {
+        // The known path of the global config file
+        let known_path = xdg_config_home().join("global.json");
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        // Load from disk
+        let reconstructed = GlobalConfig::from_disk()?;
+        // Assert that it is just the default config
+        assert_eq!(GlobalConfig::default()?, reconstructed);
+        Ok(())
+    }
+
+    #[test]
+    #[serial]
+    fn add_bucket() -> Result<()> {
+        // The known path of the global config file
+        let known_path = xdg_config_home().join("global.json");
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+
+        let origin = Path::new("test");
+
+        // Load from disk
+        let mut original = GlobalConfig::from_disk()?;
+        let original_bucket = original.new_bucket(origin)?;
+
+        // Serialize to disk
+        original.to_disk()?;
+        let reconstructed = GlobalConfig::from_disk()?;
+        let reconstructed_bucket = reconstructed.get_bucket(origin).unwrap();
+
+        // Assert equality
+        assert_eq!(original, reconstructed);
+        assert_eq!(original_bucket, reconstructed_bucket);
+
+        Ok(())
+    }
+
+    /*
     #[tokio::test]
     #[serial]
     #[ignore]
@@ -183,4 +270,5 @@ mod test {
         // Teardown
         teardown(test_name).await
     }
+     */
 }
