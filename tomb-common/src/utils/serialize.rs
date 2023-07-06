@@ -152,18 +152,20 @@ pub async fn store_all(
     Ok(())
 }
 
-pub async fn get_original_private_ref_cid(metadata: &BlockStore) -> Result<Cid> {
-    //
-    if let Some(metadata_root) = metadata.get_root() &&
-       let Ok(Ipld::Map(metadata_map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await &&
+/// Grabs the cid of the original PrivateRef
+pub async fn get_original_private_ref_cid(store: &BlockStore) -> Result<Cid> {
+    // If we can successfully extract the Cid
+    if let Some(root) = store.get_root() &&
+       let Ok(Ipld::Map(metadata_map)) = store.get_deserializable::<Ipld>(&root).await &&
        let Some(Ipld::Link(original_private_ref_cid)) = metadata_map.get("original_private_ref") {
-           Ok(*original_private_ref_cid)
-    }
-    else {
+        // Return it
+        Ok(*original_private_ref_cid)
+    } else {
         Err(ConfigError::MissingMetadata("original private_ref_cid".to_string()).into())
     }
 }
 
+/// Obtain a PrivateNodeOnPathHistory iterator for the root directory
 pub async fn load_history(
     wrapping_key: &RsaPrivateKey,
     metadata: &BlockStore,

@@ -294,8 +294,6 @@ mod test {
         let spki_bytes = general_purpose::STANDARD.decode(SPKI_STRING)?;
         let pub_key = RsaPublicKey::from_der(&spki_bytes)?;
         let fingerprint = pub_key.get_fingerprint()?;
-        println!("{}", fingerprint);
-
         assert_eq!(
             fingerprint,
             "92e24ced72f28061deaf595e0ebfa85c06e631116e36650b01caa423d2282e7d"

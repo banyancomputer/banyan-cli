@@ -477,9 +477,6 @@ mod test {
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
 
-        // let ls = previous_root.ls(&vec![], true, metadata_forest, &config.metadata).await?;
-        // println!("\n\n\nls: {:?}", ls);
-
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, true, metadata_forest, &config.metadata)
