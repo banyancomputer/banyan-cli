@@ -80,7 +80,9 @@ impl BucketConfig {
 
     pub(crate) fn remove_data(&self) -> Result<()> {
         // Remove dir if it exists
-        remove_dir_all(&self.generated).ok();
+        if self.generated.exists() {
+            remove_dir_all(&self.generated)?;
+        }
         Ok(())
     }
 

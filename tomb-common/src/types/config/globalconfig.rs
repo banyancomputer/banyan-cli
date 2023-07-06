@@ -5,10 +5,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
-    io::{Read, Write},
     path::{Path, PathBuf},
 };
-use wnfs::common::dagcbor;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GlobalConfig {
@@ -34,19 +32,15 @@ impl GlobalConfig {
 
     // Write to disk
     pub fn to_disk(&self) -> Result<()> {
-        // serde_json::to_writer_pretty(Self::get_write()?, &self)?;
-        let mut writer = Self::get_write()?;
-        writer.write_all(&dagcbor::encode(self)?)?;
+        serde_json::to_writer_pretty(Self::get_write()?, &self)?;
         Ok(())
     }
 
     // Initialize from a reader
     pub fn from_disk() -> Result<Self> {
-        if let Ok(mut file) = Self::get_read() {
-            let mut byte_buf: Vec<u8> = Vec::new();
-            file.read_to_end(&mut byte_buf)?;
+        if let Ok(file) = Self::get_read() {
             // If we successfully deserialize
-            if let Ok(config) = dagcbor::decode(&byte_buf) {
+            if let Ok(config) = serde_json::from_reader(file) {
                 Ok(config)
             }
             // If we fail to reconstruct
