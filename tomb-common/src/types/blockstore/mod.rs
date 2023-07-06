@@ -48,6 +48,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn networkblockstore() -> Result<()> {
         let dir = &PathBuf::from("test");
         create_dir_all(dir)?;

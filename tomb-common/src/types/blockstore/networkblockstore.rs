@@ -6,7 +6,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{borrow::Cow, str::from_utf8, time::Duration};
+use std::{borrow::Cow, str::from_utf8}; // , time::Duration};
 use thiserror::Error;
 use wnfs::{
     common::BlockStore,
@@ -93,7 +93,8 @@ impl BlockStore for NetworkBlockStore {
         // curl -X POST "http://127.0.0.1:5001/api/v0/block/get?arg=<cid>"
         let response: Response = Client::new()
             .post(url)
-            .timeout(Duration::SECOND)
+            // TODO: Figure out why this won't compile
+            // .timeout(Duration::SECOND)
             .send()
             .await
             .expect("Failed to send get_block request.");

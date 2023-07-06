@@ -9,9 +9,12 @@ use rsa::{
 };
 use sha2::Sha256;
 use spki::{DecodePublicKey, EncodePublicKey, SubjectPublicKeyInfoOwned};
-use wnfs::private::{ExchangeKey, PrivateKey};
 
 use crate::crypto::error::RsaError;
+
+// Re-export the ExchangeKey and PrivateKey traits
+pub use wnfs::private::{ExchangeKey, PrivateKey};
+
 
 //--------------------------------------------------------------------------------------------------
 // Constants
