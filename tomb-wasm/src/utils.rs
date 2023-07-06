@@ -6,7 +6,7 @@ use std::{
     fmt::Debug
 };
 use base64::{engine::general_purpose, Engine as _};
-use wnfs::private::RsaPrivateKey;
+use tomb_common::crypto::rsa::RsaPrivateKey; 
 
 pub type JsResult<T> = Result<T, js_sys::Error>;
 
@@ -84,7 +84,7 @@ pub(crate) fn string_to_rsa_key(crypto_key: JsValue) -> JsResult<RsaPrivateKey> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wnfs::private::{PrivateKey, ExchangeKey};
+    use tomb_common::crypto::rsa::{PrivateKey, ExchangeKey};
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;
 

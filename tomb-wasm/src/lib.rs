@@ -21,10 +21,14 @@ use wnfs::{
         PrivateDirectory,
         PrivateForest,
         TemporalKey, KEY_BYTE_SIZE,
-        RsaPrivateKey, PrivateKey,
-        RsaPublicKey, ExchangeKey
     },
     namefilter::Namefilter
+};
+
+// Tomb Imports
+use tomb_common::crypto::rsa::{
+    PrivateKey, ExchangeKey,
+    RsaPrivateKey, RsaPublicKey
 };
 
 // Std / Misc Imports

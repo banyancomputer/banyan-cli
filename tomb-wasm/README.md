@@ -9,12 +9,18 @@ cargo install wasm-pack
 
 ## Build
 ```
+# For stable release
 wasm-pack build
+# For nightly release
+rustup run nightly wasm-pack build
 ```
 
 ## Test
 ```
+# For stable release
 wasm-pack test --headless --firefox
+# For nightly release
+rustup run nightly wasm-pack test --headless --firefox
 ```
 
 ## Run
