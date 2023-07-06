@@ -10,10 +10,6 @@ pub struct Mapper(HashMap<String, (Vec<u8>, Vec<u8>)>);
 
 impl Mapper {
     pub async fn update_temporal_key(&mut self, new_key: &TemporalKey) -> Result<()> {
-        println!(
-            "updating encrypted keys! for t_k: {}",
-            hex::encode(new_key.0.as_bytes())
-        );
         // For each Public Key present in the map
         for (fingerprint, (der, _)) in self.0.clone() {
             let public_key = RsaPublicKey::from_der(&der)?;

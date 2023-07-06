@@ -16,7 +16,6 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
     let wrapping_key = global.wrapping_key_from_disk()?;
 
     if let Some(config) = global.get_bucket(origin) {
-        info!("Loaded manifest...");
         let (metadata_forest, content_forest, root_dir, key_manager) =
             &mut config.get_all(&wrapping_key).await?;
 

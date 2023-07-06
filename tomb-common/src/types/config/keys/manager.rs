@@ -1,7 +1,7 @@
+use super::mapper::Mapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use wnfs::private::{RsaPrivateKey, RsaPublicKey, TemporalKey};
-use super::mapper::Mapper;
 
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
 #[derive(Debug, Default, PartialEq)]

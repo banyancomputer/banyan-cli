@@ -347,7 +347,7 @@ mod test {
         // Run push and assert success
         push(origin).await?.assert().success();
         // Run unpack and assert success
-        pull(&origin).await?.assert().success();
+        pull(origin).await?.assert().success();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(metadata(v1_path)?.len(), metadata(v1_moved)?.len(),);
         // Teardown test

@@ -66,10 +66,6 @@ pub async fn pipeline(
             content_forest = new_content_forest;
             root_dir = new_root_dir;
             key_manager = new_key_manager;
-            println!(
-                "zomg! have seen this before: \n[[[[\n{:?}\n]]]]",
-                key_manager
-            );
         } else {
             info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
