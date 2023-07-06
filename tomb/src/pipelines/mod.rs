@@ -354,8 +354,8 @@ mod test {
         let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
         let test_name_unique = &format!("{}_unique", test_name);
-        // Structure
-        let structure = Structure::new(2, 2, 2000, Strategy::Simple);
+        // Use bigger files such that metadata comprises a minority of the content CARs
+        let structure = Structure::new(2, 2, 1024 * 1024, Strategy::Simple);
         // Deinit all
         configure::deinit_all()?;
 
@@ -401,7 +401,6 @@ mod test {
             metadata(global.get_bucket(&origin_unique).unwrap().content.path)?.len() as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
-        // TODO (organizedgrime) determine the threshold for this test that is most appropriate
         assert!(packed_unique_size / packed_dups_size >= 1.8);
 
         test_teardown(test_name_dup).await?;

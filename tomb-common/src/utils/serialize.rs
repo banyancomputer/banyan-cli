@@ -18,11 +18,11 @@ use wnfs::{
 };
 
 /// Store a given PrivateForest in a given Store
-async fn store_forest(forest: &Rc<PrivateForest>, store: &impl WnfsBlockStore) -> Result<Cid> {
+async fn store_forest(forest: &Rc<PrivateForest>, serializer: &impl WnfsBlockStore, storage: &impl WnfsBlockStore) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
-    let forest_ipld = forest.async_serialize_ipld(store).await?;
+    let forest_ipld = forest.async_serialize_ipld(serializer).await?;
     // Store the PrivateForest's IPLD in the BlockStore
-    let ipld_cid = store.put_serializable(&forest_ipld).await?;
+    let ipld_cid = storage.put_serializable(&forest_ipld).await?;
     // Return Ok
     Ok(ipld_cid)
 }
@@ -99,46 +99,71 @@ pub async fn store_all(
 ) -> Result<()> {
     // Construct new map for metadata
     let mut metadata_map = BTreeMap::new();
-    // Store PrivateDirectory in the metadata BlockStore, retrieving the new TemporalKey and cid of remaining PrivateRef components
-    let (private_ref_cid, temporal_key) = store_dir(metadata, metadata_forest, root_dir).await?;
+    // Store PrivateDirectory in both BlockStores, retrieving the new TemporalKey and cid of remaining PrivateRef components
+    let (private_ref_cid1, temporal_key1) = store_dir(metadata, metadata_forest, root_dir).await?;
+    let (private_ref_cid2, temporal_key2) = store_dir(content, content_forest, root_dir).await?;
+    assert_eq!(private_ref_cid1, private_ref_cid2);
+    assert_eq!(temporal_key1, temporal_key2);
+
     // Update the temporal key in the key manager
-    key_manager.update_current_key(&temporal_key).await?;
+    key_manager.update_current_key(&temporal_key1).await?;
     metadata_map.insert(
         "current_private_ref".to_string(),
-        Ipld::Link(private_ref_cid),
+        Ipld::Link(private_ref_cid1),
     );
     // If we've yet to initialize our originals
     if metadata.get_root().unwrap() == Cid::default() {
         // Set the original key
-        key_manager.set_original_key(&temporal_key).await?;
+        key_manager.set_original_key(&temporal_key1).await?;
         // Insert private ref and set original key in key manager
         metadata_map.insert(
             "original_private_ref".to_string(),
-            Ipld::Link(private_ref_cid),
+            Ipld::Link(private_ref_cid1),
         );
     }
     // If they're already present
     else {
+        // Try to grab it from metadata or content
+        let original_private_ref_cid = if let Ok(cid) = get_original_private_ref_cid(metadata).await
+        {
+            cid
+        } else if let Ok(cid) = get_original_private_ref_cid(content).await {
+            cid
+        } else {
+            return Err(
+                ConfigError::MissingMetadata("lost original PrivateDirectory".to_string()).into(),
+            );
+        };
+
         // Simply ensure the cid reference is carried over by reinserting
         metadata_map.insert(
             "original_private_ref".to_string(),
-            Ipld::Link(get_original_private_ref_cid(metadata).await?),
+            Ipld::Link(original_private_ref_cid),
         );
     }
     // Put the key manager in both the content and the metadata BlockStores
-    let key_manager_cid = metadata.put_serializable(key_manager).await?;
-    metadata_map.insert("key_manager".to_string(), Ipld::Link(key_manager_cid));
+    let key_manager_cid1 = metadata.put_serializable(key_manager).await?;
+    let key_manager_cid2 = content.put_serializable(key_manager).await?;
+    assert_eq!(key_manager_cid1, key_manager_cid2);
+    metadata_map.insert("key_manager".to_string(), Ipld::Link(key_manager_cid1));
 
     // Store the metadata PrivateForest in both the content and the metadata BlockStores
-    let metadata_forest_cid = store_forest(metadata_forest, metadata).await?;
+    let metadata_forest_cid1 = store_forest(metadata_forest, metadata, metadata).await?;
+    let metadata_forest_cid2 = store_forest(metadata_forest, metadata, content).await?;
+    assert_eq!(metadata_forest_cid1, metadata_forest_cid2);
     metadata_map.insert(
         "metadata_forest".to_string(),
-        Ipld::Link(metadata_forest_cid),
+        Ipld::Link(metadata_forest_cid1),
     );
 
     // Store the content PrivateForest in both the content and the metadata BlockStores
-    let content_forest_cid = store_forest(content_forest, content).await?;
-    metadata_map.insert("content_forest".to_string(), Ipld::Link(content_forest_cid));
+    let content_forest_cid1 = store_forest(content_forest, content, content).await?;
+    let content_forest_cid2 = store_forest(content_forest, content, metadata).await?;
+    assert_eq!(content_forest_cid1, content_forest_cid2);
+    metadata_map.insert(
+        "content_forest".to_string(),
+        Ipld::Link(content_forest_cid1),
+    );
 
     // Now that we've finished inserting
     let metadata_root = &Ipld::Map(metadata_map);
@@ -211,14 +236,14 @@ pub async fn load_all(
     Manager,
 )> {
     // Load the IPLD map either from the metadata BlockStore, or the content BlockStore
-    let map =
+    let (map, store) =
         if let Some(metadata_root) = metadata.get_root() &&
            let Ok(Ipld::Map(map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await {
-            map
+            (map, metadata)
         }
         else if let Some(content_root) = content.get_root() &&
                 let Ok(Ipld::Map(map)) = content.get_deserializable::<Ipld>(&content_root).await {
-            map
+            (map, content)
         } else {
             return Err(ConfigError::MissingMetadata("IPLD Map".to_string()).into())
         };
@@ -230,13 +255,13 @@ pub async fn load_all(
     let Some(Ipld::Link(content_forest_cid)) = map.get("content_forest")
     {
         // Load in the objects
-        let metadata_forest = load_forest(metadata_forest_cid, metadata).await?;
-        let content_forest = load_forest(content_forest_cid, content).await?;
-        let mut key_manager = metadata.get_deserializable::<Manager>(key_manager_cid).await?;
+        let metadata_forest = load_forest(metadata_forest_cid, store).await?;
+        let content_forest = load_forest(content_forest_cid, store).await?;
+        let mut key_manager = store.get_deserializable::<Manager>(key_manager_cid).await?;
         // Load in the Temporal Keys to memory
         key_manager.load_temporal_keys(wrapping_key).await?;
         let current_key = &key_manager.retrieve_current(wrapping_key).await?;
-        let current_directory = load_dir(metadata, current_key, current_private_ref_cid, &metadata_forest).await?;
+        let current_directory = load_dir(store, current_key, current_private_ref_cid, &metadata_forest).await?;
         // Return Ok with loaded objectsd
         Ok((metadata_forest, content_forest, current_directory, key_manager))
     }
@@ -260,7 +285,7 @@ mod test {
         let (_, _, config, metadata_forest, _, _) = &mut setup(test_name).await?;
 
         // Store and load
-        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata).await?;
+        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
         let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
 
         // Assert equality
@@ -285,7 +310,7 @@ mod test {
 
         let (private_ref_cid, temporal_key) =
             &store_dir(&config.metadata, metadata_forest, dir).await?;
-        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata).await?;
+        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
         let new_metadata_forest = &load_forest(&metadata_forest_cid, &config.metadata).await?;
         let new_dir = &mut load_dir(
             &config.metadata,
@@ -327,7 +352,7 @@ mod test {
 
         let (private_ref_cid, temporal_key) =
             &store_dir(&config.metadata, original_metadata_forest, original_dir).await?;
-        let metadata_forest_cid = store_forest(original_metadata_forest, &config.metadata).await?;
+        let metadata_forest_cid = store_forest(original_metadata_forest, &config.metadata, &config.metadata).await?;
 
         let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
         let new_dir = &mut load_dir(
