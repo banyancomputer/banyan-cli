@@ -160,7 +160,7 @@ pub async fn process_plans(
                 }
                 // We don't need an else here, directories don't actually contain any data
             }
-            PackPipelinePlan::Symlink(_, _) => todo!(),
+            PackPipelinePlan::Symlink(_, _) => panic!("this is unreachable code"),
         }
 
         // Denote progress for each loop iteration
@@ -187,7 +187,9 @@ pub async fn process_plans(
                     )
                     .await?;
             }
-            PackPipelinePlan::Directory(_) | PackPipelinePlan::FileGroup(_) => todo!(),
+            PackPipelinePlan::Directory(_) | PackPipelinePlan::FileGroup(_) => {
+                panic!("this is unreachable code")
+            }
         }
 
         // Denote progress for each loop iteration
