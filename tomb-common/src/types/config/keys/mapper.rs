@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use wnfs::private::{AesKey, ExchangeKey, PrivateKey, RsaPrivateKey, RsaPublicKey, TemporalKey};
+use wnfs::private::{AesKey, ExchangeKey, PrivateKey, TemporalKey};
+
+use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
 
 use super::error::KeyError;
 
@@ -28,7 +30,7 @@ impl Mapper {
         new_key: &RsaPublicKey,
     ) -> Result<()> {
         // Grab the public key's fingerprint
-        let fingerprint = hex::encode(new_key.get_sha1_fingerprint()?);
+        let fingerprint = hex::encode(new_key.get_fingerprint()?);
         // Represent the public key as DER bytes
         let der = new_key.to_der()?;
 
@@ -51,7 +53,7 @@ impl Mapper {
 
     pub async fn reconstruct(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
         // Grab the fingerprint
-        let fingerprint = hex::encode(private_key.get_public_key().get_sha1_fingerprint()?);
+        let fingerprint = hex::encode(private_key.get_public_key().get_fingerprint()?);
         // Grab the encrypted key associated with the fingerprint
         if let Some((_, encrypted_temporal_key)) = self.0.get(&fingerprint) {
             // Decrypt

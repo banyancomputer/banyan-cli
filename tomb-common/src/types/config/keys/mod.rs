@@ -4,11 +4,14 @@ pub mod mapper;
 
 #[cfg(test)]
 mod tests {
-    use crate::types::config::{globalconfig::GlobalConfig, keys::manager::Manager};
+    use crate::{
+        crypto::rsa::RsaPrivateKey,
+        types::config::{globalconfig::GlobalConfig, keys::manager::Manager},
+    };
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
-    use wnfs::private::{AesKey, RsaPrivateKey, TemporalKey};
+    use wnfs::private::{AesKey, TemporalKey};
 
     fn random_temporal_key() -> TemporalKey {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();

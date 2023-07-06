@@ -1,6 +1,9 @@
-use crate::types::{
-    blockstore::car::carv2::blockstore::BlockStore,
-    config::{error::ConfigError, keys::manager::Manager},
+use crate::{
+    crypto::rsa::RsaPrivateKey,
+    types::{
+        blockstore::car::carv2::blockstore::BlockStore,
+        config::{error::ConfigError, keys::manager::Manager},
+    },
 };
 use anyhow::Result;
 use rand::thread_rng;
@@ -10,7 +13,7 @@ use wnfs::{
     libipld::{serde as ipld_serde, Cid, Ipld},
     private::{
         PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory, PrivateRef,
-        RsaPrivateKey, TemporalKey,
+        TemporalKey,
     },
 };
 
@@ -105,8 +108,7 @@ pub async fn store_all(
         Ipld::Link(private_ref_cid),
     );
     // If we've yet to initialize our originals
-    if metadata.get_root().unwrap() == Cid::default()
-    {
+    if metadata.get_root().unwrap() == Cid::default() {
         // Set the original key
         key_manager.set_original_key(&temporal_key).await?;
         // Insert private ref and set original key in key manager
@@ -136,10 +138,7 @@ pub async fn store_all(
 
     // Store the content PrivateForest in both the content and the metadata BlockStores
     let content_forest_cid = store_forest(content_forest, content).await?;
-    metadata_map.insert(
-        "content_forest".to_string(),
-        Ipld::Link(content_forest_cid),
-    );
+    metadata_map.insert("content_forest".to_string(), Ipld::Link(content_forest_cid));
 
     // Now that we've finished inserting
     let metadata_root = &Ipld::Map(metadata_map);

@@ -1,0 +1,14 @@
+branches:
+  - name: master
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+      required_status_checks:
+        strict: true
+        contexts:
+          - "cargo-deny (advisories)"
+          - "cargo-deny (bans licenses sources)"
+      enforce_admins: null
+      restrictions: null
+      required_linear_history: false

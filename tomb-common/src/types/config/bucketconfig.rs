@@ -1,4 +1,5 @@
 use crate::{
+    crypto::rsa::RsaPrivateKey,
     types::blockstore::car::carv2::blockstore::BlockStore,
     utils::{config::*, serialize::*},
 };
@@ -12,7 +13,7 @@ use std::{
 };
 use wnfs::{
     libipld::Cid,
-    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory, RsaPrivateKey},
+    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
 use super::keys::manager::Manager;

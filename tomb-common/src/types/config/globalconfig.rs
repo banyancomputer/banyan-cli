@@ -1,4 +1,4 @@
-use crate::utils::config::xdg_config_home;
+use crate::{crypto::rsa::RsaPrivateKey, utils::config::xdg_config_home};
 
 use super::{bucketconfig::BucketConfig, error::ConfigError};
 use anyhow::Result;
@@ -8,7 +8,7 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
 };
-use wnfs::{common::dagcbor, private::RsaPrivateKey};
+use wnfs::common::dagcbor;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GlobalConfig {

@@ -101,6 +101,9 @@ skip = [
     { name = "base64", version = "0.13.0" },    # from skip_ratchet v0.1.6
     { name = "base64", version = "0.21.2" },    # from reqwest v0.11.18
 
+    { name = "bitflags", version = "1.2.1" },   # from several dependencies
+    { name = "bitflags", version = "2.3.3" },   # from rustix
+
     { name = "cid", version = "0.8.6"  },       # from serde_ipld_dagcbor v0.3.0
     { name = "cid", version = "0.10.1" },       # from libipld-core v0.16.0
 
@@ -111,12 +114,13 @@ skip = [
     { name = "clap_lex", version = "0.5.0" },   # from clap_builder v4.3.1
 
     { name = "hermit-abi", version = "0.1.19" },    # from atty v0.2.14
-    { name = "hermit-abi", version = "0.2.6"  },    # from num_cpus v1.15.0
     { name = "hermit-abi", version = "0.3.1"  },    # from several dependencies
+
+    { name = "linux-raw-sys", version = "0.3.8" },      # from rustix
+    { name = "linux-raw-sys", version = "0.4.3" },      # from rustix
 
     { name = "memoffset", version = "0.6.5" },   # from nix v0.21.2
     { name = "memoffset", version = "0.7.1" },   # from nix v0.26.2
-    { name = "memoffset", version = "0.8.0" },   # from several dependencies
 
     { name = "multihash", version = "0.16.3" },     # from cid v0.8.6
     { name = "multihash", version = "0.18.1" },     # from many dependencies
@@ -142,6 +146,9 @@ skip = [
 
     { name = "redox_syscall", version = "0.2.16" }, # from several dependencies
     { name = "redox_syscall", version = "0.3.5"  }, # from several dependencies
+
+    { name = "rustix", version = "0.37.12" },     # from several dependencies
+    { name = "rustix", version = "0.38.3" },      # from is-terminal
 
     { name = "syn", version = "1.0.109" }, # from several dependencies
     { name = "syn", version = "2.0.18"  }, # from many dependencies
