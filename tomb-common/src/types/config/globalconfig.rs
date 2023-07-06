@@ -1,6 +1,6 @@
 use crate::{crypto::rsa::RsaPrivateKey, utils::config::xdg_config_home};
 
-use super::{bucketconfig::BucketConfig, error::ConfigError};
+use super::bucketconfig::BucketConfig;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -38,15 +38,9 @@ impl GlobalConfig {
 
     // Initialize from a reader
     pub fn from_disk() -> Result<Self> {
-        if let Ok(file) = Self::get_read() {
-            // If we successfully deserialize
-            if let Ok(config) = serde_json::from_reader(file) {
+        if let Ok(file) = Self::get_read() &&
+           let Ok(config) = serde_json::from_reader(file) {
                 Ok(config)
-            }
-            // If we fail to reconstruct
-            else {
-                Err(ConfigError::BadConfig.into())
-            }
         } else {
             Self::default()?.to_disk()?;
             Self::from_disk()
