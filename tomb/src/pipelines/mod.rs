@@ -41,16 +41,18 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn configure_init() -> Result<()> {
-        let test_name = "configure_init";
+    async fn init() -> Result<()> {
+        let test_name = "init";
         // Create the setup conditions
-        let input_dir = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Deinitialize for user
-        configure::deinit(input_dir)?;
+        configure::deinit(origin)?;
         // Assert that packing fails
-        assert!(pack::pipeline(input_dir, true).await.is_err());
+        assert!(pack::pipeline(origin, true).await.is_err());
         // Initialize for this user
-        configure::init(input_dir)?;
+        configure::init(origin)?;
+        // Assert that a config exists for this bucket now
+        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
         // Teardown
         test_teardown(test_name).await
     }

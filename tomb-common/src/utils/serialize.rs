@@ -252,8 +252,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_forest() -> Result<()> {
-        let test_name = "serial_metadata_forest";
+    async fn forest() -> Result<()> {
+        let test_name = "forest";
         // Start er up!
         let (_, _, config, metadata_forest, _, _) = &mut setup(test_name).await?;
 
@@ -276,8 +276,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_dir_object() -> Result<()> {
-        let test_name = "serial_dir_object";
+    async fn dir_object() -> Result<()> {
+        let test_name = "dir_object";
         // Start er up!
         let (_, _, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
@@ -300,8 +300,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_dir_content() -> Result<()> {
-        let test_name = "serial_dir_content";
+    async fn dir_content() -> Result<()> {
+        let test_name = "dir_content";
         // Start er up!
         let (_, _, config, original_metadata_forest, original_content_forest, original_dir) =
             &mut setup(test_name).await?;
@@ -361,8 +361,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_all() -> Result<()> {
-        let test_name = "serial_all";
+    async fn all() -> Result<()> {
+        let test_name = "all";
         // Start er up!
         let (_, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
@@ -406,8 +406,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn serial_history() -> Result<()> {
-        let test_name = "serial_all";
+    async fn history() -> Result<()> {
+        let test_name = "history";
         // Start er up!
         let (_, global, config, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;

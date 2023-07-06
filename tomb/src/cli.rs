@@ -162,19 +162,19 @@ mod test {
     };
     use tomb_common::types::config::globalconfig::GlobalConfig;
 
-    async fn init(dir: &Path) -> Result<Command> {
+    async fn cmd_init(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("init").arg(dir);
         Ok(cmd)
     }
 
-    async fn deinit(dir: &Path) -> Result<Command> {
+    async fn cmd_deinit(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("deinit").arg(dir);
         Ok(cmd)
     }
 
-    async fn configure_remote(address: &str) -> Result<Command> {
+    async fn cmd_configure_remote(address: &str) -> Result<Command> {
         // configure set-remote --url http://127.0.0.1 --port 5001
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("configure")
@@ -185,7 +185,7 @@ mod test {
     }
 
     // Run the Pack pipeline through the CLI
-    async fn pack(origin: &Path) -> Result<Command> {
+    async fn cmd_pack(origin: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("pack")
             .arg("--origin")
@@ -194,7 +194,7 @@ mod test {
     }
 
     // Run the Unpack pipeline through the CLI
-    async fn unpack(origin: &Path, unpacked: &Path) -> Result<Command> {
+    async fn cmd_unpack(origin: &Path, unpacked: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("unpack")
             .arg("--origin")
@@ -205,7 +205,7 @@ mod test {
     }
 
     // Run the Push pipeline through the CLI
-    async fn push(input_dir: &Path) -> Result<Command> {
+    async fn cmd_push(input_dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("push")
             .arg("--dir")
@@ -214,7 +214,7 @@ mod test {
     }
 
     // Run the Pull pipeline through the CLI
-    async fn pull(dir: &Path) -> Result<Command> {
+    async fn cmd_pull(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;
         cmd.arg("pull").arg("--dir").arg(dir.to_str().unwrap());
         Ok(cmd)
@@ -222,14 +222,14 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn cli_init() -> Result<()> {
-        let test_name = "cli_init";
+    async fn init() -> Result<()> {
+        let test_name = "init";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
         // Initialization worked
-        init(&origin).await?.assert().success();
+        cmd_init(&origin).await?.assert().success();
         // Assert the bucket exists now
         let global = GlobalConfig::from_disk()?;
         // Assert that there is always a wrapping key
@@ -242,18 +242,18 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn cli_init_deinit() -> Result<()> {
-        let test_name = "cli_init_deinit";
+    async fn init_deinit() -> Result<()> {
+        let test_name = "init_deinit";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
         // Initialization worked
-        init(origin).await?.assert().success();
+        cmd_init(origin).await?.assert().success();
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
         // Deinitialize the directory
-        deinit(origin).await?.assert().success();
+        cmd_deinit(origin).await?.assert().success();
         // Assert the bucket is gone again
         assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
         // Teardown test
@@ -262,16 +262,16 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn cli_configure_remote() -> Result<()> {
-        let test_name = "cli_configure_remote";
+    async fn configure_remote() -> Result<()> {
+        let test_name = "configure_remote";
         // Setup test
         let input_dir = &test_setup(test_name).await?;
 
         // Initialize
-        init(&input_dir).await?.assert().success();
+        cmd_init(&input_dir).await?.assert().success();
 
         // Configure remote endpoint
-        configure_remote("http://127.0.0.1:5001")
+        cmd_configure_remote("http://127.0.0.1:5001")
             .await?
             .assert()
             .success();
@@ -286,33 +286,33 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn cli_pack() -> Result<()> {
-        let test_name = "cli_pack";
+    async fn pack() -> Result<()> {
+        let test_name = "pack";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(origin).await?.assert().success();
+        cmd_init(origin).await?.assert().success();
         // Run pack and assert success
-        pack(origin).await?.assert().success();
+        cmd_pack(origin).await?.assert().success();
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn cli_unpack() -> Result<()> {
-        let test_name = "cli_unpack";
+    async fn unpack() -> Result<()> {
+        let test_name = "unpack";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(origin).await?.assert().success();
+        cmd_init(origin).await?.assert().success();
         // Run pack and assert success
-        pack(origin).await?.assert().success();
+        cmd_pack(origin).await?.assert().success();
         // Create unpacked dir
         let unpacked = &origin.parent().unwrap().join("unpacked");
         create_dir(unpacked).ok();
         // Run unpack and assert success
-        unpack(origin, unpacked).await?.assert().success();
+        cmd_unpack(origin, unpacked).await?.assert().success();
         // Assert equality
         assert_paths(origin, unpacked).unwrap();
         // Teardown test
@@ -322,19 +322,19 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore]
-    async fn cli_push_pull() -> Result<()> {
-        let test_name = "cli_push_pull";
+    async fn push_pull() -> Result<()> {
+        let test_name = "push_pull";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        init(origin).await?.assert().success();
+        cmd_init(origin).await?.assert().success();
         // Configure remote endpoint
-        configure_remote("http://127.0.0.1:5001")
+        cmd_configure_remote("http://127.0.0.1:5001")
             .await?
             .assert()
             .success();
         // Run pack locally and assert success
-        pack(origin).await?.assert().success();
+        cmd_pack(origin).await?.assert().success();
 
         let v1_path = &GlobalConfig::from_disk()?
             .get_bucket(origin)
@@ -345,9 +345,9 @@ mod test {
         file::move_file(v1_path, v1_moved, &file::CopyOptions::new())?;
 
         // Run push and assert success
-        push(origin).await?.assert().success();
+        cmd_push(origin).await?.assert().success();
         // Run unpack and assert success
-        pull(origin).await?.assert().success();
+        cmd_pull(origin).await?.assert().success();
         // Assert that, despite reordering of CIDs, content CAR is the exact same size
         assert_eq!(metadata(v1_path)?.len(), metadata(v1_moved)?.len(),);
         // Teardown test
