@@ -420,15 +420,13 @@ mod test {
         test_teardown(test_name).await
     }
 
-    // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     #[tokio::test]
     #[serial]
-    #[ignore]
-    // TODO this test case doesn't handle compression yet
     async fn versioning_complex() -> Result<()> {
         let test_name = "versioning_complex";
+        let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
-        let origin = &test_setup(test_name).await?;
+        let origin = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0").join("0");
@@ -445,26 +443,42 @@ mod test {
 
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
-
         // Run the test
         assert_pack_unpack(test_name).await?;
-
         // Write "Still there, World?" out to the same file
         File::create(&versioned_file_path)?.write_all(still_bytes)?;
-
         // Run the test again
         assert_pack_unpack(test_name).await?;
-
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
-
         // Run the test again
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, _, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, content_forest, current_dir, _) =
+            &mut config.get_all(&wrapping_key).await?;
+
+        // Describe path of the PrivateFile relative to the root directory
+        let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
+        let current_file = current_dir
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .await?
+            .unwrap()
+            .as_file()?;
+        let current_content = current_file
+            .get_content(&content_forest, &config.content)
+            .await?;
+        let mut current_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            current_content.as_slice(),
+            &mut current_content_decompressed,
+        )?;
+        // Assert that the current version of the file was retrieved correctly
+        assert_eq!(goodbye_bytes, current_content_decompressed);
+
+        // Now grab history
         let mut iterator = config.get_history(&wrapping_key).await?;
 
         // Get the previous version of the root of the PrivateDirectory
@@ -473,12 +487,10 @@ mod test {
             .await?
             .unwrap()
             .as_dir()?;
-        // Describe path of the PrivateFile relative to the root directory
-        let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
@@ -488,9 +500,13 @@ mod test {
             .get_content(&content_forest, &config.content)
             .await
             .unwrap();
-
+        let mut previous_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            previous_content.as_slice(),
+            &mut previous_content_decompressed,
+        )?;
         // Assert that the previous version of the file was retrieved correctly
-        assert!(previous_content != goodbye_bytes);
+        assert_eq!(previous_content_decompressed, still_bytes);
 
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
@@ -501,7 +517,7 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, true, &metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
@@ -509,13 +525,15 @@ mod test {
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
             .get_content(&content_forest, &config.content)
-            .await?;
-
+            .await
+            .unwrap();
+        let mut original_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            original_content.as_slice(),
+            &mut original_content_decompressed,
+        )?;
         // Assert that the previous version of the file was retrieved correctly
-        assert!(original_content != goodbye_bytes);
-
-        assert_eq!(original_content, hello_bytes);
-        assert_eq!(previous_content, still_bytes);
+        assert_eq!(original_content_decompressed, hello_bytes);
 
         // Assert that there are no more previous versions to find
         assert!(iterator
@@ -529,7 +547,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn versioning_simple() -> Result<()> {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
@@ -563,7 +580,7 @@ mod test {
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];
         let current_file = current_dir
-            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
@@ -575,6 +592,7 @@ mod test {
             current_content.as_slice(),
             &mut current_content_decompressed,
         )?;
+        // Assert that the current version of the file was retrieved correctly
         assert_eq!(goodbye_bytes, current_content_decompressed);
 
         // Now grab history
@@ -589,7 +607,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;

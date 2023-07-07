@@ -18,7 +18,11 @@ use wnfs::{
 };
 
 /// Store a given PrivateForest in a given Store
-async fn store_forest(forest: &Rc<PrivateForest>, serializer: &impl WnfsBlockStore, storage: &impl WnfsBlockStore) -> Result<Cid> {
+async fn store_forest(
+    forest: &Rc<PrivateForest>,
+    serializer: &impl WnfsBlockStore,
+    storage: &impl WnfsBlockStore,
+) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(serializer).await?;
     // Store the PrivateForest's IPLD in the BlockStore
@@ -285,7 +289,8 @@ mod test {
         let (_, _, config, metadata_forest, _, _) = &mut setup(test_name).await?;
 
         // Store and load
-        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
+        let metadata_forest_cid =
+            store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
         let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
 
         // Assert equality
@@ -310,7 +315,8 @@ mod test {
 
         let (private_ref_cid, temporal_key) =
             &store_dir(&config.metadata, metadata_forest, dir).await?;
-        let metadata_forest_cid = store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
+        let metadata_forest_cid =
+            store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
         let new_metadata_forest = &load_forest(&metadata_forest_cid, &config.metadata).await?;
         let new_dir = &mut load_dir(
             &config.metadata,
@@ -352,7 +358,8 @@ mod test {
 
         let (private_ref_cid, temporal_key) =
             &store_dir(&config.metadata, original_metadata_forest, original_dir).await?;
-        let metadata_forest_cid = store_forest(original_metadata_forest, &config.metadata, &config.metadata).await?;
+        let metadata_forest_cid =
+            store_forest(original_metadata_forest, &config.metadata, &config.metadata).await?;
 
         let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
         let new_dir = &mut load_dir(
