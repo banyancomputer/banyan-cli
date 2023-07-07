@@ -20,26 +20,28 @@ use crate::utils::wnfsio::file_to_disk;
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineError> {
+pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineError> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
 
     let mut global = GlobalConfig::from_disk()?;
+    let wrapping_key = global.wrapping_key_from_disk()?;
 
     if let Some(config) = global.get_bucket(origin) {
         // Load metadata
-        let (metadata_forest, content_forest, dir) = &mut config.get_all().await?;
+        let (metadata_forest, content_forest, dir, key_manager) =
+            &mut config.get_all(&wrapping_key).await?;
         let metadata = &config.metadata;
         let content = &config.content;
 
         info!(
             "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
-            output_dir.display()
+            unpacked.display()
         );
 
         #[async_recursion(?Send)]
         async fn process_node(
-            output_dir: &Path,
+            unpacked: &Path,
             built_path: &Path,
             node: &PrivateNode,
             metadata_forest: &Rc<PrivateForest>,
@@ -50,7 +52,7 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineEr
             match &node {
                 PrivateNode::Dir(dir) => {
                     // Create the directory we are in
-                    std::fs::create_dir_all(output_dir.join(built_path))?;
+                    std::fs::create_dir_all(unpacked.join(built_path))?;
                     // Obtain a list of this Node's children
                     let node_names: Vec<String> = dir
                         .ls(&Vec::new(), true, metadata_forest, metadata)
@@ -68,7 +70,7 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineEr
                         {
                             // Recurse with newly found node and await
                             process_node(
-                                output_dir,
+                                unpacked,
                                 &built_path.join(node_name),
                                 &node,
                                 metadata_forest,
@@ -82,9 +84,9 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineEr
                 }
                 PrivateNode::File(file) => {
                     // This is where the file will be unpacked no matter what
-                    let file_path = &output_dir.join(built_path);
+                    let file_path = &unpacked.join(built_path);
                     // Handle the PrivateFile and write its contents to disk
-                    file_to_disk(file, output_dir, file_path, content_forest, content).await?;
+                    file_to_disk(file, unpacked, file_path, content_forest, content).await?;
                 }
             }
             Ok(())
@@ -92,7 +94,7 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineEr
 
         // Run extraction on the base level with an empty built path
         process_node(
-            output_dir,
+            unpacked,
             Path::new(""),
             &dir.as_node(),
             metadata_forest,
@@ -101,12 +103,18 @@ pub async fn pipeline(origin: &Path, output_dir: &Path) -> Result<(), PipelineEr
             content,
         )
         .await?;
-
         // Set all
-        config.set_all(metadata_forest, content_forest, dir).await?;
+        config
+            .set_all(
+                &wrapping_key,
+                metadata_forest,
+                content_forest,
+                dir,
+                key_manager,
+            )
+            .await?;
         global.update_config(&config)?;
         global.to_disk()?;
-
         Ok(())
     } else {
         Err(PipelineError::Uninitialized)

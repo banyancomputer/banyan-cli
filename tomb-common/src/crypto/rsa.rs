@@ -186,7 +186,7 @@ mod test {
     use base64::{engine::general_purpose, Engine as _};
 
     #[async_std::test]
-    async fn test_rsa_key_pair() -> Result<()> {
+    async fn key_pair() -> Result<()> {
         let priv_key = RsaPrivateKey::new()?;
         let pub_key = priv_key.get_public_key();
 
@@ -199,7 +199,7 @@ mod test {
     }
 
     #[async_std::test]
-    async fn test_rsa_priv_key_from_pem_file() -> Result<()> {
+    async fn private_key_from_pem_file() -> Result<()> {
         let priv_key = RsaPrivateKey::new()?;
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
@@ -219,7 +219,7 @@ mod test {
     }
 
     #[async_std::test]
-    async fn test_rsa_pub_key_from_pem_file() -> Result<()> {
+    async fn public_key_from_pem_file() -> Result<()> {
         let priv_key = RsaPrivateKey::new()?;
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
@@ -239,7 +239,7 @@ mod test {
     }
 
     #[async_std::test]
-    async fn test_rsa_key_pair_from_base64_strings() -> Result<()> {
+    async fn key_pair_from_base64_strings() -> Result<()> {
         const SPKI_STRING: &str = "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA1SRtDiytKr0oswH8oEam8MyRPrhYGywYF7zitYen/6mkjgzoabdx7lHfQNhdW84030a5jjmwGrZwoJ12E9vgtatEUYBf6+Oa8wThtigk7/mPgdrBLNsQrTusjrlSsG+zFKDL8fnzu3CaJRHUFqGbmpSJG2aRDEOeBWuVIMFfRbmH2mz7XQlDm3hkHkTefvq9HED8mHcUD9bSLFJjT8Ks6m2XguFmYs5VfiyMVQgmsWrCpvMmqjKzJzmLDnjEIU85eU+kM6vme4BLkMh9OtEOUODusfZe20QlOMqPBcmGEgZeDnYPsKGAVTm/W3y7GUkzxFT6YQDnn9PqMB+nAAL8BeptHc1rkc1U/+UlGuvnI4zawUsPqCL8F7tQR9SHcBHGJkhxdJQVlGOehzHsbKG53vwevLO5pxZ9LkDCzrRV7zs45PI4zJkm856PVbXKMv9jZmt4dv4V5PLx+8nGOmwUZy2HGIJHCpgXQiPsV1AlavXohhIKAwwDbMwyd9Q38/vVAgMBAAE=";
         const PKCS8_STRING: &str = "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";
         let plaintext = b"Hello, world!";
@@ -260,7 +260,7 @@ mod test {
     }
 
     #[async_std::test]
-    async fn test_rsa_pub_key_to_der() -> Result<()> {
+    async fn public_key_to_der() -> Result<()> {
         let priv_key = RsaPrivateKey::new()?;
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
@@ -276,7 +276,7 @@ mod test {
     }
 
     #[async_std::test]
-    async fn test_rsa_priv_key_to_der() -> Result<()> {
+    async fn private_key_to_der() -> Result<()> {
         let priv_key = RsaPrivateKey::new()?;
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
@@ -292,13 +292,11 @@ mod test {
     }
 
     #[test]
-    fn test_rsa_pub_key_fingerprint() -> Result<()> {
+    fn public_key_fingerprint() -> Result<()> {
         const SPKI_STRING: &str = "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA1SRtDiytKr0oswH8oEam8MyRPrhYGywYF7zitYen/6mkjgzoabdx7lHfQNhdW84030a5jjmwGrZwoJ12E9vgtatEUYBf6+Oa8wThtigk7/mPgdrBLNsQrTusjrlSsG+zFKDL8fnzu3CaJRHUFqGbmpSJG2aRDEOeBWuVIMFfRbmH2mz7XQlDm3hkHkTefvq9HED8mHcUD9bSLFJjT8Ks6m2XguFmYs5VfiyMVQgmsWrCpvMmqjKzJzmLDnjEIU85eU+kM6vme4BLkMh9OtEOUODusfZe20QlOMqPBcmGEgZeDnYPsKGAVTm/W3y7GUkzxFT6YQDnn9PqMB+nAAL8BeptHc1rkc1U/+UlGuvnI4zawUsPqCL8F7tQR9SHcBHGJkhxdJQVlGOehzHsbKG53vwevLO5pxZ9LkDCzrRV7zs45PI4zJkm856PVbXKMv9jZmt4dv4V5PLx+8nGOmwUZy2HGIJHCpgXQiPsV1AlavXohhIKAwwDbMwyd9Q38/vVAgMBAAE=";
         let spki_bytes = general_purpose::STANDARD.decode(SPKI_STRING)?;
         let pub_key = RsaPublicKey::from_der(&spki_bytes)?;
         let fingerprint = pub_key.get_fingerprint()?;
-        println!("{}", fingerprint);
-
         assert_eq!(
             fingerprint,
             "92e24ced72f28061deaf595e0ebfa85c06e631116e36650b01caa423d2282e7d"
@@ -307,7 +305,7 @@ mod test {
     }
 
     #[async_std::test]
-    async fn test_rsa_key_pair_from_public_key_modulus() -> Result<()> {
+    async fn key_pair_from_public_key_modulus() -> Result<()> {
         let priv_key = RsaPrivateKey::new()?;
         let pub_key = priv_key.get_public_key();
 
