@@ -20,6 +20,7 @@ mod test {
     use super::add;
     use crate::{
         pipelines::{configure, pack, pull, push, remove, unpack},
+        types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
             tests::{test_setup, test_setup_structured, test_teardown},
@@ -37,7 +38,6 @@ mod test {
         os::unix::fs::symlink,
         path::PathBuf,
     };
-    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]
@@ -109,7 +109,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn pack_push() -> Result<()> {
-        let test_name = "pack_pull_unpack";
+        let test_name = "pack_push";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize

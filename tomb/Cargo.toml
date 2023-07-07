@@ -10,6 +10,7 @@ version.workspace = true
 
 [dependencies]
 tomb-common = { path = "../tomb-common", version = "1.1.0" }
+serde_json = { workspace = true }
 wnfs.workspace = true
 anyhow.workspace = true
 jwalk.workspace = true
@@ -25,6 +26,8 @@ tokio.workspace = true
 clap.workspace = true
 thiserror = "1.0.40"
 env_logger = "0.10.0"
+async-trait = "0.1.71"
+hex = "0.4.3"
 
 [dev-dependencies]
 assert_cmd = "2.0.11"

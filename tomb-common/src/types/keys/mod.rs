@@ -4,10 +4,7 @@ pub mod mapper;
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        crypto::rsa::RsaPrivateKey,
-        types::config::{globalconfig::GlobalConfig, keys::manager::Manager},
-    };
+    use crate::{crypto::rsa::RsaPrivateKey, types::keys::manager::Manager};
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
@@ -19,8 +16,7 @@ mod tests {
     }
 
     fn grab_rsa_private_key() -> Result<RsaPrivateKey> {
-        let global = GlobalConfig::from_disk()?;
-        global.wrapping_key_from_disk()
+        RsaPrivateKey::new()
     }
 
     #[tokio::test]

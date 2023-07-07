@@ -1,13 +1,7 @@
-use crate::{
-    crypto::rsa::RsaPrivateKey,
-    types::{
-        blockstore::car::carv2::blockstore::BlockStore,
-        config::{error::ConfigError, keys::manager::Manager},
-    },
-};
 use anyhow::Result;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
+use tomb_common::{crypto::rsa::RsaPrivateKey, types::keys::manager::Manager};
 use wnfs::{
     common::{AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
@@ -16,6 +10,8 @@ use wnfs::{
         TemporalKey,
     },
 };
+
+use crate::types::{blockstore::carv2::blockstore::BlockStore, config::error::ConfigError};
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(

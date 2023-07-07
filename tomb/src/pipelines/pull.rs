@@ -1,13 +1,12 @@
 use std::{collections::HashSet, fs::remove_file, path::Path, rc::Rc};
 
-use anyhow::Result;
-use tomb_common::types::{
-    blockstore::{car::carv2::blockstore::BlockStore, networkblockstore::NetworkBlockStore},
-    config::globalconfig::GlobalConfig,
+use crate::{
+    types::{blockstore::carv2::blockstore::BlockStore, config::globalconfig::GlobalConfig},
+    utils::wnfsio::get_progress_bar,
 };
+use anyhow::Result;
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use wnfs::{common::BlockStore as WnfsBlockStore, private::PrivateForest};
-
-use crate::utils::wnfsio::get_progress_bar;
 
 use super::error::PipelineError;
 

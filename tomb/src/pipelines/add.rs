@@ -1,13 +1,13 @@
 use std::path::Path;
 
+use super::error::PipelineError;
+use crate::{
+    types::config::globalconfig::GlobalConfig,
+    utils::{spider::path_to_segments, wnfsio::compress_file},
+};
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
-use tomb_common::types::config::globalconfig::GlobalConfig;
-
-use crate::utils::{spider::path_to_segments, wnfsio::compress_file};
-
-use super::error::PipelineError;
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(

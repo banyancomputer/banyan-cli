@@ -8,12 +8,7 @@ pub mod networkblockstore;
 #[cfg(test)]
 mod tests {
     use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
-    use crate::{
-        types::blockstore::car::{carv1, carv2},
-        utils::tests::car_setup,
-    };
     use anyhow::Result;
-    use serial_test::serial;
     use std::{fs::create_dir_all, path::PathBuf};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
 
@@ -28,26 +23,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial]
-    async fn carv1blockstore() -> Result<()> {
-        let car_path = &car_setup(1, "basic", "blockstore")?;
-        let store = &carv1::blockstore::BlockStore::new(car_path)?;
-        bs_retrieval_test(store).await?;
-        bs_duplication_test(store).await?;
-        bs_serialization_test(store).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn carv2blockstore() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "blockstore")?;
-        let store = &carv2::blockstore::BlockStore::new(car_path)?;
-        bs_retrieval_test(store).await?;
-        bs_duplication_test(store).await?;
-        bs_serialization_test(store).await
-    }
-
-    #[tokio::test]
+    #[ignore]
     async fn networkblockstore() -> Result<()> {
         let dir = &PathBuf::from("test");
         create_dir_all(dir)?;

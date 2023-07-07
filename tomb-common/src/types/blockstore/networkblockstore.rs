@@ -6,14 +6,12 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{borrow::Cow, str::from_utf8, time::Duration};
+use std::{borrow::Cow, str::from_utf8}; // , time::Duration};
 use thiserror::Error;
 use wnfs::{
     common::BlockStore,
     libipld::{Cid, IpldCodec},
 };
-
-use crate::types::config::error::ConfigError;
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
@@ -27,6 +25,8 @@ pub struct NetworkBlockStore {
 pub(crate) enum NetworkError {
     #[error("Bad response given: {0}")]
     BadRespose(String),
+    #[error("Endpoint was invalid: {0}")]
+    BadEndpoint(String),
     #[error("No response given")]
     NoResponse,
 }
@@ -40,7 +40,7 @@ impl NetworkBlockStore {
     pub fn new(addr: &str) -> Result<Self> {
         // TODO(organizedgrime) - also add a case for https
         if !addr.starts_with("http://") {
-            Err(ConfigError::BadEndpoint(addr.to_string()).into())
+            Err(NetworkError::BadEndpoint(addr.to_string()).into())
         } else {
             // Create/return the new instance of self
             Ok(Self {
@@ -93,7 +93,8 @@ impl BlockStore for NetworkBlockStore {
         // curl -X POST "http://127.0.0.1:5001/api/v0/block/get?arg=<cid>"
         let response: Response = Client::new()
             .post(url)
-            .timeout(Duration::SECOND)
+            // TODO: Figure out why this won't compile
+            // .timeout(Duration::SECOND)
             .send()
             .await
             .expect("Failed to send get_block request.");

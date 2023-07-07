@@ -1,11 +1,11 @@
+use crate::{
+    pipelines::error::PipelineError, types::config::globalconfig::GlobalConfig,
+    utils::wnfsio::get_progress_bar,
+};
 use anyhow::Result;
 use std::path::Path;
-use tomb_common::types::{
-    blockstore::networkblockstore::NetworkBlockStore, config::globalconfig::GlobalConfig,
-};
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use wnfs::{common::BlockStore, libipld::Cid};
-
-use crate::{pipelines::error::PipelineError, utils::wnfsio::get_progress_bar};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
