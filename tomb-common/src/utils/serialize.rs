@@ -10,14 +10,17 @@ use wnfs::{
     },
 };
 
-use crate::{types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager}, crypto::rsa::RsaPrivateKey, utils::error::SerialError};
-
+use crate::{
+    crypto::rsa::RsaPrivateKey,
+    types::{blockstore::rootedblockstore::RootedBlockStore, keys::manager::Manager},
+    utils::error::SerialError,
+};
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(
     forest: &Rc<PrivateForest>,
-    serializer: &impl CarBlockStore,
-    storage: &impl CarBlockStore,
+    serializer: &impl RootedBlockStore,
+    storage: &impl RootedBlockStore,
 ) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(serializer).await?;
@@ -28,7 +31,7 @@ async fn store_forest(
 }
 
 /// Load a given PrivateForest from a given Store
-async fn load_forest(cid: &Cid, store: &impl CarBlockStore) -> Result<Rc<PrivateForest>> {
+async fn load_forest(cid: &Cid, store: &impl RootedBlockStore) -> Result<Rc<PrivateForest>> {
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
@@ -39,7 +42,7 @@ async fn load_forest(cid: &Cid, store: &impl CarBlockStore) -> Result<Rc<Private
 }
 
 /// Store a PrivateDirectory
-async fn store_dir<CBS: CarBlockStore>(
+async fn store_dir<CBS: RootedBlockStore>(
     store: &CBS,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
@@ -67,7 +70,7 @@ async fn store_dir<CBS: CarBlockStore>(
 }
 
 /// Load a PrivateDirectory
-async fn load_dir<CBS: CarBlockStore>(
+async fn load_dir<CBS: RootedBlockStore>(
     store: &CBS,
     temporal_key: &TemporalKey,
     private_ref_cid: &Cid,
@@ -89,7 +92,7 @@ async fn load_dir<CBS: CarBlockStore>(
 }
 
 /// Store everything at once!
-pub async fn store_all<CBS: CarBlockStore>(
+pub async fn store_all<CBS: RootedBlockStore>(
     metadata: &CBS,
     content: &CBS,
     metadata_forest: &mut Rc<PrivateForest>,
@@ -178,7 +181,7 @@ pub async fn store_all<CBS: CarBlockStore>(
 }
 
 /// Grabs the cid of the original PrivateRef
-pub async fn get_original_private_ref_cid<CBS: CarBlockStore>(store: &CBS) -> Result<Cid> {
+pub async fn get_original_private_ref_cid<CBS: RootedBlockStore>(store: &CBS) -> Result<Cid> {
     // If we can successfully extract the Cid
     if let Some(root) = store.get_root() &&
        let Ok(Ipld::Map(metadata_map)) = store.get_deserializable::<Ipld>(&root).await &&
@@ -191,7 +194,7 @@ pub async fn get_original_private_ref_cid<CBS: CarBlockStore>(store: &CBS) -> Re
 }
 
 /// Obtain a PrivateNodeOnPathHistory iterator for the root directory
-pub async fn load_history<CBS: CarBlockStore>(
+pub async fn load_history<CBS: RootedBlockStore>(
     wrapping_key: &RsaPrivateKey,
     metadata: &CBS,
     content: &CBS,
@@ -225,7 +228,7 @@ pub async fn load_history<CBS: CarBlockStore>(
 }
 
 /// Load everything at once!
-pub async fn load_all<CBS: CarBlockStore>(
+pub async fn load_all<CBS: RootedBlockStore>(
     wrapping_key: &RsaPrivateKey,
     metadata: &CBS,
     content: &CBS,
@@ -270,7 +273,6 @@ pub async fn load_all<CBS: CarBlockStore>(
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
     use crate::utils::{serialize::*, tests::*};
@@ -283,17 +285,16 @@ mod test {
     async fn forest() -> Result<()> {
         let test_name = "forest";
         // Start er up!
-        let (_, _, config, metadata_forest, _, _) = &mut setup(test_name).await?;
+        let (_, metadata, _, metadata_forest, _, _) = &mut setup(test_name).await?;
 
         // Store and load
-        let metadata_forest_cid =
-            store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
-        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
+        let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
+        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, metadata).await?;
 
         // Assert equality
         assert_eq!(
             new_metadata_forest
-                .diff(metadata_forest, &config.metadata)
+                .diff(metadata_forest, metadata)
                 .await?
                 .len(),
             0
@@ -308,20 +309,13 @@ mod test {
     async fn dir_object() -> Result<()> {
         let test_name = "dir_object";
         // Start er up!
-        let (_, _, config, metadata_forest, _, dir) = &mut setup(test_name).await?;
+        let (_, metadata, _, metadata_forest, _, dir) = &mut setup(test_name).await?;
 
-        let (private_ref_cid, temporal_key) =
-            &store_dir(&config.metadata, metadata_forest, dir).await?;
-        let metadata_forest_cid =
-            store_forest(metadata_forest, &config.metadata, &config.metadata).await?;
-        let new_metadata_forest = &load_forest(&metadata_forest_cid, &config.metadata).await?;
-        let new_dir = &mut load_dir(
-            &config.metadata,
-            temporal_key,
-            private_ref_cid,
-            new_metadata_forest,
-        )
-        .await?;
+        let (private_ref_cid, temporal_key) = &store_dir(metadata, metadata_forest, dir).await?;
+        let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
+        let new_metadata_forest = &load_forest(&metadata_forest_cid, metadata).await?;
+        let new_dir =
+            &mut load_dir(metadata, temporal_key, private_ref_cid, new_metadata_forest).await?;
         // Assert equality
         assert_eq!(dir, new_dir);
         // Teardown
@@ -333,7 +327,7 @@ mod test {
     async fn dir_content() -> Result<()> {
         let test_name = "dir_content";
         // Start er up!
-        let (_, _, config, original_metadata_forest, original_content_forest, original_dir) =
+        let (_, metadata, content, original_metadata_forest, original_content_forest, original_dir) =
             &mut setup(test_name).await?;
 
         // Grab the original file
@@ -343,29 +337,24 @@ mod test {
                 true,
                 Utc::now(),
                 original_metadata_forest,
-                &config.metadata,
+                metadata,
                 &mut thread_rng(),
             )
             .await?;
 
         // Get the content
         let original_content = original_file
-            .get_content(original_content_forest, &config.content)
+            .get_content(original_content_forest, content)
             .await?;
 
         let (private_ref_cid, temporal_key) =
-            &store_dir(&config.metadata, original_metadata_forest, original_dir).await?;
+            &store_dir(metadata, original_metadata_forest, original_dir).await?;
         let metadata_forest_cid =
-            store_forest(original_metadata_forest, &config.metadata, &config.metadata).await?;
+            store_forest(original_metadata_forest, metadata, metadata).await?;
 
-        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, &config.metadata).await?;
-        let new_dir = &mut load_dir(
-            &config.metadata,
-            temporal_key,
-            private_ref_cid,
-            new_metadata_forest,
-        )
-        .await?;
+        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, metadata).await?;
+        let new_dir =
+            &mut load_dir(metadata, temporal_key, private_ref_cid, new_metadata_forest).await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 
@@ -375,14 +364,12 @@ mod test {
                 true,
                 Utc::now(),
                 new_metadata_forest,
-                &config.metadata,
+                metadata,
                 &mut thread_rng(),
             )
             .await?;
         // Get the content
-        let new_content = file
-            .get_content(original_content_forest, &config.content)
-            .await?;
+        let new_content = file.get_content(original_content_forest, content).await?;
 
         assert_eq!(original_content, new_content);
 
@@ -395,15 +382,15 @@ mod test {
     async fn all() -> Result<()> {
         let test_name = "all";
         // Start er up!
-        let (_, global, config, metadata_forest, content_forest, dir) =
+        let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = RsaPrivateKey::default();
         let mut key_manager = Manager::default();
         key_manager.insert(&wrapping_key.get_public_key()).await?;
 
         let _ = &store_all(
-            &config.metadata,
-            &config.content,
+            metadata,
+            content,
             metadata_forest,
             content_forest,
             dir,
@@ -412,19 +399,19 @@ mod test {
         .await?;
 
         let (new_metadata_forest, new_content_forest, new_dir, new_key_manager) =
-            &mut load_all(&wrapping_key, &config.metadata, &config.content).await?;
+            &mut load_all(&wrapping_key, metadata, content).await?;
 
         // Assert equality
         assert_eq!(
             new_metadata_forest
-                .diff(metadata_forest, &config.metadata)
+                .diff(metadata_forest, metadata)
                 .await?
                 .len(),
             0
         );
         assert_eq!(
             new_content_forest
-                .diff(content_forest, &config.content)
+                .diff(content_forest, content)
                 .await?
                 .len(),
             0
@@ -440,17 +427,16 @@ mod test {
     async fn history() -> Result<()> {
         let test_name = "history";
         // Start er up!
-        let (_, global, config, metadata_forest, content_forest, dir) =
+        let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
-
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = RsaPrivateKey::default();
         let mut key_manager = Manager::default();
         key_manager.insert(&wrapping_key.get_public_key()).await?;
 
         // Store everything
         let _ = &store_all(
-            &config.metadata,
-            &config.content,
+            metadata,
+            content,
             metadata_forest,
             content_forest,
             dir,
@@ -458,11 +444,9 @@ mod test {
         )
         .await?;
 
-        let _history = load_history(&wrapping_key, &config.metadata, &config.content).await?;
+        let _history = load_history(&wrapping_key, metadata, content).await?;
 
         // Teardown
         teardown(test_name).await
     }
 }
-
- */

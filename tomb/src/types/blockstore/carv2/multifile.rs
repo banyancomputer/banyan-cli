@@ -3,7 +3,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fs, path::PathBuf};
-use tomb_common::types::blockstore::car::{carblockstore::CarBlockStore, error::CarError};
+use tomb_common::types::blockstore::{car::error::CarError, rootedblockstore::RootedBlockStore};
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
@@ -67,7 +67,7 @@ impl WnfsBlockStore for Multifile {
     }
 }
 
-impl CarBlockStore for Multifile {
+impl RootedBlockStore for Multifile {
     fn get_root(&self) -> Option<Cid> {
         if let Some(car) = self.deltas.last() {
             car.get_root()

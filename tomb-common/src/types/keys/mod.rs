@@ -15,10 +15,6 @@ mod tests {
         TemporalKey(AesKey::new(random_bytes))
     }
 
-    fn grab_rsa_private_key() -> Result<RsaPrivateKey> {
-        RsaPrivateKey::new()
-    }
-
     #[tokio::test]
     #[serial]
     async fn put_get_original() -> Result<()> {
@@ -26,7 +22,7 @@ mod tests {
         let mut key_manager = Manager::default();
 
         // Grab rsa private
-        let wrapping_key = grab_rsa_private_key()?;
+        let wrapping_key = RsaPrivateKey::default();
         // Insert public key
         key_manager.insert(&wrapping_key.get_public_key()).await?;
 
@@ -49,9 +45,8 @@ mod tests {
     async fn put_get_current() -> Result<()> {
         // Key manager
         let mut key_manager = Manager::default();
-
         // Grab rsa private
-        let wrapping_key = grab_rsa_private_key()?;
+        let wrapping_key = RsaPrivateKey::default();
         // Insert public key
         key_manager.insert(&wrapping_key.get_public_key()).await?;
 
@@ -75,7 +70,7 @@ mod tests {
         // Key manager
         let mut key_manager = Manager::default();
         // Grab RsaPrivateKey
-        let wrapping_key = grab_rsa_private_key()?;
+        let wrapping_key = RsaPrivateKey::default();
         // Grab temporal keys
         let current = random_temporal_key();
         // Set the current key
@@ -95,7 +90,7 @@ mod tests {
         // Key manager
         let mut key_manager = Manager::default();
         // Grab RsaPrivateKey
-        let wrapping_key = grab_rsa_private_key()?;
+        let wrapping_key = RsaPrivateKey::default();
         // Grab temporal keys
         let original = random_temporal_key();
         // Set the current key
@@ -116,7 +111,7 @@ mod tests {
         let mut key_manager = Manager::default();
 
         // Grab RsaPrivateKey
-        let wrapping_key = grab_rsa_private_key()?;
+        let wrapping_key = RsaPrivateKey::default();
         // Grab temporal keys
         let original = random_temporal_key();
         let current = random_temporal_key();

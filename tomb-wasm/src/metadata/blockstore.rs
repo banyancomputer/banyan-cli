@@ -1,18 +1,22 @@
 // use anyhow::Result;
+use crate::fetch::http::*;
 use async_trait::async_trait;
 use js_sys::Uint8Array;
-use std::{io::Cursor, borrow::Cow};
-use tomb_common::types::blockstore::car::{carv2::Car, carblockstore::CarBlockStore};
+use std::{borrow::Cow, io::Cursor};
+use tomb_common::types::blockstore::{car::carv2::Car, rootedblockstore::RootedBlockStore};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
-use wnfs::{common::blockstore::BlockStore as WnfsBlockStore, libipld::{Cid, IpldCodec}};
-use crate::fetch::http::*;
+use wnfs::{
+    common::blockstore::BlockStore as WnfsBlockStore,
+    libipld::{Cid, IpldCodec},
+};
 
 #[wasm_bindgen]
 struct WasmBlockStore {
     data: Vec<u8>,
-    car: Car
+    car: Car,
 }
 
+#[allow(dead_code)]
 #[wasm_bindgen]
 impl WasmBlockStore {
     #[wasm_bindgen]
@@ -28,12 +32,8 @@ impl WasmBlockStore {
             // Construct CARv2
             let car = Car::read_bytes(Cursor::new(&data)).unwrap();
 
-            Ok(Self {
-                data,
-                car
-            })
-        }
-        else {
+            Ok(Self { data, car })
+        } else {
             todo!()
         }
     }
@@ -52,7 +52,7 @@ impl WnfsBlockStore for WasmBlockStore {
     }
 }
 
-impl CarBlockStore for WasmBlockStore {
+impl RootedBlockStore for WasmBlockStore {
     fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
@@ -64,9 +64,9 @@ impl CarBlockStore for WasmBlockStore {
 
 #[cfg(test)]
 mod tests {
+    use crate::metadata::blockstore::WasmBlockStore;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;
-    use crate::metadata::blockstore::WasmBlockStore;
     wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test]

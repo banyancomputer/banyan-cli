@@ -8,17 +8,15 @@ use std::{
 };
 use tomb_common::{
     crypto::rsa::RsaPrivateKey,
-    types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager}, utils::serialize::*,
+    types::{blockstore::rootedblockstore::RootedBlockStore, keys::manager::Manager},
+    utils::serialize::*,
 };
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
-use crate::{
-    types::blockstore::carv2::blockstore::BlockStore,
-    utils::config::xdg_data_home,
-};
+use crate::{types::blockstore::carv2::blockstore::BlockStore, utils::config::xdg_data_home};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {

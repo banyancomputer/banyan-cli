@@ -4,6 +4,8 @@ pub mod car;
 pub mod diskblockstore;
 /// Network based blockstore
 pub mod networkblockstore;
+/// Trait
+pub mod rootedblockstore;
 
 #[cfg(test)]
 mod tests {
