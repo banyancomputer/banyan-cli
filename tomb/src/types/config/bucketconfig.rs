@@ -6,7 +6,10 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tomb_common::{crypto::rsa::RsaPrivateKey, types::keys::manager::Manager};
+use tomb_common::{
+    crypto::rsa::RsaPrivateKey,
+    types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager},
+};
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
@@ -28,18 +31,8 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
-    /// metadata roots: [
-    ///     IPLD::Map (
-    ///         "private_ref" -> Ipld::Link(private_ref_cid)
-    ///         "metadata_forest" -> Ipld::Link(metadata_forest_cid)
-    ///     )
-    /// ]
+    /// BlockStore for storing all
     pub metadata: BlockStore,
-    /// content roots: [
-    ///     IPLD::Map(
-    ///         "content_forest" -> Ipld::Link(content_forest_cid)
-    ///     )
-    /// ]
     pub content: BlockStore,
 }
 

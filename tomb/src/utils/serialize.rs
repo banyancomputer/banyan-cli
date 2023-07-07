@@ -1,9 +1,12 @@
 use anyhow::Result;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
-use tomb_common::{crypto::rsa::RsaPrivateKey, types::keys::manager::Manager};
+use tomb_common::{
+    crypto::rsa::RsaPrivateKey,
+    types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager},
+};
 use wnfs::{
-    common::{AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
+    common::{AsyncSerialize, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
     private::{
         PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory, PrivateRef,
@@ -11,13 +14,13 @@ use wnfs::{
     },
 };
 
-use crate::types::{blockstore::carv2::blockstore::BlockStore, config::error::ConfigError};
+use crate::types::config::error::ConfigError;
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(
     forest: &Rc<PrivateForest>,
-    serializer: &impl WnfsBlockStore,
-    storage: &impl WnfsBlockStore,
+    serializer: &impl CarBlockStore,
+    storage: &impl CarBlockStore,
 ) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(serializer).await?;
@@ -28,7 +31,7 @@ async fn store_forest(
 }
 
 /// Load a given PrivateForest from a given Store
-async fn load_forest(cid: &Cid, store: &impl WnfsBlockStore) -> Result<Rc<PrivateForest>> {
+async fn load_forest(cid: &Cid, store: &impl CarBlockStore) -> Result<Rc<PrivateForest>> {
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
@@ -39,8 +42,8 @@ async fn load_forest(cid: &Cid, store: &impl WnfsBlockStore) -> Result<Rc<Privat
 }
 
 /// Store a PrivateDirectory
-async fn store_dir(
-    store: &BlockStore,
+async fn store_dir<CBS: CarBlockStore>(
+    store: &CBS,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<(Cid, TemporalKey)> {
@@ -67,8 +70,8 @@ async fn store_dir(
 }
 
 /// Load a PrivateDirectory
-async fn load_dir(
-    store: &BlockStore,
+async fn load_dir<CBS: CarBlockStore>(
+    store: &CBS,
     temporal_key: &TemporalKey,
     private_ref_cid: &Cid,
     metadata_forest: &Rc<PrivateForest>,
@@ -89,9 +92,9 @@ async fn load_dir(
 }
 
 /// Store everything at once!
-pub async fn store_all(
-    metadata: &BlockStore,
-    content: &BlockStore,
+pub async fn store_all<CBS: CarBlockStore>(
+    metadata: &CBS,
+    content: &CBS,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
@@ -178,7 +181,7 @@ pub async fn store_all(
 }
 
 /// Grabs the cid of the original PrivateRef
-pub async fn get_original_private_ref_cid(store: &BlockStore) -> Result<Cid> {
+pub async fn get_original_private_ref_cid<CBS: CarBlockStore>(store: &CBS) -> Result<Cid> {
     // If we can successfully extract the Cid
     if let Some(root) = store.get_root() &&
        let Ok(Ipld::Map(metadata_map)) = store.get_deserializable::<Ipld>(&root).await &&
@@ -191,10 +194,10 @@ pub async fn get_original_private_ref_cid(store: &BlockStore) -> Result<Cid> {
 }
 
 /// Obtain a PrivateNodeOnPathHistory iterator for the root directory
-pub async fn load_history(
+pub async fn load_history<CBS: CarBlockStore>(
     wrapping_key: &RsaPrivateKey,
-    metadata: &BlockStore,
-    content: &BlockStore,
+    metadata: &CBS,
+    content: &CBS,
 ) -> Result<PrivateNodeOnPathHistory> {
     let (metadata_forest, _, current_directory, key_manager) =
         load_all(wrapping_key, metadata, content).await?;
@@ -225,10 +228,10 @@ pub async fn load_history(
 }
 
 /// Load everything at once!
-pub async fn load_all(
+pub async fn load_all<CBS: CarBlockStore>(
     wrapping_key: &RsaPrivateKey,
-    metadata: &BlockStore,
-    content: &BlockStore,
+    metadata: &CBS,
+    content: &CBS,
 ) -> Result<(
     Rc<PrivateForest>,
     Rc<PrivateForest>,

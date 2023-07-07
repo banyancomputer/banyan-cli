@@ -6,7 +6,9 @@ use std::{
     fs::{remove_file, rename, File},
     path::{Path, PathBuf},
 };
-use tomb_common::types::blockstore::car::{carv1::block::Block, carv2::Car, error::CarError};
+use tomb_common::types::blockstore::car::{
+    carblockstore::CarBlockStore, carv1::block::Block, carv2::Car, error::CarError,
+};
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
     libipld::{Cid, IpldCodec},
@@ -57,14 +59,6 @@ impl BlockStore {
 
     pub fn get_all_cids(&self) -> Vec<Cid> {
         self.car.get_all_cids()
-    }
-
-    pub fn set_root(&self, root: &Cid) {
-        self.car.set_root(root);
-    }
-
-    pub fn get_root(&self) -> Option<Cid> {
-        self.car.get_root()
     }
 
     pub fn to_disk(&self) -> Result<()> {
@@ -123,6 +117,16 @@ impl WnfsBlockStore for BlockStore {
     }
 }
 
+impl CarBlockStore for BlockStore {
+    fn set_root(&self, root: &Cid) {
+        self.car.set_root(root);
+    }
+
+    fn get_root(&self) -> Option<Cid> {
+        self.car.get_root()
+    }
+}
+
 impl Serialize for BlockStore {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
@@ -163,7 +167,9 @@ mod tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::utils::tests::car_setup;
+    use tomb_common::{
+        types::blockstore::car::carblockstore::CarBlockStore, utils::tests::car_setup,
+    };
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},
