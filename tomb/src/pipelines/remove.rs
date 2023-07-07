@@ -1,10 +1,7 @@
+use super::error::PipelineError;
+use crate::{types::config::globalconfig::GlobalConfig, utils::spider::path_to_segments};
 use anyhow::Result;
 use std::path::Path;
-use tomb_common::types::config::globalconfig::GlobalConfig;
-
-use crate::utils::spider::path_to_segments;
-
-use super::error::PipelineError;
 
 /// The pipeline for removing an individual file from a WNFS
 pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineError> {

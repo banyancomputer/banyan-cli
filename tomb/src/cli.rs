@@ -149,7 +149,7 @@ pub struct Args {
 
 #[cfg(test)]
 mod test {
-    use crate::utils::tests::*;
+    use crate::{types::config::globalconfig::GlobalConfig, utils::tests::*};
     use anyhow::Result;
     use assert_cmd::prelude::*;
     use dir_assert::assert_paths;
@@ -160,7 +160,6 @@ mod test {
         path::Path,
         process::Command,
     };
-    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     async fn cmd_init(dir: &Path) -> Result<Command> {
         let mut cmd = Command::cargo_bin("tomb")?;

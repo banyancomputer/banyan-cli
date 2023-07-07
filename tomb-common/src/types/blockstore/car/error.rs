@@ -3,7 +3,7 @@ use thiserror::Error;
 
 /// CAR File errors.
 #[derive(Debug, Error)]
-pub(crate) enum CarError {
+pub enum CarError {
     #[error("CAR path given was directory, not file: {}", .0.display())]
     Directory(PathBuf),
     #[error("Unable to save CAR file to disk.")]

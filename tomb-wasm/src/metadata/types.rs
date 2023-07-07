@@ -1,15 +1,12 @@
 // use js_sys::Uint8Array;
 // use wasm_bindgen_futures::JsFuture;
-use serde_wasm_bindgen;
+use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
-use anyhow::{Result, Error};
-
+use serde_wasm_bindgen;
 
 // TODO: move this somewhere else or extend from a common type
 
-use crate::fetch::http::{
-    get_json, get_stream
-};
+use crate::fetch::http::{get_json, get_stream};
 
 // TODO: Work in this file should probably be moved to tomb-common once alignment is reached on struct members and use throughout the project.
 
@@ -65,7 +62,11 @@ impl Service {
     /// * `fingerprint` - The fingerprint of the public key the share key is encrypted with.
     /// # Returns
     /// * JsFuture that resolves to a String.
-    pub async fn read_enc_share_key(&self, _bucket_id: String, _fingerprint: String) -> Result<Vec<u8>, Error> {
+    pub async fn read_enc_share_key(
+        &self,
+        _bucket_id: String,
+        _fingerprint: String,
+    ) -> Result<Vec<u8>, Error> {
         // TODO: Read real data, not fake data
         let url = "https://www.random.org/cgi-bin/randbyte?nbytes=32".to_string();
         let mut stream = get_stream(url.to_string()).await.unwrap();
@@ -78,7 +79,7 @@ impl Service {
         Ok(chunks)
     }
 
-    /// Return a Uint8Array of encrypted Metadata for a bucket. 
+    /// Return a Uint8Array of encrypted Metadata for a bucket.
     /// # Arguments
     /// * `bucket_id` - The unique identifier for the bucket.
     /// # Returns
@@ -95,11 +96,11 @@ impl Service {
             chunks.extend(chunk.to_vec());
         }
         Ok(chunks)
-    } 
+    }
 
     /* Update */
     // TODO: Update methods
-    
+
     /* Delete */
     // TODO: Delete methods
 }

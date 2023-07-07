@@ -1,12 +1,8 @@
-use wasm_bindgen::prelude::*;
-use js_sys::{
-    Array, Error
-};
-use std::{
-    fmt::Debug
-};
 use base64::{engine::general_purpose, Engine as _};
-use tomb_common::crypto::rsa::RsaPrivateKey; 
+use js_sys::{Array, Error};
+use std::fmt::Debug;
+use tomb_common::crypto::rsa::RsaPrivateKey;
+use wasm_bindgen::prelude::*;
 
 pub type JsResult<T> = Result<T, js_sys::Error>;
 
@@ -74,7 +70,8 @@ pub(crate) fn string_to_rsa_key(crypto_key: JsValue) -> JsResult<RsaPrivateKey> 
     let crypto_key = crypto_key
         .as_string()
         .ok_or_else(|| Error::new("Invalid crypto key: Expected a string"))?;
-    let key_bytes = general_purpose::STANDARD.decode(crypto_key.as_bytes())
+    let key_bytes = general_purpose::STANDARD
+        .decode(crypto_key.as_bytes())
         .map_err(|_| Error::new("Invalid crypto key: Expected a valid base64 string"))?;
     let key = RsaPrivateKey::from_der(&key_bytes)
         .map_err(|_| Error::new("Invalid crypto key: Expected a valid RSA private key"))?;
@@ -84,7 +81,7 @@ pub(crate) fn string_to_rsa_key(crypto_key: JsValue) -> JsResult<RsaPrivateKey> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tomb_common::crypto::rsa::{PrivateKey, ExchangeKey};
+    use tomb_common::crypto::rsa::{ExchangeKey, PrivateKey};
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;
 
@@ -99,4 +96,5 @@ mod tests {
         let ciphertext = pub_key.encrypt(plaintext).await.unwrap();
         let decrypted = priv_key.decrypt(&ciphertext).await.unwrap();
         assert_eq!(plaintext, &decrypted[..]);
-    }}
+    }
+}

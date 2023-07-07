@@ -4,7 +4,7 @@ mod metadata;
 mod utils;
 
 // use crate::utils::JsResult;
-use crate::metadata::types::{ Service as MetadataService, Bucket};
+use crate::metadata::types::{Bucket, Service as MetadataService};
 
 // WASM Imports
 use wasm_bindgen::prelude::*;
@@ -17,24 +17,17 @@ use gloo::console::log;
 // WNFS Imports
 use wnfs::{
     common::MemoryBlockStore,
-    private::{
-        PrivateDirectory,
-        PrivateForest,
-        TemporalKey, KEY_BYTE_SIZE,
-    },
-    namefilter::Namefilter
+    namefilter::Namefilter,
+    private::{PrivateDirectory, PrivateForest, TemporalKey, KEY_BYTE_SIZE},
 };
 
 // Tomb Imports
-use tomb_common::crypto::rsa::{
-    PrivateKey, ExchangeKey,
-    RsaPrivateKey, RsaPublicKey
-};
+use tomb_common::crypto::rsa::{ExchangeKey, PrivateKey, RsaPrivateKey, RsaPublicKey};
 
 // Std / Misc Imports
+use chrono::Utc;
 use rand::thread_rng;
 use std::rc::Rc;
-use chrono::Utc;
 
 // Our optional WeeAlloc allocator
 #[cfg(feature = "wee_alloc")]
@@ -48,34 +41,31 @@ pub struct Tomb {
     metadata_service: MetadataService,
     // TODO: @vera this should be replaced with CarV2MemoryBlockStore
     blockstore: MemoryBlockStore,
-    // TODO: unclear to me whether these need to be wrapped in Rc 
+    // TODO: unclear to me whether these need to be wrapped in Rc
     // private_forest: Option<Rc<PrivateForest>>,
     // private_directory: Option<Rc<PrivateDirectory>>
     private_forest: Option<PrivateForest>,
-    private_directory: Option<PrivateDirectory>
+    private_directory: Option<PrivateDirectory>,
 }
 
 // Public methods, exported to JavaScript.
 #[wasm_bindgen]
 impl Tomb {
     #[wasm_bindgen(constructor)]
-    pub async fn new(
-        endpoint: String,
-        token: String,
-    ) -> Result<Tomb, JsValue> {
+    pub async fn new(endpoint: String, token: String) -> Result<Tomb, JsValue> {
         log!("tomb-wasm: new()");
         utils::set_panic_hook();
         let metadata_service = MetadataService::new(endpoint, token);
         let buckets = metadata_service.read_buckets().await.unwrap();
-        Ok(Tomb { 
-            buckets, 
+        Ok(Tomb {
+            buckets,
             metadata_service,
             blockstore: MemoryBlockStore::default(),
             private_forest: None,
-            private_directory: None
+            private_directory: None,
         })
     }
-    
+
     /// Return a list of id:name pairs for all buckets accessible to the user
     /// # Returns
     /// * Vec<(String, String)> - A vector of id:name pairs
@@ -99,35 +89,40 @@ impl Tomb {
 
         // TODO: Use real bucket_id and fingerprint, and real data from the metadata service
         // Read the encrypted share key from the metadata service and decrypt it
-        let _enc_share_key_vec = self.metadata_service.read_enc_share_key("bucket_id".to_string(), "fingerprint".to_string()).await.unwrap();
-         // TODO: Remove this at some point -- need it so long as we're using fake data, since this will fail if the key was not actually encrypted with the public key
+        let _enc_share_key_vec = self
+            .metadata_service
+            .read_enc_share_key("bucket_id".to_string(), "fingerprint".to_string())
+            .await
+            .unwrap();
+        // TODO: Remove this at some point -- need it so long as we're using fake data, since this will fail if the key was not actually encrypted with the public key
         let enc_share_key_vec = rsa_public_key.encrypt(&_enc_share_key_vec).await.unwrap();
-        let share_key_vec = rsa_private_key.decrypt(&enc_share_key_vec).await.unwrap();        
+        let share_key_vec = rsa_private_key.decrypt(&enc_share_key_vec).await.unwrap();
         // Just make sure the share key is what we originally encrypted
         assert_eq!(share_key_vec, _enc_share_key_vec);
 
         // Convert the share key to a TemporalKey
         let key_bytes = utils::expect_bytes::<KEY_BYTE_SIZE>(share_key_vec)?;
         let _temporal_key = TemporalKey::from(key_bytes);
-        
+
         // TODO: Load metadata CAR and write to self.blockstore
-        let _metadata_vec = self.metadata_service.read_metadata("bucket_id".to_string()).await.unwrap();
+        let _metadata_vec = self
+            .metadata_service
+            .read_metadata("bucket_id".to_string())
+            .await
+            .unwrap();
         // TODO: Read the bytes into a blockstore
 
-        // TODO: Load the private directory and private forest using the decrypted share key 
+        // TODO: Load the private directory and private forest using the decrypted share key
         // For now just test import a private directory and private forest
         let rng = &mut thread_rng();
         self.private_forest = Some(PrivateForest::new());
-        self.private_directory = Some(PrivateDirectory::new(
-            Namefilter::new(),
-            Utc::now(),
-            rng
-        ));
+        self.private_directory = Some(PrivateDirectory::new(Namefilter::new(), Utc::now(), rng));
 
         match Some(self.private_directory.as_ref().unwrap()) {
             Some(private_directory) => {
                 // let private_directory: &mut Rc<PrivateDirectory> = &mut private_directory.clone();
-                let private_directory: &mut Rc<PrivateDirectory> = &mut Rc::new(private_directory.clone());
+                let private_directory: &mut Rc<PrivateDirectory> =
+                    &mut Rc::new(private_directory.clone());
                 private_directory
                     .mkdir(
                         &["test".to_string(), "path".to_string()],
@@ -135,9 +130,11 @@ impl Tomb {
                         Utc::now(),
                         self.private_forest.as_ref().unwrap(),
                         &self.blockstore,
-                        rng
-                    ).await.unwrap();
-            },
+                        rng,
+                    )
+                    .await
+                    .unwrap();
+            }
             None => {
                 log!("tomb-wasm: load_bucket() - private_directory is None");
             }
@@ -186,7 +183,3 @@ impl Tomb {
         Rc::new(self.private_directory.as_ref().unwrap().clone())
     }
 }
-
-
-
-

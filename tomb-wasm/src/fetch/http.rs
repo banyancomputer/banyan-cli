@@ -1,20 +1,16 @@
+use gloo::{console::log, utils::window};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{
-    Request, RequestInit, RequestMode, Response,
-    ReadableStream as WebSysReadableStream, 
-};
 use wasm_streams::ReadableStream;
-use gloo::{
-    utils::window,
-    console::log
+use web_sys::{
+    ReadableStream as WebSysReadableStream, Request, RequestInit, RequestMode, Response,
 };
 
 use crate::utils::JsResult;
 
 #[allow(dead_code)]
 /// Fetches JSON from the given URL
-/// 
+///
 /// # Arguments
 /// * `url` - A string slice that holds the URL to fetch
 pub(crate) async fn get_json(url: String) -> JsResult<JsValue> {
@@ -33,7 +29,7 @@ pub(crate) async fn get_json(url: String) -> JsResult<JsValue> {
 
 #[allow(dead_code)]
 /// Fetch a Reable Stream from the given URL
-/// 
+///
 /// # Arguments
 /// * `url` - A string slice that holds the URL to fetch
 pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
@@ -42,7 +38,9 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
     opts.method("GET");
     opts.mode(RequestMode::Cors);
     let request = Request::new_with_str_and_init(&url, &opts)?;
-    request.headers().set("Accept", "application/octet-stream")?;
+    request
+        .headers()
+        .set("Accept", "application/octet-stream")?;
     let resp_value = JsFuture::from(window().fetch_with_request(&request)).await?;
     assert!(resp_value.is_instance_of::<Response>());
     let resp: Response = resp_value.dyn_into().unwrap_throw();
@@ -50,7 +48,6 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
     let stream = ReadableStream::from_raw(raw_body.dyn_into().unwrap_throw());
     Ok(stream)
 }
-
 
 #[cfg(test)]
 mod tests {

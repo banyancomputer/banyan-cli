@@ -1,5 +1,3 @@
-use super::{super::error::CarError, block::Block, Car};
-use crate::utils::car;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
@@ -8,10 +6,16 @@ use std::{
     fs::{remove_file, rename, File},
     path::{Path, PathBuf},
 };
+use tomb_common::types::blockstore::car::{
+    carv1::{block::Block, Car},
+    error::CarError,
+};
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
     libipld::{Cid, IpldCodec},
 };
+
+use crate::utils::car;
 
 #[derive(Debug, PartialEq)]
 pub struct BlockStore {
@@ -158,13 +162,11 @@ impl<'de> Deserialize<'de> for BlockStore {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::remove_file, path::Path, str::FromStr};
-
-    use crate::utils::tests::car_setup;
-
     use super::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
+    use std::{fs::remove_file, path::Path, str::FromStr};
+    use tomb_common::utils::tests::car_setup;
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},

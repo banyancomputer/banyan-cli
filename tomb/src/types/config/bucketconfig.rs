@@ -1,8 +1,3 @@
-use crate::{
-    crypto::rsa::RsaPrivateKey,
-    types::blockstore::car::carv2::blockstore::BlockStore,
-    utils::{config::*, serialize::*},
-};
 use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
@@ -11,12 +6,19 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use tomb_common::{crypto::rsa::RsaPrivateKey, types::keys::manager::Manager};
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
-use super::keys::manager::Manager;
+use crate::{
+    types::blockstore::carv2::blockstore::BlockStore,
+    utils::{
+        config::xdg_data_home,
+        serialize::{load_all, load_history, store_all},
+    },
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {

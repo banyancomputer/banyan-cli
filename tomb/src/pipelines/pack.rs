@@ -1,13 +1,16 @@
-use crate::utils::{
-    pack::{create_plans, process_plans},
-    wnfsio::get_progress_bar,
+use crate::{
+    types::config::globalconfig::GlobalConfig,
+    utils::{
+        pack::{create_plans, process_plans},
+        wnfsio::get_progress_bar,
+    },
 };
 use anyhow::Result;
 use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::types::config::{globalconfig::GlobalConfig, keys::manager::Manager};
+use tomb_common::types::keys::manager::Manager;
 use wnfs::{
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest},

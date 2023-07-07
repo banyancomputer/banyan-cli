@@ -1,7 +1,8 @@
-use crate::{crypto::rsa::RsaPrivateKey, utils::config::xdg_config_home};
+use crate::utils::config::xdg_config_home;
+use anyhow::Result;
+use tomb_common::crypto::rsa::RsaPrivateKey;
 
 use super::bucketconfig::BucketConfig;
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},

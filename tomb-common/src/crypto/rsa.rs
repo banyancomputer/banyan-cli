@@ -15,7 +15,6 @@ use crate::crypto::error::RsaError;
 // Re-export the ExchangeKey and PrivateKey traits
 pub use wnfs::private::{ExchangeKey, PrivateKey};
 
-
 //--------------------------------------------------------------------------------------------------
 // Constants
 //--------------------------------------------------------------------------------------------------
