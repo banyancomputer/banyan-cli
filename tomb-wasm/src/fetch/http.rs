@@ -49,6 +49,24 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
     Ok(stream)
 }
 
+// pub(crate) async fn get_stream_2(url: String) -> JsResult<ReadableStream> {
+//     // Make a fetch request
+//     // let url = "https://rustwasm.github.io/assets/wasm-ferris.png";
+//     let resp_value = JsFuture::from(window().fetch_with_str(&url))
+//         .await
+//         .map_err(|_| "fetch failed").unwrap();
+//     let resp: Response = resp_value.dyn_into().unwrap_throw();
+
+//     // Get the response's body as a JS ReadableStream
+//     let raw_body = resp.body().unwrap_throw();
+//     let body = ReadableStream::from_raw(raw_body.dyn_into().unwrap_throw());
+
+//     // Convert the JS ReadableStream to a Rust stream
+//     // let mut stream = body.into_stream();
+
+//     Ok(body)
+// }
+
 #[cfg(test)]
 mod tests {
     use js_sys::Uint8Array;
@@ -92,5 +110,12 @@ mod tests {
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
         assert_eq!(todo.completed, false);
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_fetch_stream_no_json() {
+        let url = "https://raw.githubusercontent.com/ipld/go-car/master/v2/testdata/sample-v2-indexless.car".to_string();
+        // let url = "https://rustwasm.github.io/assets/wasm-ferris.png".to_string();
+        let mut stream = super::get_stream(url).await.unwrap();
     }
 }

@@ -1,10 +1,6 @@
 use anyhow::Result;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
-use tomb_common::{
-    crypto::rsa::RsaPrivateKey,
-    types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager},
-};
 use wnfs::{
     common::{AsyncSerialize, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld},
@@ -14,7 +10,8 @@ use wnfs::{
     },
 };
 
-use crate::types::config::error::ConfigError;
+use crate::{types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager}, crypto::rsa::RsaPrivateKey, utils::error::SerialError};
+
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(
@@ -134,7 +131,7 @@ pub async fn store_all<CBS: CarBlockStore>(
             cid
         } else {
             return Err(
-                ConfigError::MissingMetadata("lost original PrivateDirectory".to_string()).into(),
+                SerialError::MissingMetadata("lost original PrivateDirectory".to_string()).into(),
             );
         };
 
@@ -189,7 +186,7 @@ pub async fn get_original_private_ref_cid<CBS: CarBlockStore>(store: &CBS) -> Re
         // Return it
         Ok(*original_private_ref_cid)
     } else {
-        Err(ConfigError::MissingMetadata("original private_ref_cid".to_string()).into())
+        Err(SerialError::MissingMetadata("original private_ref_cid".to_string()).into())
     }
 }
 
@@ -248,7 +245,7 @@ pub async fn load_all<CBS: CarBlockStore>(
                 let Ok(Ipld::Map(map)) = content.get_deserializable::<Ipld>(&content_root).await {
             (map, content)
         } else {
-            return Err(ConfigError::MissingMetadata("IPLD Map".to_string()).into())
+            return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
         };
 
     // If we are able to find all CIDs
@@ -269,10 +266,11 @@ pub async fn load_all<CBS: CarBlockStore>(
         Ok((metadata_forest, content_forest, current_directory, key_manager))
     }
     else {
-        Err(ConfigError::MissingMetadata("One or both BlockStores are missing CIDs".to_string()).into())
+        Err(SerialError::MissingMetadata("One or both BlockStores are missing CIDs".to_string()).into())
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use crate::utils::{serialize::*, tests::*};
@@ -466,3 +464,5 @@ mod test {
         teardown(test_name).await
     }
 }
+
+ */

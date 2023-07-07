@@ -8,7 +8,7 @@ use std::{
 };
 use tomb_common::{
     crypto::rsa::RsaPrivateKey,
-    types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager},
+    types::{blockstore::car::carblockstore::CarBlockStore, keys::manager::Manager}, utils::serialize::*,
 };
 use wnfs::{
     libipld::Cid,
@@ -17,10 +17,7 @@ use wnfs::{
 
 use crate::{
     types::blockstore::carv2::blockstore::BlockStore,
-    utils::{
-        config::xdg_data_home,
-        serialize::{load_all, load_history, store_all},
-    },
+    utils::config::xdg_data_home,
 };
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
