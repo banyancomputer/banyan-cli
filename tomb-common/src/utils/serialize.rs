@@ -42,8 +42,8 @@ async fn load_forest(cid: &Cid, store: &impl RootedBlockStore) -> Result<Rc<Priv
 }
 
 /// Store a PrivateDirectory
-async fn store_dir<CBS: RootedBlockStore>(
-    store: &CBS,
+async fn store_dir<M: RootedBlockStore>(
+    store: &M,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
 ) -> Result<(Cid, TemporalKey)> {
@@ -70,8 +70,8 @@ async fn store_dir<CBS: RootedBlockStore>(
 }
 
 /// Load a PrivateDirectory
-async fn load_dir<CBS: RootedBlockStore>(
-    store: &CBS,
+async fn load_dir<M: RootedBlockStore>(
+    store: &M,
     temporal_key: &TemporalKey,
     private_ref_cid: &Cid,
     metadata_forest: &Rc<PrivateForest>,

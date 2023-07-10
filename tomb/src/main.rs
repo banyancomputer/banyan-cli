@@ -9,13 +9,15 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 use anyhow::Result;
 use clap::Parser;
-use std::{env::current_dir, io::Write};
-use tomb::{cli, pipelines::*};
+use tomb::cli;
+use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
-    let cli = cli::Args::parse();
+    let cli = cli::args::Args::parse();
+
+    cli::run(cli.command).await?;
 
     // TODO eventually make options to format it differently?
     env_logger::Builder::new()
@@ -25,83 +27,6 @@ async fn main() -> Result<()> {
         .format_level(true)
         .format_module_path(false)
         .init();
-
-    // Determine the command being executed
-    match cli.command {
-        // Execute the packing command
-        cli::Commands::Pack {
-            origin,
-            follow_links,
-        } => {
-            if let Some(origin) = origin {
-                pack::pipeline(&origin, follow_links).await?;
-            } else {
-                pack::pipeline(&current_dir()?, follow_links).await?;
-            }
-        }
-        // Execute the unpacking command
-        cli::Commands::Unpack {
-            origin,
-            unpacked,
-        } => {
-            if let Some(origin) = origin {
-                unpack::pipeline(&origin, &unpacked).await?;
-            } else {
-                unpack::pipeline(&current_dir()?, &unpacked).await?;
-            }
-        }
-        cli::Commands::Init {
-            dir
-        } => {
-            // Initialize here
-            if let Some(dir) = dir {
-                configure::init(&dir)?;
-            }
-            else {
-                configure::init(&current_dir()?)?;
-            }
-        },
-        cli::Commands::Deinit {
-            dir
-        } => {
-            // Initialize here
-            if let Some(dir) = dir {
-                configure::deinit(&dir)?;
-            }
-            else {
-                configure::deinit(&current_dir()?)?;
-            }
-        },
-        cli::Commands::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
-        cli::Commands::Register { bucket_name: _ } =>
-            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
-        cli::Commands::Configure { subcommand } => {
-            match subcommand {
-                cli::ConfigSubCommands::SetRemote { address } => {
-                    configure::remote(&address)?;
-                }
-            }
-        },
-        cli::Commands::Daemon => unimplemented!("todo... omg fun... cronjob"),
-        cli::Commands::Pull {
-            dir
-        } => {
-            // Start the Pull pipeline
-            pull::pipeline(&dir).await?;
-        },
-        cli::Commands::Push {
-            dir,
-        } => {
-            // Start the Push pipeline
-            push::pipeline(&dir).await?;
-        },
-        cli::Commands::Add { origin, input_file, wnfs_path } => {
-            add::pipeline(&origin, &input_file, &wnfs_path).await?;
-        },
-        cli::Commands::Remove { origin, wnfs_path } => {
-            remove::pipeline(&origin, &wnfs_path).await?;
-        }
-    }
-
+    
     Ok(())
 }

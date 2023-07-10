@@ -30,7 +30,6 @@ async-trait = "0.1.71"
 hex = "0.4.3"
 
 [dev-dependencies]
-assert_cmd = "2.0.11"
 fs_extra.workspace = true
 dir-assert.workspace = true
 criterion.workspace = true
