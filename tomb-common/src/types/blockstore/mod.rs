@@ -6,6 +6,7 @@ pub mod diskblockstore;
 pub mod networkblockstore;
 /// Trait
 pub mod rootedblockstore;
+pub mod rootedmemoryblockstore;
 
 #[cfg(test)]
 mod tests {
