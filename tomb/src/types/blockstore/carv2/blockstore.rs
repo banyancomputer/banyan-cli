@@ -163,13 +163,13 @@ impl<'de> Deserialize<'de> for BlockStore {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
     use tomb_common::{
-        types::blockstore::rootedblockstore::RootedBlockStore, utils::tests::car_setup,
+        types::blockstore::rootedblockstore::RootedBlockStore, utils::test::car_setup,
     };
     use wnfs::{
         common::BlockStore as WnfsBlockStore,

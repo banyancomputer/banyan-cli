@@ -76,7 +76,7 @@ impl Block {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use std::io::Cursor;
 
     use super::Block;

@@ -2,7 +2,7 @@ pub mod carv1;
 pub mod carv2;
 
 #[cfg(test)]
-mod tests {
+mod test {
     use std::path::Path;
 
     use crate::types::blockstore::{
@@ -11,7 +11,7 @@ mod tests {
     };
     use anyhow::Result;
     use serial_test::serial;
-    use tomb_common::utils::tests::car_setup;
+    use tomb_common::utils::test::car_setup;
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
 
     #[tokio::test]

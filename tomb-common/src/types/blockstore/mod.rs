@@ -9,7 +9,7 @@ pub mod rootedblockstore;
 pub mod rootedmemoryblockstore;
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
     use anyhow::Result;
     use std::{fs::create_dir_all, path::PathBuf};

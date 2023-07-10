@@ -140,7 +140,7 @@ impl<'de> Deserialize<'de> for MultifileBlockStore {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use std::{fs::remove_dir_all, path::Path};
 
     use anyhow::Result;

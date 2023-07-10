@@ -79,7 +79,7 @@ pub(crate) fn string_to_rsa_key(crypto_key: JsValue) -> JsResult<RsaPrivateKey> 
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
     use tomb_common::crypto::rsa::{ExchangeKey, PrivateKey};
     use wasm_bindgen_test::wasm_bindgen_test_configure;

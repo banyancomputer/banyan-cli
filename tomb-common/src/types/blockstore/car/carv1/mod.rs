@@ -162,10 +162,10 @@ impl Car {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::{
         types::blockstore::car::carv1::{block::Block, Car},
-        utils::tests::car_setup,
+        utils::test::car_setup,
     };
     use anyhow::Result;
     use serial_test::serial;

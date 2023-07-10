@@ -101,7 +101,7 @@ impl Header {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::Header;
     use anyhow::Result;
     use serial_test::serial;

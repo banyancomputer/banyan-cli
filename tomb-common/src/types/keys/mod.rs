@@ -3,7 +3,7 @@ pub mod manager;
 pub mod mapper;
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::{crypto::rsa::RsaPrivateKey, types::keys::manager::Manager};
     use anyhow::Result;
     use rand::Rng;

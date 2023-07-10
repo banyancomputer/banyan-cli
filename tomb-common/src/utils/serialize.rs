@@ -269,7 +269,7 @@ pub async fn load_all<M: RootedBlockStore>(
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{serialize::*, tests::*};
+    use crate::utils::{serialize::*, test::*};
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;

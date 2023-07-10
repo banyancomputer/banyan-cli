@@ -92,7 +92,7 @@ pub async fn run(command: Command) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::{types::config::globalconfig::GlobalConfig, utils::tests::*, cli::run};
+    use crate::{types::config::globalconfig::GlobalConfig, utils::test::*, cli::run};
     use anyhow::Result;
     use dir_assert::assert_paths;
     use fs_extra::file;

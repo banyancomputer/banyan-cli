@@ -50,7 +50,7 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use js_sys::Uint8Array;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;

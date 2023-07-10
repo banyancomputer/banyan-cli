@@ -11,6 +11,6 @@ pub mod pack;
 pub mod spider;
 /// This module contains testing fns
 #[cfg(test)]
-pub mod tests;
+pub mod test;
 /// This module contains WNFS IO fns
 pub mod wnfsio;

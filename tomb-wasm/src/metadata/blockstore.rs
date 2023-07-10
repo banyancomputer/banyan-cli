@@ -63,7 +63,7 @@ impl RootedBlockStore for WasmBlockStore {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::metadata::blockstore::WasmBlockStore;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;

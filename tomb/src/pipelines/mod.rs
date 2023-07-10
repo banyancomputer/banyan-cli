@@ -23,7 +23,7 @@ mod test {
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
-            tests::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
+            test::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
             wnfsio::{self, decompress_bytes},
         },
     };
