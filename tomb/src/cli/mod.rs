@@ -97,7 +97,7 @@ mod test {
     use anyhow::Result;
     use dir_assert::assert_paths;
     use serial_test::serial;
-    use std::{fscreate_dir, path::Path};
+    use std::{fs::create_dir, path::Path};
 
     fn cmd_init(dir: &Path) -> Command {
         Command::Init {
