@@ -16,7 +16,10 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
-use crate::{types::blockstore::carv2::blockstore::BlockStore, utils::config::xdg_data_home};
+use crate::{
+    types::blockstore::carv2::{blockstore::BlockStore, multifile::MultifileBlockStore},
+    utils::config::xdg_data_home,
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
@@ -28,7 +31,7 @@ pub struct BucketConfig {
     pub(crate) generated: PathBuf,
     /// BlockStore for storing all
     pub metadata: BlockStore,
-    pub content: BlockStore,
+    pub content: MultifileBlockStore,
 }
 
 impl BucketConfig {
@@ -57,7 +60,7 @@ impl BucketConfig {
         metadata.to_disk()?;
         content.to_disk()?;
         let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = BlockStore::new(&generated.join("content.car"))?;
+        let content = MultifileBlockStore::new(&generated.join("content"))?;
 
         Ok(Self {
             bucket_name,
@@ -86,14 +89,14 @@ impl BucketConfig {
         Manager,
     )> {
         // Load all
-        load_all(wrapping_key, &self.metadata, &self.content).await
+        load_all(wrapping_key, &self.metadata).await
     }
 
     pub async fn get_history(
         &self,
         wrapping_key: &RsaPrivateKey,
     ) -> Result<PrivateNodeOnPathHistory> {
-        load_history(wrapping_key, &self.metadata, &self.content).await
+        load_history(wrapping_key, &self.metadata).await
     }
 
     pub async fn set_all(

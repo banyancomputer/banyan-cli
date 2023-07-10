@@ -92,9 +92,9 @@ async fn load_dir<CBS: RootedBlockStore>(
 }
 
 /// Store everything at once!
-pub async fn store_all<CBS: RootedBlockStore>(
-    metadata: &CBS,
-    content: &CBS,
+pub async fn store_all<M: RootedBlockStore, C: RootedBlockStore>(
+    metadata: &M,
+    content: &C,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
@@ -181,7 +181,7 @@ pub async fn store_all<CBS: RootedBlockStore>(
 }
 
 /// Grabs the cid of the original PrivateRef
-pub async fn get_original_private_ref_cid<CBS: RootedBlockStore>(store: &CBS) -> Result<Cid> {
+pub async fn get_original_private_ref_cid<M: RootedBlockStore>(store: &M) -> Result<Cid> {
     // If we can successfully extract the Cid
     if let Some(root) = store.get_root() &&
        let Ok(Ipld::Map(metadata_map)) = store.get_deserializable::<Ipld>(&root).await &&
@@ -194,13 +194,12 @@ pub async fn get_original_private_ref_cid<CBS: RootedBlockStore>(store: &CBS) ->
 }
 
 /// Obtain a PrivateNodeOnPathHistory iterator for the root directory
-pub async fn load_history<CBS: RootedBlockStore>(
+pub async fn load_history<M: RootedBlockStore>(
     wrapping_key: &RsaPrivateKey,
-    metadata: &CBS,
-    content: &CBS,
+    metadata: &M
 ) -> Result<PrivateNodeOnPathHistory> {
     let (metadata_forest, _, current_directory, key_manager) =
-        load_all(wrapping_key, metadata, content).await?;
+        load_all(wrapping_key, metadata).await?;
 
     // Grab the original key
     let original_key = &key_manager.retrieve_original(wrapping_key).await?;
@@ -228,28 +227,23 @@ pub async fn load_history<CBS: RootedBlockStore>(
 }
 
 /// Load everything at once!
-pub async fn load_all<CBS: RootedBlockStore>(
+pub async fn load_all<M: RootedBlockStore>(
     wrapping_key: &RsaPrivateKey,
-    metadata: &CBS,
-    content: &CBS,
+    metadata: &M
 ) -> Result<(
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
     Manager,
 )> {
-    // Load the IPLD map either from the metadata BlockStore, or the content BlockStore
+    // Load the IPLD map
     let (map, store) =
         if let Some(metadata_root) = metadata.get_root() &&
-           let Ok(Ipld::Map(map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await {
-            (map, metadata)
-        }
-        else if let Some(content_root) = content.get_root() &&
-                let Ok(Ipld::Map(map)) = content.get_deserializable::<Ipld>(&content_root).await {
-            (map, content)
-        } else {
-            return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
-        };
+        let Ok(Ipld::Map(map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await {
+        (map, metadata)
+    } else {
+        return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
+    };
 
     // If we are able to find all CIDs
     if let Some(Ipld::Link(metadata_forest_cid)) = map.get("metadata_forest") &&
@@ -399,7 +393,7 @@ mod test {
         .await?;
 
         let (new_metadata_forest, new_content_forest, new_dir, new_key_manager) =
-            &mut load_all(&wrapping_key, metadata, content).await?;
+            &mut load_all(&wrapping_key, metadata).await?;
 
         // Assert equality
         assert_eq!(
@@ -444,7 +438,7 @@ mod test {
         )
         .await?;
 
-        let _history = load_history(&wrapping_key, metadata, content).await?;
+        let _history = load_history(&wrapping_key, metadata).await?;
 
         // Teardown
         teardown(test_name).await

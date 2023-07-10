@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{path::Path, rc::Rc};
 use wnfs::{
-    common::BlockStore,
+    common::BlockStore as WnfsBlockStore,
     private::{PrivateForest, PrivateNode},
 };
 
@@ -45,8 +45,8 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
             node: &PrivateNode,
             metadata_forest: &Rc<PrivateForest>,
             content_forest: &Rc<PrivateForest>,
-            metadata: &impl BlockStore,
-            content: &impl BlockStore,
+            metadata: &impl WnfsBlockStore,
+            content: &impl WnfsBlockStore,
         ) -> Result<()> {
             match &node {
                 PrivateNode::Dir(dir) => {

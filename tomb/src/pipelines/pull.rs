@@ -1,9 +1,6 @@
-use std::{collections::HashSet, fs::remove_file, path::Path, rc::Rc};
+use std::{collections::HashSet, path::Path, rc::Rc};
 
-use crate::{
-    types::{blockstore::carv2::blockstore::BlockStore, config::globalconfig::GlobalConfig},
-    utils::wnfsio::get_progress_bar,
-};
+use crate::{types::config::globalconfig::GlobalConfig, utils::wnfsio::get_progress_bar};
 use anyhow::Result;
 use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
 use wnfs::{common::BlockStore as WnfsBlockStore, private::PrivateForest};
@@ -15,10 +12,10 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
     let mut global = GlobalConfig::from_disk()?;
     let wrapping_key = global.wrapping_key_from_disk()?;
 
-    if let Some(mut config) = global.get_bucket(origin) {
+    if let Some(config) = global.get_bucket(origin) {
         // Overwrite the content with new BlockStore
-        remove_file(&config.content.path).ok();
-        config.content = BlockStore::new(&config.content.path)?;
+        // remove_file(&config.content.path).ok();
+        // config.content = BlockStore::new(&config.content.path)?;
 
         // Load
         let (metadata_forest, content_forest, root_dir, key_manager) =

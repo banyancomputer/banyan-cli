@@ -23,7 +23,7 @@ mod test {
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
-            tests::{test_setup, test_setup_structured, test_teardown},
+            tests::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
             wnfsio::{self, decompress_bytes},
         },
     };
@@ -396,9 +396,10 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         // Compute the sizes of these directories
         let packed_dups_size =
-            metadata(global.get_bucket(&origin_dup).unwrap().content.path)?.len() as f64;
+            compute_directory_size(&global.get_bucket(&origin_dup).unwrap().content.path)? as f64;
         let packed_unique_size =
-            metadata(global.get_bucket(&origin_unique).unwrap().content.path)?.len() as f64;
+            compute_directory_size(&global.get_bucket(&origin_unique).unwrap().content.path)?
+                as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
         assert!(packed_unique_size / packed_dups_size >= 1.8);

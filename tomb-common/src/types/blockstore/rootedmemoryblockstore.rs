@@ -1,15 +1,18 @@
 use anyhow::Result;
-use std::{cell::RefCell, borrow::Cow};
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use wnfs::{libipld::{Cid, IpldCodec}, common::{MemoryBlockStore, BlockStore as WnfsBlockStore}};
+use serde::{Deserialize, Serialize};
+use std::{borrow::Cow, cell::RefCell};
+use wnfs::{
+    common::{BlockStore as WnfsBlockStore, MemoryBlockStore},
+    libipld::{Cid, IpldCodec},
+};
 
 use super::rootedblockstore::RootedBlockStore;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RootedMemoryBlockStore {
     root: RefCell<Option<Cid>>,
-    store: MemoryBlockStore
+    store: MemoryBlockStore,
 }
 
 impl RootedMemoryBlockStore {
@@ -18,7 +21,6 @@ impl RootedMemoryBlockStore {
         Self::default()
     }
 }
-
 
 #[async_trait(?Send)]
 impl WnfsBlockStore for RootedMemoryBlockStore {
