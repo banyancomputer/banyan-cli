@@ -91,95 +91,6 @@ async fn load_dir<M: RootedBlockStore>(
         .as_dir()
 }
 
-/// Store everything at once!
-pub async fn store_all<M: RootedBlockStore, C: RootedBlockStore>(
-    metadata: &M,
-    content: &C,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
-    root_dir: &Rc<PrivateDirectory>,
-    key_manager: &mut Manager,
-) -> Result<()> {
-    // Construct new map for metadata
-    let mut metadata_map = BTreeMap::new();
-    // Store PrivateDirectory in both BlockStores, retrieving the new TemporalKey and cid of remaining PrivateRef components
-    let (private_ref_cid1, temporal_key1) = store_dir(metadata, metadata_forest, root_dir).await?;
-    let (private_ref_cid2, temporal_key2) = store_dir(content, content_forest, root_dir).await?;
-    assert_eq!(private_ref_cid1, private_ref_cid2);
-    assert_eq!(temporal_key1, temporal_key2);
-
-    // Update the temporal key in the key manager
-    key_manager.update_current_key(&temporal_key1).await?;
-    metadata_map.insert(
-        "current_private_ref".to_string(),
-        Ipld::Link(private_ref_cid1),
-    );
-    // If we've yet to initialize our originals
-    if metadata.get_root().unwrap() == Cid::default() {
-        // Set the original key
-        key_manager.set_original_key(&temporal_key1).await?;
-        // Insert private ref and set original key in key manager
-        metadata_map.insert(
-            "original_private_ref".to_string(),
-            Ipld::Link(private_ref_cid1),
-        );
-    }
-    // If they're already present
-    else {
-        // Try to grab it from metadata or content
-        let original_private_ref_cid = if let Ok(cid) = get_original_private_ref_cid(metadata).await
-        {
-            cid
-        } else if let Ok(cid) = get_original_private_ref_cid(content).await {
-            cid
-        } else {
-            return Err(
-                SerialError::MissingMetadata("lost original PrivateDirectory".to_string()).into(),
-            );
-        };
-
-        // Simply ensure the cid reference is carried over by reinserting
-        metadata_map.insert(
-            "original_private_ref".to_string(),
-            Ipld::Link(original_private_ref_cid),
-        );
-    }
-    // Put the key manager in both the content and the metadata BlockStores
-    let key_manager_cid1 = metadata.put_serializable(key_manager).await?;
-    let key_manager_cid2 = content.put_serializable(key_manager).await?;
-    assert_eq!(key_manager_cid1, key_manager_cid2);
-    metadata_map.insert("key_manager".to_string(), Ipld::Link(key_manager_cid1));
-
-    // Store the metadata PrivateForest in both the content and the metadata BlockStores
-    let metadata_forest_cid1 = store_forest(metadata_forest, metadata, metadata).await?;
-    let metadata_forest_cid2 = store_forest(metadata_forest, metadata, content).await?;
-    assert_eq!(metadata_forest_cid1, metadata_forest_cid2);
-    metadata_map.insert(
-        "metadata_forest".to_string(),
-        Ipld::Link(metadata_forest_cid1),
-    );
-
-    // Store the content PrivateForest in both the content and the metadata BlockStores
-    let content_forest_cid1 = store_forest(content_forest, content, content).await?;
-    let content_forest_cid2 = store_forest(content_forest, content, metadata).await?;
-    assert_eq!(content_forest_cid1, content_forest_cid2);
-    metadata_map.insert(
-        "content_forest".to_string(),
-        Ipld::Link(content_forest_cid1),
-    );
-
-    // Now that we've finished inserting
-    let metadata_root = &Ipld::Map(metadata_map);
-    // Put the metadata IPLD Map into the metadata BlockStore and set root
-    let metadata_root_cid = metadata.put_serializable(metadata_root).await?;
-    metadata.set_root(&metadata_root_cid);
-    // Put the metadata IPLD Map into the content BlockStore and set root
-    let content_root_cid = content.put_serializable(metadata_root).await?;
-    content.set_root(&content_root_cid);
-
-    Ok(())
-}
-
 /// Grabs the cid of the original PrivateRef
 pub async fn get_original_private_ref_cid<M: RootedBlockStore>(store: &M) -> Result<Cid> {
     // If we can successfully extract the Cid
@@ -193,43 +104,83 @@ pub async fn get_original_private_ref_cid<M: RootedBlockStore>(store: &M) -> Res
     }
 }
 
-/// Obtain a PrivateNodeOnPathHistory iterator for the root directory
-pub async fn load_history<M: RootedBlockStore>(
-    wrapping_key: &RsaPrivateKey,
-    metadata: &M
-) -> Result<PrivateNodeOnPathHistory> {
-    let (metadata_forest, _, current_directory, key_manager) =
-        load_all(wrapping_key, metadata).await?;
+/// Store everything at once!
+pub async fn store_all<M: RootedBlockStore, C: RootedBlockStore>(
+    metadata: &M,
+    content: &C,
+    metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
+    root_dir: &Rc<PrivateDirectory>,
+    key_manager: &mut Manager,
+) -> Result<()> {
+    // Store PrivateDirectory in both BlockStores, retrieving the new TemporalKey and cid of remaining PrivateRef components
+    let (private_ref_cid1, temporal_key1) = store_dir(metadata, metadata_forest, root_dir).await?;
+    let (private_ref_cid2, temporal_key2) = store_dir(content, content_forest, root_dir).await?;
+    assert_eq!(private_ref_cid1, private_ref_cid2);
+    assert_eq!(temporal_key1, temporal_key2);
 
-    // Grab the original key
-    let original_key = &key_manager.retrieve_original(wrapping_key).await?;
-    // Load the original PrivateRef cid
-    let original_private_ref_cid = &get_original_private_ref_cid(metadata).await?;
-    // Load dir
-    let original_directory = load_dir(
-        metadata,
-        original_key,
-        original_private_ref_cid,
-        &metadata_forest,
-    )
-    .await?;
+    // Update the temporal key in the key manager
+    key_manager.update_current_key(&temporal_key1).await?;
+    // If we've yet to initialize our originals
+    let original_private_ref_cid = if metadata.get_root().unwrap() == Cid::default() {
+        // Set the original key
+        key_manager.set_original_key(&temporal_key1).await?;
+        // Return
+        private_ref_cid1
+    } else {
+        // Grab
+        get_original_private_ref_cid(metadata).await?
+    };
+    // Put the key manager in both the content and the metadata BlockStores
+    let key_manager_cid1 = metadata.put_serializable(key_manager).await?;
+    let key_manager_cid2 = content.put_serializable(key_manager).await?;
+    assert_eq!(key_manager_cid1, key_manager_cid2);
 
-    PrivateNodeOnPathHistory::of(
-        current_directory,
-        original_directory,
-        1_000_000,
-        &[],
-        true,
-        metadata_forest,
-        metadata,
-    )
-    .await
+    // Store the metadata PrivateForest in both the content and the metadata BlockStores
+    let metadata_forest_cid1 = store_forest(metadata_forest, metadata, metadata).await?;
+    let metadata_forest_cid2 = store_forest(metadata_forest, metadata, content).await?;
+    assert_eq!(metadata_forest_cid1, metadata_forest_cid2);
+
+    // Store the content PrivateForest in both the content and the metadata BlockStores
+    let content_forest_cid1 = store_forest(content_forest, content, content).await?;
+    let content_forest_cid2 = store_forest(content_forest, content, metadata).await?;
+    assert_eq!(content_forest_cid1, content_forest_cid2);
+
+    // Construct new map for metadata
+    let mut metadata_map = BTreeMap::new();
+    metadata_map.insert(
+        "original_private_ref".to_string(),
+        Ipld::Link(original_private_ref_cid),
+    );
+    metadata_map.insert(
+        "current_private_ref".to_string(),
+        Ipld::Link(private_ref_cid1),
+    );
+    metadata_map.insert("key_manager".to_string(), Ipld::Link(key_manager_cid1));
+    metadata_map.insert(
+        "metadata_forest".to_string(),
+        Ipld::Link(metadata_forest_cid1),
+    );
+    metadata_map.insert(
+        "content_forest".to_string(),
+        Ipld::Link(content_forest_cid1),
+    );
+    // Now that we've finished inserting
+    let metadata_root = &Ipld::Map(metadata_map);
+    // Put the metadata IPLD Map into the metadata BlockStore and set root
+    let metadata_root_cid = metadata.put_serializable(metadata_root).await?;
+    metadata.set_root(&metadata_root_cid);
+    // Put the metadata IPLD Map into the content BlockStore and set root
+    let content_root_cid = content.put_serializable(metadata_root).await?;
+    content.set_root(&content_root_cid);
+
+    Ok(())
 }
 
 /// Load everything at once!
 pub async fn load_all<M: RootedBlockStore>(
     wrapping_key: &RsaPrivateKey,
-    metadata: &M
+    metadata: &M,
 ) -> Result<(
     Rc<PrivateForest>,
     Rc<PrivateForest>,
@@ -265,6 +216,39 @@ pub async fn load_all<M: RootedBlockStore>(
     else {
         Err(SerialError::MissingMetadata("One or both BlockStores are missing CIDs".to_string()).into())
     }
+}
+
+/// Obtain a PrivateNodeOnPathHistory iterator for the root directory
+pub async fn load_history<M: RootedBlockStore>(
+    wrapping_key: &RsaPrivateKey,
+    metadata: &M,
+) -> Result<PrivateNodeOnPathHistory> {
+    let (metadata_forest, _, current_directory, key_manager) =
+        load_all(wrapping_key, metadata).await?;
+
+    // Grab the original key
+    let original_key = &key_manager.retrieve_original(wrapping_key).await?;
+    // Load the original PrivateRef cid
+    let original_private_ref_cid = &get_original_private_ref_cid(metadata).await?;
+    // Load dir
+    let original_directory = load_dir(
+        metadata,
+        original_key,
+        original_private_ref_cid,
+        &metadata_forest,
+    )
+    .await?;
+
+    PrivateNodeOnPathHistory::of(
+        current_directory,
+        original_directory,
+        1_000_000,
+        &[],
+        true,
+        metadata_forest,
+        metadata,
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -373,7 +357,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn all() -> Result<()> {
+    async fn all_from_metadata() -> Result<()> {
         let test_name = "all";
         // Start er up!
         let (_, metadata, content, metadata_forest, content_forest, dir) =
@@ -394,6 +378,52 @@ mod test {
 
         let (new_metadata_forest, new_content_forest, new_dir, new_key_manager) =
             &mut load_all(&wrapping_key, metadata).await?;
+
+        // Assert equality
+        assert_eq!(
+            new_metadata_forest
+                .diff(metadata_forest, metadata)
+                .await?
+                .len(),
+            0
+        );
+        assert_eq!(
+            new_content_forest
+                .diff(content_forest, content)
+                .await?
+                .len(),
+            0
+        );
+        assert_eq!(dir, new_dir);
+        assert_eq!(&mut key_manager, new_key_manager);
+        // Teardown
+        teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
+    #[ignore]
+    async fn all_from_content() -> Result<()> {
+        let test_name = "all";
+        // Start er up!
+        let (_, metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup(test_name).await?;
+        let wrapping_key = RsaPrivateKey::default();
+        let mut key_manager = Manager::default();
+        key_manager.insert(&wrapping_key.get_public_key()).await?;
+
+        let _ = &store_all(
+            metadata,
+            content,
+            metadata_forest,
+            content_forest,
+            dir,
+            &mut key_manager,
+        )
+        .await?;
+
+        let (new_metadata_forest, new_content_forest, new_dir, new_key_manager) =
+            &mut load_all(&wrapping_key, content).await?;
 
         // Assert equality
         assert_eq!(

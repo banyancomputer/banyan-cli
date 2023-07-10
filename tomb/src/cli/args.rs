@@ -1,7 +1,6 @@
 use clap::{command, Parser};
 
-use super::{verbosity::MyVerbosity, command::Command};
-
+use super::{command::Command, verbosity::MyVerbosity};
 
 /// Arguments to tomb
 #[derive(Parser, Debug)]

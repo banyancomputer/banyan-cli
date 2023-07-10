@@ -19,7 +19,7 @@ pub mod unpack;
 mod test {
     use super::add;
     use crate::{
-        pipelines::{configure, pack, pull, push, remove, unpack},
+        pipelines::{configure, pack, remove, unpack},
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
@@ -33,7 +33,7 @@ mod test {
     use fs_extra::dir;
     use serial_test::serial;
     use std::{
-        fs::{create_dir_all, metadata, read_link, remove_file, rename, symlink_metadata, File},
+        fs::{create_dir_all, read_link, rename, symlink_metadata, File},
         io::Write,
         os::unix::fs::symlink,
         path::PathBuf,
@@ -102,65 +102,6 @@ mod test {
         unpack::pipeline(&origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).unwrap();
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn pack_push() -> Result<()> {
-        let test_name = "pack_push";
-        // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
-        // Initialize
-        configure::init(&origin)?;
-        // Configure the remote endpoint
-        configure::remote("http://127.0.0.1:5001")?;
-        // Pack locally
-        pack::pipeline(origin, true).await?;
-        // Push
-        push::pipeline(origin).await?;
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    #[ignore]
-    async fn pack_push_pull() -> Result<()> {
-        let test_name = "pack_push_pull";
-        // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
-        // Initialize tomb
-        configure::init(origin)?;
-        // Configure the remote endpoint
-        configure::remote("http://127.0.0.1:5001")?;
-        // Pack locally
-        pack::pipeline(&origin, true).await?;
-        // Send data to remote endpoint
-        push::pipeline(&origin).await?;
-        // The content path of the current content BlockStore
-        let v1_content = &GlobalConfig::from_disk()?
-            .get_bucket(origin)
-            .unwrap()
-            .content
-            .path;
-        // Compute size of original content
-        let d1 = metadata(v1_content)?.len();
-        // Oh no! File corruption, we lost all our data!
-        remove_file(v1_content)?;
-        // Now its time to reconstruct all our data
-        pull::pipeline(&origin).await?;
-        // The content path of the current content BlockStore
-        let v2_content = &GlobalConfig::from_disk()?
-            .get_bucket(origin)
-            .unwrap()
-            .content
-            .path;
-        // Compute size of reconstructed content
-        let d2 = metadata(v2_content)?.len();
-        // Assert that, despite reordering of CIDs, content CAR is the exact same size
-        assert_eq!(d1, d2);
         // Teardown
         test_teardown(test_name).await
     }

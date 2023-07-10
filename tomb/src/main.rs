@@ -9,8 +9,8 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 use anyhow::Result;
 use clap::Parser;
-use tomb::cli;
 use std::io::Write;
+use tomb::cli;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,6 +27,6 @@ async fn main() -> Result<()> {
         .format_level(true)
         .format_module_path(false)
         .init();
-    
+
     Ok(())
 }

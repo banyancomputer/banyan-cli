@@ -10,7 +10,9 @@ pub mod rootedmemoryblockstore;
 
 #[cfg(test)]
 mod test {
-    use super::{diskblockstore::DiskBlockStore, networkblockstore::NetworkBlockStore};
+    use crate::types::blockstore::rootedmemoryblockstore::RootedMemoryBlockStore;
+
+    use super::diskblockstore::DiskBlockStore;
     use anyhow::Result;
     use std::{fs::create_dir_all, path::PathBuf};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
@@ -26,11 +28,8 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore]
-    async fn networkblockstore() -> Result<()> {
-        let dir = &PathBuf::from("test");
-        create_dir_all(dir)?;
-        let store = &NetworkBlockStore::new("http://127.0.0.1:5001")?;
+    async fn rootedmemoryblockstore() -> Result<()> {
+        let store = &RootedMemoryBlockStore::new();
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

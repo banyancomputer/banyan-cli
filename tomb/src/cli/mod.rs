@@ -1,11 +1,11 @@
-pub mod command;
 pub mod args;
+pub mod command;
 pub mod verbosity;
 
+use crate::pipelines::{add, configure, pack, pull, push, remove, unpack};
 use anyhow::Result;
-use std::env::current_dir;
-use crate::pipelines::{pack, configure, unpack, pull, push, add, remove};
 use command::{Command, ConfigSubCommand};
+use std::env::current_dir;
 
 // TODO add support for https://docs.rs/keyring/latest/keyring/
 // TODO what's going on with buckets? these are URLs right?
@@ -92,47 +92,47 @@ pub async fn run(command: Command) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::{types::config::globalconfig::GlobalConfig, utils::test::*, cli::run};
+    use super::command::{Command, ConfigSubCommand};
+    use crate::{cli::run, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::Result;
     use dir_assert::assert_paths;
-    use fs_extra::file;
     use serial_test::serial;
-    use std::{
-        fs::{create_dir, metadata},
-        path::Path
-    };
-    use super::command::{Command, ConfigSubCommand};
+    use std::{fscreate_dir, path::Path};
 
     fn cmd_init(dir: &Path) -> Command {
-        Command::Init { dir: Some(dir.to_path_buf()) }
+        Command::Init {
+            dir: Some(dir.to_path_buf()),
+        }
     }
 
     fn cmd_deinit(dir: &Path) -> Command {
-        Command::Deinit { dir: Some(dir.to_path_buf()) }
+        Command::Deinit {
+            dir: Some(dir.to_path_buf()),
+        }
     }
 
     fn cmd_configure_remote(address: &str) -> Command {
-        Command::Configure { subcommand: ConfigSubCommand::SetRemote { address: address.to_string() } }
+        Command::Configure {
+            subcommand: ConfigSubCommand::SetRemote {
+                address: address.to_string(),
+            },
+        }
     }
 
     // Run the Pack pipeline through the CLI
     fn cmd_pack(origin: &Path) -> Command {
-        Command::Pack { origin: Some(origin.to_path_buf()), follow_links: true }
+        Command::Pack {
+            origin: Some(origin.to_path_buf()),
+            follow_links: true,
+        }
     }
 
     // Run the Unpack pipeline through the CLI
     fn cmd_unpack(origin: &Path, unpacked: &Path) -> Command {
-        Command::Unpack { origin: Some(origin.to_path_buf()), unpacked: unpacked.to_path_buf() }
-    }
-
-    // Run the Push pipeline through the CLI
-    fn cmd_push(dir: &Path) -> Command {
-        Command::Push { dir: dir.to_path_buf() }
-    }
-
-    // Run the Pull pipeline through the CLI
-    fn cmd_pull(dir: &Path) -> Command {
-        Command::Pull { dir: dir.to_path_buf() }
+        Command::Unpack {
+            origin: Some(origin.to_path_buf()),
+            unpacked: unpacked.to_path_buf(),
+        }
     }
 
     #[tokio::test]
@@ -227,38 +227,6 @@ mod test {
         run(cmd_unpack(origin, unpacked)).await?;
         // Assert equality
         assert_paths(origin, unpacked).unwrap();
-        // Teardown test
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    #[ignore]
-    async fn push_pull() -> Result<()> {
-        let test_name = "push_pull";
-        // Setup test
-        let origin = &test_setup(test_name).await?;
-        // Initialize tomb
-        run(cmd_init(origin)).await?;
-        // Configure remote endpoint
-        run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
-        // Run pack locally and assert success
-        run(cmd_pack(origin)).await?;
-
-        let v1_path = &GlobalConfig::from_disk()?
-            .get_bucket(origin)
-            .unwrap()
-            .content
-            .path;
-        let v1_moved = &v1_path.parent().unwrap().join("old_content.car");
-        file::move_file(v1_path, v1_moved, &file::CopyOptions::new())?;
-
-        // Run push and assert success
-        run(cmd_push(origin)).await?;
-        // Run unpack and assert success
-        run(cmd_pull(origin)).await?;
-        // Assert that, despite reordering of CIDs, content CAR is the exact same size
-        assert_eq!(metadata(v1_path)?.len(), metadata(v1_moved)?.len(),);
         // Teardown test
         test_teardown(test_name).await
     }

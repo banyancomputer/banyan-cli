@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use clap::{arg, Subcommand};
 
-
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
@@ -93,7 +92,6 @@ pub enum Command {
     /// We don't know yet
     Daemon,
 }
-
 
 /// Sub-commands associated with configuration
 #[derive(Subcommand, Clone, Debug)]

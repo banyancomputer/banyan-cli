@@ -29,11 +29,6 @@ use chrono::Utc;
 use rand::thread_rng;
 use std::rc::Rc;
 
-// Our optional WeeAlloc allocator
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 #[allow(dead_code)]
 #[wasm_bindgen]
 pub struct Tomb {

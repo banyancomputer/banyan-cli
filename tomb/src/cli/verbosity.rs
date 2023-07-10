@@ -1,6 +1,5 @@
 use log::LevelFilter;
 
-
 /// Level of verbosity in debugs
 #[derive(Clone, Debug, clap::ValueEnum)]
 pub enum MyVerbosity {

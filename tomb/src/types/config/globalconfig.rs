@@ -212,7 +212,10 @@ mod test {
 
         // Assert equality
         assert_eq!(original_bucket.metadata, reconstructed_bucket.metadata);
-        assert_eq!(original_bucket.content.deltas[0], reconstructed_bucket.content.deltas[0]);
+        assert_eq!(
+            original_bucket.content.deltas[0],
+            reconstructed_bucket.content.deltas[0]
+        );
 
         Ok(())
     }

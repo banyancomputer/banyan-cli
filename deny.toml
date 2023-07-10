@@ -104,9 +104,6 @@ skip = [
     { name = "bitflags", version = "1.2.1" },   # from several dependencies
     { name = "bitflags", version = "2.3.3" },   # from rustix
 
-    { name = "cfg-if", version = "0.1.10" },
-    { name = "cfg-if", version = "1.0.0" },
-
     { name = "cid", version = "0.8.6"  },       # from serde_ipld_dagcbor v0.3.0
     { name = "cid", version = "0.10.1" },       # from libipld-core v0.16.0
 
@@ -116,8 +113,8 @@ skip = [
     { name = "clap_lex", version = "0.2.4" },   # from clap v3.2.25
     { name = "clap_lex", version = "0.5.0" },   # from clap_builder v4.3.1
 
-    { name = "constant_time_eq", version = "0.2.6" },
-    { name = "constant_time_eq", version = "0.3.0" },
+    { name = "constant_time_eq", version = "0.2.6" }, # from blake2(b/s)_simd v1.0.1
+    { name = "constant_time_eq", version = "0.3.0" }, # from blake3 v1.4.1
 
     { name = "hermit-abi", version = "0.1.19" },    # from atty v0.2.14
     { name = "hermit-abi", version = "0.3.1"  },    # from several dependencies
