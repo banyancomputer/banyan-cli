@@ -50,17 +50,11 @@ impl BucketConfig {
         create_dir_all(&generated)?;
 
         let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = BlockStore::new(&generated.join("content.car"))?;
+        let content = MultifileBlockStore::new(&generated.join("content"))?;
 
         // Start with default roots such that we never have to shift blocks
         metadata.set_root(&Cid::default());
         content.set_root(&Cid::default());
-
-        // TODO organizedgrime: this shouldn't be necessary. Can elaborate why it is required in edge cases, but hotfixing for now.
-        metadata.to_disk()?;
-        content.to_disk()?;
-        let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = MultifileBlockStore::new(&generated.join("content"))?;
 
         Ok(Self {
             bucket_name,

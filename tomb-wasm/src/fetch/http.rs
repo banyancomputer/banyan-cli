@@ -1,4 +1,5 @@
 use gloo::{console::log, utils::window};
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use wasm_streams::ReadableStream;
@@ -6,7 +7,7 @@ use web_sys::{
     ReadableStream as WebSysReadableStream, Request, RequestInit, RequestMode, Response,
 };
 
-use crate::utils::JsResult;
+use crate::{metadata::error::WasmError, utils::JsResult};
 
 #[allow(dead_code)]
 /// Fetches JSON from the given URL
@@ -49,6 +50,20 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
     Ok(stream)
 }
 
+pub(crate) async fn get_data(url: String) -> anyhow::Result<Vec<u8>> {
+    if let Ok(mut stream) = get_stream(url.clone()).await {
+        let mut reader = stream.get_reader();
+        let mut data: Vec<u8> = vec![];
+        while let Ok(Some(result)) = reader.read().await {
+            let chunk = Uint8Array::from(result);
+            data.extend(chunk.to_vec());
+        }
+        Ok(data)
+    } else {
+        Err(WasmError::Remote(url).into())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use js_sys::Uint8Array;
@@ -74,7 +89,7 @@ mod test {
         assert_eq!(todo.user_id, 1);
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
-        assert_eq!(todo.completed, false);
+        assert!(!todo.completed);
     }
 
     #[wasm_bindgen_test]
@@ -91,6 +106,6 @@ mod test {
         assert_eq!(todo.user_id, 1);
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
-        assert_eq!(todo.completed, false);
+        assert!(!todo.completed);
     }
 }

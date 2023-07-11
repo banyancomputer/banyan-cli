@@ -183,7 +183,7 @@ mod test {
     #[serial]
     async fn get_block() -> Result<()> {
         let car_path = &car_setup(1, "basic", "get_block")?;
-        let store = BlockStore::new(&car_path)?;
+        let store = BlockStore::new(car_path)?;
         let cid = Cid::from_str("QmdwjhxpxzcMsR3qUuj7vUL8pbA7MgR3GAxWi2GLHjsKCT")?;
         let bytes = store.get_block(&cid).await?.to_vec();
         assert_eq!(bytes, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804")?);
@@ -195,7 +195,7 @@ mod test {
     #[serial]
     async fn put_block() -> Result<()> {
         let car_path = &car_setup(1, "basic", "put_block")?;
-        let store = BlockStore::new(&car_path)?;
+        let store = BlockStore::new(car_path)?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store
             .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
