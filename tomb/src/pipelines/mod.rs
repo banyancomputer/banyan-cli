@@ -99,7 +99,7 @@ mod test {
             .join(format!("{}_unpacked", test_name));
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(&origin, unpacked_dir).await?;
+        unpack::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).unwrap();
         // Teardown
@@ -136,7 +136,7 @@ mod test {
         // Grab the file at this path
         let file = dir
             .get_node(
-                &path_to_segments(&input_file)?,
+                &path_to_segments(input_file)?,
                 true,
                 metadata_forest,
                 &config.metadata,
@@ -315,7 +315,7 @@ mod test {
         create_dir_all(duplicate_dup)?;
 
         // Generate file structure
-        structure.generate(&original_dup)?;
+        structure.generate(original_dup)?;
         // Copy into duplicate path
         dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new())?;
 
@@ -337,10 +337,9 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         // Compute the sizes of these directories
         let packed_dups_size =
-            compute_directory_size(&global.get_bucket(&origin_dup).unwrap().content.path)? as f64;
+            compute_directory_size(&global.get_bucket(origin_dup).unwrap().content.path)? as f64;
         let packed_unique_size =
-            compute_directory_size(&global.get_bucket(&origin_unique).unwrap().content.path)?
-                as f64;
+            compute_directory_size(&global.get_bucket(origin_unique).unwrap().content.path)? as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
         assert!(packed_unique_size / packed_dups_size >= 1.8);
@@ -410,7 +409,7 @@ mod test {
             .unwrap()
             .as_file()?;
         let current_content = current_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         wnfsio::decompress_bytes(
@@ -439,7 +438,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await
             .unwrap();
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
@@ -466,7 +465,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await
             .unwrap();
         let mut original_content_decompressed: Vec<u8> = Vec::new();
@@ -527,7 +526,7 @@ mod test {
             .unwrap()
             .as_file()?;
         let current_content = current_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         wnfsio::decompress_bytes(
@@ -556,7 +555,7 @@ mod test {
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await
             .unwrap();
         let mut previous_content_decompressed: Vec<u8> = Vec::new();

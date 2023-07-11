@@ -254,7 +254,7 @@ mod test {
         car.write_bytes(&mut r, &mut w)?;
 
         // Read in the car
-        let mut r2 = File::open(&new_path)?;
+        let mut r2 = File::open(new_path)?;
         let new_car = Car::read_bytes(&mut r2)?;
 
         assert_eq!(car.header, new_car.header);

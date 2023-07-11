@@ -7,7 +7,7 @@ use web_sys::{
     ReadableStream as WebSysReadableStream, Request, RequestInit, RequestMode, Response,
 };
 
-use crate::{utils::JsResult, metadata::error::WasmError};
+use crate::{metadata::error::WasmError, utils::JsResult};
 
 #[allow(dead_code)]
 /// Fetches JSON from the given URL
@@ -50,7 +50,6 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
     Ok(stream)
 }
 
-
 pub(crate) async fn get_data(url: String) -> anyhow::Result<Vec<u8>> {
     if let Ok(mut stream) = get_stream(url.clone()).await {
         let mut reader = stream.get_reader();
@@ -60,9 +59,8 @@ pub(crate) async fn get_data(url: String) -> anyhow::Result<Vec<u8>> {
             data.extend(chunk.to_vec());
         }
         Ok(data)
-    }
-    else {
-        Err(WasmError::RemoteFailure(url).into())
+    } else {
+        Err(WasmError::Remote(url).into())
     }
 }
 
@@ -91,7 +89,7 @@ mod test {
         assert_eq!(todo.user_id, 1);
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
-        assert_eq!(todo.completed, false);
+        assert!(!todo.completed);
     }
 
     #[wasm_bindgen_test]
@@ -108,6 +106,6 @@ mod test {
         assert_eq!(todo.user_id, 1);
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
-        assert_eq!(todo.completed, false);
+        assert!(!todo.completed);
     }
 }

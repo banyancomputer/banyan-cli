@@ -144,7 +144,7 @@ mod test {
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
         // Initialization worked
-        run(cmd_init(&origin)).await?;
+        run(cmd_init(origin)).await?;
         // Assert the bucket exists now
         let global = GlobalConfig::from_disk()?;
         // Assert that there is always a wrapping key
@@ -183,7 +183,7 @@ mod test {
         let input_dir = &test_setup(test_name).await?;
 
         // Initialize
-        run(cmd_init(&input_dir)).await?;
+        run(cmd_init(input_dir)).await?;
 
         // Configure remote endpoint
         run(cmd_configure_remote("http://127.0.0.1:5001")).await?;

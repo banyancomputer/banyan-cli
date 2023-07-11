@@ -5,10 +5,12 @@ use wasm_bindgen::JsValue;
 /// Configuration errors.
 #[derive(Debug, Error)]
 pub(crate) enum WasmError {
+    #[error("Failed to deserialize WNFS components from filesystem")]
+    FS,
     #[error("LS failed on path: {:?}", .0)]
-    LSFailure(Vec<String>),
+    LS(Vec<String>),
     #[error("Failed to open remote endpoint: {}", .0)]
-    RemoteFailure(String)
+    Remote(String),
 }
 
 impl From<WasmError> for JsValue {

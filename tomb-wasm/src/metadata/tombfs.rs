@@ -1,11 +1,13 @@
 use std::rc::Rc;
 
-use crate::{metadata::{crypto::PrivateKey, blockstore::WasmBlockStore, error::WasmError, metadata::JsMetadata}, value};
-use js_sys::{Object, Reflect, Array};
-use tomb_common::{utils::serialize::*, types::keys::manager::Manager};
+use crate::{
+    metadata::{blockstore::WasmBlockStore, crypto::PrivateKey, error::WasmError, JsMetadata},
+    value,
+};
+use js_sys::{Array, Object, Reflect};
+use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
-use wnfs::private::{PrivateForest, PrivateDirectory};
-
+use wnfs::private::{PrivateDirectory, PrivateForest};
 
 #[wasm_bindgen]
 #[allow(dead_code)]
@@ -14,27 +16,31 @@ struct TombFS {
     metadata_forest: Rc<PrivateForest>,
     content_forest: Rc<PrivateForest>,
     dir: Rc<PrivateDirectory>,
-    manager: Manager
+    manager: Manager,
 }
 
 #[wasm_bindgen]
 #[allow(dead_code)]
 impl TombFS {
     #[wasm_bindgen]
-    pub async fn new(wrapping_key: PrivateKey, metadata: WasmBlockStore) -> Result<TombFS, JsValue> {
-        // If we can successfully deserialize
-        if let Ok((metadata_forest, content_forest, dir, manager)) = load_all(&wrapping_key.0, &metadata).await {
+    pub async fn new(
+        wrapping_key: PrivateKey,
+        metadata: WasmBlockStore,
+    ) -> Result<TombFS, JsValue> {
+        // If we can successfully deserialize from key and metadata
+        if let Ok((metadata_forest, content_forest, dir, manager)) =
+            load_all(&wrapping_key.0, &metadata).await
+        {
             // Init
             Ok(TombFS {
                 metadata,
                 metadata_forest,
                 content_forest,
                 dir,
-                manager
+                manager,
             })
-        }
-        else {
-            Err(JsValue::NULL)
+        } else {
+            Err(WasmError::FS.into())
         }
     }
 }
@@ -43,37 +49,49 @@ impl TombFS {
 #[allow(dead_code)]
 impl TombFS {
     #[wasm_bindgen]
-    /// List the 
+    /// List the
     pub async fn ls(&self, path_segments: Array) -> Result<Array, JsValue> {
         // Convert the array into a Vec of Strings
-        let path_segments = path_segments.entries().into_iter().map(|value|  value.unwrap().as_string().unwrap()).collect::<Vec<String>>();
+        let path_segments = path_segments
+            .entries()
+            .into_iter()
+            .map(|value| value.unwrap().as_string().unwrap())
+            .collect::<Vec<String>>();
         // Call LS
-        if let Ok(result) = self.dir.ls(path_segments.as_slice(), true, &self.metadata_forest, &self.metadata).await {
-            let array = result.iter().map(|(file_name, metadata)| {
-                // Create a new object for this tuple
-                let item = Object::new();
-                // Set the file_name field
-                Reflect::set(
-                    &item,
-                    &value!("file_name"),
-                    &value!(file_name)
-                ).unwrap();
-                // Set the metadata field
-                Reflect::set(
-                    &item,
-                    &value!("metadata"),
-                    &JsMetadata(metadata).try_into().unwrap()
-                ).unwrap();
-                // Convert the object to JsValue
-                value!(item)
-            }).collect::<Array>();
-            
+        if let Ok(result) = self
+            .dir
+            .ls(
+                path_segments.as_slice(),
+                true,
+                &self.metadata_forest,
+                &self.metadata,
+            )
+            .await
+        {
+            let array = result
+                .iter()
+                .map(|(file_name, metadata)| {
+                    // Create a new object for this tuple
+                    let item = Object::new();
+                    // Set the file_name field
+                    Reflect::set(&item, &value!("file_name"), &value!(file_name)).unwrap();
+                    // Set the metadata field
+                    Reflect::set(
+                        &item,
+                        &value!("metadata"),
+                        &JsMetadata(metadata).try_into().unwrap(),
+                    )
+                    .unwrap();
+                    // Convert the object to JsValue
+                    value!(item)
+                })
+                .collect::<Array>();
+
             // Return Ok
             Ok(array)
-        }
-        else {
+        } else {
             // Return error
-            Err(WasmError::LSFailure(path_segments.to_vec()).into())
+            Err(WasmError::LS(path_segments.to_vec()).into())
         }
     }
 }
@@ -94,7 +112,9 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn load_tombfs() {
-        let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string()).await.unwrap();
+        let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
+            .await
+            .unwrap();
         let metadata = WasmBlockStore::new(METADATA_URL.to_string()).await.unwrap();
         let tomb_fs = TombFS::new(wrapping_key, metadata).await;
         assert!(tomb_fs.is_ok());
@@ -102,7 +122,9 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn ls() {
-        let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string()).await.unwrap();
+        let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
+            .await
+            .unwrap();
         let metadata = WasmBlockStore::new(METADATA_URL.to_string()).await.unwrap();
         let tomb_fs = TombFS::new(wrapping_key, metadata).await.unwrap();
 

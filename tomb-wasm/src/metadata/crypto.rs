@@ -1,4 +1,3 @@
-
 use tomb_common::crypto::rsa::RsaPrivateKey as TombPrivateKey;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
@@ -20,8 +19,8 @@ impl PrivateKey {
 
 #[cfg(test)]
 mod test {
-    use wasm_bindgen_test::wasm_bindgen_test;
     use crate::metadata::crypto::PrivateKey;
+    use wasm_bindgen_test::wasm_bindgen_test;
 
     #[wasm_bindgen_test]
     async fn load_key() {

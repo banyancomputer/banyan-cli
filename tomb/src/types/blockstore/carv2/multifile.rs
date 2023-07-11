@@ -4,8 +4,9 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
+    cmp::max,
     fs::{self, create_dir_all, metadata},
-    path::{Path, PathBuf}, cmp::max,
+    path::{Path, PathBuf},
 };
 use tomb_common::types::blockstore::{car::error::CarError, rootedblockstore::RootedBlockStore};
 use wnfs::{
@@ -151,15 +152,13 @@ impl<'de> Deserialize<'de> for MultifileBlockStore {
 
 #[cfg(test)]
 mod test {
-    use std::{fs::remove_dir_all, path::Path};
-
+    use crate::types::blockstore::carv2::multifile::MultifileBlockStore;
     use anyhow::Result;
+    use std::{fs::remove_dir_all, path::Path};
     use wnfs::{
         common::{dagcbor, BlockStore},
         libipld::IpldCodec,
     };
-
-    use crate::{types::blockstore::carv2::multifile::MultifileBlockStore, utils::test::{test_setup, test_teardown}, pipelines::{pack, configure}};
 
     #[tokio::test]
     async fn multidelta_serialization() -> Result<()> {
