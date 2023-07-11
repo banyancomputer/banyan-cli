@@ -1,4 +1,5 @@
 use gloo::{console::log, utils::window};
+use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use wasm_streams::ReadableStream;
@@ -6,7 +7,7 @@ use web_sys::{
     ReadableStream as WebSysReadableStream, Request, RequestInit, RequestMode, Response,
 };
 
-use crate::utils::JsResult;
+use crate::{utils::JsResult, metadata::error::WasmError};
 
 #[allow(dead_code)]
 /// Fetches JSON from the given URL
@@ -47,6 +48,22 @@ pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
     let raw_body: WebSysReadableStream = resp.body().unwrap_throw();
     let stream = ReadableStream::from_raw(raw_body.dyn_into().unwrap_throw());
     Ok(stream)
+}
+
+
+pub(crate) async fn get_data(url: String) -> anyhow::Result<Vec<u8>> {
+    if let Ok(mut stream) = get_stream(url.clone()).await {
+        let mut reader = stream.get_reader();
+        let mut data: Vec<u8> = vec![];
+        while let Ok(Some(result)) = reader.read().await {
+            let chunk = Uint8Array::from(result);
+            data.extend(chunk.to_vec());
+        }
+        Ok(data)
+    }
+    else {
+        Err(WasmError::RemoteFailure(url).into())
+    }
 }
 
 #[cfg(test)]

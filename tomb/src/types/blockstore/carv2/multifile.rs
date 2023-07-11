@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{self, create_dir_all},
-    path::{Path, PathBuf},
+    fs::{self, create_dir_all, metadata},
+    path::{Path, PathBuf}, cmp::max,
 };
 use tomb_common::types::blockstore::{car::error::CarError, rootedblockstore::RootedBlockStore};
 use wnfs::{
@@ -111,7 +111,17 @@ impl Serialize for MultifileBlockStore {
     where
         S: serde::Serializer,
     {
-        (&self.path, &self.deltas).serialize(serializer)
+        // If the size of the most recent delta file is less than 100 bytes
+        let deltas = if let Ok(metadata) = metadata(&self.deltas.last().unwrap().path) && metadata.len() < 100 {
+            // Nothing was actually written to it, dont serialize
+            &self.deltas[..max(self.deltas.len() as i32 - 2, 0) as usize]
+        } else {
+            // Otherwise include all deltas
+            &self.deltas[..]
+        };
+
+        // Serialize
+        (&self.path, deltas.to_vec()).serialize(serializer)
     }
 }
 
@@ -149,7 +159,7 @@ mod test {
         libipld::IpldCodec,
     };
 
-    use crate::types::blockstore::carv2::multifile::MultifileBlockStore;
+    use crate::{types::blockstore::carv2::multifile::MultifileBlockStore, utils::test::{test_setup, test_teardown}, pipelines::{pack, configure}};
 
     #[tokio::test]
     async fn multidelta_serialization() -> Result<()> {

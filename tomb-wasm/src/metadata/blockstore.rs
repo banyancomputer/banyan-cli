@@ -1,7 +1,6 @@
 // use anyhow::Result;
 use crate::fetch::http::*;
 use async_trait::async_trait;
-use js_sys::Uint8Array;
 use std::{borrow::Cow, io::Cursor};
 use tomb_common::types::blockstore::{car::carv2::Car, rootedblockstore::RootedBlockStore};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
@@ -11,7 +10,7 @@ use wnfs::{
 };
 
 #[wasm_bindgen]
-struct WasmBlockStore {
+pub struct WasmBlockStore {
     data: Vec<u8>,
     car: Car,
 }
@@ -21,21 +20,12 @@ struct WasmBlockStore {
 impl WasmBlockStore {
     #[wasm_bindgen]
     pub async fn new(url: String) -> Result<WasmBlockStore, JsValue> {
-        if let Ok(mut stream) = get_stream(url).await {
-            let mut reader = stream.get_reader();
-            let mut data: Vec<u8> = vec![];
-            while let Ok(Some(result)) = reader.read().await {
-                let chunk = Uint8Array::from(result);
-                data.extend(chunk.to_vec());
-            }
-
-            // Construct CARv2
-            let car = Car::read_bytes(Cursor::new(&data)).unwrap();
-
-            Ok(Self { data, car })
-        } else {
-            todo!()
-        }
+        // Load data
+        let data = get_data(url.clone()).await.unwrap();
+        // Load car
+        let car = Car::read_bytes(Cursor::new(&data)).unwrap();
+        // Ok
+        Ok(Self { data, car })
     }
 }
 
