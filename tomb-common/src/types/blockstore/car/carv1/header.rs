@@ -16,7 +16,7 @@ use wnfs::{
 
 // | 16-byte varint | n-byte DAG CBOR |
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub(crate) struct Header {
+pub struct Header {
     pub version: u64,
     pub roots: RefCell<Vec<Cid>>,
 }
@@ -101,7 +101,7 @@ impl Header {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::Header;
     use anyhow::Result;
     use serial_test::serial;
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     #[serial]
     fn read_disk() -> Result<()> {
-        let car_path = Path::new("car-fixtures").join("carv1-basic.car");
+        let car_path = Path::new("..").join("car-fixtures").join("carv1-basic.car");
         // Open the CARv1
         let mut file = BufReader::new(File::open(car_path)?);
         // Read the header

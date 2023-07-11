@@ -1,11 +1,11 @@
+use crate::{
+    pipelines::error::PipelineError, types::config::globalconfig::GlobalConfig,
+    utils::wnfsio::get_progress_bar,
+};
 use anyhow::Result;
 use std::path::Path;
-use tomb_common::types::{
-    blockstore::networkblockstore::NetworkBlockStore, config::globalconfig::GlobalConfig,
-};
-use wnfs::{common::BlockStore, libipld::Cid};
-
-use crate::{pipelines::error::PipelineError, utils::wnfsio::get_progress_bar};
+use tomb_common::types::blockstore::networkblockstore::NetworkBlockStore;
+use wnfs::{common::BlockStore as WnfsBlockStore, libipld::Cid};
 
 /// Takes locally packed car file data and throws it onto a server
 pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
@@ -20,7 +20,7 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
             &mut config.get_all(&wrapping_key).await?;
 
         // Grab all Block CIDs
-        let children: Vec<Cid> = config.content.get_all_cids();
+        let children: Vec<Cid> = vec![]; //config.content.get_all_cids();
 
         // Initialize the progress bar using the number of Nodes to process
         let progress_bar = get_progress_bar(children.len() as u64)?;

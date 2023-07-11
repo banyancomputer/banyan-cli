@@ -1,14 +1,13 @@
 use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{path::Path, rc::Rc};
-use tomb_common::types::config::globalconfig::GlobalConfig;
 use wnfs::{
-    common::BlockStore,
+    common::BlockStore as WnfsBlockStore,
     private::{PrivateForest, PrivateNode},
 };
 
 use super::error::PipelineError;
-use crate::utils::wnfsio::file_to_disk;
+use crate::{types::config::globalconfig::GlobalConfig, utils::wnfsio::file_to_disk};
 
 /// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
 /// on the data referenced in the manifest.
@@ -46,8 +45,8 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
             node: &PrivateNode,
             metadata_forest: &Rc<PrivateForest>,
             content_forest: &Rc<PrivateForest>,
-            metadata: &impl BlockStore,
-            content: &impl BlockStore,
+            metadata: &impl WnfsBlockStore,
+            content: &impl WnfsBlockStore,
         ) -> Result<()> {
             match &node {
                 PrivateNode::Dir(dir) => {

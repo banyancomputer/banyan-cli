@@ -1,5 +1,3 @@
-// Modules
-pub mod blockstore;
 pub(crate) mod header;
 pub(crate) mod index;
 
@@ -94,14 +92,14 @@ impl Car {
         Ok(())
     }
 
-    pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
+    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         let index = self.car.index.borrow();
         let block_offset = index.get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         Block::read_bytes(&mut r)
     }
 
-    pub(crate) fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
+    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.car.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::Start(index.next_block))?;
@@ -118,7 +116,7 @@ impl Car {
         Ok(())
     }
 
-    pub(crate) fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
+    pub fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
         // Move to CARv1 no padding
         w.seek(SeekFrom::Start(PH_SIZE))?;
         // Construct a CARv1
@@ -145,7 +143,7 @@ impl Car {
         Self::read_bytes(&mut r)
     }
 
-    pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
+    pub fn get_all_cids(&self) -> Vec<Cid> {
         self.car.get_all_cids()
     }
 
@@ -161,17 +159,17 @@ impl Car {
         Ok(())
     }
 
-    pub(crate) fn set_root(&self, root: &Cid) {
+    pub fn set_root(&self, root: &Cid) {
         self.car.set_root(root);
     }
 
-    pub(crate) fn get_root(&self) -> Option<Cid> {
+    pub fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -183,7 +181,7 @@ mod tests {
 
     use crate::{
         types::blockstore::car::{carv1::block::Block, carv2::Car},
-        utils::tests::car_setup,
+        utils::test::car_setup,
     };
 
     #[test]

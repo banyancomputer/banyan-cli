@@ -3,12 +3,16 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
+    fs::File,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 use wnfs::{
-    common::BlockStore,
+    common::{dagcbor, BlockStore},
     libipld::{Cid, IpldCodec},
 };
+
+use super::rootedblockstore::RootedBlockStore;
 
 /// A disk-based blockstore that you can mutate.
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,5 +77,31 @@ impl BlockStore for DiskBlockStore {
         std::io::Read::read_to_end(&mut file, &mut bytes)?;
         // Return Ok status with the bytes
         return Ok(Cow::Owned(bytes));
+    }
+}
+
+impl RootedBlockStore for DiskBlockStore {
+    fn get_root(&self) -> Option<Cid> {
+        if let Ok(mut file) = File::open(self.path.join("root")) {
+            let mut buf: Vec<u8> = Vec::new();
+            file.read_to_end(&mut buf).unwrap();
+            let cid: Cid = dagcbor::decode(&buf).unwrap();
+            Some(cid)
+        } else {
+            None
+        }
+    }
+
+    fn set_root(&self, root: &Cid) {
+        // If the parent directory doesn't already exist
+        if !self.path.exists() {
+            // Create the directories required to store the blocks
+            std::fs::create_dir_all(&self.path).unwrap();
+        }
+
+        let file_path = self.path.join("root");
+        // Create the file at the specified path
+        let mut file = std::fs::File::create(file_path).unwrap();
+        file.write_all(&dagcbor::encode(root).unwrap()).unwrap();
     }
 }

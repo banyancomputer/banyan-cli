@@ -1,8 +1,3 @@
-use crate::{
-    crypto::rsa::RsaPrivateKey,
-    types::blockstore::car::carv2::blockstore::BlockStore,
-    utils::{config::*, serialize::*},
-};
 use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
@@ -11,12 +6,20 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use tomb_common::{
+    crypto::rsa::RsaPrivateKey,
+    types::{blockstore::rootedblockstore::RootedBlockStore, keys::manager::Manager},
+    utils::serialize::*,
+};
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
-use super::keys::manager::Manager;
+use crate::{
+    types::blockstore::carv2::{blockstore::BlockStore, multifile::MultifileBlockStore},
+    utils::config::xdg_data_home,
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
@@ -26,19 +29,9 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
-    /// metadata roots: [
-    ///     IPLD::Map (
-    ///         "private_ref" -> Ipld::Link(private_ref_cid)
-    ///         "metadata_forest" -> Ipld::Link(metadata_forest_cid)
-    ///     )
-    /// ]
+    /// BlockStore for storing all
     pub metadata: BlockStore,
-    /// content roots: [
-    ///     IPLD::Map(
-    ///         "content_forest" -> Ipld::Link(content_forest_cid)
-    ///     )
-    /// ]
-    pub content: BlockStore,
+    pub content: MultifileBlockStore,
 }
 
 impl BucketConfig {
@@ -67,7 +60,7 @@ impl BucketConfig {
         metadata.to_disk()?;
         content.to_disk()?;
         let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = BlockStore::new(&generated.join("content.car"))?;
+        let content = MultifileBlockStore::new(&generated.join("content"))?;
 
         Ok(Self {
             bucket_name,
@@ -96,14 +89,14 @@ impl BucketConfig {
         Manager,
     )> {
         // Load all
-        load_all(wrapping_key, &self.metadata, &self.content).await
+        load_all(wrapping_key, &self.metadata).await
     }
 
     pub async fn get_history(
         &self,
         wrapping_key: &RsaPrivateKey,
     ) -> Result<PrivateNodeOnPathHistory> {
-        load_history(wrapping_key, &self.metadata, &self.content).await
+        load_history(wrapping_key, &self.metadata).await
     }
 
     pub async fn set_all(

@@ -1,12 +1,9 @@
+use super::error::KeyError;
+use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wnfs::private::{AesKey, ExchangeKey, PrivateKey, TemporalKey};
-
-use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
-
-use super::error::KeyError;
-
 #[derive(Default, Serialize, Deserialize, PartialEq)]
 pub struct Mapper(HashMap<String, (Vec<u8>, Vec<u8>)>);
 

@@ -9,9 +9,11 @@ use rsa::{
 };
 use sha2::Sha256;
 use spki::{DecodePublicKey, EncodePublicKey, SubjectPublicKeyInfoOwned};
-use wnfs::private::{ExchangeKey, PrivateKey};
 
 use crate::crypto::error::RsaError;
+
+// Re-export the ExchangeKey and PrivateKey traits
+pub use wnfs::private::{ExchangeKey, PrivateKey};
 
 //--------------------------------------------------------------------------------------------------
 // Constants
@@ -173,6 +175,14 @@ impl PrivateKey for RsaPrivateKey {
     }
 }
 
+#[cfg(test)]
+impl Default for RsaPrivateKey {
+    fn default() -> Self {
+        let der = hex::decode("308206fe020100300d06092a864886f70d0101010500048206e8308206e40201000282018100c18c5eb3f7bf0d0b8cc6ffe4937ccc528ea78c50c47925c6d3535cb756156399dfc97828b008f2f468d7b051c342177762dba06fc0f8022cd407a044b570be5b3a7a74a9a95e5addea69d5eeef641d5c3557a3b46a711dd029292e43f144c663f0bde67da908c746906d155e9ea9ff64b0f2733b6f256e8c1e610a14a7384072af821483b0cc9810ffa047760a20e06b6515a4c7c28e398e1feec837c43f1424d927d988f540c325af28ee842628aab9ecbc52d1bad73990437ed4b894a2a40f6f1866b2e3477860a0ed4e42a59c85a7971f834dbfb47ffe9c0381f0cdf24b89975ca77cc57981b4819f787f7295bd010830a873bab03fafd11c7e1f26d0f845eef1187658fee34ddec75aabff8554dc156e03bec67874ac92b381c2e6dec8d776b5ac74cf92f2eb4a35bcf54541c5bc4a8cee4206cd7b9326588bc24684aa65ef6a4ca9ae0c28190544056f84bbbbfbdb8542d6c8bd7a02d268beecf2d5ce30bd2ffe013680be7cc5056a52bc4ad67bfbceb651f206ca17e9bb21cb46bcb0510203010001028201810080b28ffe674c98a60774038fc02a89ca93a5017e6b468b420c1f3055905e249e9ad9e2965b8777d5e1291acb2364fd299b88a2c3ecb27cefc60554229beb5e08577839bedf2a288dcb6398a78a732dbab49593fb5193e9d912a599680034551efb63aab20006204be199474e657e709e49b2cdc0c585445ed38c7f218097bcf305951f82f9baf19acbff8dc505b31ac70eae37a5c4cec1a2a9c5234941ab17fff08db8ee82f60f4d2d8db01c1b2b8b6a99ea17bff1d74f25885bfba2c8e2e4e75d8bf83a310526f206b85d862a27c8e133310544ae63fff872702d5d917708a77d7c864a3bff98809d8e8a889de71f6e86b3974bde9087222887eb44b85f33d8a1471069dc583e4e4dad9375a85e8b6bfeb3b47b8a6cf2e8418d0b7e43563d523930618f9f9822377c2e9195b291654d69233f378693268bbfb19dc1b3a2f5f52b013f201c8baad0309e28cbba714fc613aa13b1c079aabebccd3d11c348f686f104771a9ea8686f7510467e26e40a589d2a39e5e8e91d5afef8ce66a06ef0c90281c100cee3263bb216908aa5be1f67ac790b3c175923f759549f127d4943fb1cdae528c98e939ca483e27714ca1162d5c976402a17b6a450fc96113420a2b1db8e94b729fb53443ddf77116ffb5d3dbddb0cbab6d6472733690a7e69c08f8a5ffd38bc1fea9f3720a952b395e9106f1f2bb57cdfbcf76e0e5efa011cfd460b9a798410009cc43c6109943fd5a06e3fe54277969710aabd9829ff7e281408267364c004f1df3501dab738234c180202375cf7d55a79dce103811a5c197ce13535fa2b2b0281c100ef7e973838bfe145e18ead87cdb6e32e2e302e7f9b16a80ae66f24ad621c5b78d17275ba96bea2300deb023d48b6282630c95b45d817f145e2e9e7e08de37d953385375b15093f9f28ff177596c327dd42719aa44b182bf6475f1409e3d92e96442ddb57bc60e13a31582471ea80166f4ac1d0f4cf6c6b832027463606068ee9c6f59baffa857435837163ecf39a3ed784b8ca1471300104d9a1f9f95b7c3ad46b514d27f9f566acc3aa2593d248a5b9113c76bf9339e14a5cdb6040d23be4730281c001529c74f73f83af0f3e36ef2fc01a5d48fcede8efee459215b0f9394ac6ef7e2243c217d7496c923c54ca65aa5e3e5e4ca6982956c736a26785e9e45f35fb276ca249b6fefa45c59bc4aca4ef68ce1d077c393a3beee8fd43e9d2411d39fe39ddae5f5437e63d3c1eb23dc3a81c5c6daef4835475cd0fa6202c525d52a08242a3ee5ca6d22c0081a3f9019b70f8cad0f0a84f9f24b0e80c436f555a0194dc516bc6748d4d7bac65356055eaf3b5a973f8bf1cb5679354bad002e761b2b5a5bf0281c03dec3c4b341920b501d1f33a46cd3fc623f91f3cad2bd97d2001a2b915c20140a6def263b1304f1d1fac20e31996c7a0c0427fcffa448e84a45c18312e5ea08ce04a547abf60a9cb8c3d10a2bdbd6de43e96c30631c8692d7f5cad00b5a1e4f2c3641bef7e6c8a2f92ac9897bfab28a1d3f17306a94efe296439e3647a805d99427124b5069054f0b530af4687e1dcd7baa050d7a240683309d6609cc1b3c83e3e15425ed0b94bb7e5cb6b75e20c189556488ce791b88870c2bb921290891dd30281c100874d014704d569d547211369394e7c7d772218240d08aff26704df3fd427daf0e1cbbe28e67403ee1756686e63d79a13407406cc6a986caa0c5438273053f45e018177c5b79cb5aa463da72a87efe3b317182bd5cb78a8b6fd6a9d6e59f3170643082b43f94b0aa7c83dd9cdaf00b7a53f4f6158d7f36a8c970ae57e9910e876d62849044447613446c8b09a81dffa7f279fe1fa6e7e8f9d4e6b58eb821a6eb8ac24bac2d33306d8920af82c89a65901fe1cc61aae9e726cd0f93852eda5bb98").unwrap();
+        Self::from_der(&der).unwrap()
+    }
+}
+
 //--------------------------------------------------------------------------------------------------
 // Tests
 //--------------------------------------------------------------------------------------------------
@@ -183,8 +193,8 @@ mod test {
     use base64::{engine::general_purpose, Engine as _};
 
     #[async_std::test]
-    async fn key_pair() -> Result<()> {
-        let priv_key = RsaPrivateKey::new()?;
+    async fn key_pair_xyz() -> Result<()> {
+        let priv_key = RsaPrivateKey::default();
         let pub_key = priv_key.get_public_key();
 
         let plaintext = b"Hello, world!";
@@ -197,7 +207,7 @@ mod test {
 
     #[async_std::test]
     async fn private_key_from_pem_file() -> Result<()> {
-        let priv_key = RsaPrivateKey::new()?;
+        let priv_key = RsaPrivateKey::default();
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
         let path = "private_key.pem";
@@ -217,7 +227,7 @@ mod test {
 
     #[async_std::test]
     async fn public_key_from_pem_file() -> Result<()> {
-        let priv_key = RsaPrivateKey::new()?;
+        let priv_key = RsaPrivateKey::default();
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
         let path = "public_key.pem";
@@ -258,7 +268,7 @@ mod test {
 
     #[async_std::test]
     async fn public_key_to_der() -> Result<()> {
-        let priv_key = RsaPrivateKey::new()?;
+        let priv_key = RsaPrivateKey::default();
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
 
@@ -274,7 +284,7 @@ mod test {
 
     #[async_std::test]
     async fn private_key_to_der() -> Result<()> {
-        let priv_key = RsaPrivateKey::new()?;
+        let priv_key = RsaPrivateKey::default();
         let pub_key = priv_key.get_public_key();
         let plaintext = b"Hello, world!";
 
@@ -303,7 +313,7 @@ mod test {
 
     #[async_std::test]
     async fn key_pair_from_public_key_modulus() -> Result<()> {
-        let priv_key = RsaPrivateKey::new()?;
+        let priv_key = RsaPrivateKey::default();
         let pub_key = priv_key.get_public_key();
 
         let public_key_modulus = pub_key.get_public_key_modulus()?;

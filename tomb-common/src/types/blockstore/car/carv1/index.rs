@@ -72,11 +72,11 @@ impl<'de> Deserialize<'de> for Index {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::Index;
     use crate::{
         types::blockstore::car::carv1::{block::Block, header::Header},
-        utils::tests::car_setup,
+        utils::test::car_setup,
     };
     use anyhow::Result;
     use serial_test::serial;
