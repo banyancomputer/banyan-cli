@@ -47,7 +47,7 @@ pub async fn pipeline(
     let wrapping_key = global.wrapping_key_from_disk()?;
 
     // If the user has done initialization for this directory
-    if let Some(config) = global.get_bucket(origin) {
+    if let Some(mut config) = global.get_bucket(origin) {
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(
             Namefilter::default(),
@@ -72,6 +72,9 @@ pub async fn pipeline(
         } else {
             info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
+
+        // Create a new delta for this packing operation
+        config.content.add_delta()?;
 
         // Process all of the PackPipelinePlans
         process_plans(

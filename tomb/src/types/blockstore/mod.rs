@@ -38,9 +38,10 @@ mod test {
     #[serial]
     async fn multifileblockstore() -> Result<()> {
         let test_dir = &Path::new("test").join("car").join("multifile_blockstore");
-        let store = &MultifileBlockStore::new(test_dir)?;
-        bs_retrieval_test(store).await?;
-        bs_duplication_test(store).await
+        let mut store = MultifileBlockStore::new(test_dir)?;
+        store.add_delta()?;
+        bs_retrieval_test(&store).await?;
+        bs_duplication_test(&store).await
         // Serialization needs to be tested separately for multifile BlockStores,
         // Because we expect that they actually change between serialization and deserialization.
     }
