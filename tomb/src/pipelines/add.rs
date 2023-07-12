@@ -51,16 +51,16 @@ pub async fn pipeline(
         )
         .await?;
 
-        // Store all the updated information, now that we've written the file
-        config
-            .set_all(
-                &wrapping_key,
-                metadata_forest,
-                content_forest,
-                root_dir,
-                key_manager,
-            )
-            .await?;
+        // // Store all the updated information, now that we've written the file
+        // config
+        //     .set_all(
+        //         &wrapping_key,
+        //         metadata_forest,
+        //         content_forest,
+        //         root_dir,
+        //         key_manager,
+        //     )
+        //     .await?;
 
         // Update global
         global.update_config(&config)?;

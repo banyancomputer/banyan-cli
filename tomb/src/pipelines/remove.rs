@@ -22,15 +22,15 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineErr
         .await?;
 
         // Stores the modified directory back to disk
-        config
-            .set_all(
-                &wrapping_key,
-                metadata_forest,
-                content_forest,
-                dir,
-                key_manager,
-            )
-            .await?;
+        // config
+        //     .set_all(
+        //         &wrapping_key,
+        //         metadata_forest,
+        //         content_forest,
+        //         dir,
+        //         key_manager,
+        //     )
+        //     .await?;
 
         // Update global
         global.update_config(&config)?;

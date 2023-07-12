@@ -55,15 +55,15 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
 
         info!("🎉 Nice! A copy of the remote encrypted filesystem now exists locally.");
 
-        config
-            .set_all(
-                &wrapping_key,
-                metadata_forest,
-                content_forest,
-                root_dir,
-                key_manager,
-            )
-            .await?;
+        // config
+        //     .set_all(
+        //         &wrapping_key,
+        //         metadata_forest,
+        //         content_forest,
+        //         root_dir,
+        //         key_manager,
+        //     )
+        //     .await?;
 
         // Store the modified cold forest both locally and remotely
         global.update_config(&config)?;

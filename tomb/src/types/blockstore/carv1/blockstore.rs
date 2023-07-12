@@ -11,7 +11,7 @@ use tomb_common::types::blockstore::{
         carv1::{block::Block, Car},
         error::CarError,
     },
-    rootedblockstore::RootedBlockStore,
+    tombblockstore::TombBlockStore,
 };
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
@@ -120,14 +120,18 @@ impl WnfsBlockStore for BlockStore {
         }
     }
 }
-
-impl RootedBlockStore for BlockStore {
+#[async_trait(?Send)]
+impl TombBlockStore for BlockStore {
     fn set_root(&self, root: &Cid) {
         self.car.set_root(root);
     }
 
     fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
+    }
+
+    async fn update_content(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid> {
+        panic!("help!")
     }
 }
 
@@ -172,7 +176,7 @@ mod test {
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
     use tomb_common::{
-        types::blockstore::rootedblockstore::RootedBlockStore, utils::test::car_setup,
+        types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup,
     };
     use wnfs::{
         common::BlockStore as WnfsBlockStore,

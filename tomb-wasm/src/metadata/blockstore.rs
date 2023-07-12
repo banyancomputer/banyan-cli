@@ -2,11 +2,11 @@
 use crate::fetch::http::*;
 use async_trait::async_trait;
 use std::{borrow::Cow, io::Cursor};
-use tomb_common::types::blockstore::{car::carv2::Car, rootedblockstore::RootedBlockStore};
+use tomb_common::types::blockstore::{car::carv2::Car, tombblockstore::TombBlockStore};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use wnfs::{
     common::blockstore::BlockStore as WnfsBlockStore,
-    libipld::{Cid, IpldCodec},
+    libipld::{Cid, IpldCodec, Ipld},
 };
 
 #[wasm_bindgen]
@@ -42,12 +42,17 @@ impl WnfsBlockStore for WasmBlockStore {
     }
 }
 
-impl RootedBlockStore for WasmBlockStore {
+#[async_trait(?Send)]
+impl TombBlockStore for WasmBlockStore {
     fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
 
     fn set_root(&self, _: &Cid) {
+        panic!("WASM BlockStores are read-only")
+    }
+
+    async fn update_content(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> anyhow::Result<Cid> {
         panic!("WASM BlockStores are read-only")
     }
 }

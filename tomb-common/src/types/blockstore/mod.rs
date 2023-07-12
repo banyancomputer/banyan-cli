@@ -5,12 +5,12 @@ pub mod diskblockstore;
 /// Network based blockstore
 pub mod networkblockstore;
 /// Trait
-pub mod rootedblockstore;
-pub mod rootedmemoryblockstore;
+pub mod tombblockstore;
+pub mod tombmemoryblockstore;
 
 #[cfg(test)]
 mod test {
-    use crate::types::blockstore::rootedmemoryblockstore::RootedMemoryBlockStore;
+    use crate::types::blockstore::tombmemoryblockstore::RootedMemoryBlockStore;
 
     use super::diskblockstore::DiskBlockStore;
     use anyhow::Result;

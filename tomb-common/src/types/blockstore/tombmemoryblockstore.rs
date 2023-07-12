@@ -3,11 +3,11 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cell::RefCell};
 use wnfs::{
-    common::{BlockStore as WnfsBlockStore, MemoryBlockStore},
+    common::{BlockStore as WnfsBlockStore, MemoryBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
 };
 
-use super::rootedblockstore::RootedBlockStore;
+use super::tombblockstore::TombBlockStore;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RootedMemoryBlockStore {
@@ -35,12 +35,18 @@ impl WnfsBlockStore for RootedMemoryBlockStore {
     }
 }
 
-impl RootedBlockStore for RootedMemoryBlockStore {
+#[async_trait(?Send)]
+impl TombBlockStore for RootedMemoryBlockStore {
     fn get_root(&self) -> Option<Cid> {
         *self.root.borrow()
     }
 
     fn set_root(&self, root: &Cid) {
         *self.root.borrow_mut() = Some(*root)
+    }
+
+    // There is no way to update content in a memory store
+    async fn update_content(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid> {
+        Err(BlockStoreError::LockPoisoned.into())
     }
 }

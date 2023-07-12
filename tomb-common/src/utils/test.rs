@@ -13,7 +13,7 @@ use wnfs::{
 };
 
 use crate::types::blockstore::{
-    rootedblockstore::RootedBlockStore, rootedmemoryblockstore::RootedMemoryBlockStore,
+    tombblockstore::TombBlockStore, tombmemoryblockstore::RootedMemoryBlockStore,
 };
 
 // Create a copy of a given fixture to play around with

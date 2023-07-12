@@ -8,7 +8,7 @@ use std::{
 };
 use tomb_common::{
     crypto::rsa::RsaPrivateKey,
-    types::{blockstore::rootedblockstore::RootedBlockStore, keys::manager::Manager},
+    types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::serialize::*,
 };
 use wnfs::{
@@ -91,29 +91,5 @@ impl BucketConfig {
         wrapping_key: &RsaPrivateKey,
     ) -> Result<PrivateNodeOnPathHistory> {
         load_history(wrapping_key, &self.metadata).await
-    }
-
-    pub async fn set_all(
-        &self,
-        wrapping_key: &RsaPrivateKey,
-        metadata_forest: &mut Rc<PrivateForest>,
-        content_forest: &mut Rc<PrivateForest>,
-        root_dir: &Rc<PrivateDirectory>,
-        key_manager: &mut Manager,
-    ) -> Result<()> {
-        // Insert the public key into the key manager if it's not already present
-        key_manager.insert(&wrapping_key.get_public_key()).await?;
-
-        // Store all
-        store_all(
-            &self.metadata,
-            &self.content,
-            metadata_forest,
-            content_forest,
-            root_dir,
-            key_manager,
-        )
-        .await?;
-        Ok(())
     }
 }

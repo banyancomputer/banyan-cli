@@ -46,15 +46,15 @@ pub async fn pipeline(origin: &Path) -> Result<(), PipelineError> {
 
         info!("🎉 Nice! A copy of this encrypted filesystem now sits at the remote instance you pointed it to.");
 
-        config
-            .set_all(
-                &wrapping_key,
-                metadata_forest,
-                content_forest,
-                root_dir,
-                key_manager,
-            )
-            .await?;
+        // config
+        //     .set_all(
+        //         &wrapping_key,
+        //         metadata_forest,
+        //         content_forest,
+        //         root_dir,
+        //         key_manager,
+        //     )
+        //     .await?;
 
         global.update_config(&config)?;
         global.to_disk()?;

@@ -1,7 +1,7 @@
 use crate::{
     types::config::globalconfig::GlobalConfig,
     utils::{
-        pack::{create_plans, process_plans},
+        pack::{create_plans, process_plans, store_keys, update_key_content},
         wnfsio::get_progress_bar,
     },
 };
@@ -10,10 +10,10 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::types::keys::manager::Manager;
+use tomb_common::{types::{keys::manager::Manager, blockstore::tombblockstore::TombBlockStore}, utils::serialize::{store_dirs_update_keys, store_forests, store_all}};
 use wnfs::{
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest},
+    private::{PrivateDirectory, PrivateForest}, libipld::IpldCodec, common::{dagcbor, BlockStore},
 };
 
 use super::error::PipelineError;
@@ -58,24 +58,28 @@ pub async fn pipeline(
         let mut metadata_forest = Rc::new(PrivateForest::new());
         let mut content_forest = Rc::new(PrivateForest::new());
 
-        let mut key_manager = Manager::default();
+        let mut manager = Manager::default();
 
         // If this filesystem has already been packed
-        if let Ok((new_metadata_forest, new_content_forest, new_root_dir, new_key_manager)) =
+        if let Ok((new_metadata_forest, new_content_forest, new_root_dir, new_manager)) =
             config.get_all(&wrapping_key).await
         {
             // Update structs
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
-            key_manager = new_key_manager;
+            manager = new_manager;
         } else {
             info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
 
         // Create a new delta for this packing operation
         config.content.add_delta()?;
-
+        // Insert the wrapping key if it is not already there
+        manager.insert(&wrapping_key.get_public_key()).await?;
+        // Put the keys in the BlockStores before any other data
+        let manager_cid = store_keys(&manager, &config.metadata, &config.content).await?;
+        
         // Process all of the PackPipelinePlans
         process_plans(
             packing_plan,
@@ -88,17 +92,15 @@ pub async fn pipeline(
         )
         .await?;
 
-        // Store Forest and Dir in BlockStores and Key
-        config
-            .set_all(
-                &wrapping_key,
-                &mut metadata_forest,
-                &mut content_forest,
-                &root_dir,
-                &mut key_manager,
-            )
-            .await?;
+        // Store dirs, update keys
+        let (original_ref_cid, current_ref_cid) = store_dirs_update_keys(&config.metadata, &config.content, &mut metadata_forest, &mut content_forest, &root_dir, &mut manager).await?;
+        // Store forests 
+        let (metadata_forest_cid, content_forest_cid) = store_forests(&config.metadata, &config.content, &mut metadata_forest, &mut content_forest).await?;
+        // Update content for Key Manager
+        let manager_cid = update_key_content(&manager, manager_cid, &config.metadata, &config.content).await?;
 
+        // Store everything
+        store_all(&config.metadata, &config.content, original_ref_cid, current_ref_cid, metadata_forest_cid, content_forest_cid, manager_cid).await?;
         global.update_config(&config)?;
         global.to_disk()?;
         Ok(())
