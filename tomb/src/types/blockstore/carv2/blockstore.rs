@@ -4,7 +4,8 @@ use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize
 use std::{
     borrow::Cow,
     fs::{remove_file, rename, File},
-    path::{Path, PathBuf}, io::Seek,
+    io::Seek,
+    path::{Path, PathBuf},
 };
 use tomb_common::types::blockstore::{
     car::{carv1::block::Block, carv2::Car, error::CarError},
@@ -137,7 +138,7 @@ impl TombBlockStore for BlockStore {
         let new_block = Block::new(bytes, codec)?;
         // Assert that the new version of the block is of the correct length
         assert_eq!(block.content.len(), new_block.content.len());
-        // Determine where the block was read from 
+        // Determine where the block was read from
         let index = self.car.car.index.borrow();
         let block_start = index.get_offset(cid)?;
         // Grab writer
@@ -191,9 +192,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{
-        types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup,
-    };
+    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},

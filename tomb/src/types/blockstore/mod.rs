@@ -41,8 +41,7 @@ mod test {
         let mut store = MultifileBlockStore::new(test_dir)?;
         store.add_delta()?;
         bs_retrieval_test(&store).await?;
-        bs_duplication_test(&store).await
-        // Serialization needs to be tested separately for multifile BlockStores,
-        // Because we expect that they actually change between serialization and deserialization.
+        bs_duplication_test(&store).await?;
+        bs_serialization_test(&store).await
     }
 }

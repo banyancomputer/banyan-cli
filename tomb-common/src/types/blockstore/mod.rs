@@ -10,9 +10,8 @@ pub mod tombmemoryblockstore;
 
 #[cfg(test)]
 mod test {
-    use crate::types::blockstore::tombmemoryblockstore::RootedMemoryBlockStore;
-
     use super::diskblockstore::DiskBlockStore;
+    use crate::types::blockstore::tombmemoryblockstore::TombMemoryBlockStore;
     use anyhow::Result;
     use std::{fs::create_dir_all, path::PathBuf};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
@@ -29,7 +28,7 @@ mod test {
 
     #[tokio::test]
     async fn rootedmemoryblockstore() -> Result<()> {
-        let store = &RootedMemoryBlockStore::new();
+        let store = &TombMemoryBlockStore::new();
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

@@ -8,6 +8,7 @@ use crate::{
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
+use tomb_common::utils::serialize::store_manager;
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(
@@ -22,8 +23,10 @@ pub async fn pipeline(
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
         // Get structs
-        let (metadata_forest, content_forest, root_dir, key_manager) =
+        let (metadata_forest, content_forest, root_dir, manager) =
             &mut config.get_all(&wrapping_key).await?;
+        // Store keys
+        let manager_cid = &store_manager(manager, &config.metadata, &config.content).await?;
 
         // Compress the data in the file
         let content_buf = compress_file(input_file)?;
@@ -51,16 +54,16 @@ pub async fn pipeline(
         )
         .await?;
 
-        // // Store all the updated information, now that we've written the file
-        // config
-        //     .set_all(
-        //         &wrapping_key,
-        //         metadata_forest,
-        //         content_forest,
-        //         root_dir,
-        //         key_manager,
-        //     )
-        //     .await?;
+        // Store all the updated information, now that we've written the file
+        config
+            .set_all(
+                metadata_forest,
+                content_forest,
+                root_dir,
+                manager,
+                manager_cid,
+            )
+            .await?;
 
         // Update global
         global.update_config(&config)?;

@@ -53,18 +53,6 @@ pub enum Command {
         #[arg(short, long, help = "wnfs path")]
         wnfs_path: PathBuf,
     },
-    /// Update local from the remote bucket endpoint
-    Pull {
-        /// Input directory in which packed files are stored.
-        #[arg(short, long, help = "directory")]
-        dir: PathBuf,
-    },
-    /// tomb push <bucket_name>- Push changes to a bucket to Tombolo/filecoin
-    Push {
-        /// Input directory in which packed files are stored.
-        #[arg(short, long, help = "directory")]
-        dir: PathBuf,
-    },
     /// Create new bucket config for a directory
     Init {
         /// Directory to init, or PWD if None

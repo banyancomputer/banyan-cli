@@ -1,6 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use wnfs::{common::blockstore::BlockStore as WnfsBlockStore, libipld::{Cid, IpldCodec}};
+use wnfs::{
+    common::blockstore::BlockStore as WnfsBlockStore,
+    libipld::{Cid, IpldCodec},
+};
 
 #[async_trait(?Send)]
 pub trait TombBlockStore: WnfsBlockStore {

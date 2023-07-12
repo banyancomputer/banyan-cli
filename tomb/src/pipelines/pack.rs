@@ -1,7 +1,7 @@
 use crate::{
     types::config::globalconfig::GlobalConfig,
     utils::{
-        pack::{create_plans, process_plans, store_keys, update_key_content},
+        pack::{create_plans, process_plans},
         wnfsio::get_progress_bar,
     },
 };
@@ -10,10 +10,10 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::{types::{keys::manager::Manager, blockstore::tombblockstore::TombBlockStore}, utils::serialize::{store_dirs_update_keys, store_forests, store_all}};
+use tomb_common::{types::keys::manager::Manager, utils::serialize::store_manager};
 use wnfs::{
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest}, libipld::IpldCodec, common::{dagcbor, BlockStore},
+    private::{PrivateDirectory, PrivateForest},
 };
 
 use super::error::PipelineError;
@@ -78,29 +78,30 @@ pub async fn pipeline(
         // Insert the wrapping key if it is not already there
         manager.insert(&wrapping_key.get_public_key()).await?;
         // Put the keys in the BlockStores before any other data
-        let manager_cid = store_keys(&manager, &config.metadata, &config.content).await?;
-        
+        let manager_cid = &store_manager(&manager, &config.metadata, &config.content).await?;
+
         // Process all of the PackPipelinePlans
         process_plans(
-            packing_plan,
-            progress_bar,
-            &mut root_dir,
-            &mut metadata_forest,
-            &mut content_forest,
             &config.metadata,
             &config.content,
+            &mut metadata_forest,
+            &mut content_forest,
+            &mut root_dir,
+            packing_plan,
+            progress_bar,
         )
         .await?;
 
-        // Store dirs, update keys
-        let (original_ref_cid, current_ref_cid) = store_dirs_update_keys(&config.metadata, &config.content, &mut metadata_forest, &mut content_forest, &root_dir, &mut manager).await?;
-        // Store forests 
-        let (metadata_forest_cid, content_forest_cid) = store_forests(&config.metadata, &config.content, &mut metadata_forest, &mut content_forest).await?;
-        // Update content for Key Manager
-        let manager_cid = update_key_content(&manager, manager_cid, &config.metadata, &config.content).await?;
+        config
+            .set_all(
+                &mut metadata_forest,
+                &mut content_forest,
+                &mut root_dir,
+                &mut manager,
+                manager_cid,
+            )
+            .await?;
 
-        // Store everything
-        store_all(&config.metadata, &config.content, original_ref_cid, current_ref_cid, metadata_forest_cid, content_forest_cid, manager_cid).await?;
         global.update_config(&config)?;
         global.to_disk()?;
         Ok(())

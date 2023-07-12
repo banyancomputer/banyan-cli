@@ -2,9 +2,11 @@ use super::error::KeyError;
 use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::map;
-use std::collections::{HashMap, BTreeMap};
-use wnfs::{private::{AesKey, ExchangeKey, PrivateKey, TemporalKey}, libipld::Ipld};
+use std::collections::{BTreeMap, HashMap};
+use wnfs::{
+    libipld::Ipld,
+    private::{AesKey, ExchangeKey, PrivateKey, TemporalKey},
+};
 
 #[derive(Default, PartialEq, Debug)]
 pub struct Mapper(HashMap<String, (Vec<u8>, Vec<u8>)>);
@@ -75,7 +77,11 @@ impl Mapper {
         for (fingerprint, (public_key, encrypted_key)) in self.0.clone() {
             let mut sub_map = BTreeMap::<String, Ipld>::new();
             // Overwrite with fake data if there is no encrypted key
-            let encrypted_key = if encrypted_key.len() == 384 { encrypted_key } else { [0; 384].to_vec() };
+            let encrypted_key = if encrypted_key.len() == 384 {
+                encrypted_key
+            } else {
+                [0; 384].to_vec()
+            };
             println!("the encrypted key is: {:?}", encrypted_key);
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
@@ -118,7 +124,8 @@ impl Mapper {
 impl Serialize for Mapper {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         self.to_ipld().serialize(serializer)
     }
 }
@@ -126,7 +133,8 @@ impl Serialize for Mapper {
 impl<'de> Deserialize<'de> for Mapper {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         let ipld = Ipld::deserialize(deserializer)?;
         Ok(Self::from_ipld(ipld).unwrap())
     }
@@ -140,10 +148,13 @@ impl<'de> Deserialize<'de> for Mapper {
 
 #[cfg(test)]
 mod test {
-    use anyhow::Result;
-    use wnfs::{private::{TemporalKey, AesKey}, common::dagcbor};
-    use crate::crypto::rsa::RsaPrivateKey;
     use super::Mapper;
+    use crate::crypto::rsa::RsaPrivateKey;
+    use anyhow::Result;
+    use wnfs::{
+        common::dagcbor,
+        private::{AesKey, TemporalKey},
+    };
 
     #[tokio::test]
     async fn to_from_ipld() -> Result<()> {
@@ -165,7 +176,7 @@ mod test {
         mapper2.update_temporal_key(&temporal_key).await?;
 
         let mapper2_ipld = mapper2.to_ipld();
-        let mapper3 = Mapper::from_ipld(mapper2_ipld)?; 
+        let mapper3 = Mapper::from_ipld(mapper2_ipld)?;
         // Assert reconstruction
         assert_eq!(mapper2, mapper3);
 
@@ -189,7 +200,7 @@ mod test {
 
         // Serialize
         let mapper1_bytes = dagcbor::encode(&mapper1)?;
-        let mut mapper2: Mapper = dagcbor::decode(&mapper1_bytes.as_slice())?;
+        let mut mapper2: Mapper = dagcbor::decode(mapper1_bytes.as_slice())?;
         // Assert reconstruction
         assert_eq!(mapper1, mapper2);
 
@@ -198,7 +209,7 @@ mod test {
         mapper2.update_temporal_key(&temporal_key).await?;
 
         let mapper2_bytes = dagcbor::encode(&mapper2)?;
-        let mapper3: Mapper = dagcbor::decode(&mapper2_bytes.as_slice())?;
+        let mapper3: Mapper = dagcbor::decode(mapper2_bytes.as_slice())?;
         // Assert reconstruction
         assert_eq!(mapper2, mapper3);
 

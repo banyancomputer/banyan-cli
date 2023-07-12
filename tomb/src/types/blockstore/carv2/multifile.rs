@@ -139,10 +139,12 @@ impl TombBlockStore for MultifileBlockStore {
     async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
+            // Bind to avoid awaiting
+            let index = store.car.car.index.borrow().clone();
             // If this store has the data we are replacing
-            if let Ok(_) = store.car.car.index.borrow().get_offset(cid) {
+            if index.get_offset(cid).is_ok() {
                 // Update the content in this store and return new cid
-                return Ok(store.update_content(cid, bytes, codec).await?);
+                return store.update_content(cid, bytes, codec).await;
             }
         }
 

@@ -86,6 +86,26 @@ impl BucketConfig {
         load_all(wrapping_key, &self.metadata).await
     }
 
+    pub async fn set_all(
+        &self,
+        metadata_forest: &mut Rc<PrivateForest>,
+        content_forest: &mut Rc<PrivateForest>,
+        root_dir: &mut Rc<PrivateDirectory>,
+        manager: &mut Manager,
+        manager_cid: &Cid,
+    ) -> Result<()> {
+        store_all(
+            &self.metadata,
+            &self.content,
+            metadata_forest,
+            content_forest,
+            root_dir,
+            manager,
+            manager_cid,
+        )
+        .await
+    }
+
     pub async fn get_history(
         &self,
         wrapping_key: &RsaPrivateKey,

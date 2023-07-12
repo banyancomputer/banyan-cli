@@ -175,9 +175,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{
-        types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup,
-    };
+    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},

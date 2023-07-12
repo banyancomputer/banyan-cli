@@ -6,10 +6,6 @@ pub mod configure;
 pub mod error;
 /// This module contains the pack pipeline function, which is the main entry point for packing new data.
 pub mod pack;
-/// This module contains the pull pipeline function, which downloads packed content from disk to a remote server.
-pub mod pull;
-/// This module contains the push pipeline function, which uploads packed content from disk to a remote server.
-pub mod push;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 /// This module contains the unpack pipeline function, which is the main entry point for extracting previously packed data.

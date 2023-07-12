@@ -1,18 +1,16 @@
 use anyhow::Result;
-use tomb_common::types::{keys::manager::Manager, blockstore::tombblockstore::TombBlockStore};
+use chrono::Utc;
+use indicatif::ProgressBar;
+use rand::thread_rng;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
     rc::Rc,
 };
 
-use chrono::Utc;
-use indicatif::ProgressBar;
-use rand::thread_rng;
-
 use wnfs::{
-    common::{BlockStore as WnfsBlockStore, dagcbor},
-    private::{PrivateDirectory, PrivateFile, PrivateForest}, libipld::{Cid, IpldCodec},
+    common::BlockStore as WnfsBlockStore,
+    private::{PrivateDirectory, PrivateFile, PrivateForest},
 };
 
 use crate::{
@@ -53,13 +51,13 @@ pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PackP
 
 /// Given a set of PackPipelinePlans and required structs, process each
 pub async fn process_plans(
-    packing_plan: Vec<PackPipelinePlan>,
-    progress_bar: &ProgressBar,
-    root_dir: &mut Rc<PrivateDirectory>,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
     metadata: &impl WnfsBlockStore,
     content: &impl WnfsBlockStore,
+    metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
+    root_dir: &mut Rc<PrivateDirectory>,
+    packing_plan: Vec<PackPipelinePlan>,
+    progress_bar: &ProgressBar,
 ) -> Result<()> {
     // Rng
     let rng: &mut rand::rngs::ThreadRng = &mut thread_rng();
@@ -199,30 +197,4 @@ pub async fn process_plans(
 
     // Return Ok
     Ok(())
-}
-
-// 
-pub async fn store_keys(
-    manager: &Manager,
-    metadata: &impl WnfsBlockStore,
-    content: &impl WnfsBlockStore
-) -> Result<Cid> {
-    let bytes = dagcbor::encode(manager)?;
-    let cid1 = metadata.put_block(bytes.clone(), IpldCodec::Raw).await?;
-    let cid2 = content.put_block(bytes, IpldCodec::Raw).await?;
-    assert_eq!(cid1, cid2);
-    Ok(cid1)
-}
-
-pub async fn update_key_content(
-    manager: &Manager,
-    manager_cid: Cid,
-    metadata: &impl TombBlockStore,
-    content: &impl TombBlockStore,
-) -> Result<Cid> {
-    let bytes = dagcbor::encode(&manager)?;
-    let cid1 = metadata.update_content(&manager_cid, bytes.clone(), IpldCodec::Raw).await?;
-    let cid2 = content.update_content(&manager_cid, bytes, IpldCodec::Raw).await?;
-    assert_eq!(cid1, cid2);
-    Ok(cid1)
 }
