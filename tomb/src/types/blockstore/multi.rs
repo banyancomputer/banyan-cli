@@ -1,5 +1,5 @@
 use crate::types::blockstore::{
-    carv2::blockstore::BlockStore,
+    carv2,
     error::{CARIOError, MultiError::*},
 };
 use anyhow::Result;
@@ -18,14 +18,14 @@ use wnfs::{
 
 /// CARv2 BlockStore across multiple CAR files using File IO
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct MultifileBlockStore {
+pub struct BlockStore {
     /// CAR directory path
     pub path: PathBuf,
     /// CARv2 BlockStores inside this BlockStore
-    pub deltas: Vec<BlockStore>,
+    pub deltas: Vec<carv2::BlockStore>,
 }
 
-impl MultifileBlockStore {
+impl BlockStore {
     /// Create a new CARv2 MultifileBlockStore from a directory
     pub fn new(dir: &Path) -> Result<Self> {
         if dir.is_file() {
@@ -37,13 +37,13 @@ impl MultifileBlockStore {
                 create_dir_all(dir)?;
             }
 
-            let mut deltas: Vec<BlockStore> = Vec::new();
+            let mut deltas: Vec<carv2::BlockStore> = Vec::new();
             // For each child in the directory
             for dir_entry in fs::read_dir(dir)? {
                 // If the dir entry is valid, the file is a .car, and a BlockStore can be read from it
                 if let Ok(entry) = dir_entry &&
                    entry.file_name().to_str().unwrap().contains(".car") &&
-                   let Ok(car) = BlockStore::new(&entry.path()) {
+                   let Ok(car) = carv2::BlockStore::new(&entry.path()) {
                     // Push this to the vec
                     deltas.push(car);
                 }
@@ -60,7 +60,8 @@ impl MultifileBlockStore {
     /// Add a new delta file / CAR file
     pub(crate) fn add_delta(&mut self) -> Result<()> {
         // Create a new delta for writing
-        let new_store = BlockStore::new(&self.path.join(format!("{}.car", self.deltas.len() + 1)))?;
+        let new_store =
+            carv2::BlockStore::new(&self.path.join(format!("{}.car", self.deltas.len() + 1)))?;
         new_store.set_root(&Cid::default());
 
         // If there is already a most recent delta
@@ -78,7 +79,7 @@ impl MultifileBlockStore {
 }
 
 #[async_trait(?Send)]
-impl WnfsBlockStore for MultifileBlockStore {
+impl WnfsBlockStore for BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
@@ -107,7 +108,7 @@ impl WnfsBlockStore for MultifileBlockStore {
 }
 
 #[async_trait(?Send)]
-impl TombBlockStore for MultifileBlockStore {
+impl TombBlockStore for BlockStore {
     fn get_root(&self) -> Option<Cid> {
         if let Some(car) = self.deltas.last() {
             car.get_root()
@@ -141,11 +142,11 @@ impl TombBlockStore for MultifileBlockStore {
 
 #[cfg(test)]
 mod test {
-    use crate::types::blockstore::carv2::multifile::MultifileBlockStore;
+    use crate::types::blockstore::multi::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
-    use wnfs::{common::BlockStore, libipld::IpldCodec};
+    use wnfs::{common::BlockStore as WnfsBlockStore, libipld::IpldCodec};
 
     #[tokio::test]
     #[serial]
@@ -156,7 +157,7 @@ mod test {
             remove_dir_all(path)?;
         }
 
-        let mut store = MultifileBlockStore::new(path)?;
+        let mut store = BlockStore::new(path)?;
 
         // Create a new delta
         store.add_delta()?;
@@ -199,7 +200,7 @@ mod test {
             remove_dir_all(path)?;
         }
 
-        let mut store = MultifileBlockStore::new(path)?;
+        let mut store = BlockStore::new(path)?;
 
         // Create a new delta
         store.add_delta()?;

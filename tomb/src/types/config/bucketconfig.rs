@@ -17,7 +17,7 @@ use wnfs::{
 };
 
 use crate::{
-    types::blockstore::carv2::{blockstore::BlockStore, multifile::MultifileBlockStore},
+    types::blockstore::{carv2, multi},
     utils::config::xdg_data_home,
 };
 
@@ -31,9 +31,9 @@ pub struct BucketConfig {
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
     /// BlockStore for storing metadata only
-    pub metadata: BlockStore,
+    pub metadata: carv2::BlockStore,
     /// BlockStore for storing metadata and file content
-    pub content: MultifileBlockStore,
+    pub content: multi::BlockStore,
 }
 
 impl BucketConfig {
@@ -52,8 +52,8 @@ impl BucketConfig {
         // TODO (organized grime) prevent collision
         create_dir_all(&generated)?;
 
-        let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = MultifileBlockStore::new(&generated.join("content"))?;
+        let metadata = carv2::BlockStore::new(&generated.join("meta.car"))?;
+        let content = multi::BlockStore::new(&generated.join("content"))?;
 
         // Start with default roots such that we never have to shift blocks
         metadata.set_root(&Cid::default());
