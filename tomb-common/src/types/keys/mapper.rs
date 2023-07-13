@@ -82,7 +82,6 @@ impl Mapper {
             } else {
                 [0; 384].to_vec()
             };
-            println!("the encrypted key is: {:?}", encrypted_key);
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
             // Insert the encrypted key
@@ -102,7 +101,6 @@ impl Mapper {
         if let Ipld::Map(map) = ipld {
             // For each key value pair in the IPLD
             for (fingerprint, ipld) in map {
-                println!("deserializing ipld: {:?}", ipld);
                 if let Ipld::Map(sub_map) = ipld &&
                     let Some(Ipld::Bytes(public_key)) = sub_map.get("public_key") &&
                     let Some(Ipld::Bytes(encrypted_key)) = sub_map.get("encrypted_key") {

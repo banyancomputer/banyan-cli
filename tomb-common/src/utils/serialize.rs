@@ -253,6 +253,7 @@ pub async fn load_all<M: TombBlockStore>(
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
     Manager,
+    Cid,
 )> {
     // Load the IPLD map
     if let Some(metadata_root) = metadata.get_root() &&
@@ -267,7 +268,7 @@ pub async fn load_all<M: TombBlockStore>(
         let current_key = &manager.retrieve_current(wrapping_key).await?;
         let current_directory = load_dir(metadata, current_key, current_ref_cid, &metadata_forest).await?;
         // Return Ok with loaded objectsd
-        Ok((metadata_forest, content_forest, current_directory, manager))
+        Ok((metadata_forest, content_forest, current_directory, manager, *manager_cid))
     }
     else {
         Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
@@ -279,7 +280,8 @@ pub async fn load_history<M: TombBlockStore>(
     wrapping_key: &RsaPrivateKey,
     metadata: &M,
 ) -> Result<PrivateNodeOnPathHistory> {
-    let (metadata_forest, _, current_directory, manager) = load_all(wrapping_key, metadata).await?;
+    let (metadata_forest, _, current_directory, manager, _) =
+        load_all(wrapping_key, metadata).await?;
 
     // Grab the original key
     let original_key = &manager.retrieve_original(wrapping_key).await?;
@@ -461,7 +463,7 @@ mod test {
         )
         .await?;
 
-        let (new_metadata_forest, new_content_forest, new_dir, new_manager) =
+        let (new_metadata_forest, new_content_forest, new_dir, new_manager, _) =
             &mut load_all(&wrapping_key, metadata).await?;
 
         // Assert equality
@@ -509,7 +511,7 @@ mod test {
         )
         .await?;
 
-        let (new_metadata_forest, new_content_forest, new_dir, new_manager) =
+        let (new_metadata_forest, new_content_forest, new_dir, new_manager, _) =
             &mut load_all(&wrapping_key, content).await?;
 
         // Assert equality

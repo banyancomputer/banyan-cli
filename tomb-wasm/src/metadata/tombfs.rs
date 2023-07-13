@@ -28,7 +28,7 @@ impl TombFS {
         metadata: WasmBlockStore,
     ) -> Result<TombFS, JsValue> {
         // If we can successfully deserialize from key and metadata
-        if let Ok((metadata_forest, content_forest, dir, manager)) =
+        if let Ok((metadata_forest, content_forest, dir, manager, _)) =
             load_all(&wrapping_key.0, &metadata).await
         {
             // Init

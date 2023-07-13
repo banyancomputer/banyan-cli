@@ -10,8 +10,12 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::{types::keys::manager::Manager, utils::serialize::store_manager};
+use tomb_common::{
+    types::keys::manager::Manager,
+    utils::serialize::{store_manager, update_manager},
+};
 use wnfs::{
+    libipld::Cid,
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest},
 };
@@ -59,16 +63,23 @@ pub async fn pipeline(
         let mut content_forest = Rc::new(PrivateForest::new());
 
         let mut manager = Manager::default();
+        let mut manager_cid = Cid::default();
 
         // If this filesystem has already been packed
-        if let Ok((new_metadata_forest, new_content_forest, new_root_dir, new_manager)) =
-            config.get_all(&wrapping_key).await
+        if let Ok((
+            new_metadata_forest,
+            new_content_forest,
+            new_root_dir,
+            new_manager,
+            new_manager_cid,
+        )) = config.get_all(&wrapping_key).await
         {
             // Update structs
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
             manager = new_manager;
+            manager_cid = new_manager_cid;
         } else {
             info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
@@ -78,7 +89,11 @@ pub async fn pipeline(
         // Insert the wrapping key if it is not already there
         manager.insert(&wrapping_key.get_public_key()).await?;
         // Put the keys in the BlockStores before any other data
-        let manager_cid = &store_manager(&manager, &config.metadata, &config.content).await?;
+        manager_cid = if manager_cid == Cid::default() {
+            store_manager(&manager, &config.metadata, &config.content).await?
+        } else {
+            update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
+        };
 
         // Process all of the PackPipelinePlans
         process_plans(
@@ -98,7 +113,7 @@ pub async fn pipeline(
                 &mut content_forest,
                 &mut root_dir,
                 &mut manager,
-                manager_cid,
+                &manager_cid,
             )
             .await?;
 

@@ -81,6 +81,7 @@ impl BucketConfig {
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
         Manager,
+        Cid,
     )> {
         // Load all
         load_all(wrapping_key, &self.metadata).await
