@@ -1,6 +1,8 @@
-// Modules
+/// CARv1 Block
 pub mod block;
+/// CARv1 Header
 pub mod header;
+/// Custom Index of CARv1 content
 pub mod index;
 
 // Code
@@ -16,14 +18,18 @@ use wnfs::libipld::Cid;
 use self::{block::Block, header::Header, index::Index};
 use super::carv2::PH_SIZE;
 
+/// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Car {
+pub struct CAR {
+    /// The CARv1 Header
     pub header: Header,
+    /// The CARv1 Index
     pub index: RefCell<Index>,
+    /// The length of the CARv1 Header when read in
     pub(crate) read_header_len: RefCell<u64>,
 }
 
-impl Car {
+impl CAR {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Track the part of the stream where the V1Header starts
@@ -32,6 +38,7 @@ impl Car {
         let header = Header::read_bytes(&mut r)?;
         // Determine the length of the header that we just read
         let read_header_len = RefCell::new(r.stream_position()? - header_start);
+        println!("read_header_len: {}", read_header_len.borrow().clone());
         // Generate an index
         let index = RefCell::new(Index::read_bytes(&mut r)?);
         Ok(Self {
@@ -91,12 +98,14 @@ impl Car {
         Ok(())
     }
 
+    /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         let block_offset = self.index.borrow().get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         Block::read_bytes(&mut r)
     }
 
+    /// Set a Block directly in the CAR
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.index.borrow_mut();
         // Move to the end
@@ -111,20 +120,19 @@ impl Car {
         Ok(())
     }
 
-    pub fn get_all_cids(&self) -> Vec<Cid> {
-        self.index.borrow().clone().map.into_keys().collect()
-    }
-
+    /// Create a new CARv1 struct by writing into a stream, then deserializing it
     pub fn new<R: Read + Seek, W: Write + Seek>(version: u64, mut r: R, mut w: W) -> Result<Self> {
         let car = Self::default(version);
         car.header.write_bytes(&mut w)?;
         Self::read_bytes(&mut r)
     }
 
+    /// Set the singular root of the CAR
     pub fn set_root(&self, root: &Cid) {
         *self.header.roots.borrow_mut() = vec![*root];
     }
 
+    /// Get the singular root of the CAR
     pub fn get_root(&self) -> Option<Cid> {
         let roots = self.header.roots.borrow();
         if roots.len() > 0 {
@@ -135,13 +143,13 @@ impl Car {
     }
 }
 
-impl PartialEq for Car {
+impl PartialEq for CAR {
     fn eq(&self, other: &Self) -> bool {
         self.header == other.header && self.index == other.index
     }
 }
 
-impl Car {
+impl CAR {
     pub(crate) fn default(version: u64) -> Self {
         let header = Header::default(version);
         let mut buf: Vec<u8> = Vec::new();
@@ -164,7 +172,7 @@ impl Car {
 #[cfg(test)]
 mod test {
     use crate::{
-        types::blockstore::car::carv1::{block::Block, Car},
+        types::blockstore::car::carv1::{block::Block, CAR},
         utils::test::car_setup,
     };
     use anyhow::Result;
@@ -181,7 +189,7 @@ mod test {
     fn from_disk_basic() -> Result<()> {
         let car_path = &car_setup(1, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
-        let car = Car::read_bytes(&mut file)?;
+        let car = CAR::read_bytes(&mut file)?;
 
         // Header tests exist separately, let's just ensure content is correct!
 
@@ -245,7 +253,7 @@ mod test {
         let mut w = File::create(new_path)?;
 
         // Read in the car
-        let car = Car::read_bytes(&mut r)?;
+        let car = CAR::read_bytes(&mut r)?;
 
         // Insert a root
         car.set_root(&Cid::default());
@@ -255,7 +263,7 @@ mod test {
 
         // Read in the car
         let mut r2 = File::open(new_path)?;
-        let new_car = Car::read_bytes(&mut r2)?;
+        let new_car = CAR::read_bytes(&mut r2)?;
 
         assert_eq!(car.header, new_car.header);
         assert_eq!(car.index, new_car.index);
@@ -272,8 +280,9 @@ mod test {
         let mut original_file = File::open(car_path)?;
 
         // Read original CARv2
-        let original = Car::read_bytes(&mut original_file)?;
-        let all_cids = original.get_all_cids();
+        let original = CAR::read_bytes(&mut original_file)?;
+        let index = original.index.borrow().clone();
+        let all_cids = index.map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
@@ -318,14 +327,14 @@ mod test {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv1
-        let original = Car::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(&mut original_file)?;
         original_file.seek(std::io::SeekFrom::Start(0))?;
         // Write to updated file
         original.write_bytes(&mut original_file, &mut updated_file)?;
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = Car::read_bytes(&mut updated_file)?;
+        let reconstructed = CAR::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -350,7 +359,7 @@ mod test {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv1
-        let original = Car::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(&mut original_file)?;
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
@@ -365,7 +374,7 @@ mod test {
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = Car::read_bytes(&mut updated_file)?;
+        let reconstructed = CAR::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -390,7 +399,7 @@ mod test {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv1
-        let original = Car::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(&mut original_file)?;
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
@@ -410,7 +419,7 @@ mod test {
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = Car::read_bytes(&mut updated_file)?;
+        let reconstructed = CAR::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);

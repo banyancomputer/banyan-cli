@@ -21,6 +21,7 @@ use crate::{
     utils::config::xdg_data_home,
 };
 
+/// Configuration for an individual Bucket / FileSystem
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
     /// The name of this bucket
@@ -29,12 +30,14 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
-    /// BlockStore for storing all
+    /// BlockStore for storing metadata only
     pub metadata: BlockStore,
+    /// BlockStore for storing metadata and file content
     pub content: MultifileBlockStore,
 }
 
 impl BucketConfig {
+    /// Given a directory, initialize a configuration for it
     pub fn new(origin: &Path) -> Result<Self> {
         let bucket_name = origin.file_name().unwrap().to_str().unwrap().to_string();
         // Generate a name for the generated directory
@@ -73,6 +76,7 @@ impl BucketConfig {
         Ok(())
     }
 
+    /// Shortcut for serialize::load_all
     pub async fn get_all(
         &self,
         wrapping_key: &RsaPrivateKey,
@@ -87,6 +91,7 @@ impl BucketConfig {
         load_all(wrapping_key, &self.metadata).await
     }
 
+    /// Shortcut for serialize::store_all
     pub async fn set_all(
         &self,
         metadata_forest: &mut Rc<PrivateForest>,
@@ -107,6 +112,7 @@ impl BucketConfig {
         .await
     }
 
+    /// Shortcut for serialize::load_history
     pub async fn get_history(
         &self,
         wrapping_key: &RsaPrivateKey,

@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 
 pub type JsResult<T> = Result<T, js_sys::Error>;
 
+/// Turn a value into a JsValue
 #[macro_export]
 macro_rules! value {
     ($value:expr) => {
@@ -47,6 +48,8 @@ pub(crate) fn map_to_rust_vec<T, F: FnMut(JsValue) -> JsResult<T>>(
 }
 
 #[inline]
+#[allow(dead_code)]
+/// Convert Vec of bytes to JsResult of bytes with known length
 pub(crate) fn expect_bytes<const N: usize>(bytes: Vec<u8>) -> JsResult<[u8; N]> {
     bytes.try_into().map_err(|v: Vec<u8>| {
         Error::new(&format!(

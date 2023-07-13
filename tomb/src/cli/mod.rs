@@ -1,5 +1,8 @@
+/// Arguments consist of Command an Verbosity
 pub mod args;
+/// Command to run
 pub mod command;
+/// Debug level
 pub mod verbosity;
 
 use crate::pipelines::{add, configure, pack, remove, unpack};
@@ -7,8 +10,7 @@ use anyhow::Result;
 use command::{Command, ConfigSubCommand};
 use std::env::current_dir;
 
-// TODO add support for https://docs.rs/keyring/latest/keyring/
-// TODO what's going on with buckets? these are URLs right?
+/// Based on the Command, run pipelines
 pub async fn run(command: Command) -> Result<()> {
     // Determine the command being executed
     match command {

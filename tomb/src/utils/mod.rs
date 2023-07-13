@@ -1,4 +1,6 @@
+/// CAR files
 pub mod car;
+/// Configuration
 pub mod config;
 /// this has a custom fclones logger to make fclones look and act right
 pub mod custom_fclones_logger;
@@ -11,6 +13,7 @@ pub mod spider;
 /// This module contains testing fns
 #[cfg(test)]
 pub mod test;
+///Utils specific to the Unpack pipeline
 pub mod unpack;
 /// This module contains WNFS IO fns
 pub mod wnfsio;

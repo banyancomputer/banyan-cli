@@ -156,6 +156,7 @@ pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
     Ok((metadata_forest_cid1, content_forest_cid1))
 }
 
+/// Store all relevant metadata in both BlockStores
 pub async fn store_all<M: TombBlockStore, C: TombBlockStore>(
     metadata: &M,
     content: &C,
@@ -229,6 +230,7 @@ pub async fn store_ipld<M: TombBlockStore, C: TombBlockStore>(
     Ok(())
 }
 
+/// Load both PrivateForests from metadata
 pub async fn load_forests<M: TombBlockStore>(
     metadata: &M,
     root: &BTreeMap<String, Ipld>,
@@ -303,7 +305,7 @@ pub async fn load_history<M: TombBlockStore>(
     .await
 }
 
-// Store the Manager
+/// Store the key Manager in both BlockStores
 pub async fn store_manager(
     manager: &Manager,
     metadata: &impl WnfsBlockStore,
@@ -318,7 +320,7 @@ pub async fn store_manager(
     Ok(cid1)
 }
 
-/// Update the content of the Managers in their existing positions within the BlockStores
+/// Update the content of the Managers in place within both BlockStores
 pub async fn update_manager(
     manager: &Manager,
     manager_cid: &Cid,

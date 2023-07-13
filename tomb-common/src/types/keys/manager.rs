@@ -8,15 +8,18 @@ use wnfs::private::TemporalKey;
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
 #[derive(Debug, Default, PartialEq)]
 pub struct Manager {
-    // The unencrypted TemporalKeys
+    /// The unencrypted original TemporalKey
     original: Option<TemporalKey>,
+    /// The unencrypted current TemporalKey
     current: Option<TemporalKey>,
-    // Lookups for RsaPublicKeys and correlated encrypted TemporalKeys
+    /// Mapper for original TemporalKey
     pub original_map: Mapper,
+    /// Mapper for current TemporalKey
     pub current_map: Mapper,
 }
 
 impl Manager {
+    /// Update the current TemporalKey
     pub async fn update_current_key(&mut self, new_key: &TemporalKey) -> Result<()> {
         // Update the TemporalKey
         self.current = Some(new_key.clone());
@@ -24,6 +27,7 @@ impl Manager {
         Ok(())
     }
 
+    /// Update the original TemporalKey
     pub async fn set_original_key(&mut self, new_key: &TemporalKey) -> Result<()> {
         // Update the TemporalKey
         self.original = Some(new_key.clone());
@@ -31,30 +35,30 @@ impl Manager {
         Ok(())
     }
 
+    /// Insert a new RsaPublicKey into both Mappers
     pub async fn insert(&mut self, new_key: &RsaPublicKey) -> Result<()> {
         // Insert into original
-        {
-            self.original_map
-                .insert_public_key(&self.original, new_key)
-                .await?;
-        }
+        self.original_map
+            .insert_public_key(&self.original, new_key)
+            .await?;
+
         // Insert into current
-        {
-            self.current_map
-                .insert_public_key(&self.current, new_key)
-                .await?;
-        }
-        Ok(())
+        self.current_map
+            .insert_public_key(&self.current, new_key)
+            .await
     }
 
+    /// Retrieve the current TemporalKey using a PrivateKey
     pub async fn retrieve_current(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
         self.current_map.reconstruct(private_key).await
     }
 
+    /// Retrieve the original TemporalKey using a PrivateKey
     pub async fn retrieve_original(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
         self.original_map.reconstruct(private_key).await
     }
 
+    /// Reload both keys into memory
     pub async fn load_temporal_keys(&mut self, private_key: &RsaPrivateKey) -> Result<()> {
         self.current = Some(self.retrieve_current(private_key).await?);
         self.original = Some(self.retrieve_original(private_key).await?);

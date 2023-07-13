@@ -8,10 +8,12 @@ use wnfs::{
     private::{AesKey, ExchangeKey, PrivateKey, TemporalKey},
 };
 
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default, PartialEq)]
+/// Map key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub struct Mapper(HashMap<String, (Vec<u8>, Vec<u8>)>);
 
 impl Mapper {
+    /// Using each PublicKey to encrypt the new TemporalKey
     pub async fn update_temporal_key(&mut self, new_key: &TemporalKey) -> Result<()> {
         // For each Public Key present in the map
         for (fingerprint, (der, _)) in self.0.clone() {
@@ -25,6 +27,7 @@ impl Mapper {
         Ok(())
     }
 
+    /// Add a new PublicKey, save an encrypted TemporalKey if one was provided
     pub async fn insert_public_key(
         &mut self,
         temporal_key: &Option<TemporalKey>,
@@ -52,6 +55,7 @@ impl Mapper {
         Ok(())
     }
 
+    /// Decrypt the TemporalKey using a PrivateKey
     pub async fn reconstruct(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
         // Grab the fingerprint
         let fingerprint = private_key.get_public_key().get_fingerprint()?;
@@ -138,11 +142,11 @@ impl<'de> Deserialize<'de> for Mapper {
     }
 }
 
-// impl std::fmt::Debug for Mapper {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_tuple("Mapper").field(&self.0.keys()).finish()
-//     }
-// }
+impl std::fmt::Debug for Mapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Mapper").field(&self.0.keys()).finish()
+    }
+}
 
 #[cfg(test)]
 mod test {

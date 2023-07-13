@@ -25,6 +25,7 @@ pub struct Bucket {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 /// Service for interacting with Metadata.
 pub struct Service {
     /// Endpoint for a Metadata service.

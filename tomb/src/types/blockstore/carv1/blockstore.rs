@@ -1,3 +1,7 @@
+use crate::{
+    types::blockstore::error::{CARIOError, SingleError::*},
+    utils::car,
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
@@ -7,10 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::types::blockstore::{
-    car::{
-        carv1::{block::Block, Car},
-        error::CarError,
-    },
+    car::carv1::{block::Block, CAR},
     tombblockstore::TombBlockStore,
 };
 use wnfs::{
@@ -18,20 +19,20 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
-use crate::utils::car;
-
+/// CARv1 BlockStore implementation using File IO
 #[derive(Debug, PartialEq)]
 pub struct BlockStore {
+    /// CAR file path
     pub path: PathBuf,
-    pub(crate) car: Car,
+    pub(crate) car: CAR,
 }
 
 impl BlockStore {
-    // Create a new CARv1 BlockStore from a file
+    /// Create a new CARv1 BlockStore from a file
     pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
-            Err(CarError::Directory(path.to_path_buf()).into())
+            Err(CARIOError::SingleError(Directory(path.to_path_buf())).into())
         } else {
             // Create the file if it doesn't already exist
             if !path.exists() {
@@ -40,7 +41,7 @@ impl BlockStore {
 
             // Open the file in reading mode
             if let Ok(mut file) = File::open(path) &&
-                let Ok(car) = Car::read_bytes(&mut file) {
+                let Ok(car) = CAR::read_bytes(&mut file) {
                 Ok(Self {
                     path: path.to_path_buf(),
                     car
@@ -55,16 +56,13 @@ impl BlockStore {
                 // Construct new
                 Ok(Self {
                     path: path.to_path_buf(),
-                    car: Car::new(1, &mut r, &mut w)?
+                    car: CAR::new(1, &mut r, &mut w)?
                 })
             }
         }
     }
 
-    pub fn get_all_cids(&self) -> Vec<Cid> {
-        self.car.get_all_cids()
-    }
-
+    /// Save the CAR BlockStore to disk
     pub fn to_disk(&self) -> Result<()> {
         let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
         self.car.write_bytes(&mut r, &mut w)?;
@@ -145,8 +143,8 @@ impl Serialize for BlockStore {
             // Serialize the Path
             self.path.serialize(serializer)
         } else {
-            // Create a new Car Error
-            Err(SerError::custom(CarError::FailToSave))
+            // Create a new CAR Error
+            Err(SerError::custom(CARIOError::SingleError(FailToSave)))
         }
     }
 }
@@ -163,8 +161,8 @@ impl<'de> Deserialize<'de> for BlockStore {
             // Return loaded object
             Ok(new_store)
         } else {
-            // Create a new Car Error
-            Err(DeError::custom(CarError::FailToLoad(path)))
+            // Create a new CAR Error
+            Err(DeError::custom(CARIOError::SingleError(FailToLoad(path))))
         }
     }
 }

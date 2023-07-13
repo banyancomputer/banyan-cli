@@ -1,11 +1,12 @@
-/// CAR based blockstore
+/// CAR readers and writers
 pub mod car;
-/// Disk based blockstore
+/// Disk based BlockStore
 pub mod diskblockstore;
-/// Network based blockstore
+/// Network based BlockStore
 pub mod networkblockstore;
-/// Trait
+/// Tomb BlockStore trait
 pub mod tombblockstore;
+/// Memory implementation of Tomb BlockStore trait
 pub mod tombmemoryblockstore;
 
 #[cfg(test)]
