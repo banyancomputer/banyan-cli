@@ -2501,6 +2501,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssl-hkdf"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d9ed6479b095784e86aa6dcdac720f9c85701dde1a7e89da24ac5840e364baf"
+dependencies = [
+ "openssl",
+ "openssl-sys",
+]
+
+[[package]]
 name = "openssl-macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3779,6 +3789,15 @@ dependencies = [
  "unsigned-varint",
  "wasm-bindgen",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
+]
+
+[[package]]
+name = "tomb-crypt"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.2",
+ "openssl",
+ "openssl-hkdf",
 ]
 
 [[package]]
