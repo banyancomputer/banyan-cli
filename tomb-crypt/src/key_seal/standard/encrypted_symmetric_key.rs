@@ -9,6 +9,7 @@ pub struct EncryptedSymmetricKey {
 }
 
 impl ProtectedKey for EncryptedSymmetricKey {
+    type Error = KeySealError;
     type PlainKey = SymmetricKey;
     type WrappingPrivateKey = EcEncryptionKey;
 

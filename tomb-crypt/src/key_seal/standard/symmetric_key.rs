@@ -5,6 +5,7 @@ use crate::key_seal::standard::*;
 pub struct SymmetricKey(pub(crate) [u8; AES_KEY_SIZE]);
 
 impl PlainKey for SymmetricKey {
+    type Error = KeySealError;
     type ProtectedKey = EncryptedSymmetricKey;
     type WrappingPublicKey = EcPublicEncryptionKey;
 

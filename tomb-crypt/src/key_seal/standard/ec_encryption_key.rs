@@ -7,6 +7,7 @@ use crate::key_seal::standard::*;
 pub struct EcEncryptionKey(pub(crate) PKey<Private>);
 
 impl WrappingPrivateKey for EcEncryptionKey {
+    type Error = KeySealError;
     type PublicKey = EcPublicEncryptionKey;
 
     fn export(&self) -> Result<Vec<u8>, KeySealError> {

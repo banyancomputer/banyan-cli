@@ -1,13 +1,10 @@
 mod common;
-mod error;
-
-pub use error::KeySealError;
 
 #[cfg(not(target_arch = "wasm"))]
 mod standard;
 
 #[cfg(not(target_arch = "wasm"))]
-pub use standard::{EcEncryptionKey, EcPublicEncryptionKey, SymmetricKey, EncryptedSymmetricKey};
+pub use standard::{EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey};
 
 //#[cfg(target_arch = "wasm")]
 //mod wasm;
