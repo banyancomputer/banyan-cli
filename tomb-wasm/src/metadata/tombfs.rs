@@ -27,21 +27,23 @@ impl TombFS {
         wrapping_key: PrivateKey,
         metadata: WasmBlockStore,
     ) -> Result<TombFS, JsValue> {
-        // If we can successfully deserialize from key and metadata
-        if let Ok((metadata_forest, content_forest, dir, manager, _)) =
-            load_all(&wrapping_key.0, &metadata).await
-        {
-            // Init
-            Ok(TombFS {
-                metadata,
-                metadata_forest,
-                content_forest,
-                dir,
-                manager,
-            })
-        } else {
-            Err(WasmError::FS.into())
-        }
+        // // If we can successfully deserialize from key and metadata
+        // if let Ok((metadata_forest, content_forest, dir, manager, _)) =
+        //     load_all(&wrapping_key.0, &metadata).await
+        // {
+        //     // Init
+        //     Ok(TombFS {
+        //         metadata,
+        //         metadata_forest,
+        //         content_forest,
+        //         dir,
+        //         manager,
+        //     })
+        // } else {
+        //     Err(WasmError::FS.into())
+        // }
+
+        Err(WasmError::FS.into())
     }
 }
 

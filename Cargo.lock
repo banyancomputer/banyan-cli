@@ -3786,6 +3786,7 @@ dependencies = [
  "spki",
  "thiserror",
  "tokio",
+ "tomb-crypt",
  "unsigned-varint",
  "wasm-bindgen",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
