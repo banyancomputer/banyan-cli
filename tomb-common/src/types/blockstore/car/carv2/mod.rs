@@ -3,7 +3,7 @@ pub(crate) mod index;
 
 // Code
 use self::{header::Header, index::Index};
-use crate::types::blockstore::car::carv1::{block::Block, Car as CarV1};
+use crate::types::blockstore::car::carv1::{block::Block, CAR as CARv1};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -21,14 +21,17 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
     0x0a, 0xa1, 0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02,
 ];
 
+/// Reading / writing a CARv2 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct Car {
+pub struct CAR {
     pub(crate) header: RefCell<Header>,
-    pub car: CarV1,
+    /// The CARv1 internal to the CARv2
+    pub car: CARv1,
+    /// The CARv2 Index (currently non-functional)
     pub(crate) index: Option<Index>,
 }
 
-impl Car {
+impl CAR {
     /// Load in the CARv2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
@@ -40,7 +43,7 @@ impl Car {
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
-        let car = CarV1::read_bytes(&mut r)?;
+        let car = CARv1::read_bytes(&mut r)?;
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
         // Load the index if one is present
@@ -58,6 +61,7 @@ impl Car {
         })
     }
 
+    /// Write the CARv2 out to a writer, reading in the content required to write as we go
     pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
         // Skip to the part where the CARv1 will go
         let data_offset = self.header.borrow().data_offset;
@@ -80,6 +84,7 @@ impl Car {
         Ok(())
     }
 
+    /// Ensure the validity of the CARv2 PRAGMA in a given stream
     pub(crate) fn verify_pragma<R: Read + Seek>(mut r: R) -> Result<()> {
         // Move to the start of the file
         r.seek(SeekFrom::Start(0))?;
@@ -92,6 +97,7 @@ impl Car {
         Ok(())
     }
 
+    /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         let index = self.car.index.borrow();
         let block_offset = index.get_offset(cid)?;
@@ -99,6 +105,7 @@ impl Car {
         Block::read_bytes(&mut r)
     }
 
+    /// Set a Block directly in the CAR
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.car.index.borrow_mut();
         // Move to the end
@@ -116,11 +123,12 @@ impl Car {
         Ok(())
     }
 
+    /// Create a new CARv2 struct by writing into a stream, then deserializing it
     pub fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
         // Move to CARv1 no padding
         w.seek(SeekFrom::Start(PH_SIZE))?;
         // Construct a CARv1
-        let car = CarV1::default(2);
+        let car = CARv1::default(2);
         // Write CARv1 Header
         car.header.write_bytes(&mut w)?;
         // Compute the data size
@@ -143,10 +151,6 @@ impl Car {
         Self::read_bytes(&mut r)
     }
 
-    pub fn get_all_cids(&self) -> Vec<Cid> {
-        self.car.get_all_cids()
-    }
-
     fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
         // Update the data size
         let v1_end = x.seek(SeekFrom::End(0))?;
@@ -159,10 +163,12 @@ impl Car {
         Ok(())
     }
 
+    /// Set the singular root of the CAR
     pub fn set_root(&self, root: &Cid) {
         self.car.set_root(root);
     }
 
+    /// Get the singular root of the CAR
     pub fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
@@ -180,7 +186,7 @@ mod test {
     use wnfs::libipld::{Cid, IpldCodec};
 
     use crate::{
-        types::blockstore::car::{carv1::block::Block, carv2::Car},
+        types::blockstore::car::{carv1::block::Block, carv2::CAR},
         utils::test::car_setup,
     };
 
@@ -189,7 +195,7 @@ mod test {
     fn from_disk_basic() -> Result<()> {
         let car_path = car_setup(2, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
-        let carv2 = Car::read_bytes(&mut file)?;
+        let carv2 = CAR::read_bytes(&mut file)?;
         // Assert that this index was in an unrecognized format
         assert_eq!(carv2.index, None);
 
@@ -248,8 +254,9 @@ mod test {
         let mut car_file = File::open(car_path)?;
 
         // Read original CARv2
-        let original = Car::read_bytes(&mut car_file)?;
-        let all_cids = original.get_all_cids();
+        let original = CAR::read_bytes(&mut car_file)?;
+        let index = original.car.index.borrow().clone();
+        let all_cids = index.map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
@@ -294,13 +301,13 @@ mod test {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv2
-        let original = Car::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(&mut original_file)?;
         // Write to updated file
         original.write_bytes(&mut original_file, &mut updated_file)?;
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = Car::read_bytes(&mut updated_file)?;
+        let reconstructed = CAR::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -328,7 +335,7 @@ mod test {
         let mut updated_file = File::create(updated_path)?;
 
         // Read original CARv2
-        let original = Car::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(&mut original_file)?;
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
@@ -346,7 +353,7 @@ mod test {
 
         // Reconstruct
         let mut updated_file = File::open(updated_path)?;
-        let reconstructed = Car::read_bytes(&mut updated_file)?;
+        let reconstructed = CAR::read_bytes(&mut updated_file)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);

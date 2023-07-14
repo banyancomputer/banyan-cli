@@ -1,5 +1,5 @@
 use crate::types::blockstore::car::{
-    error::CarError,
+    error::CARError,
     varint::{encode_varint_u64, read_varint_u64},
 };
 use anyhow::Result;
@@ -14,14 +14,18 @@ use wnfs::{
     libipld::{Cid, Ipld},
 };
 
-// | 16-byte varint | n-byte DAG CBOR |
+/// CARv1 Header
+/// | 16-byte varint | n-byte DAG CBOR |
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Header {
+    /// The version of the CAR (1 or 2)
     pub version: u64,
+    /// The deserialized IPLD encoding the roots of the filesystem
     pub roots: RefCell<Vec<Cid>>,
 }
 
 impl Header {
+    /// Write a Header to a byte stream
     pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<()> {
         // Represent as DAGCBOR IPLD
         let ipld_buf = self.to_ipld_bytes()?;
@@ -33,6 +37,7 @@ impl Header {
         Ok(())
     }
 
+    /// Read a Header from a byte stream
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(&mut r)?;
@@ -52,15 +57,15 @@ impl Header {
             let Some(Ipld::Integer(int)) = map.get("version") &&
             let Some(Ipld::List(roots_ipld)) = map.get("roots") {
             // Helper function for interpreting a given Cid as a Link
-            fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CarError> {
+            fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CARError> {
                 if let Ipld::Link(cid) = ipld {
                     Ok(*cid)
                 } else {
-                    Err(CarError::MalformedV1Header)
+                    Err(CARError::MalformedV1Header)
                 }
             }
             // Interpret all of the roots as CIDs
-            let roots = roots_ipld.iter().map(ipld_to_cid).collect::<Result<Vec<Cid>, CarError>>()?;
+            let roots = roots_ipld.iter().map(ipld_to_cid).collect::<Result<Vec<Cid>, CARError>>()?;
 
             // Return Ok with new Self
             Ok(Self {
@@ -68,7 +73,7 @@ impl Header {
                 roots: RefCell::new(roots),
             })
         } else {
-            Err(CarError::MalformedV1Header.into())
+            Err(CARError::MalformedV1Header.into())
         }
     }
 

@@ -2,17 +2,19 @@
 use crate::fetch::http::*;
 use async_trait::async_trait;
 use std::{borrow::Cow, io::Cursor};
-use tomb_common::types::blockstore::{car::carv2::Car, tombblockstore::TombBlockStore};
+use tomb_common::types::blockstore::{car::carv2::CAR, tombblockstore::TombBlockStore};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use wnfs::{
     common::blockstore::BlockStore as WnfsBlockStore,
     libipld::{Cid, IpldCodec},
 };
 
+/// CARv2 MemoryBlockStore in WASM
 #[wasm_bindgen]
+#[derive(Debug)]
 pub struct WasmBlockStore {
     data: Vec<u8>,
-    car: Car,
+    car: CAR,
 }
 
 #[allow(dead_code)]
@@ -23,7 +25,7 @@ impl WasmBlockStore {
         // Load data
         let data = get_data(url.clone()).await.unwrap();
         // Load car
-        let car = Car::read_bytes(Cursor::new(&data)).unwrap();
+        let car = CAR::read_bytes(Cursor::new(&data)).unwrap();
         // Ok
         Ok(Self { data, car })
     }

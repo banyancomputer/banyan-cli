@@ -2,7 +2,7 @@ use std::{env, fs::create_dir, path::PathBuf};
 
 const HOME_ERROR: &str = "cant find home directory";
 
-/// Grab config path from env variables + XDG spec
+/// Grab config path
 pub fn xdg_config_home() -> PathBuf {
     // Construct
     let path = PathBuf::from(format!(
@@ -15,6 +15,7 @@ pub fn xdg_config_home() -> PathBuf {
     path
 }
 
+/// Grab data path
 pub fn xdg_data_home() -> PathBuf {
     // Construct
     let path = PathBuf::from(format!(

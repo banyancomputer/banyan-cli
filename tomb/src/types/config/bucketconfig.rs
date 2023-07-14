@@ -17,10 +17,11 @@ use wnfs::{
 };
 
 use crate::{
-    types::blockstore::carv2::{blockstore::BlockStore, multifile::MultifileBlockStore},
+    types::blockstore::{carv2, multi},
     utils::config::xdg_data_home,
 };
 
+/// Configuration for an individual Bucket / FileSystem
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
     /// The name of this bucket
@@ -29,12 +30,14 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
-    /// BlockStore for storing all
-    pub metadata: BlockStore,
-    pub content: MultifileBlockStore,
+    /// BlockStore for storing metadata only
+    pub metadata: carv2::BlockStore,
+    /// BlockStore for storing metadata and file content
+    pub content: multi::BlockStore,
 }
 
 impl BucketConfig {
+    /// Given a directory, initialize a configuration for it
     pub fn new(origin: &Path) -> Result<Self> {
         let bucket_name = origin.file_name().unwrap().to_str().unwrap().to_string();
         // Generate a name for the generated directory
@@ -49,8 +52,8 @@ impl BucketConfig {
         // TODO (organized grime) prevent collision
         create_dir_all(&generated)?;
 
-        let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = MultifileBlockStore::new(&generated.join("content"))?;
+        let metadata = carv2::BlockStore::new(&generated.join("meta.car"))?;
+        let content = multi::BlockStore::new(&generated.join("content"))?;
 
         // Start with default roots such that we never have to shift blocks
         metadata.set_root(&Cid::default());
@@ -73,6 +76,7 @@ impl BucketConfig {
         Ok(())
     }
 
+    /// Shortcut for serialize::load_all
     pub async fn get_all(
         &self,
         wrapping_key: &RsaPrivateKey,
@@ -87,6 +91,7 @@ impl BucketConfig {
         load_all(wrapping_key, &self.metadata).await
     }
 
+    /// Shortcut for serialize::store_all
     pub async fn set_all(
         &self,
         metadata_forest: &mut Rc<PrivateForest>,
@@ -107,6 +112,7 @@ impl BucketConfig {
         .await
     }
 
+    /// Shortcut for serialize::load_history
     pub async fn get_history(
         &self,
         wrapping_key: &RsaPrivateKey,

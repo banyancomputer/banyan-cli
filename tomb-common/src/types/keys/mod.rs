@@ -1,5 +1,8 @@
+/// Errors that can be encountered in these utils
 pub mod error;
+/// Manages original and current TemporalKeys
 pub mod manager;
+/// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
 
 #[cfg(test)]

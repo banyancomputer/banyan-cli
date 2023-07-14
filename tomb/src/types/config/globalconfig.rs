@@ -9,10 +9,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Represents the Global contents of the tomb configuration file in a user's .config
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GlobalConfig {
     version: String,
+    /// Location of PEM key used to encrypt / decrypt
     pub wrapping_key_path: PathBuf,
+    /// Remote endpoint for Metadata API
     pub remote: String,
     buckets: Vec<BucketConfig>,
 }
@@ -31,13 +34,13 @@ impl GlobalConfig {
         File::create(Self::get_path()).map_err(anyhow::Error::new)
     }
 
-    // Write to disk
+    /// Write to disk
     pub fn to_disk(&self) -> Result<()> {
         serde_json::to_writer_pretty(Self::get_write()?, &self)?;
         Ok(())
     }
 
-    // Initialize from a reader
+    /// Initialize from a reader
     pub fn from_disk() -> Result<Self> {
         if let Ok(file) = Self::get_read() &&
            let Ok(config) = serde_json::from_reader(file) {
@@ -48,16 +51,14 @@ impl GlobalConfig {
         }
     }
 
-    pub fn get_bucket(&self, origin: &Path) -> Option<BucketConfig> {
-        self.find_config(origin)
-    }
-
+    /// Create a new BucketConfig for an origin
     pub fn new_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
         self.find_or_create_config(origin)
     }
 
+    /// Remove a BucketConfig for an origin
     pub fn remove(&mut self, origin: &Path) -> Result<()> {
-        if let Some(bucket) = self.find_config(origin) {
+        if let Some(bucket) = self.get_bucket(origin) {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
@@ -68,6 +69,7 @@ impl GlobalConfig {
         Ok(())
     }
 
+    /// Remove Config data associated with each Bucket
     pub fn remove_data(&self) -> Result<()> {
         // Remove bucket data
         for bucket in &self.buckets {
@@ -79,6 +81,7 @@ impl GlobalConfig {
         Ok(())
     }
 
+    /// Update a given BucketConfig
     pub fn update_config(&mut self, bucket: &BucketConfig) -> Result<()> {
         // Find index
         let index = self
@@ -92,11 +95,12 @@ impl GlobalConfig {
         Ok(())
     }
 
-    fn find_config(&self, path: &Path) -> Option<BucketConfig> {
+    /// Find a BucketConfig by origin
+    pub fn get_bucket(&self, origin: &Path) -> Option<BucketConfig> {
         self.buckets
             .clone()
             .into_iter()
-            .find(|bucket| bucket.origin == path)
+            .find(|bucket| bucket.origin == origin)
     }
 
     fn create_config(&mut self, origin: &Path) -> Result<BucketConfig> {
@@ -106,7 +110,7 @@ impl GlobalConfig {
     }
 
     fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {
-        let existing = self.find_config(path);
+        let existing = self.get_bucket(path);
         if let Some(config) = existing {
             Ok(config)
         } else {
@@ -136,10 +140,12 @@ impl GlobalConfig {
         })
     }
 
+    /// Load the WrappingKey from its predetermined location
     pub fn wrapping_key_from_disk(&self) -> Result<RsaPrivateKey> {
         RsaPrivateKey::from_pem_file(&self.wrapping_key_path)
     }
 
+    /// Write the WRappingKey to its predetermined location
     pub fn wrapping_key_to_disk(&self, wrapping_key: &RsaPrivateKey) -> Result<()> {
         wrapping_key.to_pem_file(&self.wrapping_key_path)?;
         Ok(())

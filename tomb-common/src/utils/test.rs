@@ -16,7 +16,7 @@ use crate::types::blockstore::{
     tombblockstore::TombBlockStore, tombmemoryblockstore::TombMemoryBlockStore,
 };
 
-// Create a copy of a given fixture to play around with
+/// Create a copy of a given fixture to play around with
 pub fn car_setup(
     version: usize,
     fixture_suffix: &str,
@@ -40,7 +40,7 @@ pub fn car_setup(
     Ok(new_path)
 }
 
-// Create all of the relevant objects, using real BlockStores and real data
+/// Create all of the relevant objects, using real BlockStores and real data
 pub async fn setup(
     test_name: &str,
 ) -> Result<(
@@ -104,7 +104,7 @@ pub async fn setup(
     ))
 }
 
-// Delete the temporary directory
+/// Delete the temporary directory
 pub async fn teardown(test_name: &str) -> Result<()> {
     let path = Path::new("test").join(test_name);
     std::fs::remove_dir_all(path)?;

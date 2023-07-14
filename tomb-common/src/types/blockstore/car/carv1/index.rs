@@ -9,12 +9,15 @@ use std::{
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
 #[derive(Debug, PartialEq, Default, Clone)]
+/// Custom index type that is used to track blocks
 pub struct Index {
+    /// A HashMap associating Cids with their locations in stream
     pub map: HashMap<Cid, u64>,
-    pub next_block: u64,
+    pub(crate) next_block: u64,
 }
 
 impl Index {
+    /// Perform partial block reads until a full index is built
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let mut map = HashMap::<Cid, u64>::new();
         let mut next_block: u64 = r.stream_position()?;
@@ -31,6 +34,7 @@ impl Index {
         Ok(Self { map, next_block })
     }
 
+    /// Find the offset of a given Cid
     pub fn get_offset(&self, cid: &Cid) -> Result<u64> {
         if let Some(offset) = self.map.get(cid) {
             Ok(*offset)
