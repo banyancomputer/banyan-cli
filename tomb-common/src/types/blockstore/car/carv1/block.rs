@@ -6,15 +6,20 @@ use wnfs::libipld::{
     Cid, IpldCodec,
 };
 
-// | 19-byte varint | x-byte Cid | x-byte content |
+/// CARv1 Data Block
+/// | 19-byte varint | x-byte Cid | x-byte content |
 #[derive(PartialEq, Debug)]
 pub struct Block {
+    /// Varint encoding remaining len of block
     pub varint: u128,
+    /// Cid of data
     pub cid: Cid,
+    /// Data
     pub content: Vec<u8>,
 }
 
 impl Block {
+    /// Given some data, create a Cid and varint to match
     pub fn new(content: Vec<u8>, codec: IpldCodec) -> Result<Self> {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
@@ -45,11 +50,13 @@ impl Block {
         Ok(varint_buf.len() + cid_buf.len() + self.content.len())
     }
 
+    /// Read a Block from stream
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let (varint, cid) = Self::start_read(&mut r)?;
         Self::finish_read(varint, cid, &mut r)
     }
 
+    /// Read the Varint and Cid from stream only
     pub fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
         // Read the varint
         let varint = read_varint_u128(&mut r)?;
@@ -59,6 +66,7 @@ impl Block {
         Ok((varint, cid))
     }
 
+    /// If start read was just called, grab the data that follows it and return a Block
     pub fn finish_read<R: Read + Seek>(varint: u128, cid: Cid, mut r: R) -> Result<Self> {
         // Determine how much data has yet to be read from this block
         let content_length = varint as usize - cid.to_bytes().len();

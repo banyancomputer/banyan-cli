@@ -10,6 +10,7 @@ use wnfs::{
 use super::tombblockstore::TombBlockStore;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+/// Memory implementation of a TombBlockStore
 pub struct TombMemoryBlockStore {
     root: RefCell<Option<Cid>>,
     store: MemoryBlockStore,
@@ -25,7 +26,7 @@ impl TombMemoryBlockStore {
 #[async_trait(?Send)]
 impl WnfsBlockStore for TombMemoryBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         self.store.get_block(cid).await
     }
 

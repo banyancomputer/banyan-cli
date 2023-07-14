@@ -1,8 +1,8 @@
-// CARv1
+/// CARv1
 pub mod carv1;
-// CARv2
+/// CARv2
 pub mod carv2;
-// CAR Errors
+/// CAR Errors
 pub mod error;
-// Mutual
+/// Varint functionality used by both CARs
 mod varint;

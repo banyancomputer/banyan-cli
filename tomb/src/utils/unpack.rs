@@ -9,6 +9,7 @@ use wnfs::{
 use super::wnfsio::file_to_disk;
 
 #[async_recursion(?Send)]
+/// Recursively reconstruct each file and directory from the WNFS to disk
 pub async fn process_node(
     metadata: &impl WnfsBlockStore,
     content: &impl WnfsBlockStore,
