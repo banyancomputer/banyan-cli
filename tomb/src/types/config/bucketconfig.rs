@@ -1,8 +1,3 @@
-use crate::{
-    crypto::rsa::RsaPrivateKey,
-    types::blockstore::car::carv2::blockstore::BlockStore,
-    utils::{config::*, serialize::*},
-};
 use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
@@ -11,12 +6,20 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use tomb_common::{
+    crypto::rsa::RsaPrivateKey,
+    types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
+    utils::serialize::*,
+};
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
-use super::keys::manager::Manager;
+use crate::{
+    types::blockstore::carv2::{blockstore::BlockStore, multifile::MultifileBlockStore},
+    utils::config::xdg_data_home,
+};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
@@ -26,19 +29,9 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) generated: PathBuf,
-    /// metadata roots: [
-    ///     IPLD::Map (
-    ///         "private_ref" -> Ipld::Link(private_ref_cid)
-    ///         "metadata_forest" -> Ipld::Link(metadata_forest_cid)
-    ///     )
-    /// ]
+    /// BlockStore for storing all
     pub metadata: BlockStore,
-    /// content roots: [
-    ///     IPLD::Map(
-    ///         "content_forest" -> Ipld::Link(content_forest_cid)
-    ///     )
-    /// ]
-    pub content: BlockStore,
+    pub content: MultifileBlockStore,
 }
 
 impl BucketConfig {
@@ -57,17 +50,11 @@ impl BucketConfig {
         create_dir_all(&generated)?;
 
         let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = BlockStore::new(&generated.join("content.car"))?;
+        let content = MultifileBlockStore::new(&generated.join("content"))?;
 
         // Start with default roots such that we never have to shift blocks
         metadata.set_root(&Cid::default());
         content.set_root(&Cid::default());
-
-        // TODO organizedgrime: this shouldn't be necessary. Can elaborate why it is required in edge cases, but hotfixing for now.
-        metadata.to_disk()?;
-        content.to_disk()?;
-        let metadata = BlockStore::new(&generated.join("meta.car"))?;
-        let content = BlockStore::new(&generated.join("content.car"))?;
 
         Ok(Self {
             bucket_name,
@@ -94,39 +81,36 @@ impl BucketConfig {
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
         Manager,
+        Cid,
     )> {
         // Load all
-        load_all(wrapping_key, &self.metadata, &self.content).await
-    }
-
-    pub async fn get_history(
-        &self,
-        wrapping_key: &RsaPrivateKey,
-    ) -> Result<PrivateNodeOnPathHistory> {
-        load_history(wrapping_key, &self.metadata, &self.content).await
+        load_all(wrapping_key, &self.metadata).await
     }
 
     pub async fn set_all(
         &self,
-        wrapping_key: &RsaPrivateKey,
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
-        root_dir: &Rc<PrivateDirectory>,
-        key_manager: &mut Manager,
+        root_dir: &mut Rc<PrivateDirectory>,
+        manager: &mut Manager,
+        manager_cid: &Cid,
     ) -> Result<()> {
-        // Insert the public key into the key manager if it's not already present
-        key_manager.insert(&wrapping_key.get_public_key()).await?;
-
-        // Store all
         store_all(
             &self.metadata,
             &self.content,
             metadata_forest,
             content_forest,
             root_dir,
-            key_manager,
+            manager,
+            manager_cid,
         )
-        .await?;
-        Ok(())
+        .await
+    }
+
+    pub async fn get_history(
+        &self,
+        wrapping_key: &RsaPrivateKey,
+    ) -> Result<PrivateNodeOnPathHistory> {
+        load_history(wrapping_key, &self.metadata).await
     }
 }

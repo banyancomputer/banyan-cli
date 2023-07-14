@@ -1,6 +1,6 @@
+use crate::types::config::globalconfig::GlobalConfig;
 use anyhow::Result;
 use std::path::Path;
-use tomb_common::types::config::globalconfig::GlobalConfig;
 
 /// Create a default config for this user
 pub fn init(path: &Path) -> Result<()> {

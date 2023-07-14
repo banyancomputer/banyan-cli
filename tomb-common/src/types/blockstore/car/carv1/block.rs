@@ -8,7 +8,7 @@ use wnfs::libipld::{
 
 // | 19-byte varint | x-byte Cid | x-byte content |
 #[derive(PartialEq, Debug)]
-pub(crate) struct Block {
+pub struct Block {
     pub varint: u128,
     pub cid: Cid,
     pub content: Vec<u8>,
@@ -30,7 +30,7 @@ impl Block {
     }
 
     /// Serialize the current object
-    pub(crate) fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
+    pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
         // Encode varint as buf
         let varint_buf: Vec<u8> = encode_varint_u128(self.varint);
         // Represent CID as bytes
@@ -45,12 +45,12 @@ impl Block {
         Ok(varint_buf.len() + cid_buf.len() + self.content.len())
     }
 
-    pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         let (varint, cid) = Self::start_read(&mut r)?;
         Self::finish_read(varint, cid, &mut r)
     }
 
-    pub(crate) fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
+    pub fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
         // Read the varint
         let varint = read_varint_u128(&mut r)?;
         // Read the CID
@@ -59,7 +59,7 @@ impl Block {
         Ok((varint, cid))
     }
 
-    pub(crate) fn finish_read<R: Read + Seek>(varint: u128, cid: Cid, mut r: R) -> Result<Self> {
+    pub fn finish_read<R: Read + Seek>(varint: u128, cid: Cid, mut r: R) -> Result<Self> {
         // Determine how much data has yet to be read from this block
         let content_length = varint as usize - cid.to_bytes().len();
         // Create a content vector with the specified capacity
@@ -76,7 +76,7 @@ impl Block {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use std::io::Cursor;
 
     use super::Block;

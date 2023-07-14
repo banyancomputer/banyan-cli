@@ -10,8 +10,8 @@ use wnfs::{common::BlockStoreError, libipld::Cid};
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct Index {
-    pub(crate) map: HashMap<Cid, u64>,
-    pub(crate) next_block: u64,
+    pub map: HashMap<Cid, u64>,
+    pub next_block: u64,
 }
 
 impl Index {
@@ -72,11 +72,11 @@ impl<'de> Deserialize<'de> for Index {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::Index;
     use crate::{
         types::blockstore::car::carv1::{block::Block, header::Header},
-        utils::tests::car_setup,
+        utils::test::car_setup,
     };
     use anyhow::Result;
     use serial_test::serial;

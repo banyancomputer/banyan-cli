@@ -11,7 +11,7 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio as _;
 use wnfs::{
-    common::BlockStore,
+    common::BlockStore as WnfsBlockStore,
     private::{PrivateFile, PrivateForest},
 };
 
@@ -53,7 +53,7 @@ pub async fn file_to_disk(
     output_dir: &Path,
     file_path: &Path,
     content_forest: &PrivateForest,
-    content: &impl BlockStore,
+    content: &impl WnfsBlockStore,
 ) -> Result<(), PipelineError> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {

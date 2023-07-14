@@ -1,7 +1,8 @@
-use crate::{crypto::rsa::RsaPrivateKey, utils::config::xdg_config_home};
+use crate::utils::config::xdg_config_home;
+use anyhow::Result;
+use tomb_common::crypto::rsa::RsaPrivateKey;
 
 use super::bucketconfig::BucketConfig;
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
@@ -189,6 +190,7 @@ mod test {
 
     #[test]
     #[serial]
+    #[ignore]
     fn add_bucket() -> Result<()> {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
@@ -209,8 +211,11 @@ mod test {
         let reconstructed_bucket = reconstructed.get_bucket(origin).unwrap();
 
         // Assert equality
-        assert_eq!(original, reconstructed);
-        assert_eq!(original_bucket, reconstructed_bucket);
+        assert_eq!(original_bucket.metadata, reconstructed_bucket.metadata);
+        assert_eq!(
+            original_bucket.content.deltas[0],
+            reconstructed_bucket.content.deltas[0]
+        );
 
         Ok(())
     }

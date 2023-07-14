@@ -72,10 +72,10 @@ impl<'de> Deserialize<'de> for Header {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::{
         types::blockstore::car::carv2::{header::HEADER_SIZE, PRAGMA, PRAGMA_SIZE},
-        utils::tests::car_setup,
+        utils::test::car_setup,
     };
 
     use super::Header;

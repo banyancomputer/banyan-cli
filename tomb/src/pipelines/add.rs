@@ -1,13 +1,13 @@
 use std::path::Path;
 
+use super::error::PipelineError;
+use crate::{
+    types::config::globalconfig::GlobalConfig,
+    utils::{spider::path_to_segments, wnfsio::compress_file},
+};
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
-use tomb_common::types::config::globalconfig::GlobalConfig;
-
-use crate::utils::{spider::path_to_segments, wnfsio::compress_file};
-
-use super::error::PipelineError;
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(
@@ -22,7 +22,7 @@ pub async fn pipeline(
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
         // Get structs
-        let (metadata_forest, content_forest, root_dir, key_manager) =
+        let (metadata_forest, content_forest, root_dir, manager, manager_cid) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Compress the data in the file
@@ -54,11 +54,11 @@ pub async fn pipeline(
         // Store all the updated information, now that we've written the file
         config
             .set_all(
-                &wrapping_key,
                 metadata_forest,
                 content_forest,
                 root_dir,
-                key_manager,
+                manager,
+                manager_cid,
             )
             .await?;
 

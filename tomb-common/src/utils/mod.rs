@@ -1,6 +1,3 @@
-pub mod car;
-pub mod config;
+pub mod error;
 pub mod serialize;
-
-#[cfg(test)]
-pub mod tests;
+pub mod test;

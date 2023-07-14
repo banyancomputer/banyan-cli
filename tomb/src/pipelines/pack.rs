@@ -1,14 +1,21 @@
-use crate::utils::{
-    pack::{create_plans, process_plans},
-    wnfsio::get_progress_bar,
+use crate::{
+    types::config::globalconfig::GlobalConfig,
+    utils::{
+        pack::{create_plans, process_plans},
+        wnfsio::get_progress_bar,
+    },
 };
 use anyhow::Result;
 use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::types::config::{globalconfig::GlobalConfig, keys::manager::Manager};
+use tomb_common::{
+    types::keys::manager::Manager,
+    utils::serialize::{store_manager, update_manager},
+};
 use wnfs::{
+    libipld::Cid,
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest},
 };
@@ -44,7 +51,7 @@ pub async fn pipeline(
     let wrapping_key = global.wrapping_key_from_disk()?;
 
     // If the user has done initialization for this directory
-    if let Some(config) = global.get_bucket(origin) {
+    if let Some(mut config) = global.get_bucket(origin) {
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(
             Namefilter::default(),
@@ -55,41 +62,58 @@ pub async fn pipeline(
         let mut metadata_forest = Rc::new(PrivateForest::new());
         let mut content_forest = Rc::new(PrivateForest::new());
 
-        let mut key_manager = Manager::default();
+        let mut manager = Manager::default();
+        let mut manager_cid = Cid::default();
 
         // If this filesystem has already been packed
-        if let Ok((new_metadata_forest, new_content_forest, new_root_dir, new_key_manager)) =
-            config.get_all(&wrapping_key).await
+        if let Ok((
+            new_metadata_forest,
+            new_content_forest,
+            new_root_dir,
+            new_manager,
+            new_manager_cid,
+        )) = config.get_all(&wrapping_key).await
         {
             // Update structs
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
             root_dir = new_root_dir;
-            key_manager = new_key_manager;
+            manager = new_manager;
+            manager_cid = new_manager_cid;
         } else {
             info!("tomb has not seen this filesystem before, starting from scratch! 💖");
         }
 
+        // Create a new delta for this packing operation
+        config.content.add_delta()?;
+        // Insert the wrapping key if it is not already there
+        manager.insert(&wrapping_key.get_public_key()).await?;
+        // Put the keys in the BlockStores before any other data
+        manager_cid = if manager_cid == Cid::default() {
+            store_manager(&manager, &config.metadata, &config.content).await?
+        } else {
+            update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
+        };
+
         // Process all of the PackPipelinePlans
         process_plans(
-            packing_plan,
-            progress_bar,
-            &mut root_dir,
-            &mut metadata_forest,
-            &mut content_forest,
             &config.metadata,
             &config.content,
+            &mut metadata_forest,
+            &mut content_forest,
+            &mut root_dir,
+            packing_plan,
+            progress_bar,
         )
         .await?;
 
-        // Store Forest and Dir in BlockStores and Key
         config
             .set_all(
-                &wrapping_key,
                 &mut metadata_forest,
                 &mut content_forest,
-                &root_dir,
-                &mut key_manager,
+                &mut root_dir,
+                &mut manager,
+                &manager_cid,
             )
             .await?;
 

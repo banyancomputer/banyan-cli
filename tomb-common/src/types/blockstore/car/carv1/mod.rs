@@ -1,8 +1,7 @@
 // Modules
-pub(crate) mod block;
-pub mod blockstore;
-pub(crate) mod header;
-pub(crate) mod index;
+pub mod block;
+pub mod header;
+pub mod index;
 
 // Code
 use anyhow::Result;
@@ -18,7 +17,7 @@ use self::{block::Block, header::Header, index::Index};
 use super::carv2::PH_SIZE;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub(crate) struct Car {
+pub struct Car {
     pub header: Header,
     pub index: RefCell<Index>,
     pub(crate) read_header_len: RefCell<u64>,
@@ -26,7 +25,7 @@ pub(crate) struct Car {
 
 impl Car {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
-    pub(crate) fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Track the part of the stream where the V1Header starts
         let header_start = r.stream_position()?;
         // Read the Header
@@ -43,11 +42,7 @@ impl Car {
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
-    pub(crate) fn write_bytes<R: Read + Seek, W: Write + Seek>(
-        &self,
-        mut r: R,
-        mut w: W,
-    ) -> Result<()> {
+    pub fn write_bytes<R: Read + Seek, W: Write + Seek>(&self, mut r: R, mut w: W) -> Result<()> {
         // Save our starting point
         let carv1_start = r.stream_position()?;
         w.seek(SeekFrom::Start(carv1_start))?;
@@ -96,13 +91,13 @@ impl Car {
         Ok(())
     }
 
-    pub(crate) fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
+    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         let block_offset = self.index.borrow().get_offset(cid)?;
         r.seek(SeekFrom::Start(block_offset))?;
         Block::read_bytes(&mut r)
     }
 
-    pub(crate) fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
+    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::Start(index.next_block))?;
@@ -116,25 +111,21 @@ impl Car {
         Ok(())
     }
 
-    pub(crate) fn get_all_cids(&self) -> Vec<Cid> {
+    pub fn get_all_cids(&self) -> Vec<Cid> {
         self.index.borrow().clone().map.into_keys().collect()
     }
 
-    pub(crate) fn new<R: Read + Seek, W: Write + Seek>(
-        version: u64,
-        mut r: R,
-        mut w: W,
-    ) -> Result<Self> {
+    pub fn new<R: Read + Seek, W: Write + Seek>(version: u64, mut r: R, mut w: W) -> Result<Self> {
         let car = Self::default(version);
         car.header.write_bytes(&mut w)?;
         Self::read_bytes(&mut r)
     }
 
-    pub(crate) fn set_root(&self, root: &Cid) {
+    pub fn set_root(&self, root: &Cid) {
         *self.header.roots.borrow_mut() = vec![*root];
     }
 
-    pub(crate) fn get_root(&self) -> Option<Cid> {
+    pub fn get_root(&self) -> Option<Cid> {
         let roots = self.header.roots.borrow();
         if roots.len() > 0 {
             Some(roots[0])
@@ -171,10 +162,10 @@ impl Car {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use crate::{
         types::blockstore::car::carv1::{block::Block, Car},
-        utils::tests::car_setup,
+        utils::test::car_setup,
     };
     use anyhow::Result;
     use serial_test::serial;
@@ -263,7 +254,7 @@ mod tests {
         car.write_bytes(&mut r, &mut w)?;
 
         // Read in the car
-        let mut r2 = File::open(&new_path)?;
+        let mut r2 = File::open(new_path)?;
         let new_car = Car::read_bytes(&mut r2)?;
 
         assert_eq!(car.header, new_car.header);

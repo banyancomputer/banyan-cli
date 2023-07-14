@@ -6,10 +6,6 @@ pub mod configure;
 pub mod error;
 /// This module contains the pack pipeline function, which is the main entry point for packing new data.
 pub mod pack;
-/// This module contains the pull pipeline function, which downloads packed content from disk to a remote server.
-pub mod pull;
-/// This module contains the push pipeline function, which uploads packed content from disk to a remote server.
-pub mod push;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 /// This module contains the unpack pipeline function, which is the main entry point for extracting previously packed data.
@@ -19,10 +15,11 @@ pub mod unpack;
 mod test {
     use super::add;
     use crate::{
-        pipelines::{configure, pack, pull, push, remove, unpack},
+        pipelines::{configure, pack, remove, unpack},
+        types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
-            tests::{test_setup, test_setup_structured, test_teardown},
+            test::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
             wnfsio::{self, decompress_bytes},
         },
     };
@@ -32,12 +29,11 @@ mod test {
     use fs_extra::dir;
     use serial_test::serial;
     use std::{
-        fs::{create_dir_all, metadata, read_link, remove_file, rename, symlink_metadata, File},
+        fs::{create_dir_all, read_link, rename, symlink_metadata, File},
         io::Write,
         os::unix::fs::symlink,
         path::PathBuf,
     };
-    use tomb_common::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]
@@ -99,68 +95,9 @@ mod test {
             .join(format!("{}_unpacked", test_name));
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(&origin, unpacked_dir).await?;
+        unpack::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).unwrap();
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn pack_push() -> Result<()> {
-        let test_name = "pack_pull_unpack";
-        // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
-        // Initialize
-        configure::init(&origin)?;
-        // Configure the remote endpoint
-        configure::remote("http://127.0.0.1:5001")?;
-        // Pack locally
-        pack::pipeline(origin, true).await?;
-        // Push
-        push::pipeline(origin).await?;
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    #[ignore]
-    async fn pack_push_pull() -> Result<()> {
-        let test_name = "pack_push_pull";
-        // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
-        // Initialize tomb
-        configure::init(origin)?;
-        // Configure the remote endpoint
-        configure::remote("http://127.0.0.1:5001")?;
-        // Pack locally
-        pack::pipeline(&origin, true).await?;
-        // Send data to remote endpoint
-        push::pipeline(&origin).await?;
-        // The content path of the current content BlockStore
-        let v1_content = &GlobalConfig::from_disk()?
-            .get_bucket(origin)
-            .unwrap()
-            .content
-            .path;
-        // Compute size of original content
-        let d1 = metadata(v1_content)?.len();
-        // Oh no! File corruption, we lost all our data!
-        remove_file(v1_content)?;
-        // Now its time to reconstruct all our data
-        pull::pipeline(&origin).await?;
-        // The content path of the current content BlockStore
-        let v2_content = &GlobalConfig::from_disk()?
-            .get_bucket(origin)
-            .unwrap()
-            .content
-            .path;
-        // Compute size of reconstructed content
-        let d2 = metadata(v2_content)?.len();
-        // Assert that, despite reordering of CIDs, content CAR is the exact same size
-        assert_eq!(d1, d2);
         // Teardown
         test_teardown(test_name).await
     }
@@ -190,12 +127,13 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, content_forest, dir, _, _) =
+            &mut config.get_all(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = dir
             .get_node(
-                &path_to_segments(&input_file)?,
+                &path_to_segments(input_file)?,
                 true,
                 metadata_forest,
                 &config.metadata,
@@ -234,7 +172,7 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -246,7 +184,7 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -354,8 +292,8 @@ mod test {
         let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
         let test_name_unique = &format!("{}_unique", test_name);
-        // Structure
-        let structure = Structure::new(2, 2, 2000, Strategy::Simple);
+        // Use bigger files such that metadata comprises a minority of the content CARs
+        let structure = Structure::new(2, 2, 1024 * 1024, Strategy::Simple);
         // Deinit all
         configure::deinit_all()?;
 
@@ -374,7 +312,7 @@ mod test {
         create_dir_all(duplicate_dup)?;
 
         // Generate file structure
-        structure.generate(&original_dup)?;
+        structure.generate(original_dup)?;
         // Copy into duplicate path
         dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new())?;
 
@@ -396,12 +334,11 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         // Compute the sizes of these directories
         let packed_dups_size =
-            metadata(global.get_bucket(&origin_dup).unwrap().content.path)?.len() as f64;
+            compute_directory_size(&global.get_bucket(origin_dup).unwrap().content.path)? as f64;
         let packed_unique_size =
-            metadata(global.get_bucket(&origin_unique).unwrap().content.path)?.len() as f64;
+            compute_directory_size(&global.get_bucket(origin_unique).unwrap().content.path)? as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
-        // TODO (organizedgrime) determine the threshold for this test that is most appropriate
         assert!(packed_unique_size / packed_dups_size >= 1.8);
 
         test_teardown(test_name_dup).await?;
@@ -421,15 +358,13 @@ mod test {
         test_teardown(test_name).await
     }
 
-    // TODO (organizedgrime) - reimplement this when we have migrated from using Ratchets to WNFS's new solution.
     #[tokio::test]
     #[serial]
-    #[ignore]
-    // TODO this test case doesn't handle compression yet
     async fn versioning_complex() -> Result<()> {
         let test_name = "versioning_complex";
+        let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
-        let origin = &test_setup(test_name).await?;
+        let origin = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0").join("0");
@@ -446,26 +381,42 @@ mod test {
 
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
-
         // Run the test
         assert_pack_unpack(test_name).await?;
-
         // Write "Still there, World?" out to the same file
         File::create(&versioned_file_path)?.write_all(still_bytes)?;
-
         // Run the test again
         assert_pack_unpack(test_name).await?;
-
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
-
         // Run the test again
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, _, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, content_forest, current_dir, _, _) =
+            &mut config.get_all(&wrapping_key).await?;
+
+        // Describe path of the PrivateFile relative to the root directory
+        let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
+        let current_file = current_dir
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .await?
+            .unwrap()
+            .as_file()?;
+        let current_content = current_file
+            .get_content(content_forest, &config.content)
+            .await?;
+        let mut current_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            current_content.as_slice(),
+            &mut current_content_decompressed,
+        )?;
+        // Assert that the current version of the file was retrieved correctly
+        assert_eq!(goodbye_bytes, current_content_decompressed);
+
+        // Now grab history
         let mut iterator = config.get_history(&wrapping_key).await?;
 
         // Get the previous version of the root of the PrivateDirectory
@@ -474,24 +425,26 @@ mod test {
             .await?
             .unwrap()
             .as_dir()?;
-        // Describe path of the PrivateFile relative to the root directory
-        let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await
             .unwrap();
-
+        let mut previous_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            previous_content.as_slice(),
+            &mut previous_content_decompressed,
+        )?;
         // Assert that the previous version of the file was retrieved correctly
-        assert!(previous_content != goodbye_bytes);
+        assert_eq!(previous_content_decompressed, still_bytes);
 
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
@@ -502,21 +455,23 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, true, &metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(&content_forest, &config.content)
-            .await?;
-
+            .get_content(content_forest, &config.content)
+            .await
+            .unwrap();
+        let mut original_content_decompressed: Vec<u8> = Vec::new();
+        wnfsio::decompress_bytes(
+            original_content.as_slice(),
+            &mut original_content_decompressed,
+        )?;
         // Assert that the previous version of the file was retrieved correctly
-        assert!(original_content != goodbye_bytes);
-
-        assert_eq!(original_content, hello_bytes);
-        assert_eq!(previous_content, still_bytes);
+        assert_eq!(original_content_decompressed, hello_bytes);
 
         // Assert that there are no more previous versions to find
         assert!(iterator
@@ -530,7 +485,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn versioning_simple() -> Result<()> {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
@@ -558,24 +512,25 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, current_dir, _) =
+        let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];
         let current_file = current_dir
-            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
         let current_content = current_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         wnfsio::decompress_bytes(
             current_content.as_slice(),
             &mut current_content_decompressed,
         )?;
+        // Assert that the current version of the file was retrieved correctly
         assert_eq!(goodbye_bytes, current_content_decompressed);
 
         // Now grab history
@@ -590,14 +545,14 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, true, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
             .unwrap()
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&content_forest, &config.content)
+            .get_content(content_forest, &config.content)
             .await
             .unwrap();
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
