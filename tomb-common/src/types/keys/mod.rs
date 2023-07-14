@@ -11,7 +11,7 @@ mod test {
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
-    use tomb_crypt::prelude::EcEncryptionKey;
+    use tomb_crypt::{key_seal::common::WrappingPrivateKey, prelude::EcEncryptionKey};
     use wnfs::private::{AesKey, TemporalKey};
 
     fn random_temporal_key() -> TemporalKey {
@@ -28,7 +28,7 @@ mod test {
         let wrapping_key = EcEncryptionKey::generate()?;
         // Public Key
         let public_key = wrapping_key.public_key()?;
-        
+
         // Insert public key
         key_manager.insert(&public_key)?;
 

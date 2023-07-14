@@ -19,7 +19,6 @@ struct TombFS {
     manager: Manager,
 }
 
-/*
 #[wasm_bindgen]
 #[allow(dead_code)]
 impl TombFS {
@@ -141,4 +140,3 @@ mod test {
         assert_eq!(file_name2.as_string().unwrap(), "silly images");
     }
 }
- */

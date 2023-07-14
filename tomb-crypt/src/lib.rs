@@ -1,5 +1,4 @@
-mod key_seal;
-
+pub mod key_seal;
 pub use crate::key_seal::pretty_fingerprint;
 
 pub mod prelude {

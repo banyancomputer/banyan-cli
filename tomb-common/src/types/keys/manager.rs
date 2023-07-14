@@ -1,7 +1,7 @@
 use super::mapper::Mapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::{EcPublicEncryptionKey, EcEncryptionKey};
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::TemporalKey;
 
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
@@ -41,8 +41,7 @@ impl Manager {
             .insert_public_key(&self.original, new_key)?;
 
         // Insert into current
-        self.current_map
-            .insert_public_key(&self.current, new_key)
+        self.current_map.insert_public_key(&self.current, new_key)
     }
 
     /// Retrieve the current TemporalKey using a PrivateKey

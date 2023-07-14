@@ -1,4 +1,3 @@
-use base64::{engine::general_purpose, Engine as _};
 use js_sys::{Array, Error};
 use std::fmt::Debug;
 use wasm_bindgen::prelude::*;
@@ -65,7 +64,6 @@ pub(crate) fn convert_path_segments(path_segments: &Array) -> JsResult<Vec<Strin
             .ok_or_else(|| Error::new("Invalid path segments: Expected an array of strings"))
     })
 }
-
 
 // #[cfg(test)]
 // mod test {

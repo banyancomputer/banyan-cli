@@ -1,7 +1,12 @@
 use super::error::KeyError;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::{prelude::{EcPublicEncryptionKey, SymmetricKey, EncryptedSymmetricKey, EcEncryptionKey}, pretty_fingerprint};
+use tomb_crypt::key_seal::common::*;
+use tomb_crypt::prelude::{
+    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, SymmetricKey,
+};
+use tomb_crypt::pretty_fingerprint;
+
 use std::collections::{BTreeMap, HashMap};
 use wnfs::{
     libipld::Ipld,
@@ -67,10 +72,10 @@ impl Mapper {
 
         // Grab the encrypted key associated with the fingerprint
         if let Some((_, protected_key_string)) = self.0.get(&fingerprint) {
-            // Reconstruct the protected key 
+            // Reconstruct the protected key
             let protected_key = EncryptedSymmetricKey::import(protected_key_string)?;
             // Decrypt the SymmetricKey using the PrivateKey
-            let symmetric_key = protected_key.decrypt_with(private_key)?;            
+            let symmetric_key = protected_key.decrypt_with(private_key)?;
             // Create TemporalKey from SymmetrciKey
             let temporal_key = TemporalKey(AesKey::new(symmetric_key.as_ref().try_into()?));
             // Return
@@ -161,7 +166,7 @@ impl std::fmt::Debug for Mapper {
 mod test {
     use super::Mapper;
     use anyhow::Result;
-    use tomb_crypt::prelude::EcEncryptionKey;
+    use tomb_crypt::{key_seal::common::WrappingPrivateKey, prelude::EcEncryptionKey};
     use wnfs::{
         common::dagcbor,
         private::{AesKey, TemporalKey},

@@ -1,7 +1,6 @@
 use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::EcEncryptionKey;
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
@@ -11,6 +10,7 @@ use tomb_common::{
     types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::serialize::*,
 };
+use tomb_crypt::prelude::EcEncryptionKey;
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},

@@ -1,7 +1,7 @@
 pub mod blockstore;
 pub mod crypto;
 pub mod error;
-pub mod tombfs;
+// pub mod tombfs;
 pub mod types;
 
 use crate::value;

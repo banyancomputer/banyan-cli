@@ -1,8 +1,8 @@
 use openssl::pkey::{PKey, Private};
 
-use crate::key_seal::KeySealError;
 use crate::key_seal::common::*;
 use crate::key_seal::standard::*;
+use crate::key_seal::KeySealError;
 
 pub struct EcEncryptionKey(pub(crate) PKey<Private>);
 

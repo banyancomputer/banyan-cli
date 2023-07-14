@@ -1,6 +1,6 @@
-use crate::key_seal::KeySealError;
 use crate::key_seal::common::*;
 use crate::key_seal::standard::*;
+use crate::key_seal::KeySealError;
 
 pub struct SymmetricKey(pub(crate) [u8; AES_KEY_SIZE]);
 

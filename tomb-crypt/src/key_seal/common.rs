@@ -65,7 +65,10 @@ pub trait ProtectedKey: Sized {
     type PlainKey: PlainKey;
     type WrappingPrivateKey: WrappingPrivateKey;
 
-    fn decrypt_with(&self, recipient_key: &Self::WrappingPrivateKey) -> Result<Self::PlainKey, Self::Error>;
+    fn decrypt_with(
+        &self,
+        recipient_key: &Self::WrappingPrivateKey,
+    ) -> Result<Self::PlainKey, Self::Error>;
     fn export(&self) -> String;
     fn import(serialized: &str) -> Result<Self, Self::Error>;
 }

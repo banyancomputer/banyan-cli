@@ -1,12 +1,13 @@
 use crate::utils::config::xdg_config_home;
 use anyhow::Result;
-use tomb_crypt::prelude::EcEncryptionKey;
+use tomb_crypt::{key_seal::common::WrappingPrivateKey, prelude::EcEncryptionKey};
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
-    path::{Path, PathBuf}, io::{Read, Write},
+    io::{Read, Write},
+    path::{Path, PathBuf},
 };
 
 /// Represents the Global contents of the tomb configuration file in a user's .config

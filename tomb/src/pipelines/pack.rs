@@ -14,6 +14,7 @@ use tomb_common::{
     types::keys::manager::Manager,
     utils::serialize::{store_manager, update_manager},
 };
+use tomb_crypt::key_seal::common::WrappingPrivateKey;
 use wnfs::{
     libipld::Cid,
     namefilter::Namefilter,
