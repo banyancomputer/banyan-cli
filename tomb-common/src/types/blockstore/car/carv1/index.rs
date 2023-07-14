@@ -10,8 +10,8 @@ use wnfs::{common::BlockStoreError, libipld::Cid};
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct Index {
-    pub(crate) map: HashMap<Cid, u64>,
-    pub(crate) next_block: u64,
+    pub map: HashMap<Cid, u64>,
+    pub next_block: u64,
 }
 
 impl Index {

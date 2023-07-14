@@ -4,11 +4,12 @@ use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize
 use std::{
     borrow::Cow,
     fs::{remove_file, rename, File},
+    io::Seek,
     path::{Path, PathBuf},
 };
 use tomb_common::types::blockstore::{
     car::{carv1::block::Block, carv2::Car, error::CarError},
-    rootedblockstore::RootedBlockStore,
+    tombblockstore::TombBlockStore,
 };
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
@@ -20,7 +21,7 @@ use crate::utils::car;
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockStore {
     pub path: PathBuf,
-    pub(crate) car: Car,
+    pub car: Car,
 }
 
 impl BlockStore {
@@ -118,13 +119,39 @@ impl WnfsBlockStore for BlockStore {
     }
 }
 
-impl RootedBlockStore for BlockStore {
+#[async_trait(?Send)]
+impl TombBlockStore for BlockStore {
     fn set_root(&self, root: &Cid) {
         self.car.set_root(root);
     }
 
     fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
+    }
+
+    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+        // Open the file in read-only mode
+        let mut read_file = car::get_read(&self.path)?;
+        // Perform the block read
+        let block: Block = self.car.get_block(cid, &mut read_file)?;
+        // // Create the new block
+        let new_block = Block::new(bytes, codec)?;
+        // Assert that the new version of the block is of the correct length
+        assert_eq!(block.content.len(), new_block.content.len());
+        // Determine where the block was read from
+        let mut index = self.car.car.index.borrow_mut();
+        let block_start = index.get_offset(&block.cid)?;
+        // Remove existing offset
+        index.map.remove(&block.cid);
+        index.map.insert(new_block.cid, block_start);
+        // Grab writer
+        let mut write_file = car::get_write(&self.path)?;
+        // Move to the right position
+        write_file.seek(std::io::SeekFrom::Start(block_start))?;
+        // Overwrite the block at this position
+        new_block.write_bytes(&mut write_file)?;
+        // Ok
+        Ok(new_block.cid)
     }
 }
 
@@ -168,9 +195,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{
-        types::blockstore::rootedblockstore::RootedBlockStore, utils::test::car_setup,
-    };
+    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},

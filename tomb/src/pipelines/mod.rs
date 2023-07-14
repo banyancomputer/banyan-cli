@@ -6,10 +6,6 @@ pub mod configure;
 pub mod error;
 /// This module contains the pack pipeline function, which is the main entry point for packing new data.
 pub mod pack;
-/// This module contains the pull pipeline function, which downloads packed content from disk to a remote server.
-pub mod pull;
-/// This module contains the push pipeline function, which uploads packed content from disk to a remote server.
-pub mod push;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 /// This module contains the unpack pipeline function, which is the main entry point for extracting previously packed data.
@@ -131,7 +127,8 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, content_forest, dir, _, _) =
+            &mut config.get_all(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = dir
@@ -175,7 +172,7 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -187,7 +184,7 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -398,7 +395,7 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, current_dir, _) =
+        let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
@@ -515,7 +512,7 @@ mod test {
         let global = GlobalConfig::from_disk()?;
         let wrapping_key = global.wrapping_key_from_disk()?;
         let config = global.get_bucket(origin).unwrap();
-        let (metadata_forest, content_forest, current_dir, _) =
+        let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory

@@ -24,7 +24,7 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Car {
     pub(crate) header: RefCell<Header>,
-    pub(crate) car: CarV1,
+    pub car: CarV1,
     pub(crate) index: Option<Index>,
 }
 

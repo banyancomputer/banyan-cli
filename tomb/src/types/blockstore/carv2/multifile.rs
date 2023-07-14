@@ -7,7 +7,7 @@ use std::{
     fs::{self, create_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_common::types::blockstore::{car::error::CarError, rootedblockstore::RootedBlockStore};
+use tomb_common::types::blockstore::{car::error::CarError, tombblockstore::TombBlockStore};
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
@@ -120,7 +120,8 @@ impl WnfsBlockStore for MultifileBlockStore {
     }
 }
 
-impl RootedBlockStore for MultifileBlockStore {
+#[async_trait(?Send)]
+impl TombBlockStore for MultifileBlockStore {
     fn get_root(&self) -> Option<Cid> {
         if let Some(car) = self.deltas.last() {
             car.get_root()
@@ -133,6 +134,22 @@ impl RootedBlockStore for MultifileBlockStore {
         if let Some(car) = self.deltas.last() {
             car.set_root(root)
         }
+    }
+
+    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+        // Iterate in reverse order
+        for store in self.deltas.iter().rev() {
+            // Bind to avoid awaiting
+            let index = store.car.car.index.borrow().clone();
+            // If this store has the data we are replacing
+            if index.get_offset(cid).is_ok() {
+                // Update the content in this store and return new cid
+                return store.update_content(cid, bytes, codec).await;
+            }
+        }
+
+        // We didn't find the CID in any BlockStore
+        Err(BlockStoreError::CIDNotFound(*cid).into())
     }
 }
 

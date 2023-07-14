@@ -2,7 +2,7 @@ pub mod args;
 pub mod command;
 pub mod verbosity;
 
-use crate::pipelines::{add, configure, pack, pull, push, remove, unpack};
+use crate::pipelines::{add, configure, pack, remove, unpack};
 use anyhow::Result;
 use command::{Command, ConfigSubCommand};
 use std::env::current_dir;
@@ -67,18 +67,6 @@ pub async fn run(command: Command) -> Result<()> {
             }
         },
         Command::Daemon => unimplemented!("todo... omg fun... cronjob"),
-        Command::Pull {
-            dir
-        } => {
-            // Start the Pull pipeline
-            pull::pipeline(&dir).await?;
-        },
-        Command::Push {
-            dir,
-        } => {
-            // Start the Push pipeline
-            push::pipeline(&dir).await?;
-        },
         Command::Add { origin, input_file, wnfs_path } => {
             add::pipeline(&origin, &input_file, &wnfs_path).await?;
         },

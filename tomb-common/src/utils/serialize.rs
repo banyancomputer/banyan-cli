@@ -2,8 +2,8 @@ use anyhow::Result;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
 use wnfs::{
-    common::{AsyncSerialize, HashOutput},
-    libipld::{serde as ipld_serde, Cid, Ipld},
+    common::{dagcbor, AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
+    libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
     private::{
         PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory, PrivateRef,
         TemporalKey,
@@ -12,15 +12,15 @@ use wnfs::{
 
 use crate::{
     crypto::rsa::RsaPrivateKey,
-    types::{blockstore::rootedblockstore::RootedBlockStore, keys::manager::Manager},
+    types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::error::SerialError,
 };
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(
     forest: &Rc<PrivateForest>,
-    serializer: &impl RootedBlockStore,
-    storage: &impl RootedBlockStore,
+    serializer: &impl TombBlockStore,
+    storage: &impl TombBlockStore,
 ) -> Result<Cid> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(serializer).await?;
@@ -31,7 +31,7 @@ async fn store_forest(
 }
 
 /// Load a given PrivateForest from a given Store
-async fn load_forest(cid: &Cid, store: &impl RootedBlockStore) -> Result<Rc<PrivateForest>> {
+async fn load_forest(cid: &Cid, store: &impl TombBlockStore) -> Result<Rc<PrivateForest>> {
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
@@ -42,7 +42,7 @@ async fn load_forest(cid: &Cid, store: &impl RootedBlockStore) -> Result<Rc<Priv
 }
 
 /// Store a PrivateDirectory
-async fn store_dir<M: RootedBlockStore>(
+async fn store_dir<M: TombBlockStore>(
     store: &M,
     metadata_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
@@ -70,15 +70,15 @@ async fn store_dir<M: RootedBlockStore>(
 }
 
 /// Load a PrivateDirectory
-async fn load_dir<M: RootedBlockStore>(
+async fn load_dir<M: TombBlockStore>(
     store: &M,
     temporal_key: &TemporalKey,
-    private_ref_cid: &Cid,
+    ref_cid: &Cid,
     metadata_forest: &Rc<PrivateForest>,
 ) -> Result<Rc<PrivateDirectory>> {
     // Construct the saturated name hash
     let (saturated_name_hash, content_cid): (HashOutput, Cid) = store
-        .get_deserializable::<(HashOutput, Cid)>(private_ref_cid)
+        .get_deserializable::<(HashOutput, Cid)>(ref_cid)
         .await?;
 
     // Reconstruct the PrivateRef
@@ -92,50 +92,57 @@ async fn load_dir<M: RootedBlockStore>(
 }
 
 /// Grabs the cid of the original PrivateRef
-pub async fn get_original_private_ref_cid<M: RootedBlockStore>(store: &M) -> Result<Cid> {
+pub async fn get_original_ref_cid<M: TombBlockStore>(store: &M) -> Result<Cid> {
     // If we can successfully extract the Cid
     if let Some(root) = store.get_root() &&
        let Ok(Ipld::Map(metadata_map)) = store.get_deserializable::<Ipld>(&root).await &&
-       let Some(Ipld::Link(original_private_ref_cid)) = metadata_map.get("original_private_ref") {
+       let Some(Ipld::Link(original_ref_cid)) = metadata_map.get("original_ref") {
         // Return it
-        Ok(*original_private_ref_cid)
+        Ok(*original_ref_cid)
     } else {
-        Err(SerialError::MissingMetadata("original private_ref_cid".to_string()).into())
+        Err(SerialError::MissingMetadata("original ref_cid".to_string()).into())
     }
 }
 
-/// Store everything at once!
-pub async fn store_all<M: RootedBlockStore, C: RootedBlockStore>(
+/// Store both dirs in both BlockStores, update keys
+pub async fn store_dirs_update_keys<M: TombBlockStore, C: TombBlockStore>(
     metadata: &M,
     content: &C,
     metadata_forest: &mut Rc<PrivateForest>,
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
-    key_manager: &mut Manager,
-) -> Result<()> {
+    manager: &mut Manager,
+) -> Result<(Cid, Cid)> {
     // Store PrivateDirectory in both BlockStores, retrieving the new TemporalKey and cid of remaining PrivateRef components
-    let (private_ref_cid1, temporal_key1) = store_dir(metadata, metadata_forest, root_dir).await?;
-    let (private_ref_cid2, temporal_key2) = store_dir(content, content_forest, root_dir).await?;
-    assert_eq!(private_ref_cid1, private_ref_cid2);
+    let (ref_cid1, temporal_key1) = store_dir(metadata, metadata_forest, root_dir).await?;
+    let (ref_cid2, temporal_key2) = store_dir(content, content_forest, root_dir).await?;
+    assert_eq!(ref_cid1, ref_cid2);
     assert_eq!(temporal_key1, temporal_key2);
 
     // Update the temporal key in the key manager
-    key_manager.update_current_key(&temporal_key1).await?;
+    manager.update_current_key(&temporal_key1).await?;
     // If we've yet to initialize our originals
-    let original_private_ref_cid = if metadata.get_root().unwrap() == Cid::default() {
+    let original_ref_cid = if metadata.get_root().unwrap() == Cid::default() {
         // Set the original key
-        key_manager.set_original_key(&temporal_key1).await?;
+        manager.set_original_key(&temporal_key1).await?;
         // Return
-        private_ref_cid1
+        ref_cid1
     } else {
         // Grab
-        get_original_private_ref_cid(metadata).await?
+        get_original_ref_cid(metadata).await?
     };
-    // Put the key manager in both the content and the metadata BlockStores
-    let key_manager_cid1 = metadata.put_serializable(key_manager).await?;
-    let key_manager_cid2 = content.put_serializable(key_manager).await?;
-    assert_eq!(key_manager_cid1, key_manager_cid2);
 
+    // Return the private ref CIDs
+    Ok((original_ref_cid, ref_cid1))
+}
+
+/// Stpre both forests in both BlockStores
+pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
+    metadata: &M,
+    content: &C,
+    metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
+) -> Result<(Cid, Cid)> {
     // Store the metadata PrivateForest in both the content and the metadata BlockStores
     let metadata_forest_cid1 = store_forest(metadata_forest, metadata, metadata).await?;
     let metadata_forest_cid2 = store_forest(metadata_forest, metadata, content).await?;
@@ -145,40 +152,100 @@ pub async fn store_all<M: RootedBlockStore, C: RootedBlockStore>(
     let content_forest_cid1 = store_forest(content_forest, content, content).await?;
     let content_forest_cid2 = store_forest(content_forest, content, metadata).await?;
     assert_eq!(content_forest_cid1, content_forest_cid2);
+    // Ok
+    Ok((metadata_forest_cid1, content_forest_cid1))
+}
 
+pub async fn store_all<M: TombBlockStore, C: TombBlockStore>(
+    metadata: &M,
+    content: &C,
+    metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
+    root_dir: &Rc<PrivateDirectory>,
+    manager: &mut Manager,
+    manager_cid: &Cid,
+) -> Result<()> {
+    // Store dirs, update keys
+    let (original_ref_cid, current_ref_cid) = store_dirs_update_keys(
+        metadata,
+        content,
+        metadata_forest,
+        content_forest,
+        root_dir,
+        manager,
+    )
+    .await?;
+
+    // Store forests
+    let (metadata_forest_cid, content_forest_cid) =
+        store_forests(metadata, content, metadata_forest, content_forest).await?;
+
+    // Update content for Key Manager
+    let manager_cid = update_manager(manager, manager_cid, metadata, content).await?;
+
+    // Store everything
+    store_ipld(
+        metadata,
+        content,
+        original_ref_cid,
+        current_ref_cid,
+        metadata_forest_cid,
+        content_forest_cid,
+        manager_cid,
+    )
+    .await
+}
+
+/// Store everything at once!
+pub async fn store_ipld<M: TombBlockStore, C: TombBlockStore>(
+    metadata: &M,
+    content: &C,
+    original_ref_cid: Cid,
+    current_ref_cid: Cid,
+    metadata_forest_cid: Cid,
+    content_forest_cid: Cid,
+    manager_cid: Cid,
+) -> Result<()> {
     // Construct new map for metadata
     let mut metadata_map = BTreeMap::new();
-    metadata_map.insert(
-        "original_private_ref".to_string(),
-        Ipld::Link(original_private_ref_cid),
-    );
-    metadata_map.insert(
-        "current_private_ref".to_string(),
-        Ipld::Link(private_ref_cid1),
-    );
-    metadata_map.insert("key_manager".to_string(), Ipld::Link(key_manager_cid1));
+    // Set all key values
+    metadata_map.insert("original_ref".to_string(), Ipld::Link(original_ref_cid));
+    metadata_map.insert("current_ref".to_string(), Ipld::Link(current_ref_cid));
+    metadata_map.insert("manager".to_string(), Ipld::Link(manager_cid));
     metadata_map.insert(
         "metadata_forest".to_string(),
-        Ipld::Link(metadata_forest_cid1),
+        Ipld::Link(metadata_forest_cid),
     );
-    metadata_map.insert(
-        "content_forest".to_string(),
-        Ipld::Link(content_forest_cid1),
-    );
+    metadata_map.insert("content_forest".to_string(), Ipld::Link(content_forest_cid));
     // Now that we've finished inserting
     let metadata_root = &Ipld::Map(metadata_map);
-    // Put the metadata IPLD Map into the metadata BlockStore and set root
+    // Put the metadata IPLD Map into BlockStores
     let metadata_root_cid = metadata.put_serializable(metadata_root).await?;
-    metadata.set_root(&metadata_root_cid);
-    // Put the metadata IPLD Map into the content BlockStore and set root
     let content_root_cid = content.put_serializable(metadata_root).await?;
+    // Set roots
+    metadata.set_root(&metadata_root_cid);
     content.set_root(&content_root_cid);
-
+    // Ok
     Ok(())
 }
 
+pub async fn load_forests<M: TombBlockStore>(
+    metadata: &M,
+    root: &BTreeMap<String, Ipld>,
+) -> Result<(Rc<PrivateForest>, Rc<PrivateForest>)> {
+    if let Some(Ipld::Link(metadata_forest_cid)) = root.get("metadata_forest") &&
+    let Some(Ipld::Link(content_forest_cid)) = root.get("content_forest") {
+        let metadata_forest = load_forest(metadata_forest_cid, metadata).await?;
+        let content_forest = load_forest(content_forest_cid, metadata).await?;
+        Ok((metadata_forest, content_forest))
+    }
+    else {
+        Err(SerialError::MissingMetadata("forests".to_string()).into())
+    }
+}
+
 /// Load everything at once!
-pub async fn load_all<M: RootedBlockStore>(
+pub async fn load_all<M: TombBlockStore>(
     wrapping_key: &RsaPrivateKey,
     metadata: &M,
 ) -> Result<(
@@ -186,58 +253,43 @@ pub async fn load_all<M: RootedBlockStore>(
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
     Manager,
+    Cid,
 )> {
     // Load the IPLD map
-    let (map, store) =
-        if let Some(metadata_root) = metadata.get_root() &&
-        let Ok(Ipld::Map(map)) = metadata.get_deserializable::<Ipld>(&metadata_root).await {
-        (map, metadata)
-    } else {
-        return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
-    };
-
-    // If we are able to find all CIDs
-    if let Some(Ipld::Link(metadata_forest_cid)) = map.get("metadata_forest") &&
-    let Some(Ipld::Link(current_private_ref_cid)) = map.get("current_private_ref") &&
-    let Some(Ipld::Link(key_manager_cid)) = map.get("key_manager") &&
-    let Some(Ipld::Link(content_forest_cid)) = map.get("content_forest")
-    {
+    if let Some(metadata_root) = metadata.get_root() &&
+        let Ok(Ipld::Map(root)) = metadata.get_deserializable::<Ipld>(&metadata_root).await &&
+        let (metadata_forest, content_forest) = load_forests(metadata, &root).await? &&
+        let Some(Ipld::Link(current_ref_cid)) = root.get("current_ref") &&
+        let Some(Ipld::Link(manager_cid)) = root.get("manager") {
         // Load in the objects
-        let metadata_forest = load_forest(metadata_forest_cid, store).await?;
-        let content_forest = load_forest(content_forest_cid, store).await?;
-        let mut key_manager = store.get_deserializable::<Manager>(key_manager_cid).await?;
+        let mut manager = metadata.get_deserializable::<Manager>(manager_cid).await?;
         // Load in the Temporal Keys to memory
-        key_manager.load_temporal_keys(wrapping_key).await?;
-        let current_key = &key_manager.retrieve_current(wrapping_key).await?;
-        let current_directory = load_dir(store, current_key, current_private_ref_cid, &metadata_forest).await?;
+        manager.load_temporal_keys(wrapping_key).await?;
+        let current_key = &manager.retrieve_current(wrapping_key).await?;
+        let current_directory = load_dir(metadata, current_key, current_ref_cid, &metadata_forest).await?;
         // Return Ok with loaded objectsd
-        Ok((metadata_forest, content_forest, current_directory, key_manager))
+        Ok((metadata_forest, content_forest, current_directory, manager, *manager_cid))
     }
     else {
-        Err(SerialError::MissingMetadata("One or both BlockStores are missing CIDs".to_string()).into())
+        Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
     }
 }
 
 /// Obtain a PrivateNodeOnPathHistory iterator for the root directory
-pub async fn load_history<M: RootedBlockStore>(
+pub async fn load_history<M: TombBlockStore>(
     wrapping_key: &RsaPrivateKey,
     metadata: &M,
 ) -> Result<PrivateNodeOnPathHistory> {
-    let (metadata_forest, _, current_directory, key_manager) =
+    let (metadata_forest, _, current_directory, manager, _) =
         load_all(wrapping_key, metadata).await?;
 
     // Grab the original key
-    let original_key = &key_manager.retrieve_original(wrapping_key).await?;
+    let original_key = &manager.retrieve_original(wrapping_key).await?;
     // Load the original PrivateRef cid
-    let original_private_ref_cid = &get_original_private_ref_cid(metadata).await?;
+    let original_ref_cid = &get_original_ref_cid(metadata).await?;
     // Load dir
-    let original_directory = load_dir(
-        metadata,
-        original_key,
-        original_private_ref_cid,
-        &metadata_forest,
-    )
-    .await?;
+    let original_directory =
+        load_dir(metadata, original_key, original_ref_cid, &metadata_forest).await?;
 
     PrivateNodeOnPathHistory::of(
         current_directory,
@@ -249,6 +301,39 @@ pub async fn load_history<M: RootedBlockStore>(
         metadata,
     )
     .await
+}
+
+// Store the Manager
+pub async fn store_manager(
+    manager: &Manager,
+    metadata: &impl WnfsBlockStore,
+    content: &impl WnfsBlockStore,
+) -> Result<Cid> {
+    let bytes = dagcbor::encode(manager)?;
+    let cid1 = metadata
+        .put_block(bytes.clone(), IpldCodec::DagCbor)
+        .await?;
+    let cid2 = content.put_block(bytes, IpldCodec::DagCbor).await?;
+    assert_eq!(cid1, cid2);
+    Ok(cid1)
+}
+
+/// Update the content of the Managers in their existing positions within the BlockStores
+pub async fn update_manager(
+    manager: &Manager,
+    manager_cid: &Cid,
+    metadata: &impl TombBlockStore,
+    content: &impl TombBlockStore,
+) -> Result<Cid> {
+    let bytes = dagcbor::encode(&manager)?;
+    let cid1 = metadata
+        .update_content(manager_cid, bytes.clone(), IpldCodec::DagCbor)
+        .await?;
+    let cid2 = content
+        .update_content(manager_cid, bytes, IpldCodec::DagCbor)
+        .await?;
+    assert_eq!(cid1, cid2);
+    Ok(cid1)
 }
 
 #[cfg(test)]
@@ -363,8 +448,9 @@ mod test {
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
         let wrapping_key = RsaPrivateKey::default();
-        let mut key_manager = Manager::default();
-        key_manager.insert(&wrapping_key.get_public_key()).await?;
+        let manager = &mut Manager::default();
+        manager.insert(&wrapping_key.get_public_key()).await?;
+        let manager_cid = &store_manager(manager, metadata, content).await?;
 
         let _ = &store_all(
             metadata,
@@ -372,11 +458,12 @@ mod test {
             metadata_forest,
             content_forest,
             dir,
-            &mut key_manager,
+            manager,
+            manager_cid,
         )
         .await?;
 
-        let (new_metadata_forest, new_content_forest, new_dir, new_key_manager) =
+        let (new_metadata_forest, new_content_forest, new_dir, new_manager, _) =
             &mut load_all(&wrapping_key, metadata).await?;
 
         // Assert equality
@@ -395,7 +482,7 @@ mod test {
             0
         );
         assert_eq!(dir, new_dir);
-        assert_eq!(&mut key_manager, new_key_manager);
+        assert_eq!(manager, new_manager);
         // Teardown
         teardown(test_name).await
     }
@@ -409,20 +496,22 @@ mod test {
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
         let wrapping_key = RsaPrivateKey::default();
-        let mut key_manager = Manager::default();
-        key_manager.insert(&wrapping_key.get_public_key()).await?;
+        let manager = &mut Manager::default();
+        manager.insert(&wrapping_key.get_public_key()).await?;
 
+        let manager_cid = &store_manager(manager, metadata, content).await?;
         let _ = &store_all(
             metadata,
             content,
             metadata_forest,
             content_forest,
             dir,
-            &mut key_manager,
+            manager,
+            manager_cid,
         )
         .await?;
 
-        let (new_metadata_forest, new_content_forest, new_dir, new_key_manager) =
+        let (new_metadata_forest, new_content_forest, new_dir, new_manager, _) =
             &mut load_all(&wrapping_key, content).await?;
 
         // Assert equality
@@ -441,7 +530,7 @@ mod test {
             0
         );
         assert_eq!(dir, new_dir);
-        assert_eq!(&mut key_manager, new_key_manager);
+        assert_eq!(manager, new_manager);
         // Teardown
         teardown(test_name).await
     }
@@ -454,8 +543,9 @@ mod test {
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
         let wrapping_key = RsaPrivateKey::default();
-        let mut key_manager = Manager::default();
-        key_manager.insert(&wrapping_key.get_public_key()).await?;
+        let manager = &mut Manager::default();
+        manager.insert(&wrapping_key.get_public_key()).await?;
+        let manager_cid = &store_manager(manager, metadata, content).await?;
 
         // Store everything
         let _ = &store_all(
@@ -464,7 +554,8 @@ mod test {
             metadata_forest,
             content_forest,
             dir,
-            &mut key_manager,
+            manager,
+            manager_cid,
         )
         .await?;
 

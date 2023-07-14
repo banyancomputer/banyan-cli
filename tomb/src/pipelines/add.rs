@@ -22,7 +22,7 @@ pub async fn pipeline(
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
         // Get structs
-        let (metadata_forest, content_forest, root_dir, key_manager) =
+        let (metadata_forest, content_forest, root_dir, manager, manager_cid) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Compress the data in the file
@@ -54,11 +54,11 @@ pub async fn pipeline(
         // Store all the updated information, now that we've written the file
         config
             .set_all(
-                &wrapping_key,
                 metadata_forest,
                 content_forest,
                 root_dir,
-                key_manager,
+                manager,
+                manager_cid,
             )
             .await?;
 

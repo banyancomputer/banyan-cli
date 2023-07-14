@@ -13,7 +13,7 @@ use wnfs::{
 };
 
 use crate::types::blockstore::{
-    rootedblockstore::RootedBlockStore, rootedmemoryblockstore::RootedMemoryBlockStore,
+    tombblockstore::TombBlockStore, tombmemoryblockstore::TombMemoryBlockStore,
 };
 
 // Create a copy of a given fixture to play around with
@@ -45,8 +45,8 @@ pub async fn setup(
     test_name: &str,
 ) -> Result<(
     PathBuf,
-    RootedMemoryBlockStore,
-    RootedMemoryBlockStore,
+    TombMemoryBlockStore,
+    TombMemoryBlockStore,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
@@ -54,8 +54,8 @@ pub async fn setup(
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 
-    let metadata = RootedMemoryBlockStore::new();
-    let content = RootedMemoryBlockStore::new();
+    let metadata = TombMemoryBlockStore::new();
+    let content = TombMemoryBlockStore::new();
     metadata.set_root(&Cid::default());
     content.set_root(&Cid::default());
 
