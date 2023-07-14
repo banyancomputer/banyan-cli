@@ -1,11 +1,7 @@
 use openssl::pkey::{PKey, Private, Public};
 
 mod error;
-
-#[cfg(not(target = "wasm"))]
 mod internal;
-#[cfg(target = "wasm")]
-mod wasm_internal;
 
 pub use error::KeySealError;
 

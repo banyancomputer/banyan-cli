@@ -5,6 +5,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# TODO: pending implementation in wasm
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 base64 = "^0.21"
 openssl = { version = "^0.10", features = ["v110"] }
 openssl-hkdf = "^0.2"
