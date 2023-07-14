@@ -2,6 +2,7 @@
 members = [
     "tomb",
     "tomb-common",
+    "tomb-crypt",
     "tomb-wasm"
 ]
 resolver = "2"
