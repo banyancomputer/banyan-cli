@@ -86,7 +86,7 @@ mod test {
         // Set the current key
         key_manager.update_current_key(&current)?;
         // Insert public key post-hoc
-        key_manager.insert(&public_key);
+        key_manager.insert(&public_key)?;
         // Reconstruct the key
         let reconstructed_current = key_manager.retrieve_current(&wrapping_key)?;
         // Assert that the current and reconstructed keys are matching

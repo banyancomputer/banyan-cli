@@ -12,7 +12,6 @@ use wnfs::{
 };
 
 use crate::{
-    crypto::rsa::RsaPrivateKey,
     types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::error::SerialError,
 };

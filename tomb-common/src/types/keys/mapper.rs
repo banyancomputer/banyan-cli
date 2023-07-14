@@ -1,12 +1,11 @@
 use super::error::KeyError;
-use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::{prelude::{EcPublicEncryptionKey, SymmetricKey, EncryptedSymmetricKey, EcEncryptionKey}, pretty_fingerprint};
 use std::collections::{BTreeMap, HashMap};
 use wnfs::{
     libipld::Ipld,
-    private::{AesKey, ExchangeKey, PrivateKey, TemporalKey},
+    private::{AesKey, TemporalKey},
 };
 
 #[derive(Default, PartialEq)]
@@ -69,7 +68,7 @@ impl Mapper {
         // Grab the encrypted key associated with the fingerprint
         if let Some((_, protected_key_string)) = self.0.get(&fingerprint) {
             // Reconstruct the protected key 
-            let protected_key = EncryptedSymmetricKey::import(&protected_key_string)?;
+            let protected_key = EncryptedSymmetricKey::import(protected_key_string)?;
             // Decrypt the SymmetricKey using the PrivateKey
             let symmetric_key = protected_key.decrypt_with(private_key)?;            
             // Create TemporalKey from SymmetrciKey
@@ -90,11 +89,12 @@ impl Mapper {
         for (fingerprint, (public_key, encrypted_key)) in self.0.clone() {
             let mut sub_map = BTreeMap::<String, Ipld>::new();
             // Overwrite with fake data if there is no encrypted key
-            // let encrypted_key = if encrypted_key.len() == 384 {
-            //     encrypted_key
-            // } else {
-            //     [0; 384].to_vec()
-            // };
+            let encrypted_key = if encrypted_key.len() == 242 {
+                encrypted_key
+            } else {
+                String::from_utf8(vec![b' '; 242]).unwrap()
+            };
+            println!("encrypted key: {}", encrypted_key.len());
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
             // Insert the encrypted key
@@ -118,9 +118,9 @@ impl Mapper {
                     let Some(Ipld::Bytes(public_key)) = sub_map.get("public_key") &&
                     let Some(Ipld::String(encrypted_key)) = sub_map.get("encrypted_key") {
                     // Use empty array if it is actually blank
-                    // let encrypted_key = if encrypted_key == &[0u8; 384] { vec![] } else { encrypted_key.to_vec() };
+                    let encrypted_key = if encrypted_key.as_bytes() == [b' '; 242] { String::new() } else { encrypted_key.to_string() };
                     // Insert the new value into the mapper
-                    mapper.0.insert(fingerprint, (public_key.to_vec(), encrypted_key.to_string()));
+                    mapper.0.insert(fingerprint, (public_key.to_vec(), encrypted_key));
                 }
                 else {
                     return Err(KeyError::Missing.into());
@@ -160,7 +160,6 @@ impl std::fmt::Debug for Mapper {
 #[cfg(test)]
 mod test {
     use super::Mapper;
-    use crate::crypto::rsa::RsaPrivateKey;
     use anyhow::Result;
     use tomb_crypt::prelude::EcEncryptionKey;
     use wnfs::{
