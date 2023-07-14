@@ -21,10 +21,10 @@ readme = "README.md"
 
 # Cargo publication optionals
 keywords = [
-    "banyan", 
-    "tomb", 
-    "filecoin", 
-    "ipfs", 
+    "banyan",
+    "tomb",
+    "filecoin",
+    "ipfs",
     "decentralisation"
 ]
 categories = [
