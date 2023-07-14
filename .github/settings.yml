@@ -1,14 +1,50 @@
+# Reference: https://github.com/apps/settings
+repository:
+    name: tomb
+
+    default_branch: main
+    private: false
+
+    description: Banyan Computer's Client Code
+    homepage: https://banyan.computer/
+    topics: cli, platform
+
+    has_issues: true
+    has_projects: false
+    has_wiki: false
+    has_downloads: true
+
+    allow_squash_on_merge: true
+    allow_merge_commit: true
+    allow_rebase_merge: true
+
+    enable_automated_security_fixes: true
+    enable_vulnerability_alerts: true
+
 branches:
-  - name: master
+  - name: main
     protection:
+      enforce_admins: true
+
       required_pull_request_reviews:
-        required_approving_review_count: 1
         dismiss_stale_reviews: true
+        required_approving_review_count: 1
+        require_code_owner_reviews: true
+
       required_status_checks:
         strict: true
         contexts:
           - "cargo-deny (advisories)"
           - "cargo-deny (bans licenses sources)"
-      enforce_admins: null
+
+      # Required to to be present due too a limitation in GitHub's GraphQL API
       restrictions: null
-      required_linear_history: false
+      required_linear_history: true
+
+teams:
+  # High level change management is controlled by members in this authorized group
+  - name: change-management-owners
+    permission: admin
+  # Main developers of this repository
+  - name: internal-engineers
+    permission: push
