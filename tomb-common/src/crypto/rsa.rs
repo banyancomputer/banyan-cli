@@ -27,11 +27,13 @@ pub const PUBLIC_KEY_EXPONENT: u64 = 65537;
 /// Modulus
 pub type PublicKeyModulus = Vec<u8>;
 
-#[derive(Debug, Clone)]
+#[allow(missing_debug_implementations)]
+#[derive(Clone)]
 /// PublicKey
 pub struct RsaPublicKey(rsa::RsaPublicKey);
 
-#[derive(Debug, Clone)]
+#[allow(missing_debug_implementations)]
+#[derive(Clone)]
 /// PrivateKey
 pub struct RsaPrivateKey(rsa::RsaPrivateKey);
 

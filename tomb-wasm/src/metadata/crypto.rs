@@ -3,8 +3,8 @@ use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 use crate::fetch::http::get_data;
 
+#[allow(missing_debug_implementations)]
 #[wasm_bindgen]
-#[derive(Debug)]
 pub struct PrivateKey(pub(crate) TombPrivateKey);
 
 #[wasm_bindgen]

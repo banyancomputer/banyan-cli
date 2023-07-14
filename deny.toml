@@ -70,7 +70,9 @@ default = "deny"
 
 # If we need to use a crate that violates our general policy, we can add that
 # to the list here to accept it.
-exceptions = []
+exceptions = [
+  { name = "tomb-crypt", allow = ["LicenseRef-LICENSE.txt"] },
+]
 
 [bans]
 multiple-versions = "deny"
