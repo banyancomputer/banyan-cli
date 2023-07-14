@@ -125,7 +125,7 @@ mod test {
 
         // Now that the pipeline has run, grab all metadata
         let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = global.load_key()?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, content_forest, dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
@@ -170,7 +170,7 @@ mod test {
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
         let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = global.load_key()?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
@@ -182,7 +182,7 @@ mod test {
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
         let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = global.load_key()?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
@@ -393,7 +393,7 @@ mod test {
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = global.load_key()?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
@@ -510,7 +510,7 @@ mod test {
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.wrapping_key_from_disk()?;
+        let wrapping_key = global.load_key()?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;

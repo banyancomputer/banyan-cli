@@ -18,7 +18,7 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
     info!("🚀 Starting unpacking pipeline...");
 
     let global = GlobalConfig::from_disk()?;
-    let wrapping_key = global.wrapping_key_from_disk()?;
+    let wrapping_key = global.load_key()?;
 
     if let Some(config) = global.get_bucket(origin) {
         // Load metadata

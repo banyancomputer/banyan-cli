@@ -1,12 +1,12 @@
 use crate::utils::config::xdg_config_home;
 use anyhow::Result;
-use tomb_common::crypto::rsa::RsaPrivateKey;
+use tomb_crypt::prelude::EcEncryptionKey;
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, io::{Read, Write},
 };
 
 /// Represents the Global contents of the tomb configuration file in a user's .config
@@ -123,13 +123,13 @@ impl GlobalConfig {
         let wrapping_key_path = xdg_config_home().join("wrapping_key.pem");
         // Load if it already exists
         let wrapping_key = if wrapping_key_path.exists() {
-            RsaPrivateKey::from_pem_file(&wrapping_key_path)?
+            Self::wrapping_key_from_disk(&wrapping_key_path)?
         } else {
-            RsaPrivateKey::new()?
+            EcEncryptionKey::generate()?
         };
 
         // Save the key to disk
-        wrapping_key.to_pem_file(&wrapping_key_path)?;
+        Self::wrapping_key_to_disk(&wrapping_key_path, &wrapping_key)?;
 
         // Create new Global Config
         Ok(Self {
@@ -140,14 +140,26 @@ impl GlobalConfig {
         })
     }
 
+    /// Load the wrapping key from disk with the known wrapping key path
+    pub fn load_key(&self) -> Result<EcEncryptionKey> {
+        Self::wrapping_key_from_disk(&self.wrapping_key_path)
+    }
+
     /// Load the WrappingKey from its predetermined location
-    pub fn wrapping_key_from_disk(&self) -> Result<RsaPrivateKey> {
-        RsaPrivateKey::from_pem_file(&self.wrapping_key_path)
+    fn wrapping_key_from_disk(path: &Path) -> Result<EcEncryptionKey> {
+        let mut pem_bytes = Vec::new();
+        let mut file = File::open(path)?;
+        file.read_to_end(&mut pem_bytes)?;
+        // Return
+        Ok(EcEncryptionKey::import(&pem_bytes).expect("Unable to convert PEM bytes to Key"))
     }
 
     /// Write the WRappingKey to its predetermined location
-    pub fn wrapping_key_to_disk(&self, wrapping_key: &RsaPrivateKey) -> Result<()> {
-        wrapping_key.to_pem_file(&self.wrapping_key_path)?;
+    fn wrapping_key_to_disk(path: &Path, wrapping_key: &EcEncryptionKey) -> Result<()> {
+        // PEM
+        let pem_bytes = wrapping_key.export()?;
+        let mut file = File::create(path)?;
+        file.write_all(&pem_bytes)?;
         Ok(())
     }
 }

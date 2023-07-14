@@ -48,7 +48,7 @@ pub async fn pipeline(
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
 
     let mut global = GlobalConfig::from_disk()?;
-    let wrapping_key = global.wrapping_key_from_disk()?;
+    let wrapping_key = global.load_key()?;
 
     // If the user has done initialization for this directory
     if let Some(mut config) = global.get_bucket(origin) {
@@ -87,7 +87,7 @@ pub async fn pipeline(
         // Create a new delta for this packing operation
         config.content.add_delta()?;
         // Insert the wrapping key if it is not already there
-        manager.insert(&wrapping_key.get_public_key()).await?;
+        manager.insert(&wrapping_key.public_key().unwrap())?;
         // Put the keys in the BlockStores before any other data
         manager_cid = if manager_cid == Cid::default() {
             store_manager(&manager, &config.metadata, &config.content).await?

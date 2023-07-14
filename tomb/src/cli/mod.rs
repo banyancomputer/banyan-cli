@@ -138,7 +138,7 @@ mod test {
         // Assert the bucket exists now
         let global = GlobalConfig::from_disk()?;
         // Assert that there is always a wrapping key
-        assert!(global.wrapping_key_from_disk().is_ok());
+        assert!(global.load_key().is_ok());
         let bucket = global.get_bucket(origin);
         assert!(bucket.is_some());
         // Teardown test

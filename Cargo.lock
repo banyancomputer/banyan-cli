@@ -3760,6 +3760,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tomb-common",
+ "tomb-crypt",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
  "zstd",
 ]
