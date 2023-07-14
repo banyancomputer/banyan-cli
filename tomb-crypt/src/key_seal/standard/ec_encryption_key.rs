@@ -32,7 +32,7 @@ impl WrappingPrivateKey for EcEncryptionKey {
 
     fn import(pem_bytes: &[u8]) -> Result<Self, KeySealError> {
         let raw_private =
-            PKey::private_key_from_pkcs8(pem_bytes).map_err(KeySealError::bad_format)?;
+            PKey::private_key_from_pem(pem_bytes).map_err(KeySealError::bad_format)?;
 
         Ok(Self(raw_private))
     }
