@@ -16,7 +16,10 @@ pub const SALT_SIZE: usize = 16;
 /// A WrappingPrivateKey is an opinionated cryptographic type designed for encrypting and
 /// decrypting (wrapping) a symmetric AES key using an EC group key.
 pub trait WrappingPrivateKey: Sized {
+    /// The error type that will commonly be returned by all concrete implementations of the type.
     type Error: Error;
+
+    /// This is the type that will constitute the public portion of this concrete implementation.
     type PublicKey: WrappingPublicKey<Error = Self::Error>;
 
     /// Converts the private key representation into a PEM wrapped PKCS8 private key. The returned
@@ -56,6 +59,7 @@ pub trait WrappingPrivateKey: Sized {
 /// the identity of the keys and can be used to encrypt any plain key in a way the holder the
 /// private key can get access to.
 pub trait WrappingPublicKey: Sized {
+    /// The error type that will commonly be returned by all concrete implementations of the type.
     type Error: Error;
 
     /// Converts the public portion of the wrapping key into a PEM/SPKI formatted version that is
@@ -81,25 +85,47 @@ pub trait WrappingPublicKey: Sized {
 /// A wrapper around an unprotected 256-bit AES key. The raw key can act as a raw byte string for
 /// other implementation to use for encryption and decryption.
 pub trait PlainKey: AsRef<[u8]> + From<[u8; AES_KEY_SIZE]> {
+    /// The error type that will commonly be returned by all concrete implementations of the type.
     type Error: Error;
+
+    /// The type the key will have once it has been protected with public key
     type ProtectedKey: ProtectedKey;
+
+    /// This is the concrete implementation of the public portion of an EC key used to encrypt this
+    /// key for a specific individual.
     type WrappingPublicKey: WrappingPublicKey;
 
+    /// Wrap the internal plaintext key with the provided public key. Only the holder of the
+    /// private portion will be able to reconstruct the original key.
     fn encrypt_for(
         &self,
         recipient_key: &Self::WrappingPublicKey,
     ) -> Result<Self::ProtectedKey, Self::Error>;
 }
 
+/// A wrapped key and the associated deta required to decrypt the data into the original key when
+/// provided with an appropriate private key.
 pub trait ProtectedKey: Sized {
+    /// The error type that will commonly be returned by all concrete implementations of the type.
     type Error: Error;
+
+    /// The decrypted key type that will be produced by providing the correct private key.
     type PlainKey: PlainKey;
+
+    /// The concrete implementation of a private key that is capable of decrypting this protected
+    /// key.
     type WrappingPrivateKey: WrappingPrivateKey;
 
+    /// Attempts to decrypt the protected key with the provided private key, if successful this
+    /// will produce a plaintext key.
     fn decrypt_with(
         &self,
         recipient_key: &Self::WrappingPrivateKey,
     ) -> Result<Self::PlainKey, Self::Error>;
+
+    /// Export the protected key into a standardized format that can be exchanged freely.
     fn export(&self) -> String;
+
+    /// Import protected key from the standardized format
     fn import(serialized: &str) -> Result<Self, Self::Error>;
 }
