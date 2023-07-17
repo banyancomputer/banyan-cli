@@ -19,9 +19,16 @@ js-sys = { optional = true, version = "^0.3" }
 wasm-bindgen = "0.2.87"
 async-trait = "0.1.71"
 wasm-bindgen-futures = "0.4.37"
-gloo = { optional = true, version = "0.8.1", features = [ "utils" ] }
-
+gloo = { optional = true, version = "0.8.1", features = [ "utils", "console" ] }
+console_error_panic_hook = { optional = true, version = "0.1.7" }
 
 [features]
 default = ["native"]
 native = ["dep:base64", "dep:openssl", "dep:openssl-hkdf"]
+# Note (amiller68): Setting default to wasm for now, so that wasm-pack doesn't complain
+default = ["wasm", "console_error_panic_hook"]
+standard = ["dep:base64", "dep:openssl", "dep:openssl-hkdf"]
+wasm = ["dep:web-sys", "dep:js-sys", "dep:base64", "dep:gloo"]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.37"

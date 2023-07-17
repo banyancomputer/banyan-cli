@@ -30,6 +30,7 @@ pub fn pretty_fingerprint(fingerprint_bytes: &[u8]) -> String {
         .join(":")
 }
 
+// TODO: Uncomment when the impl is moved to async
 // #[cfg(test)]
 // mod standard_tests {
 //     use super::*;
@@ -89,8 +90,7 @@ pub fn pretty_fingerprint(fingerprint_bytes: &[u8]) -> String {
 //     }
 // }
 
-// #[cfg(all(target_arch = "wasm32-unknown-unknown", feature = "wasm"))]
-#[cfg(test)]
+#[cfg(all(test, feature = "wasm"))]
 mod tests {
     use super::*;
     use crate::key_seal::common::*;

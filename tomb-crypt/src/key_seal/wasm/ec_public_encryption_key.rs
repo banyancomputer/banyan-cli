@@ -20,28 +20,19 @@ impl WrappingPublicKey for EcPublicEncryptionKey {
     }
 
     async fn export_bytes(&self) -> Result<Vec<u8>, KeySealError> {
-        todo!()
-        // self.0
-        //     .public_key_to_der()
-        //     .map_err(KeySealError::export_failed)
+        internal::export_ec_public_key(&self.0).await.map_err(|err| KeySealError::subtle_crypto_error(err.into()))
     }
 
     async fn fingerprint(&self) -> Result<[u8; FINGERPRINT_SIZE], KeySealError> {
-        todo!()
-        // Ok(internal::fingerprint(&self.0))
+        Ok(internal::fingerprint_public_ec_key(&self.0).await.map_err(|err| KeySealError::subtle_crypto_error(err.into()))?)
     }
 
     async fn import(pem_bytes: &[u8]) -> Result<Self, KeySealError> {
         todo!()
-        // let raw_public =
-        //     PKey::public_key_from_pem(pem_bytes).expect("parsing a valid pem public key");
-        // Ok(Self(raw_public))
     }
 
     async fn import_bytes(der_bytes: &[u8]) -> Result<Self, KeySealError> {
-        todo!()
-        // let raw_public =
-        //     PKey::public_key_from_der(der_bytes).expect("parsing a valid der public key");
-        // Ok(Self(raw_public))
+        let public_key = internal::import_ec_public_key(der_bytes).await.map_err(|err| KeySealError::subtle_crypto_error(err.into()))?;
+        Ok(Self(public_key))
     }
 }

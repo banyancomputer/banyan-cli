@@ -1,4 +1,4 @@
-use wasm_bindgen::JsValue;
+use js_sys::Error as JsError;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
@@ -8,31 +8,37 @@ pub struct KeySealError {
 }
 
 impl KeySealError {
-    pub(crate) fn subtle_crypto_unavailable(err: JsValue) -> Self {
+    pub(crate) fn crypto_unavailable(err: JsError) -> Self {
         Self {
-            kind: KeySealErrorKind::SubtleCryptoUnavailable(err),
+            kind: KeySealErrorKind::CryptoUnavailable(err),
         }
     }
 
-    pub(crate) fn subtle_crypto_error(err: JsValue) -> Self {
+    pub(crate) fn subtle_crypto_error(err: JsError) -> Self {
         Self {
             kind: KeySealErrorKind::SubtleCryptoError(err),
         }
     }
 
-    pub(crate) fn bad_format(err: JsValue) -> Self {
+    pub(crate) fn public_key_unavailable() -> Self {
+        Self {
+            kind: KeySealErrorKind::PublicKeyUnavailable(JsError::new("public key was not imported")),
+        }
+    }
+
+    pub(crate) fn bad_format(err: JsError) -> Self {
         Self {
             kind: KeySealErrorKind::BadFormat(err),
         }
     }
 
-    pub(crate) fn bad_base64(err: JsValue) -> Self {
+    pub(crate) fn bad_base64(err: JsError) -> Self {
         Self {
             kind: KeySealErrorKind::InvalidBase64(err),
         }
     }
 
-    pub(crate) fn export_failed(err: JsValue) -> Self {
+    pub(crate) fn export_failed(err: JsError) -> Self {
         Self {
             kind: KeySealErrorKind::ExportFailed(err),
         }
@@ -44,13 +50,17 @@ impl Display for KeySealError {
         use KeySealErrorKind::*;
 
         match &self.kind {
-            SubtleCryptoUnavailable(err) => {
+            CryptoUnavailable(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "SubtleCrypto is not available: {msg}")
             },
             SubtleCryptoError(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "SubtleCrypto error: {msg}")
+            },
+            PublicKeyUnavailable(err) => {
+                let msg = err.as_string().unwrap();
+                write!(f, "public key was not imported: {msg}")
             },
             BadFormat(err) => {
                 let msg = err.as_string().unwrap();
@@ -68,17 +78,24 @@ impl Display for KeySealError {
     }
 }
 
-impl From<KeySealError> for JsValue {
+impl From<KeySealError> for JsError {
     fn from(err: KeySealError) -> Self {
         use KeySealErrorKind::*;
 
         match err.kind {
-            SubtleCryptoUnavailable(err) => err,
+            CryptoUnavailable(err) => err,
             SubtleCryptoError(err) => err,
+            PublicKeyUnavailable(err) => err,
             BadFormat(err) => err,
             ExportFailed(err) => err,
             InvalidBase64(err) => err,
         }
+    }
+}
+
+impl From<JsError> for KeySealError {
+    fn from(err: JsError) -> Self {
+        Self::subtle_crypto_error(err)
     }
 }
 
@@ -87,9 +104,10 @@ impl std::error::Error for KeySealError {}
 #[derive(Debug)]
 #[non_exhaustive]
 enum KeySealErrorKind {
-    SubtleCryptoUnavailable(JsValue),
-    SubtleCryptoError(JsValue),
-    BadFormat(JsValue),
-    ExportFailed(JsValue),
-    InvalidBase64(JsValue),
+    CryptoUnavailable(JsError),
+    SubtleCryptoError(JsError),
+    PublicKeyUnavailable(JsError),
+    BadFormat(JsError),
+    ExportFailed(JsError),
+    InvalidBase64(JsError),
 }

@@ -32,6 +32,7 @@ pub trait WrappingPrivateKey: Sized {
     /// as it is immediately recognizable.
     async fn export(&self) -> Result<Vec<u8>, Self::Error>;
 
+
     /// Export the internal private key into a DER encoded set of bytes.
     async fn export_bytes(&self) -> Result<Vec<u8>, Self::Error>;
 
@@ -39,7 +40,7 @@ pub trait WrappingPrivateKey: Sized {
     /// fixed length bytes string. This is usually presented to users by running it through the
     /// prettifier [`crate::key_seal::pretty_fingerprint()`].
     async fn fingerprint(&self) -> Result<[u8; FINGERPRINT_SIZE], Self::Error> {
-        self.public_key().await?.fingerprint().await
+        self.public_key()?.fingerprint().await
     }
 
     /// Creates a secure new private key matching the security and use requirements for use as a EC
@@ -53,9 +54,7 @@ pub trait WrappingPrivateKey: Sized {
     /// Parses a DER encoded EC private key into the internal type appropriate for being used as a
     /// wrapping key.
     async fn import_bytes(der_bytes: &[u8]) -> Result<Self, Self::Error>;
-
-    /// Generates the public portion of this private key.
-    async fn public_key(&self) -> Result<Self::PublicKey, Self::Error>;
+    fn public_key(&self) -> Result<Self::PublicKey, Self::Error>;
 }
 
 /// The public portion of a [`WrappingPrivateKey`]. The public portion is important for tracking
