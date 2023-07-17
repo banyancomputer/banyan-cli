@@ -15,6 +15,14 @@ pub use native::{
 //{
 //}
 
+pub fn generate_info(encrypt_fingerprint_bytes: &[u8], decrypt_fingerprint_bytes: &[u8]) -> String {
+    format!(
+        "use=key_seal,encryptor={},decryptor={}",
+        pretty_fingerprint(encrypt_fingerprint_bytes),
+        pretty_fingerprint(decrypt_fingerprint_bytes),
+    )
+}
+
 pub fn pretty_fingerprint(fingerprint_bytes: &[u8]) -> String {
     fingerprint_bytes
         .iter()
