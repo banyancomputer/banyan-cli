@@ -10,5 +10,5 @@ openssl = { optional = true, version = "^0.10", features = ["v110"] }
 openssl-hkdf = { optional = true, version = "^0.2" }
 
 [features]
-default = ["standard"]
-standard = ["dep:base64", "dep:openssl", "dep:openssl-hkdf"]
+default = ["native"]
+native = ["dep:base64", "dep:openssl", "dep:openssl-hkdf"]

@@ -1,10 +1,12 @@
 mod common;
 
-#[cfg(all(not(target_arch = "wasm"), feature = "standard"))]
-mod standard;
+#[cfg(all(not(target_arch = "wasm"), feature = "native"))]
+mod native;
 
-#[cfg(all(not(target_arch = "wasm"), feature = "standard"))]
-pub use standard::{EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey};
+#[cfg(all(not(target_arch = "wasm"), feature = "native"))]
+pub use native::{
+    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
+};
 
 //#[cfg(target_arch = "wasm")]
 //mod wasm;
