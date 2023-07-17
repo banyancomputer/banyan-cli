@@ -64,11 +64,25 @@ pub(crate) async fn generate_ec_encryption_key_pair() -> JsResult<CryptoKeyPair>
     Ok(CryptoKeyPair::from(key_pair))
 }
 
-/// Export a public key as a Vec<u8>
-pub(crate) async fn export_ec_public_key(public_key: &CryptoKey) -> JsResult<Vec<u8>> {
+/// Import an ec key from a &[u8] in der format
+pub(crate) async fn import_ec_key_der(format: &str, der_bytes: &[u8]) -> JsResult<CryptoKey> {
+    let crypto = subtle_crypto()?;
+    let import_promise = crypto.import_key_with_object(
+        format,
+        &Uint8Array::from(der_bytes),
+        &EcKeyGenParams::new("ECDH", "P-384"),
+        true,
+        &js_array(&["deriveBits"]),
+    ).expect("import promise to be created");
+    let import_result = JsFuture::from(import_promise).await.expect("import promise to succeed");
+    Ok(import_result.into())
+}
+
+/// Export an ec key as a Vec<u8> in der format
+pub(crate) async fn export_ec_key_der(format: &str, public_key: &CryptoKey) -> JsResult<Vec<u8>> {
     let crypto = subtle_crypto()?;
     let export_promise = crypto.export_key(
-        "spki",
+        format,
         &public_key,
     ).expect("export promise to be created");
     let export_result = JsFuture::from(export_promise).await.expect("export promise to succeed");
@@ -77,49 +91,8 @@ pub(crate) async fn export_ec_public_key(public_key: &CryptoKey) -> JsResult<Vec
     Ok(export_result)
 }
 
-/// Export a private key as a Vec<u8>
-pub(crate) async fn export_ec_private_key(private_key: &CryptoKey) -> JsResult<Vec<u8>> {
-    let crypto = subtle_crypto()?;
-    let export_promise = crypto.export_key(
-        "pkcs8",
-        &private_key,
-    ).expect("export promise to be created");
-    let export_result = JsFuture::from(export_promise).await.expect("export promise to succeed");
-    let export_result = export_result.dyn_into::<ArrayBuffer>().expect("export result to be an array buffer");
-    let export_result = Uint8Array::new(&export_result).to_vec();
-    Ok(export_result)
-}
-
-/// Import a private key from a &[u8]
-pub(crate) async fn import_ec_private_key(der_bytes: &[u8]) -> JsResult<CryptoKey> {
-    let crypto = subtle_crypto()?;
-    let import_promise = crypto.import_key_with_object(
-        "pkcs8",
-        &Uint8Array::from(der_bytes),
-        &EcKeyGenParams::new("ECDH", "P-384"),
-        true,
-        &js_array(&["deriveBits"]),
-    ).expect("import promise to be created");
-    let import_result = JsFuture::from(import_promise).await.expect("import promise to succeed");
-    Ok(import_result.into())
-}
-
-/// Import a public key from a &[u8]
-pub(crate) async fn import_ec_public_key(der_bytes: &[u8]) -> JsResult<CryptoKey> {
-    let crypto = subtle_crypto()?;
-    let import_promise = crypto.import_key_with_object(
-        "spki",
-        &Uint8Array::from(der_bytes),
-        &EcKeyGenParams::new("ECDH", "P-384"),
-        true,
-        &js_array(&["deriveBits"]),
-    ).expect("import promise to be created");
-    let import_result = JsFuture::from(import_promise).await.expect("import promise to succeed");
-    Ok(import_result.into())
-}
-
 pub(crate) async fn fingerprint_public_ec_key(public_key: &CryptoKey) -> JsResult<[u8; FINGERPRINT_SIZE]> {
-    let public_key_bytes = export_ec_public_key(public_key).await?;
+    let public_key_bytes = export_ec_key_der("raw", public_key).await?;
 
     // Note (amiller68): This only works for P-384 keys
     let size = 49;

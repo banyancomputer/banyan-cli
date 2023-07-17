@@ -27,7 +27,7 @@ impl WrappingPrivateKey for EcEncryptionKey {
     }
     
     async fn export_bytes(&self) -> Result<Vec<u8>, KeySealError> {
-        internal::export_ec_private_key(&self.private_key).await.map_err(|err| KeySealError::subtle_crypto_error(err.into()))
+        internal::export_ec_key_der("pkcs8", &self.private_key).await.map_err(|err| KeySealError::subtle_crypto_error(err.into()))
     }
 
     async fn fingerprint(&self) -> Result<[u8; FINGERPRINT_SIZE], KeySealError> {
@@ -47,7 +47,7 @@ impl WrappingPrivateKey for EcEncryptionKey {
     }
 
     async fn import_bytes(der_bytes: &[u8]) -> Result<Self, KeySealError> {
-        let private_key = internal::import_ec_private_key(der_bytes).await.map_err(|err| KeySealError::subtle_crypto_error(err.into()))?;
+        let private_key = internal::import_ec_key_der("pkcs8", der_bytes).await.map_err(|err| KeySealError::bad_format(err.into()))?;
         Ok(Self { private_key, public_key: None })
     }
 
