@@ -43,7 +43,7 @@ pub(crate) fn ecdh_exchange(
 
 pub(crate) fn fingerprint(public_key: &PKey<Public>) -> [u8; FINGERPRINT_SIZE] {
     let ec_group = ec_group();
-    let mut big_num_context = BigNumContext::new().expect("BigNumContext creation");
+    let mut big_num_context = BigNumContext::new().expect("openssl bignumber memory context creation");
 
     let ec_public_key = public_key.ec_key().expect("key to be an EC derived key");
 
@@ -61,10 +61,8 @@ pub(crate) fn fingerprint(public_key: &PKey<Public>) -> [u8; FINGERPRINT_SIZE] {
 
 pub(crate) fn generate_ec_key() -> PKey<Private> {
     let ec_group = ec_group();
-    let ec_key = EcKey::generate(&ec_group).expect("EC key generation to succeed");
-    ec_key
-        .try_into()
-        .expect("EC private key to be convertible to private key type")
+    let ec_key = EcKey::generate(&ec_group).expect("openssl private EC key generation to succeed");
+    ec_key.try_into().expect("openssl internal type conversion")
 }
 
 pub(crate) fn hkdf(secret_bytes: &[u8], info: &str) -> ([u8; SALT_SIZE], [u8; AES_KEY_SIZE]) {
