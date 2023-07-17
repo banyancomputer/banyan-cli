@@ -1,8 +1,9 @@
 [package]
 name = "tomb-crypt"
 license = "LicenseRef-LICENSE.txt"
-version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
 base64 = { optional = true, version = "^0.21" }
@@ -12,3 +13,4 @@ openssl-hkdf = { optional = true, version = "^0.2" }
 [features]
 default = ["standard"]
 standard = ["dep:base64", "dep:openssl", "dep:openssl-hkdf"]
+wasm = []

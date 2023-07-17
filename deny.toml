@@ -94,8 +94,8 @@ deny = [
 # They just couldn't be resolved ourselves.
 skip = [
     # Everything below this comment was added for expediency in getting CI working again
-    { name = "aho-corasick", version = "0.7.20" },  # from globset v0.4.10
-    { name = "aho-corasick", version = "1.0.2"  },  # from regex v1.8.4
+    { name = "hashbrown", version = "0.12.3"  },   # from rindexmap
+    { name = "hashbrown", version = "0.14.0"  },   # from dashmap
 
     { name = "autocfg", version = "0.1.8"  },   # from rand v0.6.3
     { name = "autocfg", version = "1.1.0"  },   # from many dependencies
