@@ -3795,9 +3795,15 @@ dependencies = [
 name = "tomb-crypt"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.21.2",
+ "gloo",
+ "js-sys",
  "openssl",
  "openssl-hkdf",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
