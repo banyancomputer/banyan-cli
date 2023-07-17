@@ -41,14 +41,23 @@ impl PlainKey for SymmetricKey {
     }
 }
 
-//impl SymmetricKey {
-//    #[cfg(test)]
-//    fn generate() -> Self {
-//        let mut key_data = [0u8; AES_KEY_SIZE];
-//        openssl::rand::rand_bytes(&mut key_data).expect("unable to generate key data");
-//        Self(key_data)
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn generate() -> Result<(), KeySealError> {
+        let cyrpto = internal::crypto()?;
+        // Get random values
+        let mut key = [0u8; AES_KEY_SIZE];
+        cyrpto.get_random_values_with_u8_array(&mut key).map_err(|err| KeySealError::subtle_crypto_error(err.into()))?;
+        let _key = SymmetricKey(key);
+        Ok(())   
+    }
+}
 
 impl AsRef<[u8]> for SymmetricKey {
     fn as_ref(&self) -> &[u8] {

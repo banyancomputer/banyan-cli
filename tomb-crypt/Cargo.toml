@@ -14,6 +14,7 @@ web-sys = { optional = true, version = "^0.3", features = [
     "CryptoKeyPair",
     "SubtleCrypto",
     "EcKeyGenParams",
+    "HkdfParams"
 ]}
 js-sys = { optional = true, version = "^0.3" }
 wasm-bindgen = "0.2.87"

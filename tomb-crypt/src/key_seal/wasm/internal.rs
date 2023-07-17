@@ -1,8 +1,8 @@
 // use base64::engine::general_purpose::STANDARD as B64;
 // use base64::Engine;
 
-use web_sys::{SubtleCrypto, CryptoKeyPair, CryptoKey, EcKeyGenParams};
-use js_sys::{JsString, Promise, Uint8Array, Array, Error as JsError, Object, Reflect, ArrayBuffer};
+use web_sys::{SubtleCrypto, CryptoKeyPair, CryptoKey, EcKeyGenParams, HkdfParams};
+use js_sys::{JsString, Promise, Uint8Array, Array, Error as JsError, Reflect, ArrayBuffer, Object};
 use wasm_bindgen_futures::JsFuture;
 use wasm_bindgen::prelude::*;
 use gloo::utils::window;
@@ -35,6 +35,29 @@ pub(crate) fn subtle_crypto() -> Result<SubtleCrypto, KeySealError> {
     Ok(crypto.subtle())
 }
 
+/// Run an Async function that returns a promise. Return as a Vec<u8>
+
+
+async fn crypto_method(
+    method: Result<Promise, JsValue>
+) -> JsResult<JsValue> {
+    Ok(JsFuture::from(method?).await.expect("promise to succeed"))
+}
+
+// let crypto = subtle_crypto()?;
+//     let digest_promise = crypto.digest_with_str_and_u8_array(
+//         "SHA-1",
+//         compressed_point.as_mut_slice(), 
+//     ).expect("digest promise to be created");
+
+//     let digest_result = JsFuture::from(digest_promise).await.expect("digest promise to succeed");
+
+//     let digest_result = digest_result.dyn_into::<ArrayBuffer>().expect("digest result to be an array buffer");
+
+//     let digest_result = Uint8Array::new(&digest_result).to_vec();
+
+/* Key getters, exporters, and importers */
+
 /// Get the private key from a key pair
 pub(crate) fn private_key(key_pair: &CryptoKeyPair) -> CryptoKey {
     Reflect::get(key_pair, &JsString::from("privateKey")).unwrap().into()
@@ -50,47 +73,68 @@ pub(crate) async fn generate_ec_encryption_key_pair() -> JsResult<CryptoKeyPair>
     let params =
         EcKeyGenParams::new("ECDH", "P-384");
     let usages = js_array(&["deriveBits"]);
-
     let crypto = subtle_crypto()?;
-
-    let key_pair_promise: Promise = crypto.generate_key_with_object(
+    let key_pair = crypto_method(crypto.generate_key_with_object(
         &params,
         true,
         &usages,
-    ).expect("key pair generation to start");
-
-    let key_pair = JsFuture::from(key_pair_promise).await.expect("key pair generation to succeed");
-
+    )).await?;
     Ok(CryptoKeyPair::from(key_pair))
 }
 
 /// Import an ec key from a &[u8] in der format
 pub(crate) async fn import_ec_key_der(format: &str, der_bytes: &[u8]) -> JsResult<CryptoKey> {
     let crypto = subtle_crypto()?;
-    let import_promise = crypto.import_key_with_object(
+    let import = crypto_method(crypto.import_key_with_object(
         format,
         &Uint8Array::from(der_bytes),
         &EcKeyGenParams::new("ECDH", "P-384"),
         true,
         &js_array(&["deriveBits"]),
-    ).expect("import promise to be created");
-    let import_result = JsFuture::from(import_promise).await.expect("import promise to succeed");
-    Ok(import_result.into())
+    )).await?;
+    Ok(import.into())
+}
+
+/// Import a raw AES GCM key from a CryptoKey
+async fn import_aes_key(
+    key_data: &Object,
+    name: &str,
+    uses: &[&str],
+) -> JsResult<CryptoKey> {
+    let crypto = subtle_crypto()?;
+    let import = crypto_method(crypto.import_key_with_str(
+        "raw",
+        &key_data,
+        name,
+        true,
+        &js_array(uses),
+    )).await?;
+    Ok(import.into())
+}
+
+/// Import an ec key from a &[u8] in pem format
+pub(crate) async fn import_ec_key_pem(format: &str, pem_bytes: &[u8]) -> JsResult<CryptoKey> {
+   todo!()
 }
 
 /// Export an ec key as a Vec<u8> in der format
 pub(crate) async fn export_ec_key_der(format: &str, public_key: &CryptoKey) -> JsResult<Vec<u8>> {
     let crypto = subtle_crypto()?;
-    let export_promise = crypto.export_key(
+    let export = crypto_method(crypto.export_key(
         format,
         &public_key,
-    ).expect("export promise to be created");
-    let export_result = JsFuture::from(export_promise).await.expect("export promise to succeed");
-    let export_result = export_result.dyn_into::<ArrayBuffer>().expect("export result to be an array buffer");
-    let export_result = Uint8Array::new(&export_result).to_vec();
-    Ok(export_result)
+    )).await?;
+    let export= export.dyn_into::<ArrayBuffer>().expect("export result to be an array buffer");
+    let export= Uint8Array::new(&export).to_vec();
+    Ok(export)
 }
 
+/// Export an ec key as a Vec<u8> in pem format
+pub(crate) async fn export_ec_key_pem(format: &str, public_key: &CryptoKey) -> JsResult<Vec<u8>> {
+    todo!()
+}
+
+/// Fingerprint an ec public key
 pub(crate) async fn fingerprint_public_ec_key(public_key: &CryptoKey) -> JsResult<[u8; FINGERPRINT_SIZE]> {
     let public_key_bytes = export_ec_key_der("raw", public_key).await?;
 
@@ -104,33 +148,70 @@ pub(crate) async fn fingerprint_public_ec_key(public_key: &CryptoKey) -> JsResul
     compressed_point[1..].copy_from_slice(&x);
 
     let crypto = subtle_crypto()?;
-    let digest_promise = crypto.digest_with_str_and_u8_array(
-        "SHA-1",
-        compressed_point.as_mut_slice(), 
-    ).expect("digest promise to be created");
+    let digest = crypto_method(
+        crypto.digest_with_str_and_u8_array(
+            "SHA-1",
+            compressed_point.as_mut_slice(), 
+        )
+    ).await?;
 
-    let digest_result = JsFuture::from(digest_promise).await.expect("digest promise to succeed");
+    let digest = digest.dyn_into::<ArrayBuffer>().expect("digest result to be an array buffer");
 
-    let digest_result = digest_result.dyn_into::<ArrayBuffer>().expect("digest result to be an array buffer");
-
-    let digest_result = Uint8Array::new(&digest_result).to_vec();
+    let digest = Uint8Array::new(&digest).to_vec();
 
     let mut fingerprint = [0u8; FINGERPRINT_SIZE];
-    fingerprint.copy_from_slice(&digest_result);
+    fingerprint.copy_from_slice(&digest);
 
     Ok(fingerprint)
-
 }
 
+/* Key Derivation and Wrapping Utilities  */
+
+/// Derive am HKDF key from a secret.
+pub(crate) async fn derive_hkdf_key(secret_bytes: &[u8], info: &str) -> JsResult<([u8; SALT_SIZE], CryptoKey)> {
+    let mut salt = [0u8; SALT_SIZE];
+    let crypto = crypto()?;
+    crypto.get_random_values_with_u8_array(&mut salt).expect("unable to generate random IV");
+    Ok((salt, hkdf_with_salt(secret_bytes, &salt, info).await?))
+}
+
+/// Derive an HKDF key from a secret and salt.
+pub(crate) async fn hkdf_with_salt(secret_bytes: &[u8], salt: &[u8], info: &str) -> JsResult<CryptoKey> {
+    let mut expanded_key = [0; AES_KEY_SIZE];
+
+    let crypto = subtle_crypto()?;
+    
+    // Import 
+    let secret_bytes = Uint8Array::from(secret_bytes);
+    let hkdf_key = import_aes_key(
+        &Object::from(secret_bytes), "HKDF", ["deriveBits"].as_ref()
+    ).await?;
 
 
-// pub(crate) fn base64_decode(data: &str) -> JsResult<Vec<u8>> {
-//     B64.decode(data).map_err(KeySealError::bad_base64)
-// }
+    // Derive
+    // let derive_params = HkdfParams::new("HKDF", "SHA-256", salt, info.as_bytes());
+    let derive_params = HkdfParams::new(
+        "HKDF",
+        &JsValue::from_str("SHA-256"),
+        &Uint8Array::from(salt),
+        &Uint8Array::from(info.as_bytes()),
+    );
+    let derive_bits = crypto_method(
+        crypto.derive_bits_with_object(
+            &derive_params,
+            &hkdf_key,
+            AES_KEY_SIZE as u32 * 8,
+        )
+    ).await?;
 
-// pub(crate) fn base64_encode(data: &[u8]) -> String {
-//     B64.encode(data)
-// }
+    // Import Again
+    let derive_bits = derive_bits.dyn_into::<Object>().expect("derive bits to be an object");
+    let key = import_aes_key(
+        &derive_bits, "AES-GCM", ["encrypt", "decrypt"].as_ref()
+    ).await?;
+
+    Ok(key)
+}
 
 // pub(crate) fn ecdh_exchange(
 //     private: &PKey<Private>,
@@ -151,54 +232,6 @@ pub(crate) async fn fingerprint_public_ec_key(public_key: &CryptoKey) -> JsResul
 //     key_slice.copy_from_slice(&calculated_bytes);
 
 //     key_slice
-// }
-
-
-//     openssl::sha::sha1(&public_key_bytes)
-// }
-
-
-// pub(crate) fn generate_info(encryptor: &[u8], decryptor: &[u8]) -> String {
-//     format!(
-//         "use=key_seal,encryptor={},decryptor={}",
-//         pretty_fingerprint(encryptor),
-//         pretty_fingerprint(decryptor),
-//     )
-// }
-
-// pub(crate) fn hkdf(secret_bytes: &[u8], info: &str) -> ([u8; SALT_SIZE], [u8; AES_KEY_SIZE]) {
-//     let mut salt = [0u8; SALT_SIZE];
-//     openssl::rand::rand_bytes(&mut salt).expect("unable to generate random IV");
-//     (salt, hkdf_with_salt(secret_bytes, &salt, info))
-// }
-
-// pub(crate) fn hkdf_with_salt(secret_bytes: &[u8], salt: &[u8], info: &str) -> [u8; AES_KEY_SIZE] {
-//     let mut expanded_key = [0; AES_KEY_SIZE];
-
-//     openssl_hkdf::hkdf::hkdf(
-//         MessageDigest::sha256(),
-//         secret_bytes,
-//         salt,
-//         info.as_bytes(),
-//         &mut expanded_key,
-//     )
-//     .expect("hkdf operation to succeed");
-
-//     expanded_key
-// }
-
-// pub(crate) fn public_from_private(private_key: &PKey<Private>) -> PKey<Public> {
-//     let ec_group = ec_group();
-
-//     let ec_key = private_key
-//         .ec_key()
-//         .expect("unable to extract EC private key from private key");
-//     // Have to do a weird little dance here as to we need to temporarily go into bytes to get to a
-//     // public only key
-//     let pub_ec_key: EcKey<Public> = EcKey::from_public_key(&ec_group, ec_key.public_key())
-//         .expect("unable to turn public key bytes into public key");
-
-//     PKey::from_ec_key(pub_ec_key).expect("unable to wrap public key in common struct")
 // }
 
 // pub(crate) fn unwrap_key(secret_bytes: &[u8], protected_key: &[u8]) -> [u8; AES_KEY_SIZE] {
@@ -222,3 +255,22 @@ pub(crate) async fn fingerprint_public_ec_key(public_key: &CryptoKey) -> JsResul
 
 //     enciphered_key
 // }
+
+/* Misc Utilities */
+
+// pub(crate) fn generate_info(encryptor: &[u8], decryptor: &[u8]) -> String {
+//     format!(
+//         "use=key_seal,encryptor={},decryptor={}",
+//         pretty_fingerprint(encryptor),
+//         pretty_fingerprint(decryptor),
+//     )
+// }
+
+// pub(crate) fn base64_decode(data: &str) -> JsResult<Vec<u8>> {
+//     B64.decode(data).map_err(KeySealError::bad_base64)
+// }
+
+// pub(crate) fn base64_encode(data: &[u8]) -> String {
+//     B64.encode(data)
+// }
+
