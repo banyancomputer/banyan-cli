@@ -21,7 +21,8 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
 }
 
 fn ec_group() -> EcGroup {
-    EcGroup::from_curve_name(Nid::SECP384R1).expect("openssl support of the EC group to remain valid")
+    EcGroup::from_curve_name(Nid::SECP384R1)
+        .expect("openssl support of the EC group to remain valid")
 }
 
 pub(crate) fn ecdh_exchange(
@@ -29,7 +30,9 @@ pub(crate) fn ecdh_exchange(
     public: &PKey<Public>,
 ) -> Result<[u8; ECDH_SECRET_BYTE_SIZE], KeySealError> {
     let mut deriver = Deriver::new(private).map_err(KeySealError::incompatble_derivation)?;
-    deriver.set_peer(public).map_err(KeySealError::incompatble_derivation)?;
+    deriver
+        .set_peer(public)
+        .map_err(KeySealError::incompatble_derivation)?;
 
     let calculated_bytes = deriver
         .derive_to_vec()
@@ -43,7 +46,8 @@ pub(crate) fn ecdh_exchange(
 
 pub(crate) fn fingerprint(public_key: &PKey<Public>) -> [u8; FINGERPRINT_SIZE] {
     let ec_group = ec_group();
-    let mut big_num_context = BigNumContext::new().expect("openssl bignumber memory context creation");
+    let mut big_num_context =
+        BigNumContext::new().expect("openssl bignumber memory context creation");
 
     let ec_public_key = public_key.ec_key().expect("key to be an EC derived key");
 
