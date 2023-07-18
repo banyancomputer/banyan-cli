@@ -1,8 +1,8 @@
 use openssl::pkey::{PKey, Public};
 
-use crate::key_seal::KeySealError;
 use crate::key_seal::common::*;
-use crate::key_seal::standard::*;
+use crate::key_seal::native::*;
+use crate::key_seal::KeySealError;
 
 pub struct EcPublicEncryptionKey(pub(crate) PKey<Public>);
 
@@ -37,4 +37,3 @@ impl WrappingPublicKey for EcPublicEncryptionKey {
         Ok(Self(raw_public))
     }
 }
-

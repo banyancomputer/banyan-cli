@@ -24,6 +24,12 @@ impl KeySealError {
             kind: KeySealErrorKind::ExportFailed(err),
         }
     }
+
+    pub(crate) fn incompatble_derivation(err: openssl::error::ErrorStack) -> Self {
+        Self {
+            kind: KeySealErrorKind::IncompatibleDerivationKey(err),
+        }
+    }
 }
 
 impl Display for KeySealError {
@@ -58,4 +64,5 @@ enum KeySealErrorKind {
     BadFormat(openssl::error::ErrorStack),
     ExportFailed(openssl::error::ErrorStack),
     InvalidBase64(base64::DecodeError),
+    IncompatibleDerivationKey(openssl::error::ErrorStack),
 }

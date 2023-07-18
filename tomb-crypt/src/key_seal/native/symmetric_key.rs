@@ -1,6 +1,6 @@
-use crate::key_seal::KeySealError;
 use crate::key_seal::common::*;
-use crate::key_seal::standard::*;
+use crate::key_seal::native::*;
+use crate::key_seal::{generate_info, KeySealError};
 
 pub struct SymmetricKey(pub(crate) [u8; AES_KEY_SIZE]);
 
@@ -15,9 +15,9 @@ impl PlainKey for SymmetricKey {
     ) -> Result<Self::ProtectedKey, KeySealError> {
         let ephemeral_key = EcEncryptionKey::generate()?;
 
-        let ecdh_shared_secret = internal::ecdh_exchange(&ephemeral_key.0, &recipient_key.0);
+        let ecdh_shared_secret = internal::ecdh_exchange(&ephemeral_key.0, &recipient_key.0)?;
 
-        let info = internal::generate_info(
+        let info = generate_info(
             ephemeral_key.fingerprint()?.as_ref(),
             recipient_key.fingerprint()?.as_ref(),
         );

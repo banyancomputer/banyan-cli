@@ -9,10 +9,8 @@ use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private, Public};
 
-use crate::key_seal::{
-    pretty_fingerprint, KeySealError,
-};
 use crate::key_seal::common::{AES_KEY_SIZE, ECDH_SECRET_BYTE_SIZE, FINGERPRINT_SIZE, SALT_SIZE};
+use crate::key_seal::KeySealError;
 
 pub(crate) fn base64_decode(data: &str) -> Result<Vec<u8>, KeySealError> {
     B64.decode(data).map_err(KeySealError::bad_base64)
@@ -23,32 +21,33 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
 }
 
 fn ec_group() -> EcGroup {
-    EcGroup::from_curve_name(Nid::SECP384R1).expect("selected EC group to remain valid")
+    EcGroup::from_curve_name(Nid::SECP384R1)
+        .expect("openssl support of the EC group to remain valid")
 }
 
 pub(crate) fn ecdh_exchange(
     private: &PKey<Private>,
     public: &PKey<Public>,
-) -> [u8; ECDH_SECRET_BYTE_SIZE] {
-    let mut deriver =
-        Deriver::new(private).expect("creation of ECDH derivation context from private key");
+) -> Result<[u8; ECDH_SECRET_BYTE_SIZE], KeySealError> {
+    let mut deriver = Deriver::new(private).map_err(KeySealError::incompatble_derivation)?;
     deriver
         .set_peer(public)
-        .expect("setting openssl peer for ECDH key derivation");
+        .map_err(KeySealError::incompatble_derivation)?;
 
     let calculated_bytes = deriver
         .derive_to_vec()
-        .expect("calculate common public key");
+        .map_err(KeySealError::incompatble_derivation)?;
 
     let mut key_slice = [0u8; ECDH_SECRET_BYTE_SIZE];
     key_slice.copy_from_slice(&calculated_bytes);
 
-    key_slice
+    Ok(key_slice)
 }
 
 pub(crate) fn fingerprint(public_key: &PKey<Public>) -> [u8; FINGERPRINT_SIZE] {
     let ec_group = ec_group();
-    let mut big_num_context = BigNumContext::new().expect("BigNumContext creation");
+    let mut big_num_context =
+        BigNumContext::new().expect("openssl bignumber memory context creation");
 
     let ec_public_key = public_key.ec_key().expect("key to be an EC derived key");
 
@@ -66,23 +65,13 @@ pub(crate) fn fingerprint(public_key: &PKey<Public>) -> [u8; FINGERPRINT_SIZE] {
 
 pub(crate) fn generate_ec_key() -> PKey<Private> {
     let ec_group = ec_group();
-    let ec_key = EcKey::generate(&ec_group).expect("EC key generation to succeed");
-    ec_key
-        .try_into()
-        .expect("EC private key to be convertible to private key type")
-}
-
-pub(crate) fn generate_info(encryptor: &[u8], decryptor: &[u8]) -> String {
-    format!(
-        "use=key_seal,encryptor={},decryptor={}",
-        pretty_fingerprint(encryptor),
-        pretty_fingerprint(decryptor),
-    )
+    let ec_key = EcKey::generate(&ec_group).expect("openssl private EC key generation to succeed");
+    ec_key.try_into().expect("openssl internal type conversion")
 }
 
 pub(crate) fn hkdf(secret_bytes: &[u8], info: &str) -> ([u8; SALT_SIZE], [u8; AES_KEY_SIZE]) {
     let mut salt = [0u8; SALT_SIZE];
-    openssl::rand::rand_bytes(&mut salt).expect("unable to generate random IV");
+    openssl::rand::rand_bytes(&mut salt).expect("openssl unable to generate random bytes");
     (salt, hkdf_with_salt(secret_bytes, &salt, info))
 }
 
