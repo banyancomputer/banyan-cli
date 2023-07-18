@@ -218,6 +218,19 @@ pub async fn store_ipld<M: TombBlockStore, C: TombBlockStore>(
         Ipld::Link(metadata_forest_cid),
     );
     metadata_map.insert("content_forest".to_string(), Ipld::Link(content_forest_cid));
+    // Build features
+    metadata_map.insert(
+        "build_features".to_string(),
+        Ipld::String(env!("BUILD_FEATURES").to_string()),
+    );
+    metadata_map.insert(
+        "build_profile".to_string(),
+        Ipld::String(env!("BUILD_PROFILE").to_string()),
+    );
+    metadata_map.insert(
+        "repo_version".to_string(),
+        Ipld::String(env!("REPO_VERSION").to_string()),
+    );
     // Now that we've finished inserting
     let metadata_root = &Ipld::Map(metadata_map);
     // Put the metadata IPLD Map into BlockStores
@@ -303,6 +316,23 @@ pub async fn load_history<M: TombBlockStore>(
         metadata,
     )
     .await
+}
+
+/// Extract the details of the build that created this metadata
+pub async fn load_build_details<M: TombBlockStore>(
+    metadata: &M,
+) -> Result<(String, String, String)> {
+    // Load the IPLD map
+    if let Some(metadata_root) = metadata.get_root() &&
+        let Ok(Ipld::Map(root)) = metadata.get_deserializable::<Ipld>(&metadata_root).await &&
+        let Some(Ipld::String(build_features)) = root.get("build_features") &&
+        let Some(Ipld::String(build_profile)) = root.get("build_profile") &&
+        let Some(Ipld::String(repo_version)) = root.get("repo_version") {
+        // Ok
+        Ok((build_features.to_string(), build_profile.to_string(), repo_version.to_string()))
+    } else {
+        Err(SerialError::MissingMetadata("build details lost".to_string()).into())
+    }
 }
 
 /// Store the key Manager in both BlockStores
@@ -562,6 +592,37 @@ mod test {
         .await?;
 
         let _history = load_history(&wrapping_key, metadata).await?;
+
+        // Teardown
+        teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn build_details() -> Result<()> {
+        let test_name = "build_details";
+        // Start er up!
+        let (_, metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup(test_name).await?;
+        let wrapping_key = RsaPrivateKey::default();
+        let manager = &mut Manager::default();
+        manager.insert(&wrapping_key.get_public_key()).await?;
+        let manager_cid = &store_manager(manager, metadata, content).await?;
+
+        // Store everything
+        let _ = &store_all(
+            metadata,
+            content,
+            metadata_forest,
+            content_forest,
+            dir,
+            manager,
+            manager_cid,
+        )
+        .await?;
+
+        // Assert we can successfully load them
+        assert!(load_build_details(metadata).await.is_ok());
 
         // Teardown
         teardown(test_name).await
