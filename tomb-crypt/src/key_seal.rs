@@ -68,7 +68,7 @@ mod tests {
         181, 203, 152, 78, 115,
     ];
 
-    const SEALED_KEY: &'static str = "GvQwdfPJ97rUTOl/UUHWjw==.knWedkNCmB11L2uRjpj6tU60mQs25kVSvCYMxDWiR9HKPgeR2sgISw==.MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAECa67CCuaPgE+CuGb7acOFKdnzYy9I5hbU3AOQmi4clGAcmd9VAm+JeQqbz8mB1wwJQm1jhpYgcAjwC+kEPL9W2pneRNWwSm0lv15h2G0Jo8mA1NJUu7MDTFRNZQlGJf0";
+    const SEALED_KEY: &str = "GvQwdfPJ97rUTOl/UUHWjw==.knWedkNCmB11L2uRjpj6tU60mQs25kVSvCYMxDWiR9HKPgeR2sgISw==.MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAECa67CCuaPgE+CuGb7acOFKdnzYy9I5hbU3AOQmi4clGAcmd9VAm+JeQqbz8mB1wwJQm1jhpYgcAjwC+kEPL9W2pneRNWwSm0lv15h2G0Jo8mA1NJUu7MDTFRNZQlGJf0";
 
     #[test]
     fn test_pem_key_parse_and_use() {
