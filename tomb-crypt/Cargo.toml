@@ -32,11 +32,9 @@ console_error_panic_hook = { optional = true, version = "0.1.7" }
 pem = {optional = true, version = "2.0.1"}
 
 [features]
-default = ["native"]
-native = ["dep:base64", "dep:openssl", "dep:openssl-hkdf"]
 # Note (amiller68): Setting default to wasm for now, so that wasm-pack doesn't complain
 default = ["wasm", "console_error_panic_hook"]
-standard = ["dep:openssl", "dep:openssl-hkdf"]
+native = ["dep:openssl", "dep:openssl-hkdf"]
 wasm = ["dep:web-sys", "dep:js-sys", "dep:gloo", "dep:pem", "dep:wasm-bindgen", "dep:wasm-bindgen-futures"]
 
 [dev-dependencies]

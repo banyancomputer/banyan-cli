@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 
 use crate::key_seal::common::*;
+use crate::key_seal::generate_info;
 use crate::key_seal::wasm::*;
 use crate::key_seal::KeySealError;
 
@@ -27,7 +28,7 @@ impl ProtectedKey for EncryptedSymmetricKey {
                 .await
                 .map_err(KeySealError::subtle_crypto_error)?;
 
-        let info = internal::generate_info(
+        let info = generate_info(
             ephemeral_public_key.fingerprint().await?.as_ref(),
             recipient_key.fingerprint().await?.as_ref(),
         );
