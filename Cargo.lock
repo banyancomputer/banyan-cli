@@ -3797,12 +3797,15 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.21.2",
+ "console_error_panic_hook",
  "gloo",
  "js-sys",
  "openssl",
  "openssl-hkdf",
+ "pem",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-bindgen-test",
  "web-sys",
 ]
 

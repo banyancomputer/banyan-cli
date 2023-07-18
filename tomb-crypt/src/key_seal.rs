@@ -12,7 +12,9 @@ pub use native::{
 mod wasm;
 
 #[cfg(feature = "wasm")]
-pub use wasm::{EcEncryptionKey , EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey};
+pub use wasm::{
+    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
+};
 
 pub fn generate_info(encrypt_fingerprint_bytes: &[u8], decrypt_fingerprint_bytes: &[u8]) -> String {
     format!(
@@ -200,11 +202,17 @@ mod tests {
         // let reexported_key_pem = imported_key.export()?;
         // assert_eq!(raw_key_pem, reexported_key_pem);
 
-//         // let raw_public_key_pem = public_key.export()?;
-//         // let imported_public_key = EcPublicEncryptionKey::import(&raw_public_key_pem)?;
-//         // let reexported_public_key_pem = imported_public_key.export()?;
-//         // assert_eq!(raw_public_key_pem, reexported_public_key_pem);
+    #[wasm_bindgen_test]
+    async fn end_to_end_test() -> Result<(), KeySealError> {
+        _end_to_end_test().await?;
+        Ok(())
+    }
 
-//         Ok(())
-//     }
-// }
+    // this is a temporary test to ensure the end to end bits are working as expected while proper
+    // tests are built
+    #[wasm_bindgen_test]
+    async fn test_key_roundtripping() -> Result<(), KeySealError> {
+        _test_key_roundtripping().await?;
+        Ok(())
+    }
+}

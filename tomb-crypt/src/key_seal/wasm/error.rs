@@ -1,3 +1,4 @@
+use base64::DecodeError;
 use js_sys::Error as JsError;
 use std::fmt::{self, Display, Formatter};
 
@@ -22,7 +23,9 @@ impl KeySealError {
 
     pub(crate) fn public_key_unavailable() -> Self {
         Self {
-            kind: KeySealErrorKind::PublicKeyUnavailable(JsError::new("public key was not imported")),
+            kind: KeySealErrorKind::PublicKeyUnavailable(JsError::new(
+                "public key was not imported",
+            )),
         }
     }
 
@@ -32,7 +35,7 @@ impl KeySealError {
         }
     }
 
-    pub(crate) fn bad_base64(err: JsError) -> Self {
+    pub(crate) fn bad_base64(err: DecodeError) -> Self {
         Self {
             kind: KeySealErrorKind::InvalidBase64(err),
         }
@@ -53,25 +56,25 @@ impl Display for KeySealError {
             CryptoUnavailable(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "SubtleCrypto is not available: {msg}")
-            },
+            }
             SubtleCryptoError(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "SubtleCrypto error: {msg}")
-            },
+            }
             PublicKeyUnavailable(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "public key was not imported: {msg}")
-            },
+            }
             BadFormat(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "imported key was malformed: {msg}")
-            },
+            }
             ExportFailed(err) => {
                 let msg = err.as_string().unwrap();
                 write!(f, "failed to export key: {msg}")
-            },
+            }
             InvalidBase64(err) => {
-                let msg = err.as_string().unwrap();
+                let msg = err.to_string();
                 write!(f, "invalid base64: {msg}")
             }
         }
@@ -88,7 +91,7 @@ impl From<KeySealError> for JsError {
             PublicKeyUnavailable(err) => err,
             BadFormat(err) => err,
             ExportFailed(err) => err,
-            InvalidBase64(err) => err,
+            InvalidBase64(err) => JsError::new(&err.to_string()),
         }
     }
 }
@@ -109,5 +112,5 @@ enum KeySealErrorKind {
     PublicKeyUnavailable(JsError),
     BadFormat(JsError),
     ExportFailed(JsError),
-    InvalidBase64(JsError),
+    InvalidBase64(DecodeError),
 }

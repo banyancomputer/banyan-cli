@@ -1,5 +1,5 @@
-use std::error::Error;
 use async_trait::async_trait;
+use std::error::Error;
 
 /// Number of bytes used for our AES keys (256-bit)
 pub const AES_KEY_SIZE: usize = 32;
@@ -31,7 +31,6 @@ pub trait WrappingPrivateKey: Sized {
     /// This format should be preferred if the data is going to be visible to people or platforms
     /// as it is immediately recognizable.
     async fn export(&self) -> Result<Vec<u8>, Self::Error>;
-
 
     /// Export the internal private key into a DER encoded set of bytes.
     async fn export_bytes(&self) -> Result<Vec<u8>, Self::Error>;
