@@ -63,27 +63,7 @@ impl BlockStore {
 
     /// Save the CAR BlockStore to disk
     pub fn to_disk(&self) -> Result<()> {
-        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
-        self.car.write_bytes(&mut r, &mut w)?;
-        self.tmp_finish(tmp_car_path)?;
-        Ok(())
-    }
-
-    fn tmp_start(&self) -> Result<(PathBuf, File, File), std::io::Error> {
-        let r = car::get_read(&self.path)?;
-        let tmp_file_name = format!(
-            "{}_tmp.car",
-            self.path.file_name().unwrap().to_str().unwrap()
-        );
-        let tmp_car_path = self.path.parent().unwrap().join(tmp_file_name);
-        let w = File::create(&tmp_car_path)?;
-        Ok((tmp_car_path, r, w))
-    }
-
-    fn tmp_finish(&self, tmp_car_path: PathBuf) -> Result<(), std::io::Error> {
-        remove_file(&self.path)?;
-        rename(tmp_car_path, &self.path)?;
-        Ok(())
+        self.car.write_bytes(&mut car::get_read_write(&self.path)?)
     }
 }
 

@@ -69,7 +69,7 @@ impl CAR {
         w.seek(SeekFrom::Start(data_offset))?;
 
         // Write the CARv1
-        self.car.write_bytes(&mut r, &mut w)?;
+        // self.car.write_bytes(&mut r, &mut w)?;
         // Update our data size in the Header
         self.update_data_size(&mut w)?;
 
