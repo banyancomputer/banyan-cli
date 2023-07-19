@@ -29,7 +29,9 @@ impl WrappingPrivateKey for EcEncryptionKey {
     }
 
     async fn generate() -> Result<Self, KeySealError> {
-        Ok(Self(internal::generate_ec_key()))
+        let key = tokio::task::spawn_blocking(move || { internal::generate_ec_key() }).await
+            .map_err(KeySealError::background_generation_failed)?;
+        Ok(Self(key))
     }
 
     async fn import(pem_bytes: &[u8]) -> Result<Self, KeySealError> {
