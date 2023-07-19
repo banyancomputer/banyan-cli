@@ -678,9 +678,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.3.11"
+version = "4.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1640e5cc7fb47dbb8338fd471b105e7ed6c3cb2aeb00c2e067127ffd3764a05d"
+checksum = "5b0827b011f6f8ab38590295339817b0d26f344aa4932c3ced71b45b0c54b4a9"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -689,9 +689,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.3.11"
+version = "4.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98c59138d527eeaf9b53f35a77fcc1fad9d883116070c63d5de1c7dc7b00c72b"
+checksum = "9441b403be87be858db6a23edb493e7f694761acdc3343d5a0fcaafd304cbc9e"
 dependencies = [
  "anstream",
  "anstyle",
@@ -703,9 +703,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.3.2"
+version = "4.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8cd2b2a819ad6eec39e8f1d6b53001af1e5469f8c177579cdaeb313115b825f"
+checksum = "54a9bb5758fc5dfe728d1019941681eccaf0cf8a4189b692a0ee2f2ecf90a050"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -1155,7 +1155,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "663339239058603a3a657842111ed6986a5d84bdbff7c0b5fba93b8f70bd63b3"
 dependencies = [
  "anyhow",
- "clap 4.3.11",
+ "clap 4.3.17",
  "rand 0.8.5",
  "serde",
  "strum",
@@ -1191,7 +1191,7 @@ dependencies = [
  "byteorder",
  "bytesize",
  "chrono",
- "clap 4.3.11",
+ "clap 4.3.17",
  "console",
  "crossbeam-utils",
  "csv",
@@ -2501,16 +2501,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "openssl-hkdf"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d9ed6479b095784e86aa6dcdac720f9c85701dde1a7e89da24ac5840e364baf"
-dependencies = [
- "openssl",
- "openssl-sys",
-]
-
-[[package]]
 name = "openssl-macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3741,7 +3731,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "chrono",
- "clap 4.3.11",
+ "clap 4.3.17",
  "criterion",
  "dir-assert",
  "env_logger",
@@ -3789,25 +3779,6 @@ dependencies = [
  "unsigned-varint",
  "wasm-bindgen",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
-]
-
-[[package]]
-name = "tomb-crypt"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.21.2",
- "console_error_panic_hook",
- "gloo",
- "js-sys",
- "openssl",
- "openssl-hkdf",
- "pem",
- "tokio",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "web-sys",
 ]
 
 [[package]]
