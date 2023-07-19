@@ -53,6 +53,7 @@ pub trait WrappingPrivateKey: Sized {
     /// Parses a DER encoded EC private key into the internal type appropriate for being used as a
     /// wrapping key.
     async fn import_bytes(der_bytes: &[u8]) -> Result<Self, Self::Error>;
+
     fn public_key(&self) -> Result<Self::PublicKey, Self::Error>;
 }
 

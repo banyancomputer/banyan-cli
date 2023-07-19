@@ -29,13 +29,14 @@ wasm-bindgen = {optional = true, version = "0.2.87"}
 wasm-bindgen-futures = { optional = true, version = "0.4.37"}
 gloo = { optional = true, version = "0.8.1", features = [ "utils", "console" ] }
 console_error_panic_hook = { optional = true, version = "0.1.7" }
-pem = {optional = true, version = "2.0.1"}
+pem = { optional = true, version = "2.0.1" }
+tokio = { optional = true, workspace = true }
 
 [features]
 # Note (amiller68): Setting default to wasm for now, so that wasm-pack doesn't complain
-default = ["wasm", "console_error_panic_hook"]
-native = ["dep:openssl", "dep:openssl-hkdf"]
-wasm = ["dep:web-sys", "dep:js-sys", "dep:gloo", "dep:pem", "dep:wasm-bindgen", "dep:wasm-bindgen-futures"]
+default = ["native"]
+native = ["dep:openssl", "dep:openssl-hkdf", "dep:tokio"]
+wasm = ["console_error_panic_hook", "dep:web-sys", "dep:js-sys", "dep:gloo", "dep:pem", "dep:wasm-bindgen", "dep:wasm-bindgen-futures"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.37"

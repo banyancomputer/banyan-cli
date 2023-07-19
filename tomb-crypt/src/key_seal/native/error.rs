@@ -25,7 +25,7 @@ impl KeySealError {
         }
     }
 
-    pub(crate) fn incompatble_derivation(err: openssl::error::ErrorStack) -> Self {
+    pub(crate) fn incompatible_derivation(err: openssl::error::ErrorStack) -> Self {
         Self {
             kind: KeySealErrorKind::IncompatibleDerivationKey(err),
         }

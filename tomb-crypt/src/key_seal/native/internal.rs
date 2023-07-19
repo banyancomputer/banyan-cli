@@ -29,14 +29,14 @@ pub(crate) fn ecdh_exchange(
     private: &PKey<Private>,
     public: &PKey<Public>,
 ) -> Result<[u8; ECDH_SECRET_BYTE_SIZE], KeySealError> {
-    let mut deriver = Deriver::new(private).map_err(KeySealError::incompatble_derivation)?;
+    let mut deriver = Deriver::new(private).map_err(KeySealError::incompatible_derivation)?;
     deriver
         .set_peer(public)
-        .map_err(KeySealError::incompatble_derivation)?;
+        .map_err(KeySealError::incompatible_derivation)?;
 
     let calculated_bytes = deriver
         .derive_to_vec()
-        .map_err(KeySealError::incompatble_derivation)?;
+        .map_err(KeySealError::incompatible_derivation)?;
 
     let mut key_slice = [0u8; ECDH_SECRET_BYTE_SIZE];
     key_slice.copy_from_slice(&calculated_bytes);

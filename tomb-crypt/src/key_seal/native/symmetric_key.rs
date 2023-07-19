@@ -1,30 +1,33 @@
+use async_trait::async_trait;
+
 use crate::key_seal::common::*;
 use crate::key_seal::native::*;
 use crate::key_seal::{generate_info, KeySealError};
 
 pub struct SymmetricKey(pub(crate) [u8; AES_KEY_SIZE]);
 
+#[async_trait(?Send)]
 impl PlainKey for SymmetricKey {
     type Error = KeySealError;
     type ProtectedKey = EncryptedSymmetricKey;
     type WrappingPublicKey = EcPublicEncryptionKey;
 
-    fn encrypt_for(
+    async fn encrypt_for(
         &self,
         recipient_key: &Self::WrappingPublicKey,
     ) -> Result<Self::ProtectedKey, KeySealError> {
-        let ephemeral_key = EcEncryptionKey::generate()?;
+        let ephemeral_key = EcEncryptionKey::generate().await?;
 
         let ecdh_shared_secret = internal::ecdh_exchange(&ephemeral_key.0, &recipient_key.0)?;
 
         let info = generate_info(
-            ephemeral_key.fingerprint()?.as_ref(),
-            recipient_key.fingerprint()?.as_ref(),
+            ephemeral_key.fingerprint().await?.as_ref(),
+            recipient_key.fingerprint().await?.as_ref(),
         );
         let (salt, hkdf_shared_secret) = internal::hkdf(&ecdh_shared_secret, &info);
 
         let encrypted_key = internal::wrap_key(&hkdf_shared_secret, &self.0);
-        let exported_ephemeral_key = ephemeral_key.public_key()?.export_bytes()?;
+        let exported_ephemeral_key = ephemeral_key.public_key()?.export_bytes().await?;
 
         Ok(EncryptedSymmetricKey {
             data: encrypted_key,

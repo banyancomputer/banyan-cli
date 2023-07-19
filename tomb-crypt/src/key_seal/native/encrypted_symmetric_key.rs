@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+
 use crate::key_seal::common::*;
 use crate::key_seal::native::*;
 use crate::key_seal::{generate_info, KeySealError};
@@ -8,19 +10,20 @@ pub struct EncryptedSymmetricKey {
     pub(crate) public_key: Vec<u8>,
 }
 
+#[async_trait(?Send)]
 impl ProtectedKey for EncryptedSymmetricKey {
     type Error = KeySealError;
     type PlainKey = SymmetricKey;
     type WrappingPrivateKey = EcEncryptionKey;
 
-    fn decrypt_with(&self, recipient_key: &EcEncryptionKey) -> Result<SymmetricKey, KeySealError> {
-        let ephemeral_public_key = EcPublicEncryptionKey::import_bytes(self.public_key.as_ref())?;
+    async fn decrypt_with(&self, recipient_key: &EcEncryptionKey) -> Result<SymmetricKey, KeySealError> {
+        let ephemeral_public_key = EcPublicEncryptionKey::import_bytes(self.public_key.as_ref()).await?;
         let ecdh_shared_secret =
             internal::ecdh_exchange(&recipient_key.0, &ephemeral_public_key.0)?;
 
         let info = generate_info(
-            ephemeral_public_key.fingerprint()?.as_ref(),
-            recipient_key.fingerprint()?.as_ref(),
+            ephemeral_public_key.fingerprint().await?.as_ref(),
+            recipient_key.fingerprint().await?.as_ref(),
         );
         let hkdf_shared_secret =
             internal::hkdf_with_salt(&ecdh_shared_secret, self.salt.as_ref(), &info);
