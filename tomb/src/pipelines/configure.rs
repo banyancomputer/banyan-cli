@@ -3,27 +3,27 @@ use anyhow::Result;
 use std::path::Path;
 
 /// Create a default config for this user
-pub fn init(path: &Path) -> Result<()> {
-    let mut global = GlobalConfig::from_disk()?;
+pub async fn init(path: &Path) -> Result<()> {
+    let mut global = GlobalConfig::from_disk().await?;
     global.new_bucket(path)?;
     global.to_disk()
 }
 
 /// Remove all configuration data for a given bucket
-pub fn deinit(path: &Path) -> Result<()> {
-    let mut global = GlobalConfig::from_disk()?;
+pub async fn deinit(path: &Path) -> Result<()> {
+    let mut global = GlobalConfig::from_disk().await?;
     global.remove(path)?;
     global.to_disk()
 }
 
 /// Remove all configuration data
-pub fn deinit_all() -> Result<()> {
-    GlobalConfig::from_disk()?.remove_data()
+pub async fn deinit_all() -> Result<()> {
+    GlobalConfig::from_disk().await?.remove_data()
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
-pub fn remote(address: &str) -> Result<()> {
-    let mut config = GlobalConfig::from_disk()?;
+pub async fn remote(address: &str) -> Result<()> {
+    let mut config = GlobalConfig::from_disk().await?;
     config.remote = address.to_string();
     config.to_disk()
 }

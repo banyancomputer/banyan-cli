@@ -2,7 +2,6 @@
 members = [
     "tomb",
     "tomb-common",
-    "tomb-crypt",
     "tomb-wasm"
 ]
 resolver = "2"
@@ -57,6 +56,7 @@ zstd = "0.12.3"
 #wnfs = { path = "../rs-wnfs/wnfs" }
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", version = "0.1.20" }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", version = "^0.1" }
 
 [profile.dev]
 split-debuginfo = "unpacked"

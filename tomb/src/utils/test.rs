@@ -27,7 +27,7 @@ pub async fn test_setup(test_name: &str) -> Result<PathBuf> {
 /// Set up a temporary filesystem for test cases according to specified structure
 pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Result<PathBuf> {
     // Deinit all
-    configure::deinit_all()?;
+    configure::deinit_all().await?;
     // Base of the test directory
     let root_path = PathBuf::from("test").join(test_name);
     // Remove anything that might already be there
@@ -39,7 +39,7 @@ pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Res
     // Generate file structure
     structure.generate(&input_path)?;
     // Deinitialize existing data / metadata
-    configure::deinit(&input_path).ok();
+    configure::deinit(&input_path).await.ok();
     // Return all paths
     Ok(input_path)
 }
@@ -84,7 +84,7 @@ pub async fn setup(
 )> {
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
-    let mut global = GlobalConfig::from_disk()?;
+    let mut global = GlobalConfig::from_disk().await?;
     global.remove(&origin)?;
     let config = global.new_bucket(&origin)?;
 

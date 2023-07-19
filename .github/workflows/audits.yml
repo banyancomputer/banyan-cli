@@ -1,6 +1,7 @@
 name: 🛡 Dependency Security & License Audit
 on:
   - pull_request
+
 jobs:
   cargo-deny:
     runs-on: ubuntu-22.04

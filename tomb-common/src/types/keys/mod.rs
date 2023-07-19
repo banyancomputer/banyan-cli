@@ -11,7 +11,7 @@ mod test {
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
-    use tomb_crypt::{key_seal::common::WrappingPrivateKey, prelude::EcEncryptionKey};
+    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
     use wnfs::private::{AesKey, TemporalKey};
 
     fn random_temporal_key() -> TemporalKey {
@@ -25,20 +25,20 @@ mod test {
         // Key manager
         let mut key_manager = Manager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-        let wrapping_key = EcEncryptionKey::generate()?;
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
         let public_key = wrapping_key.public_key()?;
 
         // Insert public key
-        key_manager.insert(&public_key)?;
+        key_manager.insert(&public_key).await?;
 
         // Original TemporalKey
         let original = random_temporal_key();
 
         // Set the original key
-        key_manager.set_original_key(&original)?;
+        key_manager.set_original_key(&original).await?;
 
-        let reconstructed_original = key_manager.retrieve_original(&wrapping_key)?;
+        let reconstructed_original = key_manager.retrieve_original(&wrapping_key).await?;
 
         // Assert that the original and reconstructed are matching
         assert_eq!(original, reconstructed_original);
@@ -46,25 +46,25 @@ mod test {
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn put_get_current() -> Result<()> {
+    async fn put_get_current() -> Result<()> {
         // Key manager
         let mut key_manager = Manager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-        let wrapping_key = EcEncryptionKey::generate()?;
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Insert public key
-        key_manager.insert(&public_key)?;
+        key_manager.insert(&public_key).await?;
 
         // current TemporalKey
         let current = random_temporal_key();
 
         // Set the current key
-        key_manager.update_current_key(&current)?;
+        key_manager.update_current_key(&current).await?;
 
-        let reconstructed_current = key_manager.retrieve_current(&wrapping_key)?;
+        let reconstructed_current = key_manager.retrieve_current(&wrapping_key).await?;
 
         // Assert that the current and reconstructed are matching
         assert_eq!(current, reconstructed_current);
@@ -72,58 +72,58 @@ mod test {
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn insert_get_current() -> Result<()> {
+    async fn insert_get_current() -> Result<()> {
         // Key manager
         let mut key_manager = Manager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-        let wrapping_key = EcEncryptionKey::generate()?;
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Grab temporal keys
         let current = random_temporal_key();
         // Set the current key
-        key_manager.update_current_key(&current)?;
+        key_manager.update_current_key(&current).await?;
         // Insert public key post-hoc
-        key_manager.insert(&public_key)?;
+        key_manager.insert(&public_key).await?;
         // Reconstruct the key
-        let reconstructed_current = key_manager.retrieve_current(&wrapping_key)?;
+        let reconstructed_current = key_manager.retrieve_current(&wrapping_key).await?;
         // Assert that the current and reconstructed keys are matching
         assert_eq!(current, reconstructed_current);
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn insert_get_original() -> Result<()> {
+    async fn insert_get_original() -> Result<()> {
         // Key manager
         let mut key_manager = Manager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-        let wrapping_key = EcEncryptionKey::generate()?;
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Grab temporal keys
         let original = random_temporal_key();
         // Set the current key
-        key_manager.set_original_key(&original)?;
+        key_manager.set_original_key(&original).await?;
         // Insert public key post-hoc
-        key_manager.insert(&public_key)?;
+        key_manager.insert(&public_key).await?;
         // Reconstruct the key
-        let reconstructed_original = key_manager.retrieve_original(&wrapping_key)?;
+        let reconstructed_original = key_manager.retrieve_original(&wrapping_key).await?;
         // Assert that the current and reconstructed keys are matching
         assert_eq!(original, reconstructed_original);
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn insert_get_both() -> Result<()> {
+    async fn insert_get_both() -> Result<()> {
         // Key manager
         let mut key_manager = Manager::default();
 
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-        let wrapping_key = EcEncryptionKey::generate()?;
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Grab temporal keys
@@ -131,15 +131,15 @@ mod test {
         let current = random_temporal_key();
 
         // Set the both keys
-        key_manager.set_original_key(&original)?;
-        key_manager.update_current_key(&current)?;
+        key_manager.set_original_key(&original).await?;
+        key_manager.update_current_key(&current).await?;
 
         // Insert public key post-hoc
-        key_manager.insert(&public_key)?;
+        key_manager.insert(&public_key).await?;
 
         // Reconstruct the keys
-        let reconstructed_original = key_manager.retrieve_original(&wrapping_key)?;
-        let reconstructed_current = key_manager.retrieve_current(&wrapping_key)?;
+        let reconstructed_original = key_manager.retrieve_original(&wrapping_key).await?;
+        let reconstructed_current = key_manager.retrieve_current(&wrapping_key).await?;
 
         // Assert that the current and reconstructed keys are matching
         assert_eq!(original, reconstructed_original);
