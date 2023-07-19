@@ -5,17 +5,13 @@ mod common;
 mod native;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "native"))]
-pub use native::{
-    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
-};
+pub use native::*;
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 mod wasm;
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-pub use wasm::{
-    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
-};
+pub use wasm::*;
 
 pub fn generate_info(encrypt_fingerprint_bytes: &[u8], decrypt_fingerprint_bytes: &[u8]) -> String {
     format!(
