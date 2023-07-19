@@ -50,13 +50,12 @@ impl BlockStore {
             // If we need to create the CARv2 file from scratch
             else {
                 // Grab reader and writer
-                let mut w = car::get_write(path)?;
-                let mut r = car::get_read(path)?;
+                let mut rw = car::get_read_write(path)?;
 
                 // Construct new
                 Ok(Self {
                     path: path.to_path_buf(),
-                    car: CAR::new(1, &mut r, &mut w)?
+                    car: CAR::new(1, &mut rw)?
                 })
             }
         }

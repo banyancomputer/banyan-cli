@@ -121,10 +121,11 @@ impl CAR {
     }
 
     /// Create a new CARv1 struct by writing into a stream, then deserializing it
-    pub fn new<R: Read + Seek, W: Write + Seek>(version: u64, mut r: R, mut w: W) -> Result<Self> {
+    pub fn new<RW: Read + Write + Seek>(version: u64, mut rw: RW) -> Result<Self> {
         let car = Self::default(version);
-        car.header.write_bytes(&mut w)?;
-        Self::read_bytes(&mut r)
+        car.header.write_bytes(&mut rw)?;
+        rw.seek(SeekFrom::Start(0))?;
+        Self::read_bytes(rw)
     }
 
     /// Set the singular root of the CAR

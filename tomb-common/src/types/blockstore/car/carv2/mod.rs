@@ -124,20 +124,20 @@ impl CAR {
     }
 
     /// Create a new CARv2 struct by writing into a stream, then deserializing it
-    pub fn new<R: Read + Seek, W: Write + Seek>(mut r: R, mut w: W) -> Result<Self> {
+    pub fn new<RW: Read + Write + Seek>(mut rw: RW) -> Result<Self> {
         // Move to CARv1 no padding
-        w.seek(SeekFrom::Start(PH_SIZE))?;
+        rw.seek(SeekFrom::Start(PH_SIZE))?;
         // Construct a CARv1
         let car = CARv1::default(2);
         // Write CARv1 Header
-        car.header.write_bytes(&mut w)?;
+        car.header.write_bytes(&mut rw)?;
         // Compute the data size
-        let data_size = w.stream_position()? - PH_SIZE;
+        let data_size = rw.stream_position()? - PH_SIZE;
 
         // Move to start
-        w.seek(SeekFrom::Start(0))?;
+        rw.seek(SeekFrom::Start(0))?;
         // Write pragma
-        w.write_all(&PRAGMA)?;
+        rw.write_all(&PRAGMA)?;
         // Write header with correct data size
         let header = Header {
             characteristics: 0,
@@ -145,10 +145,11 @@ impl CAR {
             data_size,
             index_offset: 0,
         };
-        header.write_bytes(&mut w)?;
-        assert_eq!(w.stream_position()?, PH_SIZE);
+        header.write_bytes(&mut rw)?;
+        assert_eq!(rw.stream_position()?, PH_SIZE);
 
-        Self::read_bytes(&mut r)
+        rw.seek(SeekFrom::Start(0))?;
+        Self::read_bytes(&mut rw)
     }
 
     fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
