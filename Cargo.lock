@@ -151,9 +151,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.71"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c7d0618f0e0b7e8ff11427422b64564d5fb0be1940354bfe2e0529b18a9d9b8"
+checksum = "3b13c32d80ecc7ab747b80c3784bce54ee8a7a0cc4fbda9bf4cda2cf6fe90854"
 dependencies = [
  "backtrace",
 ]
@@ -2501,16 +2501,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "openssl-hkdf"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d9ed6479b095784e86aa6dcdac720f9c85701dde1a7e89da24ac5840e364baf"
-dependencies = [
- "openssl",
- "openssl-sys",
-]
-
-[[package]]
 name = "openssl-macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3789,25 +3779,6 @@ dependencies = [
  "unsigned-varint",
  "wasm-bindgen",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
-]
-
-[[package]]
-name = "tomb-crypt"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.21.2",
- "console_error_panic_hook",
- "gloo",
- "js-sys",
- "openssl",
- "openssl-hkdf",
- "pem",
- "tokio",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "web-sys",
 ]
 
 [[package]]
