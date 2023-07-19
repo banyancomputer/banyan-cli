@@ -207,8 +207,6 @@ unknown-registry = "deny"
 # repo as a dependency source they must be reviewed and approved
 unknown-git = "deny"
 
-# Crates that have been approved by to use a git source
-allow-git = [
-    "https://github.com/banyancomputer/dir-assert",
-    "https://github.com/banyancomputer/rs-wnfs",
-]
+# Allow all crates that we have made
+[sources.allow-org]
+github = ["banyancomputer"]

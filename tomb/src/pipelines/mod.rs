@@ -42,13 +42,16 @@ mod test {
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Deinitialize for user
-        configure::deinit(origin)?;
+        configure::deinit(origin).await?;
         // Assert that packing fails
         assert!(pack::pipeline(origin, true).await.is_err());
         // Initialize for this user
-        configure::init(origin)?;
+        configure::init(origin).await?;
         // Assert that a config exists for this bucket now
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
         // Teardown
         test_teardown(test_name).await
     }
@@ -58,9 +61,9 @@ mod test {
     async fn configure_remote() -> Result<()> {
         let address = "http://app.tomb.com.net.org:5423";
         // Configure the remote endpoint
-        configure::remote(address)?;
+        configure::remote(address).await?;
         // Assert it was actually modified
-        assert_eq!(GlobalConfig::from_disk()?.remote, address);
+        assert_eq!(GlobalConfig::from_disk().await?.remote, address);
         Ok(())
     }
 
@@ -71,7 +74,7 @@ mod test {
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
-        configure::init(origin)?;
+        configure::init(origin).await?;
         // Pack
         pack::pipeline(origin, true).await?;
         // Teardown
@@ -85,7 +88,7 @@ mod test {
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
-        configure::init(origin)?;
+        configure::init(origin).await?;
         // Pack locally
         pack::pipeline(origin, true).await?;
         // Create a new dir to unpack in
@@ -109,7 +112,7 @@ mod test {
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init(origin)?;
+        configure::init(origin).await?;
         // Run the pack pipeline
         pack::pipeline(origin, true).await?;
         // This is still in the input dir. Technically we could just
@@ -124,8 +127,8 @@ mod test {
         add::pipeline(origin, input_file, input_file).await?;
 
         // Now that the pipeline has run, grab all metadata
-        let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.load_key()?;
+        let global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.load_key().await?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, content_forest, dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
@@ -162,15 +165,15 @@ mod test {
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init(origin)?;
+        configure::init(origin).await?;
         // Run the pack pipeline
         pack::pipeline(origin, true).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
-        let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.load_key()?;
+        let global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.load_key().await?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
@@ -181,8 +184,8 @@ mod test {
         // Remove the PrivateFile at this Path
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
-        let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.load_key()?;
+        let global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.load_key().await?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
@@ -202,7 +205,7 @@ mod test {
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
         // Initialize
-        configure::init(origin)?;
+        configure::init(origin).await?;
         // Pack locally
         pack::pipeline(origin, true).await?;
         // Create a new dir to unpack in
@@ -295,7 +298,7 @@ mod test {
         // Use bigger files such that metadata comprises a minority of the content CARs
         let structure = Structure::new(2, 2, 1024 * 1024, Strategy::Simple);
         // Deinit all
-        configure::deinit_all()?;
+        configure::deinit_all().await?;
 
         // Base of the test directory
         let root_path_dup = PathBuf::from("test").join(test_name_dup);
@@ -331,7 +334,7 @@ mod test {
         assert_pack_unpack(test_name_unique).await?;
 
         // Get configs
-        let global = GlobalConfig::from_disk()?;
+        let global = GlobalConfig::from_disk().await?;
         // Compute the sizes of these directories
         let packed_dups_size =
             compute_directory_size(&global.get_bucket(origin_dup).unwrap().content.path)? as f64;
@@ -392,8 +395,8 @@ mod test {
         // Run the test again
         assert_pack_unpack(test_name).await?;
 
-        let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.load_key()?;
+        let global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.load_key().await?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
@@ -509,8 +512,8 @@ mod test {
         // Run the test again
         assert_pack_unpack(test_name).await?;
 
-        let global = GlobalConfig::from_disk()?;
-        let wrapping_key = global.load_key()?;
+        let global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.load_key().await?;
         let config = global.get_bucket(origin).unwrap();
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;

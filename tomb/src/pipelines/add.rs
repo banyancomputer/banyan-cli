@@ -16,8 +16,8 @@ pub async fn pipeline(
     wnfs_path: &Path,
 ) -> Result<(), PipelineError> {
     // Global config
-    let mut global = GlobalConfig::from_disk()?;
-    let wrapping_key = global.load_key()?;
+    let mut global = GlobalConfig::from_disk().await?;
+    let wrapping_key = global.load_key().await?;
 
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {

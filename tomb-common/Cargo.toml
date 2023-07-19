@@ -25,7 +25,7 @@ spki = { version = "0.7.2", features = ["fingerprint", "alloc", "base64"] }
 chrono = { workspace = true }
 # Default implementation
 # [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tomb-crypt = { version = "1.1.0", path = "../tomb-crypt" }
+tomb-crypt = { workspace = true }
 
 [dev-dependencies]
 fs_extra = { workspace = true }

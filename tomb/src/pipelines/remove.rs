@@ -6,8 +6,8 @@ use std::path::Path;
 /// The pipeline for removing an individual file from a WNFS
 pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineError> {
     // Global config
-    let mut global = GlobalConfig::from_disk()?;
-    let wrapping_key = global.load_key()?;
+    let mut global = GlobalConfig::from_disk().await?;
+    let wrapping_key = global.load_key().await?;
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
         let (metadata_forest, content_forest, root_dir, manager, manager_cid) =
