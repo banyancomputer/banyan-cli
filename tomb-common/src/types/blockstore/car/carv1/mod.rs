@@ -63,16 +63,21 @@ impl CAR {
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
         // Grab all offsets
-        let mut offsets: Vec<u64> = self.index.borrow().clone().map.into_iter().map(|(_, offset)| offset).collect();
-        // Sort those offsets to the final offsets occur first
-        offsets.sort_by(|a, b| b.cmp(&a));
+        let mut offsets: Vec<u64> = self.index.borrow().clone().map.into_values().collect();
+        // Sort those offsets so the first offsets occur first
+        offsets.sort();
+        // If the header got bigger
+        if data_offset > 0 {
+            // Sort those offsets so the final offsets occur first
+            offsets.reverse();
+        }
 
         // For each offset tallied
         for block_offset in offsets {
             // Move to the existing block location
             rw.seek(SeekFrom::Start(block_offset))?;
             // Read the block
-            let block: Block = Block::read_bytes(&mut rw)?;
+            let block = Block::read_bytes(&mut rw)?;
             // Compute the new offset of the block
             let new_offset = (block_offset as i64 + data_offset) as u64;
             // Move to that offset
@@ -89,6 +94,11 @@ impl CAR {
             index.map = new_index;
             index.next_block = (index.next_block as i64 + data_offset) as u64;
         }
+
+        println!(
+            "index before write bytes finished: {:?}",
+            self.index.borrow().clone()
+        );
 
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
@@ -180,16 +190,21 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{remove_file, File, OpenOptions, copy},
+        fs::{File, OpenOptions},
         io::{Seek, SeekFrom},
-        str::FromStr, path::Path,
+        path::Path,
+        str::FromStr,
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
     fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
-        OpenOptions::new().append(false).read(true).write(true).open(path)
+        OpenOptions::new()
+            .append(false)
+            .read(true)
+            .write(true)
+            .open(path)
     }
-     
+
     #[test]
     #[serial]
     fn from_disk_basic() -> Result<()> {
@@ -263,7 +278,7 @@ mod test {
         // Insert a root
         car.set_root(&Cid::default());
 
-        rw.seek(std::io::SeekFrom::Start(0))?;
+        rw.seek(SeekFrom::Start(0))?;
         car.write_bytes(&mut rw)?;
 
         // Read in the car
@@ -325,9 +340,7 @@ mod test {
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
         let original = CAR::read_bytes(&mut original_rw)?;
-
-        // Read original CARv1
-        let original = CAR::read_bytes(&mut original_rw)?;
+        // Move back to start
         original_rw.seek(std::io::SeekFrom::Start(0))?;
         // Write to updated file
         original.write_bytes(&mut original_rw)?;

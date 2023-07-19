@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{remove_file, rename, File},
+    fs::File,
     path::{Path, PathBuf},
 };
 use tomb_common::types::blockstore::{
