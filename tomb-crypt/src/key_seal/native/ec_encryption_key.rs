@@ -29,7 +29,8 @@ impl WrappingPrivateKey for EcEncryptionKey {
     }
 
     async fn generate() -> Result<Self, KeySealError> {
-        let key = tokio::task::spawn_blocking(move || { internal::generate_ec_key() }).await
+        let key = tokio::task::spawn_blocking(internal::generate_ec_key)
+            .await
             .map_err(KeySealError::background_generation_failed)?;
         Ok(Self(key))
     }

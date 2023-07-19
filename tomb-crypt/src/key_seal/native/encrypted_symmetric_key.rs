@@ -16,8 +16,12 @@ impl ProtectedKey for EncryptedSymmetricKey {
     type PlainKey = SymmetricKey;
     type WrappingPrivateKey = EcEncryptionKey;
 
-    async fn decrypt_with(&self, recipient_key: &EcEncryptionKey) -> Result<SymmetricKey, KeySealError> {
-        let ephemeral_public_key = EcPublicEncryptionKey::import_bytes(self.public_key.as_ref()).await?;
+    async fn decrypt_with(
+        &self,
+        recipient_key: &EcEncryptionKey,
+    ) -> Result<SymmetricKey, KeySealError> {
+        let ephemeral_public_key =
+            EcPublicEncryptionKey::import_bytes(self.public_key.as_ref()).await?;
         let ecdh_shared_secret =
             internal::ecdh_exchange(&recipient_key.0, &ephemeral_public_key.0)?;
 
