@@ -1,6 +1,6 @@
+use crate::fetch::http::get_data;
 use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
-use crate::fetch::http::get_data;
 
 #[allow(missing_debug_implementations)]
 #[wasm_bindgen]
