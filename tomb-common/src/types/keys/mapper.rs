@@ -25,9 +25,14 @@ impl Mapper {
 
         // For each Public Key present in the map
         for (fingerprint, (der, _)) in self.0.clone() {
-            let public_key = EcPublicEncryptionKey::import_bytes(&der).await?;
+            let public_key = EcPublicEncryptionKey::import_bytes(&der)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // The encrypted TemporalKey
-            let protected_key = symmetric.encrypt_for(&public_key).await?;
+            let protected_key = symmetric
+                .encrypt_for(&public_key)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // Insert the reencrypted version of the TemporalKey
             self.0.insert(fingerprint, (der, protected_key.export()));
         }
@@ -42,16 +47,27 @@ impl Mapper {
         new_key: &EcPublicEncryptionKey,
     ) -> Result<()> {
         // Grab the public key's fingerprint
-        let fingerprint = pretty_fingerprint(&new_key.fingerprint().await?);
+        let fingerprint = pretty_fingerprint(
+            &new_key
+                .fingerprint()
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?,
+        );
         // Represent the public key as DER bytes
-        let der = new_key.export_bytes().await?;
+        let der = new_key
+            .export_bytes()
+            .await
+            .map_err(|_| anyhow::anyhow!("crypt error!"))?;
 
         // If there is a valid temporal key
         if let Some(temporal_key) = temporal_key {
             // Represent the TemporalKey as a SymmetricKey
             let symmetric = SymmetricKey::from(temporal_key.0.clone().bytes());
             // Encrypt the bytes
-            let protected_key = symmetric.encrypt_for(new_key).await?;
+            let protected_key = symmetric
+                .encrypt_for(new_key)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // Insert into the hashmap, using fingerprint as key
             self.0.insert(fingerprint, (der, protected_key.export()));
         }
@@ -68,14 +84,23 @@ impl Mapper {
     /// Decrypt the TemporalKey using a PrivateKey
     pub async fn reconstruct(&self, private_key: &EcEncryptionKey) -> Result<TemporalKey> {
         // Grab the fingerprint
-        let fingerprint = pretty_fingerprint(&private_key.fingerprint().await?);
+        let fingerprint = pretty_fingerprint(
+            &private_key
+                .fingerprint()
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?,
+        );
 
         // Grab the encrypted key associated with the fingerprint
         if let Some((_, protected_key_string)) = self.0.get(&fingerprint) {
             // Reconstruct the protected key
-            let protected_key = EncryptedSymmetricKey::import(protected_key_string)?;
+            let protected_key = EncryptedSymmetricKey::import(protected_key_string)
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // Decrypt the SymmetricKey using the PrivateKey
-            let symmetric_key = protected_key.decrypt_with(private_key).await?;
+            let symmetric_key = protected_key
+                .decrypt_with(private_key)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // Create TemporalKey from SymmetrciKey
             let temporal_key = TemporalKey(AesKey::new(symmetric_key.as_ref().try_into()?));
             // Return

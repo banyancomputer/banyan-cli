@@ -3842,6 +3842,7 @@ dependencies = [
  "thiserror",
  "tokio-util",
  "tomb-common",
+ "tomb-crypt",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
