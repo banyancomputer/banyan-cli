@@ -13,7 +13,7 @@ use web_sys::{
 };
 
 use crate::key_seal::common::{AES_KEY_SIZE, ECDH_SECRET_BYTE_SIZE, FINGERPRINT_SIZE, SALT_SIZE};
-use crate::key_seal::KeySealError;
+use crate::key_seal::wasm::KeySealError;
 
 /* Wasm Utilities */
 

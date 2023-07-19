@@ -1,18 +1,18 @@
 #[allow(unused_variables)]
 mod common;
 
-#[cfg(all(not(target_arch = "wasm"), feature = "native"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "native"))]
 mod native;
 
-#[cfg(all(not(target_arch = "wasm"), feature = "native"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "native"))]
 pub use native::{
     EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
 };
 
-#[cfg(all(target_arch = "wasm", feature = "wasm")]
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 mod wasm;
 
-#[cfg(all(target_arch = "wasm", feature = "wasm")]
+#[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 pub use wasm::{
     EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
 };
@@ -147,7 +147,7 @@ mod tests {
         Ok(())
     }
 
-    #[cfg(all(not(target_arch = "wasm"), feature = "native")]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "native"))]
     mod native_tests {
         use super::*;
 
@@ -172,7 +172,7 @@ mod tests {
         }
     }
 
-    #[cfg(all(target_arch = "wasm", feature = "native")]
+    #[cfg(all(target_arch = "wasm32", feature = "native"))]
     mod wasm_tests {
         use super::*;
         use wasm_bindgen_test::*;

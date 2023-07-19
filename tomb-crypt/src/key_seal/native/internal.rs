@@ -10,7 +10,7 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private, Public};
 
 use crate::key_seal::common::{AES_KEY_SIZE, ECDH_SECRET_BYTE_SIZE, FINGERPRINT_SIZE, SALT_SIZE};
-use crate::key_seal::KeySealError;
+use crate::key_seal::native::KeySealError;
 
 pub(crate) fn base64_decode(data: &str) -> Result<Vec<u8>, KeySealError> {
     B64.decode(data).map_err(KeySealError::bad_base64)
