@@ -33,8 +33,7 @@ pem = { optional = true, version = "2.0.1" }
 tokio = { optional = true, workspace = true }
 
 [features]
-# Note (amiller68): Setting default to wasm for now, so that wasm-pack doesn't complain
-default = ["native"]
+default = ["wasm"]
 native = ["dep:openssl", "dep:openssl-hkdf", "dep:tokio"]
 wasm = ["console_error_panic_hook", "dep:web-sys", "dep:js-sys", "dep:gloo", "dep:pem", "dep:wasm-bindgen", "dep:wasm-bindgen-futures"]
 

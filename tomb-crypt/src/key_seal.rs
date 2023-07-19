@@ -9,10 +9,10 @@ pub use native::{
     EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
 };
 
-#[cfg(feature = "wasm")]
+#[cfg(all(target_arch = "wasm", feature = "wasm")]
 mod wasm;
 
-#[cfg(feature = "wasm")]
+#[cfg(all(target_arch = "wasm", feature = "wasm")]
 pub use wasm::{
     EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, KeySealError, SymmetricKey,
 };
@@ -32,8 +32,6 @@ pub fn pretty_fingerprint(fingerprint_bytes: &[u8]) -> String {
         .collect::<Vec<String>>()
         .join(":")
 }
-
-// Test Stuff Below. For now this will exist here until we figure out a way to do native + wasm tests nicely / in a single module
 
 #[cfg(test)]
 mod tests {
@@ -149,6 +147,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(all(not(target_arch = "wasm"), feature = "native")]
     mod native_tests {
         use super::*;
 
@@ -173,7 +172,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "wasm")]
+    #[cfg(all(target_arch = "wasm", feature = "native")]
     mod wasm_tests {
         use super::*;
         use wasm_bindgen_test::*;
