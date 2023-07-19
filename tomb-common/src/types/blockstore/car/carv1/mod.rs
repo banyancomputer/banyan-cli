@@ -185,25 +185,16 @@ impl CAR {
 mod test {
     use crate::{
         types::blockstore::car::carv1::{block::Block, CAR},
-        utils::test::car_setup,
+        utils::test::{car_setup, get_read_write},
     };
     use anyhow::Result;
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
         io::{Seek, SeekFrom},
-        path::Path,
         str::FromStr,
     };
     use wnfs::libipld::{Cid, IpldCodec};
-
-    fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
-        OpenOptions::new()
-            .append(false)
-            .read(true)
-            .write(true)
-            .open(path)
-    }
 
     #[test]
     #[serial]

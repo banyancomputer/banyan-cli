@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use std::{
-    fs::create_dir_all,
+    fs::{create_dir_all, File, OpenOptions},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -109,4 +109,23 @@ pub async fn teardown(test_name: &str) -> Result<()> {
     let path = Path::new("test").join(test_name);
     std::fs::remove_dir_all(path)?;
     Ok(())
+}
+
+/// Grab a read-only reference to a file
+pub fn get_read(path: &Path) -> Result<File, std::io::Error> {
+    OpenOptions::new().read(true).open(path)
+}
+
+/// Grab a write-only reference to a file
+pub fn get_write(path: &Path) -> Result<File, std::io::Error> {
+    OpenOptions::new().append(false).write(true).open(path)
+}
+
+/// Get a read-write reference to a File on disk
+pub fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
+    OpenOptions::new()
+        .append(false)
+        .read(true)
+        .write(true)
+        .open(path)
 }
