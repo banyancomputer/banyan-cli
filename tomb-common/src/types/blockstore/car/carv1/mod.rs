@@ -69,17 +69,24 @@ impl CAR {
             carv1_start + *self.read_header_len.borrow(),
         ))?;
 
-        // Whiel we're able to successfully read in blocks
-        while let Ok(block_offset) = r.stream_position() &&
-              let Ok(block) = Block::read_bytes(&mut r) {
-                // Compute the new offset of the block
-                let new_offset = (block_offset as i64 + data_offset) as u64;
-                // Move to that offset
-                w.seek(SeekFrom::Start(new_offset))?;
-                // Write the block there
-                block.write_bytes(&mut w)?;
-                // Insert new offset into index
-                new_index.insert(block.cid, new_offset);
+        let mut offsets: Vec<u64> = self.index.borrow().clone().map.into_iter().map(|(_, offset)| offset).collect();
+        // Sort by offset in reverse order
+        offsets.sort_by(|a, b| b.cmp(&a));
+
+        // While we're able to successfully read in blocks
+        for block_offset in offsets {
+            // Move to the existing block location
+            r.seek(SeekFrom::Start(block_offset))?;
+            // Read the block
+            let block: Block = Block::read_bytes(&mut r)?;
+            // Compute the new offset of the block
+            let new_offset = (block_offset as i64 + data_offset) as u64;
+            // Move to that offset
+            w.seek(SeekFrom::Start(new_offset))?;
+            // Write the block there
+            block.write_bytes(&mut w)?;
+            // Insert new offset into index
+            new_index.insert(block.cid, new_offset);
         }
 
         {
