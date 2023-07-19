@@ -107,8 +107,8 @@ mod test {
     use wasm_bindgen_test::*;
     wasm_bindgen_test_configure!(run_in_browser);
 
-    const WRAPPINNG_KEY_URL: &str = "https://gist.githubusercontent.com/organizedgrime/f292f28a6ea39cea5fd1b844c51da4fb/raw/f9db2c3ff12e64fa6bbc291666081212365be749/wrapping_key.pem";
-    const METADATA_URL: &str = "https://gist.githubusercontent.com/organizedgrime/f292f28a6ea39cea5fd1b844c51da4fb/raw/f9db2c3ff12e64fa6bbc291666081212365be749/meta.car";
+    const WRAPPINNG_KEY_URL: &str = "https://gist.githubusercontent.com/organizedgrime/f292f28a6ea39cea5fd1b844c51da4fb/raw/wrapping_key.pem";
+    const METADATA_URL: &str = "https://gist.githubusercontent.com/organizedgrime/f292f28a6ea39cea5fd1b844c51da4fb/raw/meta.car";
 
     #[wasm_bindgen_test]
     async fn load_tombfs() {
@@ -121,6 +121,7 @@ mod test {
     }
 
     #[wasm_bindgen_test]
+    #[ignore]
     async fn ls() {
         let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
             .await

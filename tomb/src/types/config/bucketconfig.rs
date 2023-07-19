@@ -7,10 +7,10 @@ use std::{
     rc::Rc,
 };
 use tomb_common::{
-    crypto::rsa::RsaPrivateKey,
     types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::serialize::*,
 };
+use tomb_crypt::prelude::EcEncryptionKey;
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
@@ -79,7 +79,7 @@ impl BucketConfig {
     /// Shortcut for serialize::load_all
     pub async fn get_all(
         &self,
-        wrapping_key: &RsaPrivateKey,
+        wrapping_key: &EcEncryptionKey,
     ) -> Result<(
         Rc<PrivateForest>,
         Rc<PrivateForest>,
@@ -115,7 +115,7 @@ impl BucketConfig {
     /// Shortcut for serialize::load_history
     pub async fn get_history(
         &self,
-        wrapping_key: &RsaPrivateKey,
+        wrapping_key: &EcEncryptionKey,
     ) -> Result<PrivateNodeOnPathHistory> {
         load_history(wrapping_key, &self.metadata).await
     }

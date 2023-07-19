@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
+use tomb_crypt::prelude::EcEncryptionKey;
 use wnfs::{
     common::{dagcbor, AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
@@ -11,7 +12,6 @@ use wnfs::{
 };
 
 use crate::{
-    crypto::rsa::RsaPrivateKey,
     types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::error::SerialError,
 };
@@ -261,7 +261,7 @@ pub async fn load_forests<M: TombBlockStore>(
 
 /// Load everything at once!
 pub async fn load_all<M: TombBlockStore>(
-    wrapping_key: &RsaPrivateKey,
+    wrapping_key: &EcEncryptionKey,
     metadata: &M,
 ) -> Result<(
     Rc<PrivateForest>,
@@ -292,7 +292,7 @@ pub async fn load_all<M: TombBlockStore>(
 
 /// Obtain a PrivateNodeOnPathHistory iterator for the root directory
 pub async fn load_history<M: TombBlockStore>(
-    wrapping_key: &RsaPrivateKey,
+    wrapping_key: &EcEncryptionKey,
     metadata: &M,
 ) -> Result<PrivateNodeOnPathHistory> {
     let (metadata_forest, _, current_directory, manager, _) =
@@ -374,6 +374,7 @@ mod test {
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;
+    use tomb_crypt::prelude::WrappingPrivateKey;
 
     #[tokio::test]
     #[serial]
@@ -479,9 +480,9 @@ mod test {
         // Start er up!
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
-        let wrapping_key = RsaPrivateKey::default();
+        let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
-        manager.insert(&wrapping_key.get_public_key()).await?;
+        manager.insert(&wrapping_key.public_key()?).await?;
         let manager_cid = &store_manager(manager, metadata, content).await?;
 
         let _ = &store_all(
@@ -527,9 +528,9 @@ mod test {
         // Start er up!
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
-        let wrapping_key = RsaPrivateKey::default();
+        let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
-        manager.insert(&wrapping_key.get_public_key()).await?;
+        manager.insert(&wrapping_key.public_key()?).await?;
 
         let manager_cid = &store_manager(manager, metadata, content).await?;
         let _ = &store_all(
@@ -574,9 +575,9 @@ mod test {
         // Start er up!
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
-        let wrapping_key = RsaPrivateKey::default();
+        let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
-        manager.insert(&wrapping_key.get_public_key()).await?;
+        manager.insert(&wrapping_key.public_key()?).await?;
         let manager_cid = &store_manager(manager, metadata, content).await?;
 
         // Store everything
@@ -604,9 +605,9 @@ mod test {
         // Start er up!
         let (_, metadata, content, metadata_forest, content_forest, dir) =
             &mut setup(test_name).await?;
-        let wrapping_key = RsaPrivateKey::default();
+        let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
-        manager.insert(&wrapping_key.get_public_key()).await?;
+        manager.insert(&wrapping_key.public_key()?).await?;
         let manager_cid = &store_manager(manager, metadata, content).await?;
 
         // Store everything

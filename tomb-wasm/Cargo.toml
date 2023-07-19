@@ -60,6 +60,7 @@ wasm-streams = "0.3.0"
 base64 = "0.21.2"
 thiserror = "1.0.43"
 pem = "2.0.1"
+tomb-crypt = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.36"

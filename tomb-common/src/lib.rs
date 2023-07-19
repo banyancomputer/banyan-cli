@@ -7,8 +7,6 @@
 #![feature(duration_constants)]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
-/// Cryptography
-pub mod crypto;
 /// Types
 pub mod types;
 /// Utilities

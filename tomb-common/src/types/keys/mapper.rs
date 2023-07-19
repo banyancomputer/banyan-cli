@@ -1,27 +1,40 @@
 use super::error::KeyError;
-use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use tomb_crypt::prelude::{
+    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, PlainKey, ProtectedKey,
+    SymmetricKey, WrappingPrivateKey, WrappingPublicKey,
+};
+use tomb_crypt::pretty_fingerprint;
+
 use std::collections::{BTreeMap, HashMap};
 use wnfs::{
     libipld::Ipld,
-    private::{AesKey, ExchangeKey, PrivateKey, TemporalKey},
+    private::{AesKey, TemporalKey},
 };
 
 #[derive(Default, PartialEq)]
-/// Map key fingerprints to RsaPublicKeys and encrypted TemporalKeys
-pub struct Mapper(HashMap<String, (Vec<u8>, Vec<u8>)>);
+/// Map key fingerprints to PublicKeys and encrypted TemporalKeys
+pub struct Mapper(HashMap<String, (Vec<u8>, String)>);
 
 impl Mapper {
     /// Using each PublicKey to encrypt the new TemporalKey
     pub async fn update_temporal_key(&mut self, new_key: &TemporalKey) -> Result<()> {
+        // Represent the TemporalKey as a SymmetricKey
+        let symmetric = SymmetricKey::from(new_key.0.clone().bytes());
+
         // For each Public Key present in the map
         for (fingerprint, (der, _)) in self.0.clone() {
-            let public_key = RsaPublicKey::from_der(&der)?;
-            // Reencrypt the TemporalKey using this
-            let new_encrypted_root_key = public_key.encrypt(new_key.0.as_bytes()).await?;
+            let public_key = EcPublicEncryptionKey::import_bytes(&der)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
+            // The encrypted TemporalKey
+            let protected_key = symmetric
+                .encrypt_for(&public_key)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // Insert the reencrypted version of the TemporalKey
-            self.0.insert(fingerprint, (der, new_encrypted_root_key));
+            self.0.insert(fingerprint, (der, protected_key.export()));
         }
 
         Ok(())
@@ -31,24 +44,37 @@ impl Mapper {
     pub async fn insert_public_key(
         &mut self,
         temporal_key: &Option<TemporalKey>,
-        new_key: &RsaPublicKey,
+        new_key: &EcPublicEncryptionKey,
     ) -> Result<()> {
         // Grab the public key's fingerprint
-        let fingerprint = new_key.get_fingerprint()?;
+        let fingerprint = pretty_fingerprint(
+            &new_key
+                .fingerprint()
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?,
+        );
         // Represent the public key as DER bytes
-        let der = new_key.to_der()?;
+        let der = new_key
+            .export_bytes()
+            .await
+            .map_err(|_| anyhow::anyhow!("crypt error!"))?;
 
         // If there is a valid temporal key
         if let Some(temporal_key) = temporal_key {
+            // Represent the TemporalKey as a SymmetricKey
+            let symmetric = SymmetricKey::from(temporal_key.0.clone().bytes());
             // Encrypt the bytes
-            let encrypted_temoral_key = new_key.encrypt(temporal_key.0.as_bytes()).await?;
+            let protected_key = symmetric
+                .encrypt_for(new_key)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
             // Insert into the hashmap, using fingerprint as key
-            self.0.insert(fingerprint, (der, encrypted_temoral_key));
+            self.0.insert(fingerprint, (der, protected_key.export()));
         }
         // If a valid key does not yet exist
         else {
             // Insert an empty array as the "encrypted" bytes
-            self.0.insert(fingerprint, (der, vec![]));
+            self.0.insert(fingerprint, (der, String::new()));
         }
 
         // Return Ok
@@ -56,15 +82,27 @@ impl Mapper {
     }
 
     /// Decrypt the TemporalKey using a PrivateKey
-    pub async fn reconstruct(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
+    pub async fn reconstruct(&self, private_key: &EcEncryptionKey) -> Result<TemporalKey> {
         // Grab the fingerprint
-        let fingerprint = private_key.get_public_key().get_fingerprint()?;
+        let fingerprint = pretty_fingerprint(
+            &private_key
+                .fingerprint()
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?,
+        );
+
         // Grab the encrypted key associated with the fingerprint
-        if let Some((_, encrypted_temporal_key)) = self.0.get(&fingerprint) {
-            // Decrypt
-            let aes_buf = private_key.decrypt(encrypted_temporal_key).await?;
-            // Create struct
-            let temporal_key = TemporalKey(AesKey::new(aes_buf.as_slice().try_into()?));
+        if let Some((_, protected_key_string)) = self.0.get(&fingerprint) {
+            // Reconstruct the protected key
+            let protected_key = EncryptedSymmetricKey::import(protected_key_string)
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
+            // Decrypt the SymmetricKey using the PrivateKey
+            let symmetric_key = protected_key
+                .decrypt_with(private_key)
+                .await
+                .map_err(|_| anyhow::anyhow!("crypt error!"))?;
+            // Create TemporalKey from SymmetrciKey
+            let temporal_key = TemporalKey(AesKey::new(symmetric_key.as_ref().try_into()?));
             // Return
             Ok(temporal_key)
         } else {
@@ -81,15 +119,16 @@ impl Mapper {
         for (fingerprint, (public_key, encrypted_key)) in self.0.clone() {
             let mut sub_map = BTreeMap::<String, Ipld>::new();
             // Overwrite with fake data if there is no encrypted key
-            let encrypted_key = if encrypted_key.len() == 384 {
+            let encrypted_key = if encrypted_key.len() == 242 {
                 encrypted_key
             } else {
-                [0; 384].to_vec()
+                String::from_utf8(vec![b' '; 242]).unwrap()
             };
+            println!("encrypted key: {}", encrypted_key.len());
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
             // Insert the encrypted key
-            sub_map.insert("encrypted_key".to_string(), Ipld::Bytes(encrypted_key));
+            sub_map.insert("encrypted_key".to_string(), Ipld::String(encrypted_key));
             // Insert the sub_map
             map.insert(fingerprint, Ipld::Map(sub_map));
         }
@@ -107,9 +146,9 @@ impl Mapper {
             for (fingerprint, ipld) in map {
                 if let Ipld::Map(sub_map) = ipld &&
                     let Some(Ipld::Bytes(public_key)) = sub_map.get("public_key") &&
-                    let Some(Ipld::Bytes(encrypted_key)) = sub_map.get("encrypted_key") {
+                    let Some(Ipld::String(encrypted_key)) = sub_map.get("encrypted_key") {
                     // Use empty array if it is actually blank
-                    let encrypted_key = if encrypted_key == &[0u8; 384] { vec![] } else { encrypted_key.to_vec() };
+                    let encrypted_key = if encrypted_key.as_bytes() == [b' '; 242] { String::new() } else { encrypted_key.to_string() };
                     // Insert the new value into the mapper
                     mapper.0.insert(fingerprint, (public_key.to_vec(), encrypted_key));
                 }
@@ -151,8 +190,8 @@ impl std::fmt::Debug for Mapper {
 #[cfg(test)]
 mod test {
     use super::Mapper;
-    use crate::crypto::rsa::RsaPrivateKey;
     use anyhow::Result;
+    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
     use wnfs::{
         common::dagcbor,
         private::{AesKey, TemporalKey},
@@ -162,10 +201,10 @@ mod test {
     async fn to_from_ipld() -> Result<()> {
         // Create new mapper
         let mut mapper1 = Mapper::default();
-        // Wrapping Key
-        let wrapping_key = RsaPrivateKey::default();
+        // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
-        let public_key = wrapping_key.get_public_key();
+        let public_key = wrapping_key.public_key()?;
         // Insert a public key
         mapper1.insert_public_key(&None, &public_key).await?;
 
@@ -193,10 +232,10 @@ mod test {
     async fn serial_size() -> Result<()> {
         // Create new mapper
         let mut mapper1 = Mapper::default();
-        // Wrapping Key
-        let wrapping_key = RsaPrivateKey::default();
+        // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
+        let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
-        let public_key = wrapping_key.get_public_key();
+        let public_key = wrapping_key.public_key()?;
         // Insert a public key
         mapper1.insert_public_key(&None, &public_key).await?;
 

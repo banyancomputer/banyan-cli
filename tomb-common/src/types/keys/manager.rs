@@ -1,8 +1,7 @@
-use crate::crypto::rsa::{RsaPrivateKey, RsaPublicKey};
-
 use super::mapper::Mapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::TemporalKey;
 
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
@@ -36,7 +35,7 @@ impl Manager {
     }
 
     /// Insert a new RsaPublicKey into both Mappers
-    pub async fn insert(&mut self, new_key: &RsaPublicKey) -> Result<()> {
+    pub async fn insert(&mut self, new_key: &EcPublicEncryptionKey) -> Result<()> {
         // Insert into original
         self.original_map
             .insert_public_key(&self.original, new_key)
@@ -49,17 +48,17 @@ impl Manager {
     }
 
     /// Retrieve the current TemporalKey using a PrivateKey
-    pub async fn retrieve_current(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
+    pub async fn retrieve_current(&self, private_key: &EcEncryptionKey) -> Result<TemporalKey> {
         self.current_map.reconstruct(private_key).await
     }
 
     /// Retrieve the original TemporalKey using a PrivateKey
-    pub async fn retrieve_original(&self, private_key: &RsaPrivateKey) -> Result<TemporalKey> {
+    pub async fn retrieve_original(&self, private_key: &EcEncryptionKey) -> Result<TemporalKey> {
         self.original_map.reconstruct(private_key).await
     }
 
     /// Reload both keys into memory
-    pub async fn load_temporal_keys(&mut self, private_key: &RsaPrivateKey) -> Result<()> {
+    pub async fn load_temporal_keys(&mut self, private_key: &EcEncryptionKey) -> Result<()> {
         self.current = Some(self.retrieve_current(private_key).await?);
         self.original = Some(self.retrieve_original(private_key).await?);
         Ok(())

@@ -1,11 +1,13 @@
 use crate::utils::config::xdg_config_home;
 use anyhow::Result;
-use tomb_common::crypto::rsa::RsaPrivateKey;
+use async_recursion::async_recursion;
+use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -41,13 +43,14 @@ impl GlobalConfig {
     }
 
     /// Initialize from a reader
-    pub fn from_disk() -> Result<Self> {
+    #[async_recursion(?Send)]
+    pub async fn from_disk() -> Result<Self> {
         if let Ok(file) = Self::get_read() &&
            let Ok(config) = serde_json::from_reader(file) {
                 Ok(config)
         } else {
-            Self::default()?.to_disk()?;
-            Self::from_disk()
+            Self::default().await?.to_disk()?;
+            Self::from_disk().await
         }
     }
 
@@ -118,18 +121,18 @@ impl GlobalConfig {
         }
     }
 
-    fn default() -> Result<Self> {
+    async fn default() -> Result<Self> {
         // Path of the wrapping_key file
         let wrapping_key_path = xdg_config_home().join("wrapping_key.pem");
         // Load if it already exists
         let wrapping_key = if wrapping_key_path.exists() {
-            RsaPrivateKey::from_pem_file(&wrapping_key_path)?
+            Self::wrapping_key_from_disk(&wrapping_key_path).await?
         } else {
-            RsaPrivateKey::new()?
+            EcEncryptionKey::generate().await?
         };
 
         // Save the key to disk
-        wrapping_key.to_pem_file(&wrapping_key_path)?;
+        Self::wrapping_key_to_disk(&wrapping_key_path, &wrapping_key).await?;
 
         // Create new Global Config
         Ok(Self {
@@ -140,14 +143,28 @@ impl GlobalConfig {
         })
     }
 
+    /// Load the wrapping key from disk with the known wrapping key path
+    pub async fn load_key(&self) -> Result<EcEncryptionKey> {
+        Self::wrapping_key_from_disk(&self.wrapping_key_path).await
+    }
+
     /// Load the WrappingKey from its predetermined location
-    pub fn wrapping_key_from_disk(&self) -> Result<RsaPrivateKey> {
-        RsaPrivateKey::from_pem_file(&self.wrapping_key_path)
+    async fn wrapping_key_from_disk(path: &Path) -> Result<EcEncryptionKey> {
+        let mut pem_bytes = Vec::new();
+        let mut file = File::open(path)?;
+        file.read_to_end(&mut pem_bytes)?;
+        // Return
+        Ok(EcEncryptionKey::import(&pem_bytes)
+            .await
+            .expect("Unable to convert PEM bytes to Key"))
     }
 
     /// Write the WRappingKey to its predetermined location
-    pub fn wrapping_key_to_disk(&self, wrapping_key: &RsaPrivateKey) -> Result<()> {
-        wrapping_key.to_pem_file(&self.wrapping_key_path)?;
+    async fn wrapping_key_to_disk(path: &Path, wrapping_key: &EcEncryptionKey) -> Result<()> {
+        // PEM
+        let pem_bytes = wrapping_key.export().await?;
+        let mut file = File::create(path)?;
+        file.write_all(&pem_bytes)?;
         Ok(())
     }
 }
@@ -159,9 +176,9 @@ mod test {
     use serial_test::serial;
     use std::{fs::remove_file, path::Path};
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn to_from_disk() -> Result<()> {
+    async fn to_from_disk() -> Result<()> {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
         // Remove it if it exists
@@ -169,18 +186,18 @@ mod test {
             remove_file(&known_path)?;
         }
         // Create default
-        let original = GlobalConfig::default()?;
+        let original = GlobalConfig::default().await?;
         // Save to disk
         original.to_disk()?;
         // Load from disk
-        let reconstructed = GlobalConfig::from_disk()?;
+        let reconstructed = GlobalConfig::from_disk().await?;
         assert_eq!(original, reconstructed);
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn from_disk_direct() -> Result<()> {
+    async fn from_disk_direct() -> Result<()> {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
         // Remove it if it exists
@@ -188,16 +205,16 @@ mod test {
             remove_file(&known_path)?;
         }
         // Load from disk
-        let reconstructed = GlobalConfig::from_disk()?;
+        let reconstructed = GlobalConfig::from_disk().await?;
         // Assert that it is just the default config
-        assert_eq!(GlobalConfig::default()?, reconstructed);
+        assert_eq!(GlobalConfig::default().await?, reconstructed);
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
     #[ignore]
-    fn add_bucket() -> Result<()> {
+    async fn add_bucket() -> Result<()> {
         // The known path of the global config file
         let known_path = xdg_config_home().join("global.json");
         // Remove it if it exists
@@ -208,12 +225,12 @@ mod test {
         let origin = Path::new("test");
 
         // Load from disk
-        let mut original = GlobalConfig::from_disk()?;
+        let mut original = GlobalConfig::from_disk().await?;
         let original_bucket = original.new_bucket(origin)?;
 
         // Serialize to disk
         original.to_disk()?;
-        let reconstructed = GlobalConfig::from_disk()?;
+        let reconstructed = GlobalConfig::from_disk().await?;
         let reconstructed_bucket = reconstructed.get_bucket(origin).unwrap();
 
         // Assert equality

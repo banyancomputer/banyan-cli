@@ -41,10 +41,10 @@ pub async fn run(command: Command) -> Result<()> {
         } => {
             // Initialize here
             if let Some(dir) = dir {
-                configure::init(&dir)?;
+                configure::init(&dir).await?;
             }
             else {
-                configure::init(&current_dir()?)?;
+                configure::init(&current_dir()?).await?;
             }
         },
         Command::Deinit {
@@ -52,10 +52,10 @@ pub async fn run(command: Command) -> Result<()> {
         } => {
             // Initialize here
             if let Some(dir) = dir {
-                configure::deinit(&dir)?;
+                configure::deinit(&dir).await?;
             }
             else {
-                configure::deinit(&current_dir()?)?;
+                configure::deinit(&current_dir()?).await?;
             }
         },
         Command::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
@@ -64,7 +64,7 @@ pub async fn run(command: Command) -> Result<()> {
         Command::Configure { subcommand } => {
             match subcommand {
                 ConfigSubCommand::SetRemote { address } => {
-                    configure::remote(&address)?;
+                    configure::remote(&address).await?;
                 }
             }
         },
@@ -132,13 +132,16 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_none());
         // Initialization worked
         run(cmd_init(origin)).await?;
         // Assert the bucket exists now
-        let global = GlobalConfig::from_disk()?;
+        let global = GlobalConfig::from_disk().await?;
         // Assert that there is always a wrapping key
-        assert!(global.wrapping_key_from_disk().is_ok());
+        assert!(global.load_key().await.is_ok());
         let bucket = global.get_bucket(origin);
         assert!(bucket.is_some());
         // Teardown test
@@ -152,15 +155,24 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_none());
         // Initialization worked
         run(cmd_init(origin)).await?;
         // Assert the bucket exists now
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_some());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
         // Deinitialize the directory
         run(cmd_deinit(origin)).await?;
         // Assert the bucket is gone again
-        assert!(GlobalConfig::from_disk()?.get_bucket(origin).is_none());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_none());
         // Teardown test
         test_teardown(test_name).await
     }
