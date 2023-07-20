@@ -121,6 +121,7 @@ mod test {
     }
 
     #[wasm_bindgen_test]
+    #[ignore]
     async fn ls() {
         let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
             .await

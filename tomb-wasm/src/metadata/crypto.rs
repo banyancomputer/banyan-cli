@@ -10,9 +10,8 @@ pub struct PrivateKey(pub(crate) EcEncryptionKey);
 impl PrivateKey {
     #[wasm_bindgen]
     pub async fn new(url: String) -> Result<PrivateKey, JsValue> {
-        let data = get_data(url.clone()).await.unwrap();
-        let pem = pem::parse(data).unwrap();
-        let key = EcEncryptionKey::import(pem.contents()).await.unwrap();
+        let data = get_data(url).await.unwrap();
+        let key = EcEncryptionKey::import(&data).await.unwrap();
         Ok(Self(key))
     }
 }
