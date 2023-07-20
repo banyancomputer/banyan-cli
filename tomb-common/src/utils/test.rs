@@ -40,6 +40,30 @@ pub fn car_setup(
     Ok(new_path)
 }
 
+/// Create a copy of a given fixture to play around with
+pub fn carindex_setup(
+    version: usize,
+    fixture_suffix: &str,
+    test_name: &str,
+) -> Result<PathBuf, std::io::Error> {
+    // The existing path
+    let fixture_path = Path::new("..")
+        .join("car-fixtures")
+        .join(format!("carv{}-{}.carindex", version, fixture_suffix));
+    // Root of testing dir
+    let test_path = &Path::new("test").join("car");
+    // Create it it doesn't exist
+    create_dir_all(test_path).ok();
+    // The new path
+    let new_path = test_path.join(format!("carv{}_{}.carindex", version, test_name));
+    // Remove file if it's already there
+    std::fs::remove_file(&new_path).ok();
+    // Copy file from fixture path to tmp path
+    std::fs::copy(fixture_path, &new_path)?;
+    // Return Ok with new path
+    Ok(new_path)
+}
+
 /// Create all of the relevant objects, using real BlockStores and real data
 pub async fn setup(
     test_name: &str,
