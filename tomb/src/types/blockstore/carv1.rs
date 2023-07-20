@@ -1,18 +1,18 @@
-use crate::{
-    types::blockstore::error::{CARIOError, SingleError::*},
-    utils::car,
-};
+use crate::types::blockstore::error::{CARIOError, SingleError::*};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    fs::{remove_file, rename, File},
+    fs::File,
     path::{Path, PathBuf},
 };
-use tomb_common::types::blockstore::{
-    car::carv1::{block::Block, CAR},
-    tombblockstore::TombBlockStore,
+use tomb_common::{
+    types::blockstore::{
+        car::carv1::{block::Block, CAR},
+        tombblockstore::TombBlockStore,
+    },
+    utils::test::{get_read, get_read_write, get_write},
 };
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
@@ -50,13 +50,12 @@ impl BlockStore {
             // If we need to create the CARv2 file from scratch
             else {
                 // Grab reader and writer
-                let mut w = car::get_write(path)?;
-                let mut r = car::get_read(path)?;
+                let mut rw = get_read_write(path)?;
 
                 // Construct new
                 Ok(Self {
                     path: path.to_path_buf(),
-                    car: CAR::new(1, &mut r, &mut w)?
+                    car: CAR::new(1, &mut rw)?
                 })
             }
         }
@@ -64,27 +63,7 @@ impl BlockStore {
 
     /// Save the CAR BlockStore to disk
     pub fn to_disk(&self) -> Result<()> {
-        let (tmp_car_path, mut r, mut w) = self.tmp_start()?;
-        self.car.write_bytes(&mut r, &mut w)?;
-        self.tmp_finish(tmp_car_path)?;
-        Ok(())
-    }
-
-    fn tmp_start(&self) -> Result<(PathBuf, File, File), std::io::Error> {
-        let r = car::get_read(&self.path)?;
-        let tmp_file_name = format!(
-            "{}_tmp.car",
-            self.path.file_name().unwrap().to_str().unwrap()
-        );
-        let tmp_car_path = self.path.parent().unwrap().join(tmp_file_name);
-        let w = File::create(&tmp_car_path)?;
-        Ok((tmp_car_path, r, w))
-    }
-
-    fn tmp_finish(&self, tmp_car_path: PathBuf) -> Result<(), std::io::Error> {
-        remove_file(&self.path)?;
-        rename(tmp_car_path, &self.path)?;
-        Ok(())
+        self.car.write_bytes(&mut get_read_write(&self.path)?)
     }
 }
 
@@ -92,7 +71,7 @@ impl BlockStore {
 impl WnfsBlockStore for BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Open the file in read-only mode
-        let mut file = car::get_read(&self.path)?;
+        let mut file = get_read(&self.path)?;
         // Perform the block read
         let block: Block = self.car.get_block(cid, &mut file)?;
         // Return its contents
@@ -110,7 +89,7 @@ impl WnfsBlockStore for BlockStore {
         // If this needs to be appended to the CARv1
         else {
             // Open the file in append mode
-            let mut file = car::get_write(&self.path)?;
+            let mut file = get_write(&self.path)?;
             // Put the block
             self.car.put_block(&block, &mut file)?;
             // Return Ok with block CID

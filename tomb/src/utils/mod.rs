@@ -1,5 +1,3 @@
-/// CAR files
-pub mod car;
 /// Configuration
 pub mod config;
 /// this has a custom fclones logger to make fclones look and act right
