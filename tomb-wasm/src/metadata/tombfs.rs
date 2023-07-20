@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
-    metadata::{blockstore::WasmBlockStore, error::WasmError, JsMetadata},
+    metadata::{blockstore::WasmBlockStore, crypto::PrivateKey, error::WasmError, JsMetadata},
     value,
 };
 use js_sys::{Array, Object, Reflect};
@@ -96,10 +96,10 @@ impl TombFS {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use crate::metadata::blockstore::WasmBlockStore;
+    use crate::metadata::crypto::PrivateKey;
     use crate::metadata::tombfs::TombFS;
     use crate::value;
     use js_sys::{Array, Reflect};
