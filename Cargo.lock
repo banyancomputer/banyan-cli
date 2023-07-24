@@ -2358,9 +2358,9 @@ dependencies = [
 
 [[package]]
 name = "noosphere-car"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e0f2e47215deab820f962d48b080d4da5a797e8c15615debf0296d3af8311ad"
+checksum = "fc820a36464fc78f57dd42e333290beafbd453da664381ea94e7c85aab6510c8"
 dependencies = [
  "anyhow",
  "cid 0.10.1",
