@@ -537,6 +537,9 @@ name = "bytes"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bytesize"
@@ -3849,7 +3852,7 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "wnfs 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
- "wnfs-common 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wnfs-common 0.1.23",
  "wnfs-wasm",
 ]
 
@@ -4453,7 +4456,7 @@ dependencies = [
  "sha3",
  "skip_ratchet",
  "thiserror",
- "wnfs-common 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wnfs-common 0.1.23",
  "wnfs-hamt 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "wnfs-namefilter 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "xxhash-rust",
@@ -4483,7 +4486,7 @@ dependencies = [
  "sha3",
  "skip_ratchet",
  "thiserror",
- "wnfs-common 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
+ "wnfs-common 0.1.21",
  "wnfs-hamt 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
  "wnfs-namefilter 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
  "xxhash-rust",
@@ -4492,8 +4495,7 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e6ff16e3e7612fef07ac581454145a74a3c564f6b38a71487a270d662a63eb8"
+source = "git+https://github.com/banyancomputer/rs-wnfs#58ff78b85c2c7bc5c1a690265e4e60ad4f5d6672"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -4510,12 +4512,14 @@ dependencies = [
 
 [[package]]
 name = "wnfs-common"
-version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#58ff78b85c2c7bc5c1a690265e4e60ad4f5d6672"
+version = "0.1.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5dfcb4584f3866ead49adae8c05cec6f633139d19283448aa7807280612e24b7"
 dependencies = [
  "anyhow",
  "async-once-cell",
  "async-trait",
+ "bytes",
  "chrono",
  "futures",
  "libipld",
@@ -4548,7 +4552,7 @@ dependencies = [
  "serde",
  "sha3",
  "thiserror",
- "wnfs-common 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wnfs-common 0.1.23",
 ]
 
 [[package]]
@@ -4572,7 +4576,7 @@ dependencies = [
  "serde",
  "sha3",
  "thiserror",
- "wnfs-common 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
+ "wnfs-common 0.1.21",
 ]
 
 [[package]]
@@ -4593,7 +4597,7 @@ dependencies = [
  "serde",
  "sha3",
  "thiserror",
- "wnfs-common 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wnfs-common 0.1.23",
  "xxhash-rust",
 ]
 
@@ -4614,7 +4618,7 @@ dependencies = [
  "serde",
  "sha3",
  "thiserror",
- "wnfs-common 0.1.21 (git+https://github.com/banyancomputer/rs-wnfs)",
+ "wnfs-common 0.1.21",
  "xxhash-rust",
 ]
 
