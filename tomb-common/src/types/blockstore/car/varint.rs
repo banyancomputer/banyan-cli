@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::{
-    any::TypeId,
     io::{Read, Seek, SeekFrom},
     u32,
 };
@@ -44,36 +43,6 @@ pub(crate) fn read_varint_u128<R: Read + Seek>(r: &mut R) -> Result<u128> {
     // Ok
     Ok(result)
 }
-
-// pub(crate) fn read_varint<I, R: Read + Seek>(r: &mut R) -> Result<I> {
-
-//     let buf_len: usize = match TypeId::of::<I>() {
-//         u32 => {
-//             4
-//         }
-//         u64 => {
-//             8
-//         }
-//         u128 => {
-//             16
-//         }
-//         _ => { 0 }
-//     };
-
-//     // Create and fill buffer
-//     let mut buf = vec![0; buf_len].into();
-//     r.read_exact(&mut buf)?;
-//     // Decode little endian
-//     Ok(T::from_le_bytes(buf))
-
-// }
-
-// macro_rules! read_varint {
-//     // using a ty token type for macthing datatypes passed to maccro
-//     ($a:expr,$b:expr,$typ:ty)=>{
-//         $a as $typ + $b as $typ
-//     }
-// }
 
 pub(crate) fn read_varint_u32_exact<R: Read>(r: &mut R) -> Result<u32> {
     // Create and fill buffer

@@ -1,7 +1,7 @@
-use std::fmt::Debug;
-use anyhow::Result;
-use wnfs::libipld::Cid;
 use crate::types::streamable::Streamable;
+use anyhow::Result;
+use std::fmt::Debug;
+use wnfs::libipld::Cid;
 
 pub trait IndexBucket: Debug + Streamable {
     fn get_offset(&self, cid: Cid) -> Result<u64>;

@@ -11,9 +11,11 @@ use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Cursor, Read, Seek, SeekFrom, Write},
 };
 use wnfs::libipld::Cid;
+
+use crate::types::streamable::Streamable;
 
 use self::{block::Block, header::Header, index::Index};
 use super::carv2::PH_SIZE;
@@ -54,11 +56,12 @@ impl CAR {
         let carv1_start = rw.stream_position()?;
 
         // Write the header into a buffer
-        let mut current_header_buf: Vec<u8> = Vec::new();
+        let mut current_header_buf = Cursor::new(<Vec<u8>>::new());
         self.header.write_bytes(&mut current_header_buf)?;
 
         // Compute data offset
-        let data_offset = current_header_buf.len() as i64 - *self.read_header_len.borrow() as i64;
+        let data_offset =
+            current_header_buf.stream_len()? as i64 - *self.read_header_len.borrow() as i64;
 
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
@@ -103,7 +106,7 @@ impl CAR {
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
-        rw.write_all(&current_header_buf)?;
+        rw.write_all(&current_header_buf.into_inner())?;
         // Flush
         rw.flush()?;
         Ok(())
@@ -164,11 +167,11 @@ impl PartialEq for CAR {
 impl CAR {
     pub(crate) fn default(version: u64) -> Self {
         let header = Header::default(version);
-        let mut buf: Vec<u8> = Vec::new();
+        let mut buf = Cursor::new(<Vec<u8>>::new());
         header.write_bytes(&mut buf).unwrap();
 
         // Header length
-        let hlen = buf.len() as u64;
+        let hlen = buf.stream_len().expect("cant get stream len in header");
 
         Self {
             header,

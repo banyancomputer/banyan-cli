@@ -1,14 +1,24 @@
+pub mod indexbucket;
 pub mod indexsorted;
 pub mod multihashindexsorted;
-pub mod indexbucket;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{io::{Read, Seek, Write, Cursor}, fmt::Debug, any::Any};
+use std::{
+    any::Any,
+    fmt::Debug,
+    io::{Cursor, Read, Seek, Write},
+};
 
-use indexsorted::bucket::Bucket as IndexSortedBucket;
-use multihashindexsorted::bucket::Bucket as MultiHashIndexSortedBucket;
-use crate::types::{blockstore::car::varint::{read_varint_u128, encode_varint_u128}, streamable::Streamable};
+use crate::types::{
+    blockstore::car::{
+        error::CARError,
+        varint::{encode_varint_u128, read_varint_u128},
+    },
+    streamable::Streamable,
+};
+use indexsorted::Bucket as IndexSortedBucket;
+use multihashindexsorted::Bucket as MultiHashIndexSortedBucket;
 
 use self::indexbucket::IndexBucket;
 
@@ -18,10 +28,10 @@ pub(crate) struct Index {
     buckets: Vec<Box<dyn IndexBucket>>,
 }
 
-impl Index {
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+impl Streamable for Index {
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         // Grab the codec
-        let codec = read_varint_u128(&mut r)?;
+        let codec = read_varint_u128(r).expect("Cant read varint from stream");
         // Empty bucket vec
         let mut buckets = <Vec<Box<dyn IndexBucket>>>::new();
 
@@ -31,38 +41,32 @@ impl Index {
             0x0400 => {
                 println!("this file is indexsorted");
                 // While we can read buckets
-                while let Ok(bucket) = IndexSortedBucket::read_bytes(&mut r) {
+                while let Ok(bucket) = IndexSortedBucket::read_bytes(r) {
                     // Push new bucket to list
                     buckets.push(Box::new(bucket));
                 }
 
-                Ok(Index {
-                    codec,
-                    buckets
-                })
+                Ok(Index { codec, buckets })
             }
             // MultiHashIndexSorted (1025)
             0x0401 => {
                 println!("this file is multihashindexsorted");
                 // While we can read buckets
-                while let Ok(bucket) = MultiHashIndexSortedBucket::read_bytes(&mut r) {
+                while let Ok(bucket) = MultiHashIndexSortedBucket::read_bytes(r) {
                     // Push new bucket to list
                     buckets.push(Box::new(bucket));
                 }
 
-                Ok(Index {
-                    codec,
-                    buckets
-                })
+                Ok(Index { codec, buckets })
             }
             _ => {
                 println!("this file is unknown in index format: {}", codec);
-                panic!("oasdflkjas;dlkfj")
+                Err(CARError::Index.into())
             }
         }
     }
 
-    pub fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
         // Write codec
         w.write_all(&encode_varint_u128(self.codec))?;
         // For eacchc bucket
@@ -72,15 +76,19 @@ impl Index {
                 // IndexSorted (1024)
                 0x0400 => {
                     // Downcast
-                    let indexbucket: &IndexSortedBucket = (bucket as &dyn Any).downcast_ref().expect("Unable to downcast as IndexSortedBucket");
-                    // Write out 
+                    let indexbucket: &IndexSortedBucket = (bucket as &dyn Any)
+                        .downcast_ref()
+                        .expect("Unable to downcast as IndexSortedBucket");
+                    // Write out
                     indexbucket.write_bytes(w)?;
                 }
                 // MultiHashIndexSorted (1025)
                 0x0401 => {
                     // Downcast
-                    let hashbucket: &MultiHashIndexSortedBucket = (bucket as &dyn Any).downcast_ref().expect("Unable to downcast as MultiHashIndexSortedBucket");
-                    // Write out 
+                    let hashbucket: &MultiHashIndexSortedBucket = (bucket as &dyn Any)
+                        .downcast_ref()
+                        .expect("Unable to downcast as MultiHashIndexSortedBucket");
+                    // Write out
                     hashbucket.write_bytes(w)?;
                 }
                 _ => {
@@ -94,9 +102,12 @@ impl Index {
 
 impl Serialize for Index {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where S: serde::Serializer {
+    where
+        S: serde::Serializer,
+    {
         let mut bytes = Cursor::new(<Vec<u8>>::new());
-        self.write_bytes(&mut bytes).expect("unable to write bytes in Index");
+        self.write_bytes(&mut bytes)
+            .expect("unable to write bytes in Index");
         // Serialize
         bytes.into_inner().serialize(serializer)
     }
@@ -105,7 +116,8 @@ impl Serialize for Index {
 impl<'de> Deserialize<'de> for Index {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         let bytes = &mut Cursor::new(<Vec<u8>>::deserialize(deserializer)?);
         let index = Index::read_bytes(bytes).expect("unable to read bytes in Index");
         Ok(index)
@@ -120,13 +132,9 @@ impl PartialEq for Index {
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        types::blockstore::car::carv2::CAR,
-        utils::test::{car_setup, get_read_write},
-    };
-    use anyhow::Result;
-    use serial_test::serial;
 
+    // TODO: Until valid fixtures can be made or obtained this is a waste of time
+    /*
     #[test]
     #[serial]
     #[ignore]
@@ -162,4 +170,5 @@ mod test {
 
         Ok(())
     }
+    */
 }

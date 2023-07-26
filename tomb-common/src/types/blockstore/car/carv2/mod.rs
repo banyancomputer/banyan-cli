@@ -3,7 +3,10 @@ pub(crate) mod index;
 
 // Code
 use self::{header::Header, index::Index};
-use crate::types::blockstore::car::carv1::{block::Block, CAR as CARv1};
+use crate::types::{
+    blockstore::car::carv1::{block::Block, CAR as CARv1},
+    streamable::Streamable,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{

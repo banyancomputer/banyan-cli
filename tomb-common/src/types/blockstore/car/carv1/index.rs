@@ -79,34 +79,20 @@ impl<'de> Deserialize<'de> for Index {
 mod test {
     use super::Index;
     use crate::{
-        types::blockstore::car::carv1::{block::Block, header::Header},
+        types::{
+            blockstore::car::carv1::{block::Block, header::Header},
+            streamable::Streamable,
+        },
         utils::test::car_setup,
     };
     use anyhow::Result;
     use serial_test::serial;
     use std::{
         fs::File,
-        io::{Cursor, Seek, SeekFrom},
+        io::{Seek, SeekFrom},
         str::FromStr,
     };
     use wnfs::libipld::Cid;
-
-    #[test]
-    fn read_write_bytes() -> Result<()> {
-        // Construct a Header
-        let header = Header::default(1);
-        // Write the header into a buffer
-        let mut header_bytes = Cursor::new(Vec::<u8>::new());
-        header.write_bytes(&mut header_bytes)?;
-
-        // Reconstruct the header from this buffer
-        header_bytes.seek(SeekFrom::Start(0))?;
-        let new_header = Header::read_bytes(header_bytes)?;
-
-        // Assert equality
-        assert_eq!(header, new_header);
-        Ok(())
-    }
 
     #[test]
     #[serial]

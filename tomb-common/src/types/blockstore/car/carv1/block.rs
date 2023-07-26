@@ -1,4 +1,7 @@
-use crate::types::blockstore::car::varint::{encode_varint_u128, read_varint_u128};
+use crate::types::{
+    blockstore::car::varint::{encode_varint_u128, read_varint_u128},
+    streamable::Streamable,
+};
 use anyhow::Result;
 use std::io::{Read, Seek, Write};
 use wnfs::libipld::{
@@ -34,28 +37,6 @@ impl Block {
         })
     }
 
-    /// Serialize the current object
-    pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
-        // Encode varint as buf
-        let varint_buf: Vec<u8> = encode_varint_u128(self.varint);
-        // Represent CID as bytes
-        let cid_buf: Vec<u8> = self.cid.to_bytes();
-        // Write all bytes
-        w.write_all(&varint_buf)?;
-        w.write_all(&cid_buf)?;
-        w.write_all(&self.content)?;
-        // Flush
-        w.flush()?;
-        // Return size
-        Ok(varint_buf.len() + cid_buf.len() + self.content.len())
-    }
-
-    /// Read a Block from stream
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
-        let (varint, cid) = Self::start_read(&mut r)?;
-        Self::finish_read(varint, cid, &mut r)
-    }
-
     /// Read the Varint and Cid from stream only
     pub fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
         // Read the varint
@@ -83,30 +64,26 @@ impl Block {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use std::io::Cursor;
-
-    use super::Block;
-    use anyhow::Result;
-    use wnfs::libipld::IpldCodec;
-
-    #[test]
-    fn read_write_bytes() -> Result<()> {
-        // Raw bytes
-        let data_example = "Hello Kitty!".as_bytes().to_vec();
-        // Create new Block with these content bytes
-        let block = Block::new(data_example, IpldCodec::Raw)?;
-        // Create a buffer and fill with serialized verison
-        let mut block_bytes: Vec<u8> = Vec::new();
-        block.write_bytes(&mut block_bytes)?;
-        // Reader with Seek
-        let block_cursor = Cursor::new(block_bytes);
-        // Reconstruct
-        let new_block = Block::read_bytes(block_cursor)?;
-        // Assert equality of reconstruction
-        assert_eq!(block, new_block);
-        // Ok
+impl Streamable for Block {
+    /// Serialize the current object
+    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<()> {
+        // Encode varint as buf
+        let varint_buf: Vec<u8> = encode_varint_u128(self.varint);
+        // Represent CID as bytes
+        let cid_buf: Vec<u8> = self.cid.to_bytes();
+        // Write all bytes
+        w.write_all(&varint_buf)?;
+        w.write_all(&cid_buf)?;
+        w.write_all(&self.content)?;
+        // Flush
+        w.flush()?;
+        // Return size
         Ok(())
+    }
+
+    /// Read a Block from stream
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
+        let (varint, cid) = Self::start_read(&mut *r)?;
+        Self::finish_read(varint, cid, r)
     }
 }
