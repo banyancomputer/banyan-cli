@@ -34,7 +34,6 @@ impl Streamable for Index {
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
         // Empty bucket vec
         let mut buckets = <Vec<Box<dyn IndexBucket>>>::new();
-
         // Match the codec
         match codec {
             // IndexSorted (1024)
@@ -127,6 +126,15 @@ impl<'de> Deserialize<'de> for Index {
 impl PartialEq for Index {
     fn eq(&self, other: &Self) -> bool {
         self.codec == other.codec
+    }
+}
+
+impl Clone for Index {
+    fn clone(&self) -> Self {
+        let mut bytes = Cursor::new(<Vec<u8>>::new());
+        self.write_bytes(&mut bytes).expect("");
+        bytes.seek(std::io::SeekFrom::Start(0)).expect("");
+        Self::read_bytes(&mut bytes).expect("")
     }
 }
 

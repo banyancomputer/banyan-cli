@@ -25,7 +25,7 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 ];
 
 /// Reading / writing a CARv2 from a Byte Stream
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct CAR {
     pub(crate) header: RefCell<Header>,
     /// The CARv1 internal to the CARv2

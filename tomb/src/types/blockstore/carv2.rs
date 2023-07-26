@@ -9,10 +9,10 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
-    types::blockstore::{
+    types::{blockstore::{
         car::{carv1::block::Block, carv2::CAR},
         tombblockstore::TombBlockStore,
-    },
+    }, streamable::Streamable},
     utils::test::{get_read, get_read_write, get_write},
 };
 use wnfs::{
