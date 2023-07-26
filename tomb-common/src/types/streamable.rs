@@ -2,15 +2,11 @@ use anyhow::Result;
 use std::io::{Read, Seek, Write};
 
 /// Custom Stream-Based Serialization
-pub trait Streamable {
+pub trait Streamable: Sized {
     /// Read the bytes
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self>
-    where
-        Self: Sized;
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self>;
     /// Write the bytes
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()>
-    where
-        Self: Sized;
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()>;
 }
 
 #[cfg(test)]
@@ -22,6 +18,7 @@ mod test {
         carv2::{
             header::Header as V2Header,
             index::{
+                Index as V2Index,
                 indexsorted::Bucket as IndexSortedBucket,
                 multihashindexsorted::Bucket as MultiHashIndexSortedBucket,
             },
@@ -63,6 +60,16 @@ mod test {
             }
         )*
         }
+    }
+
+    /// Generate example data for V2Index
+    fn v2_multi_index_example() -> V2Index<MultiHashIndexSortedBucket> {
+        <V2Index<MultiHashIndexSortedBucket>>::new()
+    }
+
+    /// Generate example data for V2Index
+    fn v2_sorted_index_example() -> V2Index<IndexSortedBucket> {
+        <V2Index<IndexSortedBucket>>::new()
     }
 
     /// Generate example data for IndexSortedBucket
@@ -127,10 +134,13 @@ mod test {
         Block:
         carblock: block_example(),
 
-
-
         V2Header:
         carv2header: v2_header_example(),
+        
+        V2Index<IndexSortedBucket>:
+        carv2sortedindex: v2_sorted_index_example(),
 
+        V2Index<MultiHashIndexSortedBucket>:
+        carv2multiindex: v2_multi_index_example(),
     }
 }

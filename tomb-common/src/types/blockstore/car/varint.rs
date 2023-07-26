@@ -9,7 +9,7 @@ pub(crate) fn read_varint_u32<R: Read + Seek>(r: &mut R) -> Result<u32> {
     // Create buffer
     let mut buf = encode::u32_buffer();
     // Read from stream
-    r.read_exact(&mut buf)?;
+    r.read(&mut buf)?;
     // Decode
     let (result, remaining) = decode::u32(&buf)?;
     // Rewind
@@ -22,7 +22,7 @@ pub(crate) fn read_varint_u64<R: Read + Seek>(r: &mut R) -> Result<u64> {
     // Create buffer
     let mut buf = encode::u64_buffer();
     // Read from stream
-    r.read_exact(&mut buf)?;
+    r.read(&mut buf)?;
     // Decode
     let (result, remaining) = decode::u64(&buf)?;
     // Rewind
@@ -35,7 +35,7 @@ pub(crate) fn read_varint_u128<R: Read + Seek>(r: &mut R) -> Result<u128> {
     // Create buffer
     let mut buf = encode::u128_buffer();
     // Read from stream
-    r.read_exact(&mut buf)?;
+    r.read(&mut buf)?;
     // Decode
     let (result, remaining) = decode::u128(&buf)?;
     // Rewind

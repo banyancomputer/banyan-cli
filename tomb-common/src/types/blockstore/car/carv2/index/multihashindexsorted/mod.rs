@@ -8,10 +8,11 @@ use crate::types::{
     streamable::Streamable,
 };
 use anyhow::Result;
+use serde::{Serialize, Deserialize};
 use wnfs::libipld::Cid;
 
 // | multihash-code (uint64) | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub(crate) struct Bucket {
     pub(crate) code: u64,
     pub(crate) bucket: IndexSortedBucket,
@@ -34,11 +35,18 @@ impl Streamable for Bucket {
 }
 
 impl IndexBucket for Bucket {
-    fn get_offset(&self, _cid: Cid) -> Result<u64> {
-        todo!()
+    fn get_offset(&self, cid: &Cid) -> Option<u64> {
+        self.bucket.get_offset(cid)
     }
 
-    fn insert_offset(&self, _cid: Cid, _offset: u64) -> Result<()> {
-        todo!()
+    fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
+        self.bucket.insert_offset(cid, offset)
+    }
+}
+
+impl Bucket {
+    pub(crate) fn new() -> Self {
+        // CIDV1
+        Bucket { code: 1, bucket: IndexSortedBucket::new() }
     }
 }

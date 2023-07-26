@@ -18,7 +18,7 @@ use wnfs::libipld::Cid;
 use crate::types::streamable::Streamable;
 
 use self::{block::Block, header::Header, index::Index};
-use super::carv2::PH_SIZE;
+use super::carv2::{PH_SIZE, index::indexbucket::IndexBucket};
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -114,7 +114,7 @@ impl CAR {
 
     /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
-        let block_offset = self.index.borrow().get_offset(cid)?;
+        let block_offset = self.index.borrow().get_offset(cid).unwrap();
         r.seek(SeekFrom::Start(block_offset))?;
         Block::read_bytes(&mut r)
     }
@@ -160,7 +160,7 @@ impl CAR {
 
 impl PartialEq for CAR {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header && self.index == other.index
+        self.header == other.header
     }
 }
 

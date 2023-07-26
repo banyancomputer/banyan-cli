@@ -9,4 +9,7 @@ pub enum CARError {
     #[error("CARv2 had a malformed index")]
     /// The CARv2 Index was not correct
     Index,
+    /// Index codec
+    #[error("CARv2 Index codec was wrong")]
+    Codec,
 }

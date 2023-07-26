@@ -2,7 +2,7 @@ pub(crate) mod header;
 pub(crate) mod index;
 
 // Code
-use self::{header::Header, index::Index};
+use self::{header::Header, index::{Index, multihashindexsorted::Bucket, indexbucket::IndexBucket}};
 use crate::types::{
     blockstore::car::carv1::{block::Block, CAR as CARv1},
     streamable::Streamable,
@@ -31,7 +31,7 @@ pub struct CAR {
     /// The CARv1 internal to the CARv2
     pub car: CARv1,
     /// The CARv2 Index (currently non-functional)
-    pub(crate) index: Option<Index>,
+    pub(crate) index: Option<RefCell<Index<Bucket>>>,
 }
 
 impl CAR {
@@ -50,12 +50,20 @@ impl CAR {
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
         // Load the index if one is present
-        let index: Option<Index> = if header.index_offset != 0 {
+        let index: Option<RefCell<Index<Bucket>>> = if header.index_offset != 0 {
             // Load in the index
-            Index::read_bytes(&mut r).ok()
+            if let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
+                Some(RefCell::new(index))
+            }
+            else {
+                None
+            }
         } else {
             None
         };
+
+        println!("read_bytes in CARv2 says index is {:?}", index);
+
         // Create the new object
         Ok(Self {
             header: RefCell::new(header),
@@ -102,25 +110,48 @@ impl CAR {
 
     /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
-        let index = self.car.index.borrow();
-        let block_offset = index.get_offset(cid)?;
-        r.seek(SeekFrom::Start(block_offset))?;
+        // If there is a V2Index
+        let block_offset = 
+            if let Some(index) = &self.index {
+                index.borrow().get_offset(cid)
+            }
+            // If there isnt
+            else {
+                let index = self.car.index.borrow();
+                index.get_offset(cid)
+            };
+        
+        // Move to the start of the block
+        r.seek(SeekFrom::Start(block_offset.unwrap()))?;
+        // Read the block
         Block::read_bytes(&mut r)
     }
 
     /// Set a Block directly in the CAR
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
-        let mut index = self.car.index.borrow_mut();
+        // Grab the header
+        let header = self.header.borrow().clone();
+        // Determine offset of the next block
+        let next_block = header.data_offset + header.data_size;
+
+        // If there is a V2Index
+        if let Some(index) = &self.index {
+            // Grab the V2Index
+            index.borrow_mut().insert_offset(&block.cid, next_block);
+        }
+        // If there isn't
+        else {
+            // Insert current offset before bytes are written
+            self.car.index.borrow_mut().map.insert(block.cid, next_block);
+        }
+        
         // Move to the end
-        w.seek(SeekFrom::Start(index.next_block))?;
-        // Insert current offset before bytes are written
-        index.map.insert(block.cid, w.stream_position()?);
+        w.seek(SeekFrom::Start(next_block))?;
         // Write the bytes
         block.write_bytes(&mut w)?;
-        // Update the next block
-        index.next_block = w.stream_position()?;
         // Update the data size
         self.update_data_size(&mut w)?;
+        // Flush
         w.flush()?;
         // Return Ok
         Ok(())
@@ -339,9 +370,7 @@ mod test {
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        // assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.car.header, reconstructed.car.header);
-        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         Ok(())

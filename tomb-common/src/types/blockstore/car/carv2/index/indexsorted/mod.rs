@@ -52,19 +52,27 @@ impl Streamable for Bucket {
             w.write_all(&encode_varint_u64(*offset))?;
         }
 
-        // Add some zero padding
-        w.write_all(&[0u8; 40])?;
-
         Ok(())
     }
 }
 
 impl IndexBucket for Bucket {
-    fn get_offset(&self, _cid: Cid) -> Result<u64> {
-        todo!()
+    fn get_offset(&self, cid: &Cid) -> Option<u64> {
+        self.map.get(cid).copied()
     }
 
-    fn insert_offset(&self, _cid: Cid, _offset: u64) -> Result<()> {
-        todo!()
+    fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
+        self.map.insert(*cid, offset)
     }
 }
+
+impl Bucket{
+    // Assumes CIDv1
+    pub(crate) fn new() -> Self {
+        Bucket {
+            width: 40,
+            count: 0,
+            map: HashMap::new(),
+        }
+    }
+} 

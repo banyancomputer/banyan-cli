@@ -1,12 +1,14 @@
+use crate::types::{blockstore::car::carv2::index::indexbucket::IndexBucket, streamable::Streamable};
+
 use super::block::Block;
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     collections::HashMap,
-    io::{Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     str::FromStr,
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
+use wnfs::libipld::Cid;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 /// Custom index type that is used to track blocks
@@ -16,14 +18,13 @@ pub struct Index {
     pub(crate) next_block: u64,
 }
 
-impl Index {
-    /// Perform partial block reads until a full index is built
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+impl Streamable for Index {
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         let mut map = HashMap::<Cid, u64>::new();
         let mut next_block: u64 = r.stream_position()?;
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
-              let Ok((varint, cid)) = Block::start_read(&mut r) {
+              let Ok((varint, cid)) = Block::start_read(&mut *r) {
             // Log where we found this block
             map.insert(cid, block_offset);
             // Skip the rest of the block
@@ -34,13 +35,22 @@ impl Index {
         Ok(Self { map, next_block })
     }
 
-    /// Find the offset of a given Cid
-    pub fn get_offset(&self, cid: &Cid) -> Result<u64> {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl IndexBucket for Index {
+    fn get_offset(&self, cid: &Cid) -> Option<u64> {
         if let Some(offset) = self.map.get(cid) {
-            Ok(*offset)
+            Some(*offset)
         } else {
-            Err(BlockStoreError::CIDNotFound(*cid).into())
+            None
         }
+    }
+
+    fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
+        self.map.insert(*cid, offset)
     }
 }
 
@@ -80,7 +90,7 @@ mod test {
     use super::Index;
     use crate::{
         types::{
-            blockstore::car::carv1::{block::Block, header::Header},
+            blockstore::car::{carv1::{block::Block, header::Header}, carv2::index::indexbucket::IndexBucket},
             streamable::Streamable,
         },
         utils::test::car_setup,
@@ -107,9 +117,9 @@ mod test {
         // Find offset of a known block
         let block_offset = index.get_offset(&Cid::from_str(
             "bafyreihyrpefhacm6kkp4ql6j6udakdit7g3dmkzfriqfykhjw6cad5lrm",
-        )?)?;
+        )?);
         // Move to offset
-        file.seek(SeekFrom::Start(block_offset))?;
+        file.seek(SeekFrom::Start(block_offset.unwrap()))?;
         // Successfully read the block at this offset
         Block::read_bytes(&mut file)?;
         // Return Ok
