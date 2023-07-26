@@ -1,6 +1,23 @@
 use anyhow::Result;
-use std::io::{Read, Seek, SeekFrom};
+use std::{
+    any::TypeId,
+    io::{Read, Seek, SeekFrom},
+    u32,
+};
 use unsigned_varint::{decode, encode};
+
+pub(crate) fn read_varint_u32<R: Read + Seek>(r: &mut R) -> Result<u32> {
+    // Create buffer
+    let mut buf = encode::u32_buffer();
+    // Read from stream
+    r.read_exact(&mut buf)?;
+    // Decode
+    let (result, remaining) = decode::u32(&buf)?;
+    // Rewind
+    r.seek(SeekFrom::Current(-(remaining.len() as i64)))?;
+    // Ok
+    Ok(result)
+}
 
 pub(crate) fn read_varint_u64<R: Read + Seek>(r: &mut R) -> Result<u64> {
     // Create buffer
@@ -28,6 +45,44 @@ pub(crate) fn read_varint_u128<R: Read + Seek>(r: &mut R) -> Result<u128> {
     Ok(result)
 }
 
+// pub(crate) fn read_varint<I, R: Read + Seek>(r: &mut R) -> Result<I> {
+
+//     let buf_len: usize = match TypeId::of::<I>() {
+//         u32 => {
+//             4
+//         }
+//         u64 => {
+//             8
+//         }
+//         u128 => {
+//             16
+//         }
+//         _ => { 0 }
+//     };
+
+//     // Create and fill buffer
+//     let mut buf = vec![0; buf_len].into();
+//     r.read_exact(&mut buf)?;
+//     // Decode little endian
+//     Ok(T::from_le_bytes(buf))
+
+// }
+
+// macro_rules! read_varint {
+//     // using a ty token type for macthing datatypes passed to maccro
+//     ($a:expr,$b:expr,$typ:ty)=>{
+//         $a as $typ + $b as $typ
+//     }
+// }
+
+pub(crate) fn read_varint_u32_exact<R: Read>(r: &mut R) -> Result<u32> {
+    // Create and fill buffer
+    let mut buf: [u8; 4] = [0; 4];
+    r.read_exact(&mut buf)?;
+    // Decode little endian
+    Ok(u32::from_le_bytes(buf))
+}
+
 pub(crate) fn read_varint_u64_exact<R: Read>(r: &mut R) -> Result<u64> {
     // Create and fill buffer
     let mut buf: [u8; 8] = [0; 8];
@@ -42,6 +97,13 @@ pub(crate) fn read_varint_u128_exact<R: Read>(r: &mut R) -> Result<u128> {
     r.read_exact(&mut buf)?;
     // Decode little endian
     Ok(u128::from_le_bytes(buf))
+}
+
+pub(crate) fn encode_varint_u32(input: u32) -> Vec<u8> {
+    // Create buffer
+    let mut buf = encode::u32_buffer();
+    // Encode bytes
+    encode::u32(input, &mut buf).to_vec()
 }
 
 pub(crate) fn encode_varint_u64(input: u64) -> Vec<u8> {
