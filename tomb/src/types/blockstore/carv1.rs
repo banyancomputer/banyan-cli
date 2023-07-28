@@ -41,7 +41,7 @@ impl BlockStore {
 
             // Open the file in reading mode
             if let Ok(mut file) = File::open(path) &&
-                let Ok(car) = CAR::read_bytes(&mut file) {
+                let Ok(car) = CAR::read_bytes(None, &mut file) {
                 Ok(Self {
                     path: path.to_path_buf(),
                     car
@@ -55,7 +55,7 @@ impl BlockStore {
                 // Construct new
                 Ok(Self {
                     path: path.to_path_buf(),
-                    car: CAR::new(1, &mut rw)?
+                    car: CAR::new(None, &mut rw)?
                 })
             }
         }

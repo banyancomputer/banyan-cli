@@ -20,13 +20,13 @@ use multihashindexsorted::Bucket as MultiHashIndexSortedBucket;
 use self::indexbucket::IndexBucket;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub(crate) struct Index<I: IndexBucket> {
-    codec: u128,
-    buckets: Vec<I>,
+pub struct Index<I: IndexBucket> {
+    pub(crate) codec: u128,
+    pub(crate) buckets: Vec<I>
 }
 
-const INDEX_SORTED_CODEC: u128 = 0x0400;
-const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
+pub const INDEX_SORTED_CODEC: u128 = 0x0400;
+pub const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
 
 impl Streamable for Index<IndexSortedBucket> {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
@@ -123,6 +123,15 @@ impl IndexBucket for Index<MultiHashIndexSortedBucket> {
     }
 }
 
+impl IndexBucket for Index<IndexSortedBucket> {
+    fn get_offset(&self, cid: &Cid) -> Option<u64> {
+        self.buckets[0].get_offset(cid)
+    }
+
+    fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
+        self.buckets[0].insert_offset(cid, offset)
+    }
+}
 #[cfg(test)]
 mod test {
     use anyhow::Result;

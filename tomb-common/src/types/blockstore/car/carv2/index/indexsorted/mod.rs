@@ -2,18 +2,18 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    io::{Read, Seek, Write},
+    io::{Read, Seek, Write, SeekFrom},
 };
 use wnfs::libipld::Cid;
 
 use crate::types::{
-    blockstore::car::{carv2::index::indexbucket::IndexBucket, varint::*},
+    blockstore::car::{carv2::index::indexbucket::IndexBucket, varint::*, carv1::block::Block},
     streamable::Streamable,
 };
 
 // | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
-pub(crate) struct Bucket {
+pub struct Bucket {
     pub(crate) width: u32,
     pub(crate) count: u64,
     pub(crate) map: HashMap<Cid, u64>,
@@ -74,5 +74,25 @@ impl Bucket{
             count: 0,
             map: HashMap::new(),
         }
+    }
+
+    pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self> {
+        let mut map = HashMap::<Cid, u64>::new();
+        let mut next_block: u64 = r.stream_position()?;
+        // While we're able to peek varints and CIDs
+        while let Ok(block_offset) = r.stream_position() &&
+              let Ok((varint, cid)) = Block::start_read(&mut *r) {
+            // Log where we found this block
+            map.insert(cid, block_offset);
+            // Skip the rest of the block
+            r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
+            next_block = r.stream_position()?;
+        }
+
+        Ok(Bucket { 
+            width: 40, 
+            count: map.len() as u64, 
+            map
+        })
     }
 } 

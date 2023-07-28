@@ -10,7 +10,7 @@ use std::{
 };
 use tomb_common::{
     types::{blockstore::{
-        car::{carv1::block::Block, carv2::CAR},
+        car::{carv1::block::Block, carv2::{CAR, index::indexbucket::IndexBucket}},
         tombblockstore::TombBlockStore,
     }, streamable::Streamable},
     utils::test::{get_read, get_read_write, get_write},
@@ -123,10 +123,11 @@ impl TombBlockStore for BlockStore {
         assert_eq!(block.content.len(), new_block.content.len());
         // Determine where the block was read from
         let mut index = self.car.car.index.borrow_mut();
-        let block_start = index.get_offset(&block.cid)?;
+        let block_start = index.get_offset(&block.cid).unwrap();
         // Remove existing offset
-        index.map.remove(&block.cid);
-        index.map.insert(new_block.cid, block_start);
+        // TODO remove old cid
+        // index.map.remove(&block.cid);
+        index.insert_offset(&new_block.cid, block_start);
         // Grab writer
         let mut write_file = get_write(&self.path)?;
         // Move to the right position

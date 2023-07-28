@@ -10,7 +10,7 @@ use std::{
     fs::{self, create_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_common::types::blockstore::tombblockstore::TombBlockStore;
+use tomb_common::types::blockstore::{tombblockstore::TombBlockStore, car::carv2::index::indexbucket::IndexBucket};
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
@@ -129,7 +129,7 @@ impl TombBlockStore for BlockStore {
             // Bind to avoid awaiting
             let index = store.car.car.index.borrow().clone();
             // If this store has the data we are replacing
-            if index.get_offset(cid).is_ok() {
+            if index.get_offset(cid).is_some() {
                 // Update the content in this store and return new cid
                 return store.update_content(cid, bytes, codec).await;
             }
