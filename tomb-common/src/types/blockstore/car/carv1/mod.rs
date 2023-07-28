@@ -13,7 +13,7 @@ use std::{
     collections::HashMap,
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use wnfs::{libipld::Cid, common::BlockStoreError};
 
 use crate::types::{streamable::Streamable, blockstore::car::carv2::index::INDEX_SORTED_CODEC};
 
@@ -130,9 +130,13 @@ impl CAR {
 
     /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
-        let block_offset = self.index.borrow().get_offset(cid).unwrap();
-        r.seek(SeekFrom::Start(block_offset))?;
-        Block::read_bytes(&mut r)
+        if let Some(block_offset) = self.index.borrow().get_offset(cid) {
+            r.seek(SeekFrom::Start(block_offset))?;
+            Block::read_bytes(&mut r)
+        }
+        else {
+            Err(BlockStoreError::CIDNotFound(*cid).into())
+        }
     }
 
     /// Set a Block directly in the CAR

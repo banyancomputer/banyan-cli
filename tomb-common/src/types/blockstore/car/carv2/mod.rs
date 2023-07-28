@@ -13,7 +13,7 @@ use std::{
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use wnfs::{libipld::Cid, common::BlockStoreError};
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
@@ -94,11 +94,15 @@ impl CAR {
     /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         // If there is a V2Index
-        let block_offset = &self.car.index.borrow().get_offset(cid);
-        // Move to the start of the block
-        r.seek(SeekFrom::Start(block_offset.unwrap()))?;
-        // Read the block
-        Block::read_bytes(&mut r)
+        if let Some(block_offset) = self.car.index.borrow().get_offset(cid) {
+            // Move to the start of the block
+            r.seek(SeekFrom::Start(block_offset))?;
+            // Read the block
+            Block::read_bytes(&mut r)
+        }
+        else {
+            Err(BlockStoreError::CIDNotFound(*cid).into())
+        }
     }
 
     /// Set a Block directly in the CAR
