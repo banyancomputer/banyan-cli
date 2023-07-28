@@ -268,7 +268,10 @@ mod test {
         let original_path = &Path::new("test")
             .join("car")
             .join("carv1_blockstore_from_scratch.car");
-        remove_file(original_path).ok();
+        // Remove it if its still there from previous test
+        if original_path.exists() {
+            remove_file(original_path)?;
+        }
 
         // Open
         let store = BlockStore::new(original_path)?;

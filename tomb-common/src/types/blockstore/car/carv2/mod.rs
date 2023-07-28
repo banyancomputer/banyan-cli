@@ -48,21 +48,6 @@ impl CAR {
         let car = CARv1::read_bytes(if header.index_offset == 0 { None } else { Some(header.index_offset) }, &mut r)?;
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
-        // Load the index if one is present
-        let index: Option<RefCell<Index<Bucket>>> = if header.index_offset != 0 {
-            // Load in the index
-            if let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
-                Some(RefCell::new(index))
-            }
-            else {
-                None
-            }
-        } else {
-            None
-        };
-
-        println!("read_bytes in CARv2 says index is {:?}", index);
-
         // Create the new object
         Ok(Self {
             header: RefCell::new(header),
@@ -208,15 +193,15 @@ mod test {
 
     #[test]
     #[serial]
-    fn from_disk_basic() -> Result<()> {
+    fn from_disk_broken_index() -> Result<()> {
         let car_path = car_setup(2, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
         let carv2 = CAR::read_bytes(&mut file)?;
-        // Assert that this index was in an unrecognized format
-        // assert_eq!(carv2.index, None);
 
         // Assert version is correct
         assert_eq!(&carv2.car.header.version, &1);
+
+        println!("carv2 index: {:?}", carv2.car.index);
 
         // CIDs
         let block_cids = vec![

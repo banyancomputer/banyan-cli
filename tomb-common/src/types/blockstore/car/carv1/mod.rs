@@ -38,23 +38,26 @@ impl CAR {
         let header_start = r.stream_position()?;
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
+        let header_end = r.stream_position()?;
         // Determine the length of the header that we just read
         let read_header_len = RefCell::new(r.stream_position()? - header_start);
         println!("read_header_len: {}", read_header_len.borrow().clone());
         // If we're in a CARv2
-        let bucket = if let Some(index_offset) = index_offset {
-            // Move to the index offset
-            r.seek(SeekFrom::Start(index_offset))?;
-            // Read it as an IndexSortedBucket
-            Bucket::read_bytes(&mut r)?
-        } 
-        // Otherwise read it by Seeking and skipping
-        else {
-            Bucket::read_from_carv1(&mut r)?
-        };
+        if let Some(index_offset) = index_offset &&
+        r.seek(SeekFrom::Start(index_offset)).is_ok() && 
+        let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
+            return Ok(Self {
+                header,
+                index: RefCell::new(index),
+                read_header_len,
+            })
+        }
 
-        // Construct the index
-        let index: Index<Bucket> = Index {
+        //
+        println!("either there was no index_offset or it was bad. starting from stratch");
+        r.seek(SeekFrom::Start(header_end))?;
+        let bucket = Bucket::read_from_carv1(&mut r)?;
+        let index = Index {
             codec: INDEX_SORTED_CODEC,
             buckets: vec![bucket],
         };
