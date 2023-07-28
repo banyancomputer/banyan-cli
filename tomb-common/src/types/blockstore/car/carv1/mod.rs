@@ -109,15 +109,12 @@ impl CAR {
         }
 
         {
+            // {println!("carv1 index before update: {:?}", self.index); }
             // Update index
             let mut index = self.index.borrow_mut();
             index.buckets[0].map = new_index;
         }
-
-        println!(
-            "index before write bytes finished: {:?}",
-            self.index.borrow().clone()
-        );
+        // println!("carv1 index after update: {:?}", self.index);
 
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
@@ -204,7 +201,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{File},
+        fs::{File, OpenOptions},
         io::{Seek, SeekFrom},
         str::FromStr,
     };
@@ -297,8 +294,6 @@ mod test {
         Ok(())
     }
 
-    /*
-
     #[test]
     #[serial]
     fn put_get_block() -> Result<()> {
@@ -307,9 +302,9 @@ mod test {
         let mut original_file = File::open(car_path)?;
 
         // Read original CARv2
-        let original = CAR::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(None, &mut original_file)?;
         let index = original.index.borrow().clone();
-        let all_cids = index.map.keys().collect::<Vec<&Cid>>();
+        let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
@@ -338,8 +333,6 @@ mod test {
 
         Ok(())
     }
-
-    */
 
     #[test]
     #[serial]
@@ -411,7 +404,9 @@ mod test {
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
         original.set_root(&block.cid);
+        assert_eq!(block.cid, original.get_root().unwrap());
         original.put_block(&block, &mut original_rw)?;
+        assert_eq!(block, original.get_block(&block.cid, &mut original_rw)?);
 
         // Write updates to file
         original_rw.seek(SeekFrom::Start(0))?;

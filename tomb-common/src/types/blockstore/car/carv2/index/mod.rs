@@ -25,7 +25,9 @@ pub struct Index<I: IndexBucket> {
     pub(crate) buckets: Vec<I>
 }
 
+/// The Codec associated with the IndexSorted index format 
 pub const INDEX_SORTED_CODEC: u128 = 0x0400;
+/// The Codec associated with the MultihashIndexSorted index format 
 pub const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
 
 impl Streamable for Index<IndexSortedBucket> {

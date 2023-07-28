@@ -62,6 +62,7 @@ impl IndexBucket for Bucket {
     }
 
     fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
+        self.count += 1;
         self.map.insert(*cid, offset)
     }
 }
@@ -78,7 +79,6 @@ impl Bucket{
 
     pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self> {
         let mut map = HashMap::<Cid, u64>::new();
-        let mut next_block: u64 = r.stream_position()?;
         // While we're able to peek varints and CIDs
         while let Ok(block_offset) = r.stream_position() &&
               let Ok((varint, cid)) = Block::start_read(&mut *r) {
@@ -86,13 +86,16 @@ impl Bucket{
             map.insert(cid, block_offset);
             // Skip the rest of the block
             r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
-            next_block = r.stream_position()?;
         }
 
-        Ok(Bucket { 
+        let bucket = Bucket { 
             width: 40, 
             count: map.len() as u64, 
             map
-        })
+        };
+
+        // println!("read_from_carv1 bucket: {:?}", bucket);
+
+        Ok(bucket)
     }
 } 
