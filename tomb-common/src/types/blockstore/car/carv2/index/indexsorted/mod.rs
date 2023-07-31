@@ -2,16 +2,17 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    io::{Read, Seek, Write, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
 };
 use wnfs::libipld::Cid;
 
 use crate::types::{
-    blockstore::car::{carv2::index::indexbucket::IndexBucket, varint::*, carv1::block::Block},
+    blockstore::car::{carv1::block::Block, carv2::index::indexbucket::IndexBucket, varint::*},
     streamable::Streamable,
 };
 
-// | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
+/// Buckets contain a list of values
+/// | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Default)]
 pub struct Bucket {
     pub(crate) width: u32,
@@ -67,7 +68,7 @@ impl IndexBucket for Bucket {
     }
 }
 
-impl Bucket{
+impl Bucket {
     // Assumes CIDv1
     pub(crate) fn new() -> Self {
         Bucket {
@@ -88,14 +89,14 @@ impl Bucket{
             r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
         }
 
-        let bucket = Bucket { 
-            width: 40, 
-            count: map.len() as u64, 
-            map
+        let bucket = Bucket {
+            width: 40,
+            count: map.len() as u64,
+            map,
         };
 
         // println!("read_from_carv1 bucket: {:?}", bucket);
 
         Ok(bucket)
     }
-} 
+}

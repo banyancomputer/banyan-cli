@@ -13,12 +13,12 @@ use std::{
     collections::HashMap,
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
-use wnfs::{libipld::Cid, common::BlockStoreError};
+use wnfs::{common::BlockStoreError, libipld::Cid};
 
-use crate::types::{streamable::Streamable, blockstore::car::carv2::index::INDEX_SORTED_CODEC};
+use crate::types::{blockstore::car::carv2::index::INDEX_SORTED_CODEC, streamable::Streamable};
 
 use self::{block::Block, header::Header};
-use super::carv2::index::{Index, indexbucket::IndexBucket, indexsorted::Bucket};
+use super::carv2::index::{indexbucket::IndexBucket, indexsorted::Bucket, Index};
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -44,7 +44,7 @@ impl CAR {
         println!("read_header_len: {}", read_header_len.borrow().clone());
         // If we're in a CARv2
         if let Some(index_offset) = index_offset &&
-        r.seek(SeekFrom::Start(index_offset)).is_ok() && 
+        r.seek(SeekFrom::Start(index_offset)).is_ok() &&
         let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
             return Ok(Self {
                 header,
@@ -133,8 +133,7 @@ impl CAR {
         if let Some(block_offset) = self.index.borrow().get_offset(cid) {
             r.seek(SeekFrom::Start(block_offset))?;
             Block::read_bytes(&mut r)
-        }
-        else {
+        } else {
             Err(BlockStoreError::CIDNotFound(*cid).into())
         }
     }

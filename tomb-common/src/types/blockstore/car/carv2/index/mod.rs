@@ -1,17 +1,23 @@
+/// The trait that describes bucket formats internal to the Index
 pub mod indexbucket;
+/// The simple Bucket format
 pub mod indexsorted;
+/// The advanced Bucket format 
 pub mod multihashindexsorted;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use wnfs::libipld::Cid;
 use std::{
     fmt::Debug,
     io::{Read, Seek, Write},
 };
+use wnfs::libipld::Cid;
 
 use crate::types::{
-    blockstore::car::{varint::{encode_varint_u128, read_varint_u128}, error::CARError},
+    blockstore::car::{
+        error::CARError,
+        varint::{encode_varint_u128, read_varint_u128},
+    },
     streamable::Streamable,
 };
 use indexsorted::Bucket as IndexSortedBucket;
@@ -19,15 +25,16 @@ use multihashindexsorted::Bucket as MultiHashIndexSortedBucket;
 
 use self::indexbucket::IndexBucket;
 
+/// The type of Index requires a format, and contains both a codec and a Bucket vec
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Index<I: IndexBucket> {
     pub(crate) codec: u128,
-    pub(crate) buckets: Vec<I>
+    pub(crate) buckets: Vec<I>,
 }
 
-/// The Codec associated with the IndexSorted index format 
+/// The Codec associated with the IndexSorted index format
 pub const INDEX_SORTED_CODEC: u128 = 0x0400;
-/// The Codec associated with the MultihashIndexSorted index format 
+/// The Codec associated with the MultihashIndexSorted index format
 pub const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
 
 impl Streamable for Index<IndexSortedBucket> {
@@ -35,13 +42,13 @@ impl Streamable for Index<IndexSortedBucket> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
         if codec != INDEX_SORTED_CODEC {
-            return Err(CARError::Codec.into())
+            return Err(CARError::Codec.into());
         }
         // Empty bucket vec
         let mut buckets = <Vec<IndexSortedBucket>>::new();
-        
+
         println!("this file is indexsorted");
-        
+
         // While we can read buckets
         while let Ok(bucket) = IndexSortedBucket::read_bytes(r) {
             // Push new bucket to list
@@ -68,7 +75,7 @@ impl Streamable for Index<MultiHashIndexSortedBucket> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
         if codec != MULTIHASH_INDEX_SORTED_CODEC {
-            return Err(CARError::Codec.into())
+            return Err(CARError::Codec.into());
         }
 
         // Empty bucket vec
@@ -97,6 +104,7 @@ impl Streamable for Index<MultiHashIndexSortedBucket> {
 
 }
 
+#[allow(dead_code)]
 impl Index<MultiHashIndexSortedBucket> {
     pub(crate) fn new() -> Self {
         Index {
@@ -110,7 +118,7 @@ impl Index<IndexSortedBucket> {
     pub(crate) fn new() -> Self {
         Index {
             codec: MULTIHASH_INDEX_SORTED_CODEC,
-            buckets: vec![IndexSortedBucket::new()]
+            buckets: vec![IndexSortedBucket::new()],
         }
     }
 }
@@ -136,11 +144,11 @@ impl IndexBucket for Index<IndexSortedBucket> {
 }
 #[cfg(test)]
 mod test {
+    use crate::types::blockstore::car::carv2::index::{multihashindexsorted::Bucket, indexbucket::IndexBucket};
     use anyhow::Result;
     use wnfs::libipld::Cid;
-    use crate::types::blockstore::car::carv2::index::multihashindexsorted::Bucket;
 
-    use super::{Index, indexbucket::IndexBucket};
+    use super::Index;
 
     #[test]
     fn insert_retrieve() -> Result<()> {
@@ -152,7 +160,6 @@ mod test {
         assert_eq!(offset, Some(42));
         Ok(())
     }
-
 
     // TODO: Until valid fixtures can be made or obtained this is a waste of time
     /*

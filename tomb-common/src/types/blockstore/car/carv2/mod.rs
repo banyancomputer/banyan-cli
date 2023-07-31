@@ -1,8 +1,12 @@
 pub(crate) mod header;
+/// CARv2 Index
 pub mod index;
 
 // Code
-use self::{header::Header, index::{Index, multihashindexsorted::Bucket, indexbucket::IndexBucket}};
+use self::{
+    header::Header,
+    index::indexbucket::IndexBucket,
+};
 use crate::types::{
     blockstore::car::carv1::{block::Block, CAR as CARv1},
     streamable::Streamable,
@@ -13,7 +17,7 @@ use std::{
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::{libipld::Cid, common::BlockStoreError};
+use wnfs::{common::BlockStoreError, libipld::Cid};
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
@@ -29,8 +33,7 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 pub struct CAR {
     pub(crate) header: RefCell<Header>,
     /// The CARv1 internal to the CARv2
-    pub car: CARv1
-    // Note that the index is actually stored internally to the CARv1 struct
+    pub car: CARv1, // Note that the index is actually stored internally to the CARv1 struct
 }
 
 impl CAR {
@@ -45,13 +48,20 @@ impl CAR {
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
-        let car = CARv1::read_bytes(if header.index_offset == 0 { None } else { Some(header.index_offset) }, &mut r)?;
+        let car = CARv1::read_bytes(
+            if header.index_offset == 0 {
+                None
+            } else {
+                Some(header.index_offset)
+            },
+            &mut r,
+        )?;
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
         // Create the new object
         Ok(Self {
             header: RefCell::new(header),
-            car
+            car,
         })
     }
 
@@ -99,8 +109,7 @@ impl CAR {
             r.seek(SeekFrom::Start(block_offset))?;
             // Read the block
             Block::read_bytes(&mut r)
-        }
-        else {
+        } else {
             Err(BlockStoreError::CIDNotFound(*cid).into())
         }
     }
@@ -108,13 +117,16 @@ impl CAR {
     /// Set a Block directly in the CAR
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         // Grab the header
-        let header = self.header.borrow().clone();
+        let header = *self.header.borrow();
         // Determine offset of the next block
         let next_block = header.data_offset + header.data_size;
 
         // If there is a V2Index
-        self.car.index.borrow_mut().insert_offset(&block.cid, next_block);
-        
+        self.car
+            .index
+            .borrow_mut()
+            .insert_offset(&block.cid, next_block);
+
         // Move to the end
         w.seek(SeekFrom::Start(next_block))?;
         // Write the bytes
@@ -184,7 +196,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::{File, OpenOptions},
+        fs::File,
         str::FromStr,
         vec,
     };

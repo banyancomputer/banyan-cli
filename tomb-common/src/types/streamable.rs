@@ -18,9 +18,8 @@ mod test {
         carv2::{
             header::Header as V2Header,
             index::{
-                Index as V2Index,
                 indexsorted::Bucket as IndexSortedBucket,
-                multihashindexsorted::Bucket as MultiHashIndexSortedBucket,
+                multihashindexsorted::Bucket as MultiHashIndexSortedBucket, Index as V2Index,
             },
         },
     };
@@ -136,7 +135,7 @@ mod test {
 
         V2Header:
         carv2header: v2_header_example(),
-        
+
         V2Index<IndexSortedBucket>:
         carv2sortedindex: v2_sorted_index_example(),
 

@@ -8,7 +8,7 @@ use crate::types::{
     streamable::Streamable,
 };
 use anyhow::Result;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use wnfs::libipld::Cid;
 
 // | multihash-code (uint64) | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
@@ -44,6 +44,8 @@ impl IndexBucket for Bucket {
     }
 }
 
+
+#[allow(dead_code)]
 impl Bucket {
     pub(crate) fn new() -> Self {
         // CIDV1
