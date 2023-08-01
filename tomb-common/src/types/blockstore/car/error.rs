@@ -12,4 +12,7 @@ pub enum CARError {
     /// Index codec
     #[error("CARv2 Index codec was wrong")]
     Codec,
+    /// Index codec
+    #[error("No more data blocks")]
+    EndOfData,
 }

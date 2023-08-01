@@ -120,3 +120,57 @@ impl BucketConfig {
         load_history(wrapping_key, &self.metadata).await
     }
 }
+
+
+#[cfg(test)]
+mod test {
+    use std::{fs::{create_dir_all, remove_dir_all}, path::Path, rc::Rc};
+
+    use anyhow::Result;
+    use chrono::Utc;
+    use rand::thread_rng;
+    use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
+    use tomb_crypt::prelude::WrappingPrivateKey;
+    use wnfs::{private::{PrivateForest, PrivateDirectory}, namefilter::Namefilter};
+
+    use crate::{types::config::globalconfig::GlobalConfig, utils::test::setup_v2};
+
+    #[tokio::test]
+    async fn set_get_all() -> Result<()> {
+        let test_name = "config_set_get_all";
+        let origin = &Path::new("test").join(test_name);
+        if origin.exists() {
+            remove_dir_all(origin)?;
+        }
+        create_dir_all(origin)?;
+
+        let mut global = GlobalConfig::from_disk().await?;
+        let config = global.find_or_create_config(origin)?;
+        // let (metadata, content, metadata_forest, content_forest, root_dir) = setup_v2(test_name).await?;
+        // config.metadata = metadata;
+        // config.content = content;
+
+
+
+        let mut manager = Manager::default();
+        let wrapping_key = global.load_key().await?;
+        let public_key = wrapping_key.public_key()?;
+        manager.insert(&public_key).await?;
+        let manager_cid = store_manager(&manager, &config.metadata, &config.content).await?;
+
+        // let mut root_dir = Rc::new(PrivateDirectory::new(
+        //     Namefilter::default(),
+        //     Utc::now(),
+        //     &mut thread_rng(),
+        // ));
+
+        // config.set_all(&mut Rc::new(PrivateForest::new()), &mut Rc::new(PrivateForest::new()), &mut root_dir, &mut manager, &manager_cid).await?;
+
+        // // Get structs
+        // let (metadata_forest, content_forest, root_dir, manager, manager_cid) =
+        //     &mut config.get_all(&wrapping_key).await?;
+
+        Ok(())
+    }
+
+}

@@ -4,19 +4,21 @@ pub mod indexbucket;
 pub mod indexsorted;
 /// The advanced Bucket format 
 pub mod multihashindexsorted;
+/// Fixture
+pub mod fixture;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::Debug,
-    io::{Read, Seek, Write},
+    io::{Read, Seek, Write, SeekFrom}, collections::HashMap,
 };
 use wnfs::libipld::Cid;
 
 use crate::types::{
     blockstore::car::{
         error::CARError,
-        varint::{encode_varint_u128, read_varint_u128},
+        varint::{read_varint_u128, encode_varint_u128}, carv1::block::Block,
     },
     streamable::Streamable,
 };
@@ -41,6 +43,7 @@ impl Streamable for Index<IndexSortedBucket> {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
+        println!("read the codec of {}", codec);
         if codec != INDEX_SORTED_CODEC {
             return Err(CARError::Codec.into());
         }
@@ -51,16 +54,28 @@ impl Streamable for Index<IndexSortedBucket> {
 
         // While we can read buckets
         while let Ok(bucket) = IndexSortedBucket::read_bytes(r) {
+            println!("read a valid bucket");
             // Push new bucket to list
             buckets.push(bucket);
         }
 
-        Ok(Index { codec, buckets })
+        // If there are no buckets
+        if buckets.len() == 0 {
+            println!("unable to read buckets!!!");
+            // At least start out with an empty one
+            Err(CARError::Index.into())
+        }
+        else {
+
+            Ok(Index { codec, buckets })
+        }
+
     }
 
     fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
         // Write codec
         w.write_all(&encode_varint_u128(self.codec))?;
+        println!("wrote codec");
         // For each bucket
         for bucket in &self.buckets {
             // Write out
@@ -139,9 +154,42 @@ impl IndexBucket for Index<IndexSortedBucket> {
     }
 
     fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
-        self.buckets[0].insert_offset(cid, offset)
+        let cid_width = cid.to_bytes().len() as u32;
+
+        for bucket in &mut self.buckets {
+            if bucket.width == cid_width {
+                return bucket.insert_offset(cid, offset)
+            }
+        }
+
+        let mut new_map = HashMap::new();
+        new_map.insert(*cid, offset);
+        self.buckets.push(IndexSortedBucket { width: cid_width, map: new_map });
+        None
     }
 }
+
+
+impl Index<IndexSortedBucket> {
+    pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self> {
+        let mut new_index: Index<IndexSortedBucket> = Index {
+            codec: INDEX_SORTED_CODEC,
+            buckets: vec![],
+        };
+
+        // While we're able to peek varints and CIDs
+        while let Ok(block_offset) = r.stream_position() &&
+              let Ok((varint, cid)) = Block::start_read(&mut *r) {
+            // Log where we found this block
+            new_index.insert_offset(&cid, block_offset);
+            // Skip the rest of the block
+            r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
+        }
+        
+        Ok(new_index)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::types::blockstore::car::carv2::index::{multihashindexsorted::Bucket, indexbucket::IndexBucket};

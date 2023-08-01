@@ -43,6 +43,7 @@ impl CAR {
         Self::verify_pragma(&mut r)?;
         // Load in the header
         let header = Header::read_bytes(&mut r)?;
+        println!("header2: {:?}", header);
         // Assert we're at the right spot
         assert_eq!(r.stream_position()?, PH_SIZE);
         // Seek to the data offset
@@ -75,8 +76,9 @@ impl CAR {
         // Write the CARv1
         self.car.write_bytes(&mut rw)?;
         // Update our data size in the Header
-        self.update_data_size(&mut rw)?;
-
+        self.update_header(&mut rw)?;
+        // Write out the index
+        self.car.index.borrow().write_bytes(&mut rw)?;
         // Move back to the start
         rw.seek(SeekFrom::Start(0))?;
         // Write the PRAGMA
@@ -132,7 +134,7 @@ impl CAR {
         // Write the bytes
         block.write_bytes(&mut w)?;
         // Update the data size
-        self.update_data_size(&mut w)?;
+        self.update_header(&mut w)?;
         // Flush
         w.flush()?;
         // Return Ok
@@ -168,15 +170,21 @@ impl CAR {
         Self::read_bytes(&mut rw)
     }
 
-    fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
+    fn update_header<X: Seek>(&self, mut x: X) -> Result<()> {
         // Update the data size
         let v1_end = x.seek(SeekFrom::End(0))?;
         // Update the data size
-        self.header.borrow_mut().data_size = if v1_end > PH_SIZE {
+        let mut header = self.header.borrow_mut();
+        header.data_size = if v1_end > PH_SIZE {
             v1_end - PH_SIZE
         } else {
             0
         };
+        // Update the index offset
+        header.index_offset = header.data_offset + header.data_size;
+        // Mark the characteristics as being fully indexed
+        header.characteristics = 128;
+
         Ok(())
     }
 
@@ -196,9 +204,9 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{
-        fs::File,
+        fs::{File, OpenOptions},
         str::FromStr,
-        vec,
+        vec, io::{Seek, SeekFrom},
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
@@ -262,11 +270,10 @@ mod test {
         Ok(())
     }
 
-    /*
     #[test]
     #[serial]
     fn put_get_block() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "put_get_block")?;
+        let car_path = &car_setup(2, "basic", "put_get_block")?;
 
         // Define reader and writer
         let mut car_file = File::open(car_path)?;
@@ -274,7 +281,7 @@ mod test {
         // Read original CARv2
         let original = CAR::read_bytes(&mut car_file)?;
         let index = original.car.index.borrow().clone();
-        let all_cids = index.map.keys().collect::<Vec<&Cid>>();
+        let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
@@ -303,7 +310,6 @@ mod test {
 
         Ok(())
     }
-     */
 
     #[test]
     #[serial]
@@ -317,14 +323,14 @@ mod test {
         original.write_bytes(&mut original_rw)?;
 
         // Reconstruct
-        let mut updated_rw = get_read_write(car_path)?;
-        let reconstructed = CAR::read_bytes(&mut updated_rw)?;
+        // let mut updated_rw = get_read_write(car_path)?;
+        original_rw.seek(SeekFrom::Start(0))?;
+        let reconstructed = CAR::read_bytes(&mut original_rw)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        // assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.car.header, reconstructed.car.header);
-        assert_eq!(original.car.index, reconstructed.car.index);
+        // assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         Ok(())
@@ -333,7 +339,7 @@ mod test {
     #[test]
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
+        let car_path = &car_setup(2, "basic", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
@@ -355,6 +361,7 @@ mod test {
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.car.header, reconstructed.car.header);
+        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         Ok(())

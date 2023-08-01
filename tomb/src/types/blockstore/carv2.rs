@@ -184,12 +184,15 @@ mod test {
     use super::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
+    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
+    use std::{fs::{remove_file, remove_dir_all, create_dir_all}, path::Path, str::FromStr, rc::Rc};
+    use tomb_common::{types::{blockstore::{tombblockstore::TombBlockStore, car::carv2}, keys::manager::Manager}, utils::{test::{car_setup, setup}, serialize::*}};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
-        libipld::{Cid, IpldCodec},
+        libipld::{Cid, IpldCodec}, private::{PrivateForest, PrivateDirectory},
     };
+    use tomb_common::utils::test::teardown;
+
 
     #[tokio::test]
     #[serial]

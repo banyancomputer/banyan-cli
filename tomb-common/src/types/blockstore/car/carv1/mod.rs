@@ -38,14 +38,15 @@ impl CAR {
         let header_start = r.stream_position()?;
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
+        println!("header2: {:?}", header);
         let header_end = r.stream_position()?;
         // Determine the length of the header that we just read
         let read_header_len = RefCell::new(r.stream_position()? - header_start);
         println!("read_header_len: {}", read_header_len.borrow().clone());
         // If we're in a CARv2
         if let Some(index_offset) = index_offset &&
-        r.seek(SeekFrom::Start(index_offset)).is_ok() &&
-        let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
+        r.seek(SeekFrom::Start(index_offset)).is_ok() {
+            let index = <Index<Bucket>>::read_bytes(&mut r)?;
             return Ok(Self {
                 header,
                 index: RefCell::new(index),
@@ -56,12 +57,7 @@ impl CAR {
         //
         println!("either there was no index_offset or it was bad. starting from stratch");
         r.seek(SeekFrom::Start(header_end))?;
-        let bucket = Bucket::read_from_carv1(&mut r)?;
-        let index = Index {
-            codec: INDEX_SORTED_CODEC,
-            buckets: vec![bucket],
-        };
-
+        let index = Index::read_from_carv1(&mut r)?;
         Ok(Self {
             header,
             index: RefCell::new(index),
@@ -112,12 +108,10 @@ impl CAR {
         }
 
         {
-            // {println!("carv1 index before update: {:?}", self.index); }
             // Update index
             let mut index = self.index.borrow_mut();
             index.buckets[0].map = new_index;
         }
-        // println!("carv1 index after update: {:?}", self.index);
 
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
@@ -177,7 +171,8 @@ impl CAR {
 
 impl PartialEq for CAR {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header
+        self.header == other.header &&
+        self.index == other.index
     }
 }
 

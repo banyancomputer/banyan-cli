@@ -37,12 +37,8 @@ impl Streamable for Header {
     }
 
     fn read_bytes<R: Read>(r: &mut R) -> Result<Self> {
-        let characteristics = read_varint_u128_exact(r)?;
-
-        assert_eq!(characteristics, 0);
-
         Ok(Self {
-            characteristics,
+            characteristics: read_varint_u128_exact(r)?,
             data_offset: read_varint_u64_exact(r)?,
             data_size: read_varint_u64_exact(r)?,
             index_offset: read_varint_u64_exact(r)?,

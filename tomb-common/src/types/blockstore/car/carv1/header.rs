@@ -30,9 +30,9 @@ pub struct Header {
 impl Header {
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
     pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self> {
-        let ipld: Ipld = dagcbor::decode(bytes)?;
         // If the IPLD is a true map and the correct keys exist within it
-        if let Ipld::Map(map) = ipld &&
+        if let Ok(ipld) = dagcbor::decode(bytes) &&
+            let Ipld::Map(map) = ipld &&
             let Some(Ipld::Integer(int)) = map.get("version") &&
             let Some(Ipld::List(roots_ipld)) = map.get("roots") {
             // Helper function for interpreting a given Cid as a Link
@@ -101,6 +101,7 @@ impl Streamable for Header {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(r)?;
+        println!("the ipld len is: {:?}", ipld_len);
         // Allocate that space
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes
@@ -117,7 +118,7 @@ mod test {
     use super::Header;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::File, io::BufReader, path::Path, str::FromStr, vec};
+    use std::{fs::File, io::{BufReader, Cursor}, path::Path, str::FromStr, vec, cell::RefCell};
     use wnfs::libipld::Cid;
 
     #[test]
@@ -138,6 +139,29 @@ mod test {
         // Assert that the roots loaded match the roots expected in this file
         assert_eq!(header.roots.borrow().clone(), expected_roots);
         // Return Ok
+        Ok(())
+    }
+
+    #[test]
+    fn output() -> Result<()> {
+
+
+
+        let cid1 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
+        let cid2 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
+
+        let header = Header {
+            version: 1,
+            roots: RefCell::new(vec![
+                cid1,
+                cid2
+            ]),
+        };
+
+        let mut bytes = Cursor::new(<Vec<u8>>::new());
+        header.write_bytes(&mut bytes)?;
+        println!("header hex: \n{}\n", hex::encode(bytes.into_inner()));
+
         Ok(())
     }
 }

@@ -112,7 +112,7 @@ impl GlobalConfig {
         Ok(bucket)
     }
 
-    fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {
+    pub(crate) fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {
         let existing = self.get_bucket(path);
         if let Some(config) = existing {
             Ok(config)

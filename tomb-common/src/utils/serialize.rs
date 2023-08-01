@@ -381,7 +381,7 @@ mod test {
     async fn forest() -> Result<()> {
         let test_name = "forest";
         // Start er up!
-        let (_, metadata, _, metadata_forest, _, _) = &mut setup(test_name).await?;
+        let (metadata, _, metadata_forest, _, _) = &mut setup_memory(test_name).await?;
 
         // Store and load
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
@@ -405,7 +405,7 @@ mod test {
     async fn dir_object() -> Result<()> {
         let test_name = "dir_object";
         // Start er up!
-        let (_, metadata, _, metadata_forest, _, dir) = &mut setup(test_name).await?;
+        let (metadata, _, metadata_forest, _, dir) = &mut setup_memory(test_name).await?;
 
         let (private_ref_cid, temporal_key) = &store_dir(metadata, metadata_forest, dir).await?;
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
@@ -423,8 +423,8 @@ mod test {
     async fn dir_content() -> Result<()> {
         let test_name = "dir_content";
         // Start er up!
-        let (_, metadata, content, original_metadata_forest, original_content_forest, original_dir) =
-            &mut setup(test_name).await?;
+        let (metadata, content, original_metadata_forest, original_content_forest, original_dir) =
+            &mut setup_memory(test_name).await?;
 
         // Grab the original file
         let original_file = original_dir
@@ -478,8 +478,8 @@ mod test {
     async fn all_from_metadata() -> Result<()> {
         let test_name = "all";
         // Start er up!
-        let (_, metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup(test_name).await?;
+        let (metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup_memory(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -526,8 +526,8 @@ mod test {
     async fn all_from_content() -> Result<()> {
         let test_name = "all";
         // Start er up!
-        let (_, metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup(test_name).await?;
+        let (metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup_memory(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -573,8 +573,8 @@ mod test {
     async fn history() -> Result<()> {
         let test_name = "history";
         // Start er up!
-        let (_, metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup(test_name).await?;
+        let (metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup_memory(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -603,8 +603,8 @@ mod test {
     async fn build_details() -> Result<()> {
         let test_name = "build_details";
         // Start er up!
-        let (_, metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup(test_name).await?;
+        let (metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup_memory(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;

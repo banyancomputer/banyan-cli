@@ -77,8 +77,7 @@ mod test {
         map.insert(Cid::default(), 42);
 
         IndexSortedBucket {
-            width: 40,
-            count: 5,
+            width: Cid::default().to_bytes().len() as u32,
             map,
         }
     }

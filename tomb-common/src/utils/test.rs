@@ -64,13 +64,26 @@ pub fn carindex_setup(
     Ok(new_path)
 }
 
-/// Create all of the relevant objects, using real BlockStores and real data
-pub async fn setup(
-    test_name: &str,
+/// Setup using a TombMemoryBlockStore
+pub async fn setup_memory(test_name: &str
 ) -> Result<(
-    PathBuf,
     TombMemoryBlockStore,
     TombMemoryBlockStore,
+    Rc<PrivateForest>,
+    Rc<PrivateForest>,
+    Rc<PrivateDirectory>,
+)> {
+    setup(test_name, TombMemoryBlockStore::new(), TombMemoryBlockStore::new()).await
+}
+
+/// Create all of the relevant objects, using real BlockStores and real data
+pub async fn setup<TBS: TombBlockStore>(
+    test_name: &str,
+    metadata: TBS,
+    content: TBS,
+) -> Result<(
+    TBS,
+    TBS,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
@@ -78,8 +91,6 @@ pub async fn setup(
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 
-    let metadata = TombMemoryBlockStore::new();
-    let content = TombMemoryBlockStore::new();
     metadata.set_root(&Cid::default());
     content.set_root(&Cid::default());
 
@@ -119,7 +130,6 @@ pub async fn setup(
     .await?;
 
     Ok((
-        origin,
         metadata,
         content,
         metadata_forest,

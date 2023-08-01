@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::{
     io::{Read, Seek, SeekFrom},
-    u32,
+    u32, 
 };
 use unsigned_varint::{decode, encode};
 
@@ -89,6 +89,10 @@ pub(crate) fn encode_varint_u128(input: u128) -> Vec<u8> {
     // Encode bytes
     encode::u128(input, &mut buf).to_vec()
 }
+
+// pub(crate) fn encode_varint_u32_exact(input: u32) -> [u8; 8] {
+//     input.to_le_bytes()
+// }
 
 pub(crate) fn encode_varint_u64_exact(input: u64) -> [u8; 8] {
     input.to_le_bytes()

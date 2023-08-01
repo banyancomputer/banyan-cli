@@ -51,11 +51,17 @@ impl BlockStore {
                 }
             }
 
-            // Ok
-            Ok(Self {
+            let mut new = Self {
                 path: dir.to_path_buf(),
                 deltas,
-            })
+            };
+
+            if new.deltas.len() == 0 {
+                new.add_delta()?;
+            }
+
+            // Ok
+            Ok(new)
         }
     }
 
