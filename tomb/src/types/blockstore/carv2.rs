@@ -134,7 +134,6 @@ impl TombBlockStore for BlockStore {
             .ok_or(BlockStoreError::CIDNotFound(block.cid))?;
         // Remove existing offset
         // TODO remove old cid
-        println!("upddating a block at offset {}", block_start);
         // index.map.remove(&block.cid);
         index.insert_offset(&new_block.cid, block_start);
         // Move to the right position

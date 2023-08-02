@@ -124,7 +124,6 @@ impl Mapper {
             } else {
                 String::from_utf8(vec![b' '; 242]).unwrap()
             };
-            println!("encrypted key: {}", encrypted_key.len());
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
             // Insert the encrypted key

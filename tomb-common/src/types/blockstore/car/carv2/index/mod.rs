@@ -45,29 +45,23 @@ impl Streamable for Index<IndexSortedBucket> {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
-        println!("read the codec of {}", codec);
         if codec != INDEX_SORTED_CODEC {
             return Err(CARError::Codec.into());
         }
         // Empty bucket vec
         let mut buckets = <Vec<IndexSortedBucket>>::new();
-
-        println!("this file is indexsorted");
-
         // While we can read buckets
         while let Ok(bucket) = IndexSortedBucket::read_bytes(r) {
-            println!("read a valid bucket");
             // Push new bucket to list
             buckets.push(bucket);
         }
 
         // If there are no buckets
         if buckets.is_empty() {
-            println!("unable to read buckets!!!");
             // At least start out with an empty one
             Err(CARError::Index.into())
         } else {
-            println!("finished reading index");
+            // Success
             Ok(Index { codec, buckets })
         }
     }

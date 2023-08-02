@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
 
 use crate::types::{
-    blockstore::car::varint::{
-        encode_varint_u128_exact, encode_varint_u64_exact, read_varint_u128_exact,
-        read_varint_u64_exact,
-    },
+    blockstore::car::varint::{read_leu128, read_leu64},
     streamable::Streamable,
 };
 
@@ -25,10 +22,10 @@ impl Streamable for Header {
     fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
         let start = w.stream_position()?;
         // Write
-        w.write_all(&encode_varint_u128_exact(self.characteristics))?;
-        w.write_all(&encode_varint_u64_exact(self.data_offset))?;
-        w.write_all(&encode_varint_u64_exact(self.data_size))?;
-        w.write_all(&encode_varint_u64_exact(self.index_offset))?;
+        w.write_all(&self.characteristics.to_le_bytes())?;
+        w.write_all(&self.data_offset.to_le_bytes())?;
+        w.write_all(&self.data_size.to_le_bytes())?;
+        w.write_all(&self.index_offset.to_le_bytes())?;
         // Assert correct number of bytes written
         assert_eq!((w.stream_position()? - start) as usize, HEADER_SIZE);
         // Flush
@@ -38,10 +35,10 @@ impl Streamable for Header {
 
     fn read_bytes<R: Read>(r: &mut R) -> Result<Self> {
         Ok(Self {
-            characteristics: read_varint_u128_exact(r)?,
-            data_offset: read_varint_u64_exact(r)?,
-            data_size: read_varint_u64_exact(r)?,
-            index_offset: read_varint_u64_exact(r)?,
+            characteristics: read_leu128(r)?,
+            data_offset: read_leu64(r)?,
+            data_size: read_leu64(r)?,
+            index_offset: read_leu64(r)?,
         })
     }
 }

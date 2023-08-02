@@ -38,11 +38,10 @@ impl CAR {
         let header_start = r.stream_position()?;
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
-        println!("header2: {:?}", header);
+        // End of the header
         let header_end = r.stream_position()?;
         // Determine the length of the header that we just read
-        let read_header_len = RefCell::new(r.stream_position()? - header_start);
-        println!("read_header_len: {}", read_header_len.borrow().clone());
+        let read_header_len = RefCell::new(header_end - header_start);
         // If we're in a CARv2
         if let Some(index_offset) = index_offset &&
         r.seek(SeekFrom::Start(index_offset)).is_ok() &&
@@ -54,8 +53,6 @@ impl CAR {
             })
         }
 
-        //
-        println!("either there was no index_offset or it was bad. starting from stratch");
         r.seek(SeekFrom::Start(header_end))?;
         let index = Index::read_from_carv1(&mut r)?;
         Ok(Self {

@@ -129,6 +129,7 @@ mod test {
         rc::Rc,
     };
 
+    use crate::types::config::globalconfig::GlobalConfig;
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;
@@ -139,7 +140,6 @@ mod test {
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
     };
-    use crate::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]

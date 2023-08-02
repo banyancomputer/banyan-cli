@@ -85,7 +85,6 @@ impl WnfsBlockStore for BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
-            println!("searching through {}", store.path.display());
             // If block is retrieved
             if let Ok(data) = store.get_block(cid).await {
                 // Ok
@@ -101,7 +100,6 @@ impl WnfsBlockStore for BlockStore {
         // If there is a delta
         if let Some(current_delta) = self.deltas.last() {
             let cid = current_delta.put_block(bytes, codec).await?;
-            println!("putting {} in {}", cid, current_delta.path.display());
             Ok(cid)
         } else {
             Err(BlockStoreError::LockPoisoned.into())

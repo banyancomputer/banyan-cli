@@ -507,9 +507,6 @@ mod test {
         println!("Block 5 CID Base58: {}", block_five_cid_string);
         assert!(Cid::from_str(&block_five_cid_string).is_ok());
 
-        let data_size = all_car_bytes.len() as u64 - data_offset;
-        println!("the real data size is {}", data_size);
-
         // Optional Padding 2
         all_car_bytes.extend_from_slice(OPTIONAL_PADDING_TWO);
 

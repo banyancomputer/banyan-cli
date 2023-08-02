@@ -101,7 +101,6 @@ impl Streamable for Header {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(r)?;
-        println!("the ipld len is: {:?}", ipld_len);
         // Allocate that space
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes
@@ -161,8 +160,6 @@ mod test {
 
         let mut bytes = Cursor::new(<Vec<u8>>::new());
         header.write_bytes(&mut bytes)?;
-        println!("header hex: \n{}\n", hex::encode(bytes.into_inner()));
-
         Ok(())
     }
 

@@ -94,9 +94,9 @@ impl Streamable for Block {
 }
 
 mod test {
-    use crate::streamable_tests;
     #[allow(unused_imports)]
     use super::Block;
+    use crate::streamable_tests;
     #[allow(unused_imports)]
     use wnfs::libipld::IpldCodec;
 

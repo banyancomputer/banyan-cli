@@ -40,7 +40,6 @@ impl CAR {
         Self::verify_pragma(&mut r)?;
         // Load in the header
         let header = Header::read_bytes(&mut r)?;
-        println!("header2: {:?}", header);
         // Assert we're at the right spot
         assert_eq!(r.stream_position()?, PH_SIZE);
         // Seek to the data offset
@@ -74,8 +73,8 @@ impl CAR {
         self.car.write_bytes(&mut rw)?;
         // Update our data size in the Header
         self.update_header(&mut rw)?;
+        // Move to index offset
         rw.seek(SeekFrom::Start(self.header.borrow().index_offset))?;
-        println!("writing out the index at {}", rw.stream_position()?);
         // Write out the index
         self.car.index.borrow().write_bytes(&mut rw)?;
         // Move back to the start
@@ -212,10 +211,7 @@ mod test {
     use wnfs::libipld::{Cid, IpldCodec};
 
     use crate::{
-        types::blockstore::car::{
-            carv1::block::Block,
-            carv2::CAR,
-        },
+        types::blockstore::car::{carv1::block::Block, carv2::CAR},
         utils::test::{car_setup, get_read_write},
     };
 
@@ -229,8 +225,6 @@ mod test {
 
         // Assert version is correct
         assert_eq!(&carv2.car.header.version, &1);
-
-        println!("carv2 index: {:?}", carv2.car.index);
 
         // CIDs
         let block_cids = vec![
