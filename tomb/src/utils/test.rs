@@ -2,19 +2,16 @@ use anyhow::Result;
 use chrono::Utc;
 use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use rand::thread_rng;
-use tomb_common::utils::test::setup;
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
     process::Command,
     rc::Rc,
 };
+use tomb_common::utils::test::setup;
 use wnfs::private::{PrivateDirectory, PrivateForest};
 
-use crate::{
-    pipelines::configure,
-    types::blockstore::carv2::BlockStore
-};
+use crate::{pipelines::configure, types::blockstore::carv2::BlockStore};
 
 /// Set up temporary filesystem for test cases
 pub async fn test_setup(test_name: &str) -> Result<PathBuf> {
@@ -69,7 +66,9 @@ pub fn compute_directory_size(path: &Path) -> Result<usize> {
     Ok(size)
 }
 
-pub async fn setup_v2(test_name: &str) -> Result<(
+pub async fn setup_v2(
+    test_name: &str,
+) -> Result<(
     BlockStore,
     BlockStore,
     Rc<PrivateForest>,
@@ -85,4 +84,3 @@ pub async fn setup_v2(test_name: &str) -> Result<(
     let content = BlockStore::new(&path.join("content.car"))?;
     setup(test_name, metadata, content).await
 }
-

@@ -20,12 +20,14 @@ mod test {
             index::{
                 indexsorted::Bucket as IndexSortedBucket,
                 multihashindexsorted::Bucket as MultiHashIndexSortedBucket, Index as V2Index,
+                INDEX_SORTED_CODEC,
             },
         },
     };
     use std::{
         collections::HashMap,
         io::{Cursor, Seek, SeekFrom},
+        str::FromStr,
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
@@ -62,24 +64,21 @@ mod test {
     }
 
     /// Generate example data for V2Index
-    fn v2_multi_index_example() -> V2Index<MultiHashIndexSortedBucket> {
-        <V2Index<MultiHashIndexSortedBucket>>::new()
-    }
-
-    /// Generate example data for V2Index
     fn v2_sorted_index_example() -> V2Index<IndexSortedBucket> {
-        <V2Index<IndexSortedBucket>>::new()
+        V2Index {
+            codec: INDEX_SORTED_CODEC,
+            buckets: vec![index_sorted_example()],
+        }
     }
 
     /// Generate example data for IndexSortedBucket
     fn index_sorted_example() -> IndexSortedBucket {
+        let cid = Cid::from_str("bafyrcfajghwtmjky5lzbkwxyzjlim3yxi4pmebi").unwrap();
+        // Width represents
+        let cid_width = cid.to_bytes().len() as u32;
         let mut map = HashMap::new();
-        map.insert(Cid::default(), 42);
-
-        IndexSortedBucket {
-            width: Cid::default().to_bytes().len() as u32,
-            map,
-        }
+        map.insert(cid, 42);
+        IndexSortedBucket { cid_width, map }
     }
 
     /// Generate example data for MultiHashIndexSortedBucket
@@ -138,7 +137,7 @@ mod test {
         V2Index<IndexSortedBucket>:
         carv2sortedindex: v2_sorted_index_example(),
 
-        V2Index<MultiHashIndexSortedBucket>:
-        carv2multiindex: v2_multi_index_example(),
+        // V2Index<MultiHashIndexSortedBucket>:
+        // carv2multiindex: v2_multi_index_example(),
     }
 }

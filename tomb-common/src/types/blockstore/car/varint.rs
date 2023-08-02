@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::{
     io::{Read, Seek, SeekFrom},
-    u32, 
+    u32,
 };
 use unsigned_varint::{decode, encode};
 

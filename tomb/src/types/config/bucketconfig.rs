@@ -121,17 +121,23 @@ impl BucketConfig {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use std::{fs::{create_dir_all, remove_dir_all}, path::Path, rc::Rc};
+    use std::{
+        fs::{create_dir_all, remove_dir_all},
+        path::Path,
+        rc::Rc,
+    };
 
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;
     use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
     use tomb_crypt::prelude::WrappingPrivateKey;
-    use wnfs::{private::{PrivateForest, PrivateDirectory}, namefilter::Namefilter};
+    use wnfs::{
+        namefilter::Namefilter,
+        private::{PrivateDirectory, PrivateForest},
+    };
 
     use crate::{types::config::globalconfig::GlobalConfig, utils::test::setup_v2};
 
@@ -149,8 +155,6 @@ mod test {
         // let (metadata, content, metadata_forest, content_forest, root_dir) = setup_v2(test_name).await?;
         // config.metadata = metadata;
         // config.content = content;
-
-
 
         let mut manager = Manager::default();
         let wrapping_key = global.load_key().await?;
@@ -172,5 +176,4 @@ mod test {
 
         Ok(())
     }
-
 }

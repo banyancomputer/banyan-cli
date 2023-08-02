@@ -65,7 +65,8 @@ pub fn carindex_setup(
 }
 
 /// Setup using a TombMemoryBlockStore
-pub async fn setup_memory(test_name: &str
+pub async fn setup_memory(
+    test_name: &str,
 ) -> Result<(
     TombMemoryBlockStore,
     TombMemoryBlockStore,
@@ -73,7 +74,12 @@ pub async fn setup_memory(test_name: &str
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
-    setup(test_name, TombMemoryBlockStore::new(), TombMemoryBlockStore::new()).await
+    setup(
+        test_name,
+        TombMemoryBlockStore::new(),
+        TombMemoryBlockStore::new(),
+    )
+    .await
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data
@@ -129,13 +135,7 @@ pub async fn setup<TBS: TombBlockStore>(
     )
     .await?;
 
-    Ok((
-        metadata,
-        content,
-        metadata_forest,
-        content_forest,
-        root_dir,
-    ))
+    Ok((metadata, content, metadata_forest, content_forest, root_dir))
 }
 
 /// Delete the temporary directory

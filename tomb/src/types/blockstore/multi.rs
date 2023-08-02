@@ -50,18 +50,12 @@ impl BlockStore {
                     deltas.push(car);
                 }
             }
-
-            let mut new = Self {
+            
+            // Ok
+            Ok(Self {
                 path: dir.to_path_buf(),
                 deltas,
-            };
-
-            if new.deltas.len() == 0 {
-                new.add_delta()?;
-            }
-
-            // Ok
-            Ok(new)
+            })
         }
     }
 

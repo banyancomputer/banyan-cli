@@ -6,11 +6,17 @@
 
 use std::{cell::RefCell, io::Cursor, str::FromStr};
 
-use base58::ToBase58;
+use base58::{FromBase58, ToBase58};
 use sha2::Digest;
 use wnfs::libipld::Cid;
 
-use crate::types::{blockstore::car::{carv2::{PH_SIZE, header::HEADER_SIZE}, carv1::header::Header}, streamable::Streamable};
+use crate::types::{
+    blockstore::car::{
+        carv1::header::Header,
+        carv2::{header::HEADER_SIZE, PH_SIZE},
+    },
+    streamable::Streamable,
+};
 
 /// Quick Specification Reference Links:
 ///
@@ -30,83 +36,68 @@ use crate::types::{blockstore::car::{carv2::{PH_SIZE, header::HEADER_SIZE}, carv
 /// values.
 
 const BLOCK_ZERO_DATA: &[u8] = &[
-    0x00,                                           // Multibase: Identity Encoding (unsigned varint 0)
-    0xa1,                                           // map 0, elements=1
-    0x64,                                           // map 0 key 0 = text-string, length=4
-    0x6b, 0x65, 0x79, 0x7,                          // "keys"
-    0xa2,                                           // map 0 value 0 = map 1, elements 1
-    0x58, 0x22,                                     // map 0 key 1 = byte-string, length=34
-    0x1e, 0x20,                                     // SHA2-256
-    0xd9, 0x40, 0x0a, 0x52, 0x95, 0x22, 0xe1, 0x9c, // a random SHA2-256 fingerprint bytes of an EC public key
-    0x31, 0xee, 0x57, 0x67, 0x09, 0xe3, 0x51, 0xb1,
-    0x77, 0x32, 0x54, 0xf9, 0xbf, 0xac, 0x91, 0xa6,
-    0x68, 0xc8, 0x93, 0xa6, 0x19, 0x99, 0xd5, 0xfa,
-    0x58, 0x78,                                     // map 0 value 1 = byte-string, length=120
-    0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2a, 0x86, // the EC public key DER encoded for the fingerprint
-    0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05, 0x2b,
-    0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00, 0x04,
-    0x03, 0x82, 0x13, 0x9e, 0xac, 0x43, 0x1e, 0x79,
-    0xf2, 0xf3, 0xf3, 0x5e, 0x3b, 0x05, 0x2a, 0x13,
-    0x23, 0x74, 0x35, 0x13, 0xe1, 0x35, 0x64, 0x92,
-    0xd3, 0xb3, 0x5d, 0xcc, 0x2b, 0xaf, 0x4d, 0x2f,
-    0xa8, 0x67, 0x39, 0x0e, 0xa2, 0xee, 0x55, 0x20,
-    0xcb, 0x94, 0xe5, 0x00, 0xa3, 0x9d, 0x8a, 0x86,
-    0x15, 0x46, 0x59, 0xc2, 0x54, 0xdf, 0x0b, 0x26,
-    0x65, 0x71, 0x96, 0x9a, 0xea, 0x6a, 0x89, 0x8b,
-    0xef, 0xe4, 0x2e, 0x8c, 0x74, 0x36, 0xdf, 0x6e,
-    0x1d, 0xb0, 0x8f, 0x5f, 0x44, 0x2b, 0x42, 0x52,
-    0xb0, 0x7b, 0x10, 0x2c, 0x7f, 0x55, 0x82, 0x30,
-    0x6a, 0x05, 0x51, 0x92, 0x93, 0xec, 0x86, 0x83,
+    0x00, // Multibase: Identity Encoding (unsigned varint 0)
+    0xa1, // map 0, elements=1
+    0x64, // map 0 key 0 = text-string, length=4
+    0x6b, 0x65, 0x79, 0x7,  // "keys"
+    0xa2, // map 0 value 0 = map 1, elements 1
+    0x58, 0x22, // map 0 key 1 = byte-string, length=34
+    0x1e, 0x20, // SHA2-256
+    0xd9, 0x40, 0x0a, 0x52, 0x95, 0x22, 0xe1,
+    0x9c, // a random SHA2-256 fingerprint bytes of an EC public key
+    0x31, 0xee, 0x57, 0x67, 0x09, 0xe3, 0x51, 0xb1, 0x77, 0x32, 0x54, 0xf9, 0xbf, 0xac, 0x91, 0xa6,
+    0x68, 0xc8, 0x93, 0xa6, 0x19, 0x99, 0xd5, 0xfa, 0x58,
+    0x78, // map 0 value 1 = byte-string, length=120
+    0x30, 0x76, 0x30, 0x10, 0x06, 0x07, 0x2a,
+    0x86, // the EC public key DER encoded for the fingerprint
+    0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x03, 0x62, 0x00, 0x04,
+    0x03, 0x82, 0x13, 0x9e, 0xac, 0x43, 0x1e, 0x79, 0xf2, 0xf3, 0xf3, 0x5e, 0x3b, 0x05, 0x2a, 0x13,
+    0x23, 0x74, 0x35, 0x13, 0xe1, 0x35, 0x64, 0x92, 0xd3, 0xb3, 0x5d, 0xcc, 0x2b, 0xaf, 0x4d, 0x2f,
+    0xa8, 0x67, 0x39, 0x0e, 0xa2, 0xee, 0x55, 0x20, 0xcb, 0x94, 0xe5, 0x00, 0xa3, 0x9d, 0x8a, 0x86,
+    0x15, 0x46, 0x59, 0xc2, 0x54, 0xdf, 0x0b, 0x26, 0x65, 0x71, 0x96, 0x9a, 0xea, 0x6a, 0x89, 0x8b,
+    0xef, 0xe4, 0x2e, 0x8c, 0x74, 0x36, 0xdf, 0x6e, 0x1d, 0xb0, 0x8f, 0x5f, 0x44, 0x2b, 0x42, 0x52,
+    0xb0, 0x7b, 0x10, 0x2c, 0x7f, 0x55, 0x82, 0x30, 0x6a, 0x05, 0x51, 0x92, 0x93, 0xec, 0x86, 0x83,
 ];
 
 // A minimal "identity" block
 const BLOCK_TWO_DATA: &[u8] = &[
-    0x00,                                           // Multibase: Identity Encoding (unsigned varint 0)
-    0x00,                                           // Multicodec: Identity
+    0x00, // Multibase: Identity Encoding (unsigned varint 0)
+    0x00, // Multicodec: Identity
 ];
 
 // Unrelated unknown data
 const BLOCK_THREE_DATA: &[u8] = &[
-    0xd9, 0xd9, 0xf7, 0x5a, 0x57, 0x46, 0x7a, 0x64,
-    0x47, 0x56, 0x79, 0x4c, 0x57, 0x56, 0x6e, 0x5a,
+    0xd9, 0xd9, 0xf7, 0x5a, 0x57, 0x46, 0x7a, 0x64, 0x47, 0x56, 0x79, 0x4c, 0x57, 0x56, 0x6e, 0x5a,
     0x77,
 ];
 
 const BLOCK_FIVE_DATA: &[u8] = &[
-    0x00,                                           // Multibase: Identity Encoding (unsigned varint 0)
-
-    0xa1,                                           // map 0, elements=1
-    0x6c,                                           // map 0 key 0 = text-string, length=12
+    0x00, // Multibase: Identity Encoding (unsigned varint 0)
+    0xa1, // map 0, elements=1
+    0x6c, // map 0 key 0 = text-string, length=12
     0x77, 0x6e, 0x66, 0x73, 0x2f, 0x70, 0x75, 0x62, // "wnfs/pub/dir"
-    0x2f, 0x64, 0x69, 0x72,
-    0xa4,                                           // map 0 value 0 = map 1, elements=4
-
-    0x67,                                           // map 1 key 0 = text-string, length=7
-    0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,       // "version"
-    0x65,                                           // map 1 value 0 = text-string, length=5
-    0x30, 0x2e, 0x32, 0x2e, 0x30,                   // "0.2.0"
-
-    0x68,                                           // map 1 key 1 = text-string, length=8
+    0x2f, 0x64, 0x69, 0x72, 0xa4, // map 0 value 0 = map 1, elements=4
+    0x67, // map 1 key 0 = text-string, length=7
+    0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, // "version"
+    0x65, // map 1 value 0 = text-string, length=5
+    0x30, 0x2e, 0x32, 0x2e, 0x30, // "0.2.0"
+    0x68, // map 1 key 1 = text-string, length=8
     0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, // "metadata"
-    0xa2,                                           // map 1 value 1 = map 2, elements=2
-
-    0x67,                                           // map 2 key 0 = text-string, length=7
-    0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64,       // "created"
-    0xc1,                                           // map 2 value 0 = tag(type=1)
-    0x18, 0x64, 0xc3, 0xea, 0xd8,                   // unsigned(1690561240)
-
-    0x68,                                           // map 2 key 1 = text-string, length=8
+    0xa2, // map 1 value 1 = map 2, elements=2
+    0x67, // map 2 key 0 = text-string, length=7
+    0x63, 0x72, 0x65, 0x61, 0x74, 0x65, 0x64, // "created"
+    0xc1, // map 2 value 0 = tag(type=1)
+    0x18, 0x64, 0xc3, 0xea, 0xd8, // unsigned(1690561240)
+    0x68, // map 2 key 1 = text-string, length=8
     0x6d, 0x6f, 0x64, 0x69, 0x66, 0x69, 0x65, 0x64, // "modified"
-    0xc1,                                           // map 2 value 1 = tag(type=1)
-    0x18, 0x64, 0xc3, 0xeb, 0x39,                   // unsigned(1690561337)
-
-    0x68,                                           // map 1 key 2 = text-string, length=8
+    0xc1, // map 2 value 1 = tag(type=1)
+    0x18, 0x64, 0xc3, 0xeb, 0x39, // unsigned(1690561337)
+    0x68, // map 1 key 2 = text-string, length=8
     0x70, 0x72, 0x65, 0x76, 0x69, 0x6f, 0x75, 0x73, // "previous"
-    0x80,                                           // map 1 value 2 = array, length=0
-
-    0x68,                                           // map 1 key 3 = text-string, length=8
+    0x80, // map 1 value 2 = array, length=0
+    0x68, // map 1 key 3 = text-string, length=8
     0x75, 0x73, 0x65, 0x72, 0x6c, 0x61, 0x6e, 0x64, // "userland"
-    0x80,                                           // map 1 value 3 = array, length=0
+    0x80, // map 1 value 3 = array, length=0
 ];
 
 /// The byte values for this section were taken straight from the specification and should not
@@ -115,7 +106,6 @@ const BLOCK_FIVE_DATA: &[u8] = &[
 const CARV2_PRAGMA: &[u8] = &[
     // A variable integer (LEB128) value indicating the total length remaining of this type.
     0x0a,
-
     // This begins the DAG-CBOR encoding defined in the CARv1 specification until the end of the
     // PRAGMA according to the IPLD Schema:
     //
@@ -157,21 +147,17 @@ const CARV2_PRAGMA: &[u8] = &[
     //
     // So we know the spec has been violated already but unsure how.
     0xa1,
-
     // We get to our first map key-value pair, which we're expecting to be "roots". The type is
     // 0b011, major type 3 or "text-string" which is what we're looking for but it has a length of
     // 7 (0b0_0111)...
     0x67,
-
     // And sure enough we get an ASCII encoded "version", matching our length but telling us the
     // roots array is missing (since there are no other keys in the map).
     0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
-
     // Decoding this CBOR type gets us 0b000 which is an unsigned integer, the next five bits are a
     // "short-count" value of 0b0_0010, or the unsigned number 2. This matches our expected
     // version.
     0x02,
-
     // Side Note:
     //
     // There is an "unresolved item" noting that it is "unresolved" whether a valid CAR file must
@@ -226,11 +212,11 @@ fn blake3(bytes: &[u8]) -> Vec<u8> {
 
 fn blake3_cid(codec: &[u8], data: &[u8]) -> Vec<u8> {
     let mut cid_bytes = vec![
-        0x00,                                   // Multibase: Identity Encoding (unsigned varint)
-        0x01,                                   // CID Version: 1 (unsigned varint)
+        0x00, // Multibase: Identity Encoding (unsigned varint)
+        0x01, // CID Version: 1 (unsigned varint)
     ];
 
-    cid_bytes.extend_from_slice(codec);         // CIDv1 Multicodec: (as provided)
+    cid_bytes.extend_from_slice(codec); // CIDv1 Multicodec: (as provided)
     cid_bytes.extend_from_slice(&[0x1e, 0x20]); // CIDv1 Multihash: blake3, 32-byte digest
     cid_bytes.extend_from_slice(&blake3(data));
 
@@ -238,7 +224,11 @@ fn blake3_cid(codec: &[u8], data: &[u8]) -> Vec<u8> {
 }
 
 fn bytes_to_str(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("0x{b:02x}")).collect::<Vec<_>>().join(", ")
+    bytes
+        .iter()
+        .map(|b| format!("0x{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn carv1_header(metadata_cid: &[u8], wnfs_cid: &[u8]) -> Vec<u8> {
@@ -250,14 +240,12 @@ fn carv1_header(metadata_cid: &[u8], wnfs_cid: &[u8]) -> Vec<u8> {
         // length of the HEADER of this CARv1 only. I've documented the LEB128 encoding process in
         // the index section if its interesting.
         0x59,
-
         // We now get into the encoding of the CARv1 Header DAG-CBOR block. This consists of a map
         // must have a key of "version" with a value set to numeric type 1, and a "roots" array
         // that MUST contain one or more CIDs (except for the spec violation I pointed out in the
         // PRAGMA). We are going to have a map 0b101 with two values 0b0_0010 giving us the
         // following byte:
         0xa2,
-
         // According to the DAG-CBOR specification:
         //
         // > The keys in every map must be sorted lowest value to highest. Sorting is performed on the
@@ -271,7 +259,6 @@ fn carv1_header(metadata_cid: &[u8], wnfs_cid: &[u8]) -> Vec<u8> {
         // Encode the roots key (text string == 0b011, and length == 0b0_0101) then the bytes for
         // the ASCII string "roots":
         0x65, 0x72, 0x6f, 0x6f, 0x74, 0x73,
-
         // Encode an array of CIDs in our roots key, not all blocks need to be present here, we
         // care about the root of the WNFS filesystem, and our custom out-of-filesystem metadata
         // blocks so I will encode us with two roots here (I'll throw in some unrelated blocks into
@@ -292,9 +279,9 @@ fn carv1_header(metadata_cid: &[u8], wnfs_cid: &[u8]) -> Vec<u8> {
     header_bytes.extend_from_slice(&[
         // We're back at our top level map, and encoding its second value the key "version" with a
         // uint value of 1.
-        0x67,                                       // map key type (text-string, length 7)
-        0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,   // ASCII encoded string "version"
-        0x01,                                       // uint value of 1
+        0x67, // map key type (text-string, length 7)
+        0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, // ASCII encoded string "version"
+        0x01, // uint value of 1
     ]);
 
     header_bytes
@@ -302,7 +289,12 @@ fn carv1_header(metadata_cid: &[u8], wnfs_cid: &[u8]) -> Vec<u8> {
 
 /// NOTE: The contents of this header _ARE NOT_ encoded as CBOR values, they are direct raw
 /// encodings.
-fn carv2_header(fully_indexed: bool, data_offset: u64, data_size: u64, index_offset: u64) -> Vec<u8> {
+fn carv2_header(
+    fully_indexed: bool,
+    data_offset: u64,
+    data_size: u64,
+    index_offset: u64,
+) -> Vec<u8> {
     let mut header_bytes = Vec::new();
 
     // Characteristics (16 bytes)
@@ -348,8 +340,8 @@ fn dirty_varint(mut val: usize) -> Vec<u8> {
     let mut var_bytes = vec![];
 
     loop {
-        let mut current_byte = (val & 0b0111_1111) as u8;   // take the lower 7 bits
-        val >>= 7;                                          // shift them away
+        let mut current_byte = (val & 0b0111_1111) as u8; // take the lower 7 bits
+        val >>= 7; // shift them away
 
         if val > 0 {
             // This isn't the last byte, set the high bit
@@ -370,8 +362,8 @@ fn dirty_varint(mut val: usize) -> Vec<u8> {
 
 fn ipld_link(cid: &[u8]) -> Vec<u8> {
     let mut cid_bytes = vec![
-        0x00,               // Multibase: Identity Encoding (unsigned varint 0)
-        0xd8, 0x2a,         // IPLD Tag(42)
+        0x00, // Multibase: Identity Encoding (unsigned varint 0)
+        0xd8, 0x2a, // IPLD Tag(42)
     ];
 
     cid_bytes.extend_from_slice(&dirty_varint(cid.len()));
@@ -388,11 +380,11 @@ fn sha1(bytes: &[u8]) -> Vec<u8> {
 
 fn sha1_cid(codec: &[u8], data: &[u8]) -> Vec<u8> {
     let mut cid_bytes = vec![
-        0x00,                                   // Multibase: Identity Encoding (unsigned varint)
-        0x01,                                   // CID Version: 1 (unsigned varint)
+        0x00, // Multibase: Identity Encoding (unsigned varint)
+        0x01, // CID Version: 1 (unsigned varint)
     ];
 
-    cid_bytes.extend_from_slice(codec);         // CIDv1 Multicodec: (as provided)
+    cid_bytes.extend_from_slice(codec); // CIDv1 Multicodec: (as provided)
     cid_bytes.extend_from_slice(&[0x11, 0x14]); // CIDv1 Multihash: SHA1, 20-byte digest
     cid_bytes.extend_from_slice(&sha1(data));
 
@@ -407,11 +399,11 @@ fn sha2_256(bytes: &[u8]) -> Vec<u8> {
 
 fn sha256_cid(codec: &[u8], data: &[u8]) -> Vec<u8> {
     let mut cid_bytes = vec![
-        0x00,                                   // Multibase: Identity Encoding (unsigned varint)
-        0x01,                                   // CID Version: 1 (unsigned varint)
+        0x00, // Multibase: Identity Encoding (unsigned varint)
+        0x01, // CID Version: 1 (unsigned varint)
     ];
 
-    cid_bytes.extend_from_slice(codec);         // CIDv1 Multicodec: (as provided)
+    cid_bytes.extend_from_slice(codec); // CIDv1 Multicodec: (as provided)
     cid_bytes.extend_from_slice(&[0x12, 0x20]); // CIDv1 Multihash: SHA2-256, 32-byte digest
     cid_bytes.extend_from_slice(&sha2_256(data));
 
@@ -424,11 +416,11 @@ fn build_full_car() -> Vec<u8> {
     let mut all_car_bytes: Vec<u8> = Vec::new();
 
     // Base blocks
-    let block_zero_cid = blake3_cid(&[0x51], BLOCK_ZERO_DATA);  // CBOR data
+    let block_zero_cid = blake3_cid(&[0x51], BLOCK_ZERO_DATA); // CBOR data
     let block_zero_length = block_zero_cid.len() + BLOCK_ZERO_DATA.len();
     let block_zero_length_bytes = dirty_varint(block_zero_length);
 
-    let block_two_cid = blake3_cid(&[0x30], BLOCK_TWO_DATA);    // multicodec data
+    let block_two_cid = blake3_cid(&[0x30], BLOCK_TWO_DATA); // multicodec data
     let block_two_length = block_two_cid.len() + BLOCK_TWO_DATA.len();
     let block_two_length_bytes = dirty_varint(block_two_length);
 
@@ -449,6 +441,7 @@ fn build_full_car() -> Vec<u8> {
     let block_four_data = ipld_link(&block_three_cid);
     let block_four_cid = sha1_cid(&[0x71], &block_four_data); // DAG-CBOR data
     let block_four_length = block_four_cid.len() + block_four_data.len();
+    println!("the block four length is {}", block_four_length);
     let block_four_length_bytes = dirty_varint(block_four_length);
 
     // PRAGMA
@@ -466,8 +459,6 @@ fn build_full_car() -> Vec<u8> {
     let header_bytes = header.to_ipld_bytes().unwrap();
     let header_length_bytes = dirty_varint(header_bytes.len());
 
-
-
     // CARv2 Header
     let data_offset = PH_SIZE + OPTIONAL_PADDING_ONE.len() as u64;
 
@@ -479,7 +470,9 @@ fn build_full_car() -> Vec<u8> {
         (block_three_length_bytes.len() + block_three_length) as u64,
         (block_four_length_bytes.len() + block_four_length) as u64,
         (block_five_length_bytes.len() + block_five_length) as u64,
-    ].into_iter().sum();
+    ]
+    .into_iter()
+    .sum();
 
     let index_offset = data_offset + data_size + OPTIONAL_PADDING_TWO.len() as u64;
     println!("index_location: {}, data_size: {}", index_offset, data_size);
@@ -492,7 +485,6 @@ fn build_full_car() -> Vec<u8> {
 
     // println!("")
 
-    
     all_car_bytes.extend_from_slice(&header_length_bytes);
     all_car_bytes.extend_from_slice(&header_bytes);
 
@@ -520,10 +512,9 @@ fn build_full_car() -> Vec<u8> {
     all_car_bytes.extend_from_slice(&block_zero_length_bytes);
     all_car_bytes.extend_from_slice(&block_zero_cid);
     all_car_bytes.extend_from_slice(&BLOCK_ZERO_DATA);
-    let block_zero_cid_string =  binary_cid_to_base58_cid(&block_zero_cid);
+    let block_zero_cid_string = binary_cid_to_base58_cid(&block_zero_cid);
     println!("Block 0 CID Base58: {}", block_zero_cid_string);
     assert!(Cid::from_str(&block_zero_cid_string).is_ok());
-
 
     // Block One
     let block_one_offset = all_car_bytes.len() as u64;
@@ -616,7 +607,7 @@ fn build_full_car() -> Vec<u8> {
     // And our only entry for this index
     all_car_bytes.extend_from_slice(&block_four_cid);
     all_car_bytes.extend_from_slice(&block_four_offset.to_le_bytes());
-    
+
     println!("offset of bucket2: {:?}", all_car_bytes.len());
     // Our SHA2-256 & Blake3 Digests
     let digest_len: u32 = block_two_cid.len() as u32 + 8;
@@ -649,7 +640,7 @@ fn build_full_car() -> Vec<u8> {
     // Type ID 0x0401: MultihashIndexSorted
     //0x80, 0x88, 0x00,
 
-    // Begin a new Multihash bucket 
+    // Begin a new Multihash bucket
     //
     // The spec is ambiguous here. This is supposed to be an unsigned little-endian integer
     // encoding a common multihash code. A multihash code is identified with a varint for the
@@ -657,41 +648,61 @@ fn build_full_car() -> Vec<u8> {
     // output. If the digest is omitted (as we don't have anything to hash here) how do we encode
     // the two values? Give them each 4 bytes and encode the 1 byte a-piece in each one? Have the
     // bytes consecutively adjacent? Which end of the 8-bytes are those one set on?
-    //0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Multihash Code 
+    //0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Multihash Code
     //0x28, 0x00, 0x00, 0x00,                         // 32 byte digest, 8 byte address for each entry
     //0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // 5 entries
 
-    // std::fs::write("carv2-indexed-fixture.car", all_car_bytes)
+    // std::fs::write("carv2-indexed-fixture.car", all_car_bytes.clone())
     //     .expect("write hardcoded data to disk");
 
     all_car_bytes
-
 }
 
 #[cfg(test)]
 mod test {
-    use std::{io::Cursor, fs::File};
-    use anyhow::Result;
-    use crate::{types::blockstore::car::{carv2::CAR, varint::{encode_varint_u64, encode_varint_u64_exact}}, utils::test::{car_setup, get_read_write}};
-
     use super::build_full_car;
-    
-    #[test]
-    fn file() -> Result<()> {
-        let car_path = &car_setup(2, "indexed-fixture", "fulllll")?;
-        let car_file = get_read_write(car_path)?;
-        let car = CAR::new(car_file)?;
+    use crate::types::blockstore::car::carv2::CAR;
+    use anyhow::Result;
+    use std::io::{Cursor, Seek, SeekFrom};
+    use wnfs::libipld::Cid;
 
+    #[test]
+    fn read_data() -> Result<()> {
+        let car_data = build_full_car();
+        let mut data = Cursor::new(car_data.clone());
+        let car = CAR::read_bytes(&mut data)?;
         println!("car: {:?}", car);
+        // Assert that reading it didnt modify the data
+        assert_eq!(data.clone().into_inner(), car_data);
+
+        let mut all_cids = vec![];
+        for bucket in car.car.index.borrow().clone().buckets {
+            all_cids.extend_from_slice(&bucket.map.into_keys().collect::<Vec<Cid>>())
+        }
+
+        // For every cid
+        for cid in all_cids {
+            // Read the block
+            let block = car.get_block(&cid, &mut data)?;
+            // Assert that its CID matches
+            assert_eq!(cid, block.cid);
+        }
+
         Ok(())
     }
 
     #[test]
-    fn data() -> Result<()> {
-        let mut data = Cursor::new(build_full_car());
+    fn read_write_data() -> Result<()> {
+        let car_data = build_full_car();
+        let mut data = Cursor::new(car_data.clone());
         let car = CAR::read_bytes(&mut data)?;
-        println!("car: {:?}", car);
+        car.write_bytes(&mut data)?;
+        data.seek(SeekFrom::Start(0))?;
+        let car2 = CAR::read_bytes(&mut data)?;
 
+        assert_eq!(car.header, car2.header);
+        assert_eq!(car.car.header, car2.car.header);
+        assert_eq!(car.car.index, car2.car.index);
         Ok(())
     }
 }

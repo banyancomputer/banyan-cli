@@ -3,8 +3,10 @@ use crate::types::{
     streamable::Streamable,
 };
 use anyhow::Result;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use wnfs::libipld::{
+    cbor::error::InvalidCidPrefix,
+    cid::CidGeneric,
     multihash::{Code, MultihashDigest},
     Cid, IpldCodec,
 };
@@ -41,9 +43,14 @@ impl Block {
     pub fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
         // Read the varint
         let varint = read_varint_u128(&mut r)?;
-        // Read the CID
+        let cid_start = r.stream_position()?;
+        // Read the CID with no Multibase
+        if let Ok(cid) = Cid::read_bytes(&mut r) {
+            return Ok((varint, cid));
+        }
+        // Skip the Multibase and try again if that didn't work
+        r.seek(SeekFrom::Start(cid_start + 1))?;
         let cid = Cid::read_bytes(&mut r)?;
-        // Return
         Ok((varint, cid))
     }
 

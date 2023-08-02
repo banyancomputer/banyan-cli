@@ -118,7 +118,14 @@ mod test {
     use super::Header;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::File, io::{BufReader, Cursor}, path::Path, str::FromStr, vec, cell::RefCell};
+    use std::{
+        cell::RefCell,
+        fs::File,
+        io::{BufReader, Cursor},
+        path::Path,
+        str::FromStr,
+        vec,
+    };
     use wnfs::libipld::Cid;
 
     #[test]
@@ -144,18 +151,12 @@ mod test {
 
     #[test]
     fn output() -> Result<()> {
-
-
-
         let cid1 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
         let cid2 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
 
         let header = Header {
             version: 1,
-            roots: RefCell::new(vec![
-                cid1,
-                cid2
-            ]),
+            roots: RefCell::new(vec![cid1, cid2]),
         };
 
         let mut bytes = Cursor::new(<Vec<u8>>::new());

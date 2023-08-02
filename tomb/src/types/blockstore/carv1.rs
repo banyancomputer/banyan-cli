@@ -243,7 +243,10 @@ mod test {
 
         // Assert equality
         assert_eq!(original.car.header, reconstructed.car.header);
-        assert_eq!(original.car.index, reconstructed.car.index);
+        assert_eq!(
+            original.car.index.borrow().get_all_cids(),
+            reconstructed.car.index.borrow().get_all_cids()
+        );
         assert_eq!(original, reconstructed);
 
         assert_eq!(kitty_bytes, reconstructed.get_block(&cid).await?.to_vec());

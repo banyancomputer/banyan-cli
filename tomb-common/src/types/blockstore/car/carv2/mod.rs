@@ -3,10 +3,7 @@ pub(crate) mod header;
 pub mod index;
 
 // Code
-use self::{
-    header::Header,
-    index::indexbucket::IndexBucket,
-};
+use self::{header::Header, index::indexbucket::IndexBucket};
 use crate::types::{
     blockstore::car::carv1::{block::Block, CAR as CARv1},
     streamable::Streamable,
@@ -77,6 +74,8 @@ impl CAR {
         self.car.write_bytes(&mut rw)?;
         // Update our data size in the Header
         self.update_header(&mut rw)?;
+        rw.seek(SeekFrom::Start(self.header.borrow().index_offset))?;
+        println!("writing out the index at {}", rw.stream_position()?);
         // Write out the index
         self.car.index.borrow().write_bytes(&mut rw)?;
         // Move back to the start
@@ -171,19 +170,20 @@ impl CAR {
     }
 
     fn update_header<X: Seek>(&self, mut x: X) -> Result<()> {
+        let mut header = self.header.borrow_mut();
         // Update the data size
         let v1_end = x.seek(SeekFrom::End(0))?;
         // Update the data size
-        let mut header = self.header.borrow_mut();
         header.data_size = if v1_end > PH_SIZE {
             v1_end - PH_SIZE
         } else {
             0
         };
+
         // Update the index offset
         header.index_offset = header.data_offset + header.data_size;
         // Mark the characteristics as being fully indexed
-        header.characteristics = 128;
+        header.characteristics = 1;
 
         Ok(())
     }
@@ -205,13 +205,20 @@ mod test {
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
+        io::{Read, Seek, SeekFrom},
         str::FromStr,
-        vec, io::{Seek, SeekFrom},
+        vec,
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
     use crate::{
-        types::blockstore::car::{carv1::block::Block, carv2::CAR},
+        types::{
+            blockstore::car::{
+                carv1::block::Block,
+                carv2::{header::Header, CAR},
+            },
+            streamable::Streamable,
+        },
         utils::test::{car_setup, get_read_write},
     };
 
@@ -220,6 +227,7 @@ mod test {
     fn from_disk_broken_index() -> Result<()> {
         let car_path = car_setup(2, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
+        // Read the v2 header
         let carv2 = CAR::read_bytes(&mut file)?;
 
         // Assert version is correct
@@ -273,7 +281,7 @@ mod test {
     #[test]
     #[serial]
     fn put_get_block() -> Result<()> {
-        let car_path = &car_setup(2, "basic", "put_get_block")?;
+        let car_path = &car_setup(2, "indexless", "put_get_block")?;
 
         // Define reader and writer
         let mut car_file = File::open(car_path)?;
@@ -339,7 +347,7 @@ mod test {
     #[test]
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
-        let car_path = &car_setup(2, "basic", "to_from_disk_with_data_original")?;
+        let car_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car

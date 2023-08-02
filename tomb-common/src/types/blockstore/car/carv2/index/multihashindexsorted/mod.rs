@@ -43,12 +43,3 @@ impl IndexBucket for Bucket {
         self.bucket.insert_offset(cid, offset)
     }
 }
-
-
-#[allow(dead_code)]
-impl Bucket {
-    pub(crate) fn new() -> Self {
-        // CIDV1
-        Bucket { code: 1, bucket: IndexSortedBucket::new() }
-    }
-}

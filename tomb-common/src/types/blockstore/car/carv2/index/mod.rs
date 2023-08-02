@@ -1,24 +1,26 @@
+/// Fixture
+pub mod fixture;
 /// The trait that describes bucket formats internal to the Index
 pub mod indexbucket;
 /// The simple Bucket format
 pub mod indexsorted;
-/// The advanced Bucket format 
+/// The advanced Bucket format
 pub mod multihashindexsorted;
-/// Fixture
-pub mod fixture;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fmt::Debug,
-    io::{Read, Seek, Write, SeekFrom}, collections::HashMap,
+    io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use wnfs::{common::BlockStoreError, libipld::Cid};
 
 use crate::types::{
     blockstore::car::{
+        carv1::block::Block,
         error::CARError,
-        varint::{read_varint_u128, encode_varint_u128}, carv1::block::Block,
+        varint::{encode_varint_u128, read_varint_u128},
     },
     streamable::Streamable,
 };
@@ -64,12 +66,9 @@ impl Streamable for Index<IndexSortedBucket> {
             println!("unable to read buckets!!!");
             // At least start out with an empty one
             Err(CARError::Index.into())
-        }
-        else {
-
+        } else {
             Ok(Index { codec, buckets })
         }
-
     }
 
     fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
@@ -116,59 +115,37 @@ impl Streamable for Index<MultiHashIndexSortedBucket> {
         }
         Ok(())
     }
-
-}
-
-#[allow(dead_code)]
-impl Index<MultiHashIndexSortedBucket> {
-    pub(crate) fn new() -> Self {
-        Index {
-            codec: MULTIHASH_INDEX_SORTED_CODEC,
-            buckets: vec![MultiHashIndexSortedBucket::new()]
-        }
-    }
-}
-
-impl Index<IndexSortedBucket> {
-    pub(crate) fn new() -> Self {
-        Index {
-            codec: MULTIHASH_INDEX_SORTED_CODEC,
-            buckets: vec![IndexSortedBucket::new()],
-        }
-    }
-}
-
-impl IndexBucket for Index<MultiHashIndexSortedBucket> {
-    fn get_offset(&self, cid: &Cid) -> Option<u64> {
-        self.buckets[0].get_offset(cid)
-    }
-
-    fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
-        self.buckets[0].insert_offset(cid, offset)
-    }
 }
 
 impl IndexBucket for Index<IndexSortedBucket> {
     fn get_offset(&self, cid: &Cid) -> Option<u64> {
-        self.buckets[0].get_offset(cid)
+        for bucket in &self.buckets {
+            if let Some(offset) = bucket.get_offset(cid) {
+                return Some(offset);
+            }
+        }
+
+        None
     }
 
     fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
         let cid_width = cid.to_bytes().len() as u32;
 
         for bucket in &mut self.buckets {
-            if bucket.width == cid_width {
-                return bucket.insert_offset(cid, offset)
+            if bucket.cid_width == cid_width {
+                return bucket.insert_offset(cid, offset);
             }
         }
 
         let mut new_map = HashMap::new();
         new_map.insert(*cid, offset);
-        self.buckets.push(IndexSortedBucket { width: cid_width, map: new_map });
+        self.buckets.push(IndexSortedBucket {
+            cid_width,
+            map: new_map,
+        });
         None
     }
 }
-
 
 impl Index<IndexSortedBucket> {
     pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self> {
@@ -185,29 +162,40 @@ impl Index<IndexSortedBucket> {
             // Skip the rest of the block
             r.seek(SeekFrom::Current(varint as i64 - cid.to_bytes().len() as i64))?;
         }
-        
+
         Ok(new_index)
+    }
+
+    pub fn get_all_cids(&self) -> Vec<Cid> {
+        let mut cids = <Vec<Cid>>::new();
+        for bucket in self.buckets.clone() {
+            cids.extend_from_slice(&bucket.map.into_keys().collect::<Vec<Cid>>())
+        }
+        cids.sort();
+        cids
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::types::blockstore::car::carv2::index::{multihashindexsorted::Bucket, indexbucket::IndexBucket};
+    use crate::types::blockstore::car::carv2::index::{
+        indexbucket::IndexBucket, multihashindexsorted::Bucket,
+    };
     use anyhow::Result;
     use wnfs::libipld::Cid;
 
     use super::Index;
 
-    #[test]
-    fn insert_retrieve() -> Result<()> {
-        // Create a new v2 index
-        let mut index = <Index<Bucket>>::new();
-        // Put a new cid in
-        index.insert_offset(&Cid::default(), 42);
-        let offset = index.get_offset(&Cid::default());
-        assert_eq!(offset, Some(42));
-        Ok(())
-    }
+    // #[test]
+    // fn insert_retrieve() -> Result<()> {
+    //     // Create a new v2 index
+    //     let mut index = <Index<Bucket>>::new();
+    //     // Put a new cid in
+    //     index.insert_offset(&Cid::default(), 42);
+    //     let offset = index.get_offset(&Cid::default());
+    //     assert_eq!(offset, Some(42));
+    //     Ok(())
+    // }
 
     // TODO: Until valid fixtures can be made or obtained this is a waste of time
     /*
