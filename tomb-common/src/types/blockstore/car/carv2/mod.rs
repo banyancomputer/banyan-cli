@@ -325,14 +325,13 @@ mod test {
         original.write_bytes(&mut original_rw)?;
 
         // Reconstruct
-        // let mut updated_rw = get_read_write(car_path)?;
         original_rw.seek(SeekFrom::Start(0))?;
         let reconstructed = CAR::read_bytes(&mut original_rw)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
         assert_eq!(original.car.header, reconstructed.car.header);
-        // assert_eq!(original.car.index, reconstructed.car.index);
+        assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
 
         Ok(())

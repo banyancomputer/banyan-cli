@@ -113,6 +113,11 @@ impl CAR {
             }
         }
 
+        println!(
+            "index before write bytes finished: {:?}",
+            self.index.borrow().clone()
+        );
+
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
@@ -370,10 +375,6 @@ mod test {
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
         let original = CAR::read_bytes(None, &mut original_rw)?;
-
-        // Insert a block as a root
-        // let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        // let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
         original.set_root(&original.index.borrow().get_all_cids()[0]);
 
         // Write to updated file
