@@ -94,3 +94,19 @@ impl Streamable for Block {
         Self::finish_read(varint, cid, r)
     }
 }
+
+mod test {
+    use wnfs::libipld::IpldCodec;
+    use crate::streamable_tests;
+    use super::Block;
+
+    streamable_tests! {
+        Block:
+        carblock: {
+            // Raw bytes
+            let data_example = "Hello Kitty!".as_bytes().to_vec();
+            // Create new Block with these content bytes
+            Block::new(data_example, IpldCodec::Raw).expect("unable to create new Block")
+        },
+    }
+}

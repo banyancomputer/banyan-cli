@@ -182,7 +182,8 @@ pub async fn store_all<M: TombBlockStore, C: TombBlockStore>(
         store_forests(metadata, content, metadata_forest, content_forest).await?;
 
     // Update content for Key Manager
-    let manager_cid = update_manager(manager, manager_cid, metadata, content).await?;
+    // let manager_cid = update_manager(manager, manager_cid, metadata, content).await?;
+    let manager_cid = store_manager(manager, metadata, content).await?;
 
     // Store everything
     store_ipld(
@@ -358,6 +359,7 @@ pub async fn update_manager(
     content: &impl TombBlockStore,
 ) -> Result<Cid> {
     let bytes = dagcbor::encode(&manager)?;
+    // Update content in place
     let cid1 = metadata
         .update_content(manager_cid, bytes.clone(), IpldCodec::DagCbor)
         .await?;

@@ -50,7 +50,7 @@ impl BlockStore {
                     deltas.push(car);
                 }
             }
-            
+
             // Ok
             Ok(Self {
                 path: dir.to_path_buf(),
@@ -149,6 +149,7 @@ mod test {
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
     use wnfs::{common::BlockStore as WnfsBlockStore, libipld::IpldCodec};
+    use tomb_common::serial_tests;
 
     #[tokio::test]
     #[serial]
@@ -160,7 +161,6 @@ mod test {
         }
 
         let mut store = BlockStore::new(path)?;
-
         // Create a new delta
         store.add_delta()?;
 
@@ -228,5 +228,27 @@ mod test {
         );
 
         Ok(())
+    }
+
+
+    // 
+    fn example() -> Result<BlockStore> {
+        let path = &Path::new("test").join("serial");
+        // Delete this if it exists
+        if path.exists() {
+            remove_dir_all(path)?;
+        }
+
+        let mut store = BlockStore::new(path)?;
+        // Create a new delta
+        store.add_delta()?;
+
+        Ok(store)
+    }
+
+
+    serial_tests! {
+        BlockStore:
+        multifileblockstore: &example().unwrap(),
     }
 }

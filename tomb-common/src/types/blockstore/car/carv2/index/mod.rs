@@ -67,6 +67,7 @@ impl Streamable for Index<IndexSortedBucket> {
             // At least start out with an empty one
             Err(CARError::Index.into())
         } else {
+            println!("finished reading index");
             Ok(Index { codec, buckets })
         }
     }
@@ -75,39 +76,6 @@ impl Streamable for Index<IndexSortedBucket> {
         // Write codec
         w.write_all(&encode_varint_u128(self.codec))?;
         println!("wrote codec");
-        // For each bucket
-        for bucket in &self.buckets {
-            // Write out
-            bucket.write_bytes(w)?;
-        }
-        Ok(())
-    }
-}
-
-impl Streamable for Index<MultiHashIndexSortedBucket> {
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
-        // Grab the codec
-        let codec = read_varint_u128(r).expect("Cant read varint from stream");
-        if codec != MULTIHASH_INDEX_SORTED_CODEC {
-            return Err(CARError::Codec.into());
-        }
-
-        // Empty bucket vec
-        let mut buckets = <Vec<MultiHashIndexSortedBucket>>::new();
-
-        println!("this file is multihashindexsorted");
-        // While we can read buckets
-        while let Ok(bucket) = MultiHashIndexSortedBucket::read_bytes(r) {
-            // Push new bucket to list
-            buckets.push(bucket);
-        }
-
-        Ok(Index { codec, buckets })
-    }
-
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
-        // Write codec
-        w.write_all(&encode_varint_u128(self.codec))?;
         // For each bucket
         for bucket in &self.buckets {
             // Write out
@@ -176,63 +144,46 @@ impl Index<IndexSortedBucket> {
     }
 }
 
-#[cfg(test)]
 mod test {
-    use crate::types::blockstore::car::carv2::index::{
-        indexbucket::IndexBucket, multihashindexsorted::Bucket,
-    };
-    use anyhow::Result;
+    use std::{collections::HashMap, str::FromStr};
     use wnfs::libipld::Cid;
+    use crate::streamable_tests;
+    use super::{IndexSortedBucket, MultiHashIndexSortedBucket, Index, INDEX_SORTED_CODEC};
 
-    use super::Index;
-
-    // #[test]
-    // fn insert_retrieve() -> Result<()> {
-    //     // Create a new v2 index
-    //     let mut index = <Index<Bucket>>::new();
-    //     // Put a new cid in
-    //     index.insert_offset(&Cid::default(), 42);
-    //     let offset = index.get_offset(&Cid::default());
-    //     assert_eq!(offset, Some(42));
-    //     Ok(())
-    // }
-
-    // TODO: Until valid fixtures can be made or obtained this is a waste of time
-    /*
-    #[test]
-    #[serial]
-    #[ignore]
-    fn read_multihashindex() -> Result<()> {
-        // This fixture uses the multihash index sorted CARv2 Index
-        let index_path = car_setup(2, "basic-index", "read_multihashindex")?;
-        let rw = &mut get_read_write(&index_path)?;
-        let car = CAR::read_bytes(rw)?;
-
-        Ok(())
+    /// Generate example data for IndexSortedBucket
+    fn index_sorted_example() -> IndexSortedBucket {
+        let cid = Cid::from_str("bafyrcfajghwtmjky5lzbkwxyzjlim3yxi4pmebi").unwrap();
+        // Width represents
+        let cid_width = cid.to_bytes().len() as u32;
+        let mut map = HashMap::new();
+        map.insert(cid, 42);
+        IndexSortedBucket { cid_width, map }
+    }
+    
+    /// Generate example data for MultiHashIndexSortedBucket
+    fn multi_sorted_example() -> MultiHashIndexSortedBucket {
+        MultiHashIndexSortedBucket {
+            code: 1,
+            bucket: index_sorted_example(),
+        }
     }
 
-    #[test]
-    #[serial]
-    #[ignore]
-    fn read_multihashcar() -> Result<()> {
-        // This fixture uses the multihash index sorted CARv2 Index
-        let index_path = car_setup(2, "rw-bs", "read_multihashcar")?;
-        let rw = &mut get_read_write(&index_path)?;
-        let car = CAR::read_bytes(rw)?;
-
-        Ok(())
+    /// Generate example data for V2Index
+    fn v2_sorted_index_example() -> Index<IndexSortedBucket> {
+        Index {
+            codec: INDEX_SORTED_CODEC,
+            buckets: vec![index_sorted_example()],
+        }
     }
 
-    #[test]
-    #[serial]
-    #[ignore]
-    fn read_sortedindexcar() -> Result<()> {
-        // This fixture uses the multihash index sorted CARv2 Index
-        let index_path = car_setup(2, "rw-bs", "read_sortedindexcar")?;
-        let rw = &mut get_read_write(&index_path)?;
-        let car = CAR::read_bytes(rw)?;
+    streamable_tests! {
+        IndexSortedBucket:
+        indexsorted: index_sorted_example(),
 
-        Ok(())
+        MultiHashIndexSortedBucket:
+        multisorted: multi_sorted_example(),
+
+        Index<IndexSortedBucket>:
+        carv2sortedindex: v2_sorted_index_example(),
     }
-    */
 }

@@ -28,7 +28,7 @@ pub struct Bucket {
 impl Streamable for Bucket {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         let start = r.stream_position()?;
-        println!("starting bucket read at {}", start);
+        println!("starting bucket read at {} w stream len {}", start, r.stream_len()?);
         // Width of each digest offset pair
         let width = read_varint_u32_exact(r)?;
         // Count of digests

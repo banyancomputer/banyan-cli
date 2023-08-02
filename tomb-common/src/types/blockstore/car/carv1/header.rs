@@ -113,7 +113,7 @@ impl Streamable for Header {
 
 #[cfg(test)]
 mod test {
-    use crate::types::streamable::Streamable;
+    use crate::{types::streamable::Streamable, streamable_tests};
 
     use super::Header;
     use anyhow::Result;
@@ -164,5 +164,17 @@ mod test {
         println!("header hex: \n{}\n", hex::encode(bytes.into_inner()));
 
         Ok(())
+    }
+
+    streamable_tests! {
+        Header:
+        v1header: {
+            let header = Header::default(1);
+            {
+                let mut roots = header.roots.borrow_mut();
+                roots.push(Cid::default());
+            }
+            header
+        },
     }
 }

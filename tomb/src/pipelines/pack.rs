@@ -86,7 +86,7 @@ pub async fn pipeline(
         }
 
         // Create a new delta for this packing operation
-        config.content.add_delta()?;
+        // config.content.add_delta()?;
         // Insert the wrapping key if it is not already there
         manager.insert(&wrapping_key.public_key().unwrap()).await?;
         // Put the keys in the BlockStores before any other data

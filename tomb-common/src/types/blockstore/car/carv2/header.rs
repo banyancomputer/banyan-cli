@@ -81,7 +81,7 @@ mod test {
             blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
             streamable::Streamable,
         },
-        utils::test::car_setup,
+        utils::test::car_setup, streamable_tests,
     };
 
     use super::Header;
@@ -127,5 +127,15 @@ mod test {
         };
         header.write_bytes(&mut file)?;
         Ok(())
+    }
+
+    streamable_tests! {
+        Header:
+        v2header: Header {
+            characteristics: 0,
+            data_offset: 50,
+            data_size: 50,
+            index_offset: 0,
+        },
     }
 }
