@@ -3,7 +3,7 @@
     <img src=".github/logo.png" alt="Banyan Logo" width="100"></img>
   </a>
 
-  <h1 align="center">Tomb (the artist formerly known as tomb)</h1>
+  <h1 align="center">Tomb</h1>
 
   <p>
     <a href="https://codecov.io/gh/banyancomputer/tomb">
@@ -49,17 +49,19 @@
 
 
 ## What is Tomb?
-Tomb is a tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable files that don't leak information about the original filesystem, plus a reconstruction manifest.
+Tomb is a tool for indexing, compressing, chunking, and encrypting / decrypting large files and directories into manageable and portable CAR files of blocks that don't leak information about the original filesystem, plus a reconstruction manifest.
 
-It takes in a path, and emits a directory full of encrypted 1GB-max chunk files for upload plus a manifest describing how to reconstruct the original filesystem. You'll want to package these into CAR files, compute a CommP, upload them to a few miners, and create storage deals for them. *We'll be adding this end-to-end functionality to this repository very soon.*
+It takes in a path, and emits a directory full of CAR files for upload to Filecoin (or streams blocks directly to a network endpoint like IPFS). It also emits a manifest describing how to reconstruct the original filesystem that does recordkeeping about versions and diffs, so you can have a git-like workflow for change management on your filesystem backups.
 
-The manifest can be imported into our file manager, [Tombolo](https://github.com/banyancomputer/tombolo-frontend), for sharing, deleting, and retrieving files that you uploaded using this tool.
+The CAR files can be uploaded to Filecoin, and the metadata files can be uploaded to Banyan's webapp through this program, so you can share and manage your files from any device. Banyan handles all of this for its customers.
 
-We integrated this repository with [WNFS](https://github.com/wnfs-wg/rs-wnfs) to get awesome features like granular and feature-packed permissioning, and file version control.
+This repository uses [WNFS](https://github.com/wnfs-wg/rs-wnfs) to get awesome features like granular and feature-packed cryptographic permissioning and file version control.
 
-It is meant to be used as a tool for preparing extremely large quantities of academic and enterprise data for manageable archival storage on decentralized storage networks such as Filecoin. It's meant to run anywhere, and our intent is that this code never be the bottleneck of an ingestion pipeline.
+This repository cross-compiles to WASM so you can access filesystems packed by Tomb in the browser. This functionality is still under development.
 
-It also uploads data to our decentralized infrastructure for onboarding to Filecoin-based cold storage and IPFS-based hot storage. Think like AWS CLI (this functionality is under construction!!).
+It is meant to be used as a tool for preparing extremely large quantities of academic and enterprise data for manageable archival storage on decentralized storage networks such as Filecoin. 
+
+It's meant to run anywhere, and our intent is that this code never be the bottleneck of an ingestion pipeline.
 
 ## Installation
 
