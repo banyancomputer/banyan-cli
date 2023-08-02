@@ -113,7 +113,7 @@ impl Streamable for Header {
 
 #[cfg(test)]
 mod test {
-    use crate::{types::streamable::Streamable, streamable_tests};
+    use crate::{streamable_tests, types::streamable::Streamable};
 
     use super::Header;
     use anyhow::Result;

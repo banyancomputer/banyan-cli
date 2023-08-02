@@ -125,7 +125,7 @@ impl TombBlockStore for BlockStore {
         }
     }
 
-    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
             // Bind to avoid awaiting
@@ -133,7 +133,7 @@ impl TombBlockStore for BlockStore {
             // If this store has the data we are replacing
             if index.get_offset(cid).is_some() {
                 // Update the content in this store and return new cid
-                return store.update_content(cid, bytes, codec).await;
+                return store.update_block(cid, bytes, codec).await;
             }
         }
 
@@ -148,8 +148,8 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
-    use wnfs::{common::BlockStore as WnfsBlockStore, libipld::IpldCodec};
     use tomb_common::serial_tests;
+    use wnfs::{common::BlockStore as WnfsBlockStore, libipld::IpldCodec};
 
     #[tokio::test]
     #[serial]
@@ -230,8 +230,7 @@ mod test {
         Ok(())
     }
 
-
-    // 
+    //
     fn example() -> Result<BlockStore> {
         let path = &Path::new("test").join("serial");
         // Delete this if it exists
@@ -245,7 +244,6 @@ mod test {
 
         Ok(store)
     }
-
 
     serial_tests! {
         BlockStore:

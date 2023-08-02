@@ -107,7 +107,7 @@ impl TombBlockStore for BlockStore {
         self.car.get_root()
     }
 
-    async fn update_content(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid> {
+    async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid> {
         panic!("help!")
     }
 }

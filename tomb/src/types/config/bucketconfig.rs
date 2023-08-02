@@ -33,7 +33,7 @@ pub struct BucketConfig {
     /// BlockStore for storing metadata only
     pub metadata: carv2::BlockStore,
     /// BlockStore for storing metadata and file content
-    pub content: carv2::BlockStore,
+    pub content: multi::BlockStore,
 }
 
 impl BucketConfig {
@@ -53,7 +53,7 @@ impl BucketConfig {
         create_dir_all(&generated)?;
 
         let metadata = carv2::BlockStore::new(&generated.join("meta.car"))?;
-        let content = carv2::BlockStore::new(&generated.join("content.car"))?;
+        let content = multi::BlockStore::new(&generated.join("content"))?;
 
         // Start with default roots such that we never have to shift blocks
         metadata.set_root(&Cid::default());
@@ -139,8 +139,7 @@ mod test {
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
     };
-
-    use crate::{types::config::globalconfig::GlobalConfig, utils::{test::setup_v2, pack}};
+    use crate::types::config::globalconfig::GlobalConfig;
 
     #[tokio::test]
     #[serial]
@@ -153,7 +152,8 @@ mod test {
         create_dir_all(origin)?;
 
         let mut global = GlobalConfig::from_disk().await?;
-        let config = global.find_or_create_config(origin)?;
+        let mut config = global.find_or_create_config(origin)?;
+        config.content.add_delta()?;
         let mut manager = Manager::default();
         let wrapping_key = global.load_key().await?;
         let public_key = wrapping_key.public_key()?;
@@ -171,27 +171,72 @@ mod test {
         let mut metadata_forest = Rc::new(PrivateForest::new());
         let mut content_forest = Rc::new(PrivateForest::new());
 
-
-        let file = root_dir.open_file_mut(&["cat.png".to_string()], true, Utc::now(), &mut metadata_forest, &config.metadata, rng).await?;
+        let file = root_dir
+            .open_file_mut(
+                &["cat.png".to_string()],
+                true,
+                Utc::now(),
+                &mut metadata_forest,
+                &config.metadata,
+                rng,
+            )
+            .await?;
         let file_content = "this is a cat image".as_bytes();
-        file.set_content(Utc::now(), file_content, &mut content_forest, &config.content, rng).await?;
+        file.set_content(
+            Utc::now(),
+            file_content,
+            &mut content_forest,
+            &config.content,
+            rng,
+        )
+        .await?;
 
-        config.set_all(&mut metadata_forest, &mut content_forest, &mut root_dir, &mut manager, &manager_cid).await?;
+        config
+            .set_all(
+                &mut metadata_forest,
+                &mut content_forest,
+                &mut root_dir,
+                &mut manager,
+                &manager_cid,
+            )
+            .await?;
 
         // Get structs
-        let (new_metadata_forest, new_content_forest, new_root_dir, new_manager, new_manager_cid) =
+        let (new_metadata_forest, new_content_forest, new_root_dir, new_manager, _) =
             config.get_all(&wrapping_key).await?;
 
-
-        assert_eq!(metadata_forest.diff(&new_metadata_forest, &config.metadata).await?.len(), 0);
-        assert_eq!(content_forest.diff(&new_content_forest, &config.content).await?.len(), 0);
+        assert_eq!(
+            metadata_forest
+                .diff(&new_metadata_forest, &config.metadata)
+                .await?
+                .len(),
+            0
+        );
+        assert_eq!(
+            content_forest
+                .diff(&new_content_forest, &config.content)
+                .await?
+                .len(),
+            0
+        );
 
         assert_eq!(root_dir, new_root_dir);
 
         assert_eq!(manager, new_manager);
 
-        let new_file = root_dir.open_file_mut(&["cat.png".to_string()], true, Utc::now(), &mut metadata_forest, &config.metadata, rng).await?;
-        let new_file_content = new_file.get_content(&content_forest, &config.content).await?;
+        let new_file = root_dir
+            .open_file_mut(
+                &["cat.png".to_string()],
+                true,
+                Utc::now(),
+                &mut metadata_forest,
+                &config.metadata,
+                rng,
+            )
+            .await?;
+        let new_file_content = new_file
+            .get_content(&content_forest, &config.content)
+            .await?;
 
         assert_eq!(file_content, new_file_content);
 

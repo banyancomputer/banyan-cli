@@ -10,10 +10,7 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::{
-    types::keys::manager::Manager,
-    utils::serialize::{store_manager, update_manager},
-};
+use tomb_common::{types::keys::manager::Manager, utils::serialize::store_manager};
 use tomb_crypt::prelude::WrappingPrivateKey;
 use wnfs::{
     libipld::Cid,
@@ -86,14 +83,15 @@ pub async fn pipeline(
         }
 
         // Create a new delta for this packing operation
-        // config.content.add_delta()?;
+        config.content.add_delta()?;
         // Insert the wrapping key if it is not already there
         manager.insert(&wrapping_key.public_key().unwrap()).await?;
         // Put the keys in the BlockStores before any other data
         manager_cid = if manager_cid == Cid::default() {
             store_manager(&manager, &config.metadata, &config.content).await?
         } else {
-            update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
+            store_manager(&manager, &config.metadata, &config.content).await?
+            // update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
         };
 
         // Process all of the PackPipelinePlans

@@ -1,7 +1,5 @@
 use anyhow::Result;
-use chrono::Utc;
 use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
-use rand::thread_rng;
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},

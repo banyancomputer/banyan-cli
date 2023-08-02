@@ -77,11 +77,12 @@ impl<'de> Deserialize<'de> for Header {
 #[cfg(test)]
 mod test {
     use crate::{
+        streamable_tests,
         types::{
             blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
             streamable::Streamable,
         },
-        utils::test::car_setup, streamable_tests,
+        utils::test::car_setup,
     };
 
     use super::Header;

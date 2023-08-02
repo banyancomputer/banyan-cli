@@ -5,7 +5,7 @@ use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize
 use std::{
     borrow::Cow,
     fs::File,
-    io::Seek,
+    io::{Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 use tomb_common::{
@@ -22,7 +22,7 @@ use tomb_common::{
     utils::test::{get_read, get_read_write, get_write},
 };
 use wnfs::{
-    common::BlockStore as WnfsBlockStore,
+    common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
 };
 
@@ -118,28 +118,29 @@ impl TombBlockStore for BlockStore {
         self.car.get_root()
     }
 
-    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Open the file in read-only mode
-        let mut read_file = get_read(&self.path)?;
+        let mut rw = get_read_write(&self.path)?;
         // Perform the block read
-        let block: Block = self.car.get_block(cid, &mut read_file)?;
+        let block: Block = self.car.get_block(cid, &mut rw)?;
         // // Create the new block
         let new_block = Block::new(bytes, codec)?;
         // Assert that the new version of the block is of the correct length
         assert_eq!(block.content.len(), new_block.content.len());
         // Determine where the block was read from
         let mut index = self.car.car.index.borrow_mut();
-        let block_start = index.get_offset(&block.cid).unwrap();
+        let block_start = index
+            .get_offset(&block.cid)
+            .ok_or(BlockStoreError::CIDNotFound(block.cid))?;
         // Remove existing offset
         // TODO remove old cid
+        println!("upddating a block at offset {}", block_start);
         // index.map.remove(&block.cid);
         index.insert_offset(&new_block.cid, block_start);
-        // Grab writer
-        let mut write_file = get_write(&self.path)?;
         // Move to the right position
-        write_file.seek(std::io::SeekFrom::Start(block_start))?;
+        rw.seek(SeekFrom::Start(block_start))?;
         // Overwrite the block at this position
-        new_block.write_bytes(&mut write_file)?;
+        new_block.write_bytes(&mut rw)?;
         // Ok
         Ok(new_block.cid)
     }
@@ -184,28 +185,11 @@ mod test {
     use super::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{
-        fs::{create_dir_all, remove_dir_all, remove_file},
-        path::Path,
-        rc::Rc,
-        str::FromStr,
-    };
-    use tomb_common::utils::test::teardown;
-    use tomb_common::{
-        types::{
-            blockstore::{car::carv2, tombblockstore::TombBlockStore},
-            keys::manager::Manager,
-        },
-        utils::{
-            serialize::*,
-            test::{car_setup, setup},
-        },
-    };
-    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
+    use std::{fs::remove_file, path::Path, str::FromStr};
+    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},
-        private::{PrivateDirectory, PrivateForest},
     };
 
     #[tokio::test]

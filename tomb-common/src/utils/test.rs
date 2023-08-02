@@ -164,8 +164,7 @@ pub fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
         .open(path)
 }
 
-
-// Macro for generating a serialization test for any type which conforms to the trait
+/// Macro for generating a serialization test for any type which conforms to the Serialize and Deserialize trait
 #[macro_export]
 macro_rules! serial_tests {
     ($(

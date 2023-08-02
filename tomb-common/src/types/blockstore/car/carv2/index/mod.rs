@@ -14,7 +14,7 @@ use std::{
     fmt::Debug,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
+use wnfs::libipld::Cid;
 
 use crate::types::{
     blockstore::car::{
@@ -62,7 +62,7 @@ impl Streamable for Index<IndexSortedBucket> {
         }
 
         // If there are no buckets
-        if buckets.len() == 0 {
+        if buckets.is_empty() {
             println!("unable to read buckets!!!");
             // At least start out with an empty one
             Err(CARError::Index.into())
@@ -134,6 +134,7 @@ impl Index<IndexSortedBucket> {
         Ok(new_index)
     }
 
+    /// Accumulate a vec of all Cids in all Buckets
     pub fn get_all_cids(&self) -> Vec<Cid> {
         let mut cids = <Vec<Cid>>::new();
         for bucket in self.buckets.clone() {
@@ -145,12 +146,13 @@ impl Index<IndexSortedBucket> {
 }
 
 mod test {
+    use super::{Index, IndexSortedBucket, MultiHashIndexSortedBucket, INDEX_SORTED_CODEC};
+    use crate::streamable_tests;
     use std::{collections::HashMap, str::FromStr};
     use wnfs::libipld::Cid;
-    use crate::streamable_tests;
-    use super::{IndexSortedBucket, MultiHashIndexSortedBucket, Index, INDEX_SORTED_CODEC};
 
     /// Generate example data for IndexSortedBucket
+    #[allow(dead_code)]
     fn index_sorted_example() -> IndexSortedBucket {
         let cid = Cid::from_str("bafyrcfajghwtmjky5lzbkwxyzjlim3yxi4pmebi").unwrap();
         // Width represents
@@ -159,8 +161,9 @@ mod test {
         map.insert(cid, 42);
         IndexSortedBucket { cid_width, map }
     }
-    
+
     /// Generate example data for MultiHashIndexSortedBucket
+    #[allow(dead_code)]
     fn multi_sorted_example() -> MultiHashIndexSortedBucket {
         MultiHashIndexSortedBucket {
             code: 1,
@@ -169,6 +172,7 @@ mod test {
     }
 
     /// Generate example data for V2Index
+    #[allow(dead_code)]
     fn v2_sorted_index_example() -> Index<IndexSortedBucket> {
         Index {
             codec: INDEX_SORTED_CODEC,

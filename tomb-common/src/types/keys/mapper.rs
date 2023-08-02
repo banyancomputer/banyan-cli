@@ -112,7 +112,7 @@ impl Mapper {
 }
 
 impl Mapper {
-    fn to_ipld(&self) -> Ipld {
+    pub(crate) fn to_ipld(&self) -> Ipld {
         // New Map
         let mut map = BTreeMap::<String, Ipld>::new();
         // For each key value pair in the struct
@@ -136,7 +136,7 @@ impl Mapper {
         Ipld::Map(map)
     }
 
-    fn from_ipld(ipld: Ipld) -> Result<Self> {
+    pub(crate) fn from_ipld(ipld: Ipld) -> Result<Self> {
         // New Mapper
         let mut mapper = Mapper::default();
 

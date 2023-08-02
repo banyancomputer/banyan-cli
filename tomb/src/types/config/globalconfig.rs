@@ -235,10 +235,7 @@ mod test {
 
         // Assert equality
         assert_eq!(original_bucket.metadata, reconstructed_bucket.metadata);
-        assert_eq!(
-            original_bucket.content,
-            reconstructed_bucket.content
-        );
+        assert_eq!(original_bucket.content, reconstructed_bucket.content);
 
         Ok(())
     }

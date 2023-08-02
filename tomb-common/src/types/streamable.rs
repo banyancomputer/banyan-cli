@@ -9,10 +9,8 @@ pub trait Streamable: Sized {
     fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()>;
 }
 
-
-
 #[macro_export]
-// Macro for generating a serialization test for any type which conforms to the trait
+/// Macro for generating a serialization test for any type which conforms to the Streamable trait
 macro_rules! streamable_tests {
     ($(
         $type:ty:
@@ -20,9 +18,13 @@ macro_rules! streamable_tests {
     )*) => {
     $(
         mod $name {
-            use crate::types::streamable::Streamable;
+            #[allow(unused_imports)]
+            use $crate::types::streamable::Streamable;
+            #[allow(unused_imports)]
             use anyhow::Result;
+            #[allow(unused_imports)]
             use std::io::{Read, Write, Cursor, SeekFrom, Seek};
+            #[allow(unused_imports)]
             use super::*;
             #[test]
             fn to_from_bytes() -> Result<()> {

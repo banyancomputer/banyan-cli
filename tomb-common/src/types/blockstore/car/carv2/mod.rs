@@ -205,19 +205,16 @@ mod test {
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
-        io::{Read, Seek, SeekFrom},
+        io::{Seek, SeekFrom},
         str::FromStr,
         vec,
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
     use crate::{
-        types::{
-            blockstore::car::{
-                carv1::block::Block,
-                carv2::{header::Header, CAR},
-            },
-            streamable::Streamable,
+        types::blockstore::car::{
+            carv1::block::Block,
+            carv2::CAR,
         },
         utils::test::{car_setup, get_read_write},
     };

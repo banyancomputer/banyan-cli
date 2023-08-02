@@ -12,7 +12,7 @@ mod test {
     use crate::types::blockstore::{carv1, carv2, multi};
     use anyhow::Result;
     use serial_test::serial;
-    use std::{path::Path, fs::remove_dir_all};
+    use std::{fs::remove_dir_all, path::Path};
     use tomb_common::utils::test::car_setup;
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
 

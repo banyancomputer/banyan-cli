@@ -5,8 +5,6 @@ use crate::types::{
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
 use wnfs::libipld::{
-    cbor::error::InvalidCidPrefix,
-    cid::CidGeneric,
     multihash::{Code, MultihashDigest},
     Cid, IpldCodec,
 };
@@ -74,12 +72,12 @@ impl Block {
 impl Streamable for Block {
     /// Serialize the current object
     fn write_bytes<W: Write>(&self, w: &mut W) -> Result<()> {
-        // Encode varint as buf
-        let varint_buf: Vec<u8> = encode_varint_u128(self.varint);
         // Represent CID as bytes
         let cid_buf: Vec<u8> = self.cid.to_bytes();
+        // Assert that the varint is accurate
+        assert_eq!(self.varint, (cid_buf.len() + self.content.len()) as u128);
         // Write all bytes
-        w.write_all(&varint_buf)?;
+        w.write_all(&encode_varint_u128(self.varint))?;
         w.write_all(&cid_buf)?;
         w.write_all(&self.content)?;
         // Flush
@@ -96,9 +94,11 @@ impl Streamable for Block {
 }
 
 mod test {
-    use wnfs::libipld::IpldCodec;
     use crate::streamable_tests;
+    #[allow(unused_imports)]
     use super::Block;
+    #[allow(unused_imports)]
+    use wnfs::libipld::IpldCodec;
 
     streamable_tests! {
         Block:

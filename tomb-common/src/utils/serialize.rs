@@ -164,7 +164,7 @@ pub async fn store_all<M: TombBlockStore, C: TombBlockStore>(
     content_forest: &mut Rc<PrivateForest>,
     root_dir: &Rc<PrivateDirectory>,
     manager: &mut Manager,
-    manager_cid: &Cid,
+    _manager_cid: &Cid,
 ) -> Result<()> {
     // Store dirs, update keys
     let (original_ref_cid, current_ref_cid) = store_dirs_update_keys(
@@ -181,7 +181,7 @@ pub async fn store_all<M: TombBlockStore, C: TombBlockStore>(
     let (metadata_forest_cid, content_forest_cid) =
         store_forests(metadata, content, metadata_forest, content_forest).await?;
 
-    // Update content for Key Manager
+    // TODO only update content for Key Manager
     // let manager_cid = update_manager(manager, manager_cid, metadata, content).await?;
     let manager_cid = store_manager(manager, metadata, content).await?;
 
@@ -277,7 +277,7 @@ pub async fn load_all<M: TombBlockStore>(
         let (metadata_forest, content_forest) = load_forests(metadata, &root).await? &&
         let Some(Ipld::Link(current_ref_cid)) = root.get("current_ref") &&
         let Some(Ipld::Link(manager_cid)) = root.get("manager") {
-        // Load in the objects
+        // Load in the objects        
         let mut manager = metadata.get_deserializable::<Manager>(manager_cid).await?;
         // Load in the Temporal Keys to memory
         manager.load_temporal_keys(wrapping_key).await?;
@@ -361,10 +361,10 @@ pub async fn update_manager(
     let bytes = dagcbor::encode(&manager)?;
     // Update content in place
     let cid1 = metadata
-        .update_content(manager_cid, bytes.clone(), IpldCodec::DagCbor)
+        .update_block(manager_cid, bytes.clone(), IpldCodec::DagCbor)
         .await?;
     let cid2 = content
-        .update_content(manager_cid, bytes, IpldCodec::DagCbor)
+        .update_block(manager_cid, bytes, IpldCodec::DagCbor)
         .await?;
     assert_eq!(cid1, cid2);
     Ok(cid1)

@@ -342,6 +342,10 @@ mod test {
             compute_directory_size(&global.get_bucket(origin_unique).unwrap().content.path)? as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
+        println!(
+            "xxxx unique {} dup {}",
+            packed_unique_size, packed_dups_size
+        );
         assert!(packed_unique_size / packed_dups_size >= 1.8);
 
         test_teardown(test_name_dup).await?;

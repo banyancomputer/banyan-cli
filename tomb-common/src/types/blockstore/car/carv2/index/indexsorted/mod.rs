@@ -3,17 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     io::{Read, Seek, SeekFrom, Write},
-    str::FromStr,
 };
 use wnfs::libipld::Cid;
 
 use crate::types::{
-    blockstore::car::{
-        carv1::block::Block,
-        carv2::index::{fixture::binary_cid_to_base58_cid, indexbucket::IndexBucket},
-        error::CARError,
-        varint::*,
-    },
+    blockstore::car::{carv2::index::indexbucket::IndexBucket, error::CARError, varint::*},
     streamable::Streamable,
 };
 
@@ -28,7 +22,11 @@ pub struct Bucket {
 impl Streamable for Bucket {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         let start = r.stream_position()?;
-        println!("starting bucket read at {} w stream len {}", start, r.stream_len()?);
+        println!(
+            "starting bucket read at {} w stream len {}",
+            start,
+            r.stream_len()?
+        );
         // Width of each digest offset pair
         let width = read_varint_u32_exact(r)?;
         // Count of digests
@@ -56,7 +54,7 @@ impl Streamable for Bucket {
         }
 
         // If we failed to read in the correct number of blocks, or there were none at all
-        if map.len() as u64 != count || map.len() == 0 {
+        if map.len() as u64 != count || map.is_empty() {
             // Unread these remaining bytes
             r.seek(SeekFrom::Start(start))?;
             // This is not a bucket

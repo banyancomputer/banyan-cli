@@ -47,7 +47,7 @@ impl TombBlockStore for TombMemoryBlockStore {
     }
 
     // There is no way to update content in a memory store
-    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Grab bytes
         let existing_bytes = self.store.get_block(cid).await?.to_vec();
         // Assert length equality
