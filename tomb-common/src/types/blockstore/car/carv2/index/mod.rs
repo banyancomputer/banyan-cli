@@ -1,5 +1,3 @@
-/// Fixture
-pub mod fixture;
 /// The trait that describes bucket formats internal to the Index
 pub mod indexbucket;
 /// The simple Bucket format

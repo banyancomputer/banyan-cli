@@ -1,3 +1,6 @@
+/// Fixture
+pub mod fixture;
+/// CARv2 Header
 pub(crate) mod header;
 /// CARv2 Index
 pub mod index;
