@@ -1,5 +1,6 @@
+use crate::error::TombWasmError;
 use gloo::{console::log, utils::window};
-use js_sys::Uint8Array;
+use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use wasm_streams::ReadableStream;
@@ -7,68 +8,75 @@ use web_sys::{
     ReadableStream as WebSysReadableStream, Request, RequestInit, RequestMode, Response,
 };
 
-use crate::{metadata::error::WasmError, utils::JsResult};
+// TODO: Move to banyan-api-client
+// TODO: Add JWT logic to this module
 
-#[allow(dead_code)]
 /// Fetches JSON from the given URL
-///
 /// # Arguments
 /// * `url` - A string slice that holds the URL to fetch
-pub(crate) async fn get_json(url: String) -> JsResult<JsValue> {
-    log!("tomb-wasm: fetch_json()");
+pub(crate) async fn get_json(url: String) -> Result<JsValue, TombWasmError> {
+    log!("tomb-wasm: fetch/get_json()");
+
     let mut opts = RequestInit::new();
     opts.method("GET");
     opts.mode(RequestMode::Cors);
-    let request = Request::new_with_str_and_init(&url, &opts)?;
-    request.headers().set("Accept", "application/json")?;
-    let resp_value = JsFuture::from(window().fetch_with_request(&request)).await?;
+
+    let request =
+        Request::new_with_str_and_init(&url, &opts).map_err(TombWasmError::fetch_error)?;
+    request
+        .headers()
+        .set("Accept", "application/json")
+        .map_err(TombWasmError::fetch_error)?;
+
+    let resp_value = JsFuture::from(window().fetch_with_request(&request))
+        .await
+        .map_err(TombWasmError::fetch_error)?;
     assert!(resp_value.is_instance_of::<Response>());
-    let resp: Response = resp_value.dyn_into().unwrap();
-    let json = JsFuture::from(resp.json()?).await?;
+
+    let resp: Response = resp_value.dyn_into().map_err(TombWasmError::fetch_error)?;
+    let json: Promise = resp.json().map_err(TombWasmError::fetch_error)?;
+    let json = JsFuture::from(json)
+        .await
+        .map_err(TombWasmError::fetch_error)?;
+
     Ok(json)
 }
 
-#[allow(dead_code)]
 /// Fetch a Reable Stream from the given URL
-///
 /// # Arguments
 /// * `url` - A string slice that holds the URL to fetch
-pub(crate) async fn get_stream(url: String) -> JsResult<ReadableStream> {
-    log!("tomb-wasm: fetch_stream()");
+pub(crate) async fn get_stream(url: String) -> Result<ReadableStream, TombWasmError> {
+    log!("tomb-wasm: fetch/get_stream()");
+
     let mut opts = RequestInit::new();
     opts.method("GET");
     opts.mode(RequestMode::Cors);
-    let request = Request::new_with_str_and_init(&url, &opts)?;
+
+    let request =
+        Request::new_with_str_and_init(&url, &opts).map_err(TombWasmError::fetch_error)?;
     request
         .headers()
-        .set("Accept", "application/octet-stream")?;
-    let resp_value = JsFuture::from(window().fetch_with_request(&request)).await?;
+        .set("Accept", "application/octet-stream")
+        .map_err(TombWasmError::fetch_error)?;
+
+    let resp_value = JsFuture::from(window().fetch_with_request(&request))
+        .await
+        .map_err(TombWasmError::fetch_error)?;
     assert!(resp_value.is_instance_of::<Response>());
-    let resp: Response = resp_value.dyn_into().unwrap_throw();
+
+    let resp: Response = resp_value.dyn_into().map_err(TombWasmError::fetch_error)?;
     let raw_body: WebSysReadableStream = resp.body().unwrap_throw();
     let stream = ReadableStream::from_raw(raw_body.dyn_into().unwrap_throw());
     Ok(stream)
 }
 
-pub(crate) async fn get_data(url: String) -> anyhow::Result<Vec<u8>> {
-    if let Ok(mut stream) = get_stream(url.clone()).await {
-        let mut reader = stream.get_reader();
-        let mut data: Vec<u8> = vec![];
-        while let Ok(Some(result)) = reader.read().await {
-            let chunk = Uint8Array::from(result);
-            data.extend(chunk.to_vec());
-        }
-        Ok(data)
-    } else {
-        Err(WasmError::Remote(url).into())
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use js_sys::Uint8Array;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;
+
+    use crate::error::TombWasmError;
+    use crate::utils::read_vec_from_readable_stream;
 
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -82,30 +90,27 @@ mod test {
     }
 
     #[wasm_bindgen_test]
-    async fn test_fetch_json() {
+    async fn test_get_json() -> Result<(), TombWasmError> {
         let url = "https://jsonplaceholder.typicode.com/todos/1".to_string();
-        let json = super::get_json(url).await.unwrap();
+        let json = super::get_json(url).await?;
         let todo: Todo = serde_wasm_bindgen::from_value(json).unwrap();
         assert_eq!(todo.user_id, 1);
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
         assert!(!todo.completed);
+        Ok(())
     }
 
     #[wasm_bindgen_test]
-    async fn test_fetch_stream() {
+    async fn test_get_vec() -> Result<(), TombWasmError> {
         let url = "https://jsonplaceholder.typicode.com/todos/1".to_string();
-        let mut stream = super::get_stream(url).await.unwrap();
-        let mut reader = stream.get_reader();
-        let mut chunks: Vec<u8> = vec![];
-        while let Ok(Some(result)) = reader.read().await {
-            let chunk = Uint8Array::from(result);
-            chunks.extend(chunk.to_vec());
-        }
-        let todo = serde_json::from_slice::<Todo>(&chunks).unwrap();
+        let mut stream = super::get_stream(url).await?;
+        let data = read_vec_from_readable_stream(&mut stream).await.unwrap();
+        let todo = serde_json::from_slice::<Todo>(&data).unwrap();
         assert_eq!(todo.user_id, 1);
         assert_eq!(todo.id, 1);
         assert_eq!(todo.title, "delectus aut autem");
         assert!(!todo.completed);
+        Ok(())
     }
 }
