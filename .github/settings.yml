@@ -5,7 +5,7 @@ repository:
     default_branch: main
     private: false
 
-    description: Banyan Computer's Client Code
+    description: Banyan's client, WNFS+CAR encrypted filesystem packer and metadata handler.
     homepage: https://banyan.computer/
     topics: cli, platform
 
