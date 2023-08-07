@@ -1,5 +1,5 @@
 /// The trait that describes bucket formats internal to the Index
-pub mod indexbucket;
+pub mod indexable;
 /// The simple Bucket format
 pub mod indexsorted;
 /// The advanced Bucket format
@@ -25,11 +25,11 @@ use crate::types::{
 use indexsorted::Bucket as IndexSortedBucket;
 use multihashindexsorted::Bucket as MultiHashIndexSortedBucket;
 
-use self::indexbucket::IndexBucket;
+use self::indexable::Indexable;
 
 /// The type of Index requires a format, and contains both a codec and a Bucket vec
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct Index<I: IndexBucket> {
+pub struct Index<I: Indexable> {
     pub(crate) codec: u128,
     pub(crate) buckets: Vec<I>,
 }
@@ -67,7 +67,6 @@ impl Streamable for Index<IndexSortedBucket> {
     fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
         // Write codec
         w.write_all(&encode_varint_u128(self.codec))?;
-        println!("wrote codec");
         // For each bucket
         for bucket in &self.buckets {
             // Write out
@@ -77,7 +76,7 @@ impl Streamable for Index<IndexSortedBucket> {
     }
 }
 
-impl IndexBucket for Index<IndexSortedBucket> {
+impl Indexable for Index<IndexSortedBucket> {
     fn get_offset(&self, cid: &Cid) -> Option<u64> {
         for bucket in &self.buckets {
             if let Some(offset) = bucket.get_offset(cid) {

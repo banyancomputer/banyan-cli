@@ -18,7 +18,7 @@ use wnfs::{common::BlockStoreError, libipld::Cid};
 use crate::types::{blockstore::car::carv2::index::INDEX_SORTED_CODEC, streamable::Streamable};
 
 use self::{block::Block, header::Header};
-use super::carv2::index::{indexbucket::IndexBucket, indexsorted::Bucket, Index};
+use super::carv2::index::{indexable::Indexable, indexsorted::Bucket, Index};
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -105,19 +105,12 @@ impl CAR {
             // Insert new offset into index
             new_index.insert(block.cid, new_offset);
         }
-
         {
             let mut index = self.index.borrow_mut();
             for (cid, offset) in new_index {
                 index.insert_offset(&cid, offset);
             }
         }
-
-        println!(
-            "index before write bytes finished: {:?}",
-            self.index.borrow().clone()
-        );
-
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
@@ -389,14 +382,10 @@ mod test {
 
         // Assert equality
         assert_eq!(original.header, updated.header);
-
-        println!("original index: {:?}", original.index.borrow().clone());
-
         assert_eq!(
             original.index.borrow().get_all_cids(),
             updated.index.borrow().get_all_cids()
         );
-        // assert_eq!(original, updated);
 
         Ok(())
     }

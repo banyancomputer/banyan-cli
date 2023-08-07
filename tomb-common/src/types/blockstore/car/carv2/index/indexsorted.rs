@@ -7,7 +7,7 @@ use std::{
 use wnfs::libipld::Cid;
 
 use crate::types::{
-    blockstore::car::{carv2::index::indexbucket::IndexBucket, error::CARError, varint::*},
+    blockstore::car::{carv2::index::indexable::Indexable, error::CARError, varint::*},
     streamable::Streamable,
 };
 
@@ -75,7 +75,7 @@ impl Streamable for Bucket {
     }
 }
 
-impl IndexBucket for Bucket {
+impl Indexable for Bucket {
     fn get_offset(&self, cid: &Cid) -> Option<u64> {
         self.map.get(cid).copied()
     }

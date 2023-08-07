@@ -2,7 +2,7 @@ use std::io::{Read, Seek, Write};
 
 use crate::types::{
     blockstore::car::{
-        carv2::index::{indexbucket::IndexBucket, indexsorted::Bucket as IndexSortedBucket},
+        carv2::index::{indexable::Indexable, indexsorted::Bucket as IndexSortedBucket},
         varint::*,
     },
     streamable::Streamable,
@@ -34,7 +34,7 @@ impl Streamable for Bucket {
     }
 }
 
-impl IndexBucket for Bucket {
+impl Indexable for Bucket {
     fn get_offset(&self, cid: &Cid) -> Option<u64> {
         self.bucket.get_offset(cid)
     }

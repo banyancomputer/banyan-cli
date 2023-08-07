@@ -6,7 +6,7 @@ pub(crate) mod header;
 pub mod index;
 
 // Code
-use self::{header::Header, index::indexbucket::IndexBucket};
+use self::{header::Header, index::indexable::Indexable};
 use crate::types::{
     blockstore::car::carv1::{block::Block, CAR as CARv1},
     streamable::Streamable,

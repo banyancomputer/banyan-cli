@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::types::blockstore::{
-    car::carv2::index::indexbucket::IndexBucket, tombblockstore::TombBlockStore,
+    car::carv2::index::indexable::Indexable, tombblockstore::TombBlockStore,
 };
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},

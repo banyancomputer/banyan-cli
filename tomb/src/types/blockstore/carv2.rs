@@ -13,7 +13,7 @@ use tomb_common::{
         blockstore::{
             car::{
                 carv1::block::Block,
-                carv2::{index::indexbucket::IndexBucket, CAR},
+                carv2::{index::indexable::Indexable, CAR},
             },
             tombblockstore::TombBlockStore,
         },

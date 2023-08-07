@@ -391,7 +391,6 @@ mod test {
         let block_four_data = ipld_link(&block_three_cid);
         let block_four_cid = sha1_cid(&[0x71], &block_four_data); // DAG-CBOR data
         let block_four_length = block_four_cid.len() + block_four_data.len();
-        println!("the block four length is {}", block_four_length);
         let block_four_length_bytes = dirty_varint(block_four_length);
 
         // PRAGMA
@@ -424,7 +423,6 @@ mod test {
         .sum();
 
         let index_offset = data_offset + data_size + OPTIONAL_PADDING_TWO.len() as u64;
-        println!("index_location: {}, data_size: {}", index_offset, data_size);
         all_car_bytes.extend_from_slice(&carv2_header(true, data_offset, data_size, index_offset));
 
         // Optional Padding
@@ -606,7 +604,6 @@ mod test {
         let car_data = build_full_car();
         let mut data = Cursor::new(car_data.clone());
         let car = CAR::read_bytes(&mut data)?;
-        println!("car: {:?}", car);
         // Assert that reading it didnt modify the data
         assert_eq!(data.clone().into_inner(), car_data);
 
