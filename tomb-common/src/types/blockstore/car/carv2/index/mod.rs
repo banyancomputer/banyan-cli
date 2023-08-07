@@ -2,8 +2,6 @@
 pub mod indexable;
 /// The simple Bucket format
 pub mod indexsorted;
-/// The advanced Bucket format
-pub mod multihashindexsorted;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -14,6 +12,7 @@ use std::{
 };
 use wnfs::libipld::Cid;
 
+use self::indexable::Indexable;
 use crate::types::{
     blockstore::car::{
         carv1::block::Block,
@@ -22,10 +21,7 @@ use crate::types::{
     },
     streamable::Streamable,
 };
-use indexsorted::Bucket as IndexSortedBucket;
-use multihashindexsorted::Bucket as MultiHashIndexSortedBucket;
-
-use self::indexable::Indexable;
+use indexsorted::Bucket;
 
 /// The type of Index requires a format, and contains both a codec and a Bucket vec
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -39,7 +35,7 @@ pub const INDEX_SORTED_CODEC: u128 = 0x0400;
 /// The Codec associated with the MultihashIndexSorted index format
 pub const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
 
-impl Streamable for Index<IndexSortedBucket> {
+impl Streamable for Index<Bucket> {
     fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
@@ -47,9 +43,9 @@ impl Streamable for Index<IndexSortedBucket> {
             return Err(CARError::Codec.into());
         }
         // Empty bucket vec
-        let mut buckets = <Vec<IndexSortedBucket>>::new();
+        let mut buckets = <Vec<Bucket>>::new();
         // While we can read buckets
-        while let Ok(bucket) = IndexSortedBucket::read_bytes(r) {
+        while let Ok(bucket) = Bucket::read_bytes(r) {
             // Push new bucket to list
             buckets.push(bucket);
         }
@@ -76,7 +72,7 @@ impl Streamable for Index<IndexSortedBucket> {
     }
 }
 
-impl Indexable for Index<IndexSortedBucket> {
+impl Indexable for Index<Bucket> {
     fn get_offset(&self, cid: &Cid) -> Option<u64> {
         for bucket in &self.buckets {
             if let Some(offset) = bucket.get_offset(cid) {
@@ -98,7 +94,7 @@ impl Indexable for Index<IndexSortedBucket> {
 
         let mut new_map = HashMap::new();
         new_map.insert(*cid, offset);
-        self.buckets.push(IndexSortedBucket {
+        self.buckets.push(Bucket {
             cid_width,
             map: new_map,
         });
@@ -106,9 +102,9 @@ impl Indexable for Index<IndexSortedBucket> {
     }
 }
 
-impl Index<IndexSortedBucket> {
+impl Index<Bucket> {
     pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self> {
-        let mut new_index: Index<IndexSortedBucket> = Index {
+        let mut new_index: Index<Bucket> = Index {
             codec: INDEX_SORTED_CODEC,
             buckets: vec![],
         };
@@ -137,34 +133,25 @@ impl Index<IndexSortedBucket> {
 }
 
 mod test {
-    use super::{Index, IndexSortedBucket, MultiHashIndexSortedBucket, INDEX_SORTED_CODEC};
+    use super::{Bucket, Index, INDEX_SORTED_CODEC};
     use crate::streamable_tests;
     use std::{collections::HashMap, str::FromStr};
     use wnfs::libipld::Cid;
 
-    /// Generate example data for IndexSortedBucket
+    /// Generate example data for Bucket
     #[allow(dead_code)]
-    fn index_sorted_example() -> IndexSortedBucket {
+    fn index_sorted_example() -> Bucket {
         let cid = Cid::from_str("bafyrcfajghwtmjky5lzbkwxyzjlim3yxi4pmebi").unwrap();
         // Width represents
         let cid_width = cid.to_bytes().len() as u32;
         let mut map = HashMap::new();
         map.insert(cid, 42);
-        IndexSortedBucket { cid_width, map }
-    }
-
-    /// Generate example data for MultiHashIndexSortedBucket
-    #[allow(dead_code)]
-    fn multi_sorted_example() -> MultiHashIndexSortedBucket {
-        MultiHashIndexSortedBucket {
-            code: 1,
-            bucket: index_sorted_example(),
-        }
+        Bucket { cid_width, map }
     }
 
     /// Generate example data for V2Index
     #[allow(dead_code)]
-    fn v2_sorted_index_example() -> Index<IndexSortedBucket> {
+    fn v2_sorted_index_example() -> Index<Bucket> {
         Index {
             codec: INDEX_SORTED_CODEC,
             buckets: vec![index_sorted_example()],
@@ -172,13 +159,10 @@ mod test {
     }
 
     streamable_tests! {
-        IndexSortedBucket:
+        Bucket:
         indexsorted: index_sorted_example(),
 
-        MultiHashIndexSortedBucket:
-        multisorted: multi_sorted_example(),
-
-        Index<IndexSortedBucket>:
+        Index<Bucket>:
         carv2sortedindex: v2_sorted_index_example(),
     }
 }
