@@ -222,14 +222,6 @@ mod test {
         cid_bytes
     }
 
-    fn bytes_to_str(bytes: &[u8]) -> String {
-        bytes
-            .iter()
-            .map(|b| format!("0x{b:02x}"))
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-
     /// NOTE: The contents of this header _ARE NOT_ encoded as CBOR values, they are direct raw
     /// encodings.
     fn carv2_header(
@@ -549,7 +541,6 @@ mod test {
         all_car_bytes.extend_from_slice(&block_four_cid);
         all_car_bytes.extend_from_slice(&block_four_offset.to_le_bytes());
 
-        println!("offset of bucket2: {:?}", all_car_bytes.len());
         // Our SHA2-256 & Blake3 Digests
         let digest_len: u32 = block_two_cid.len() as u32 + 8;
         let digest_count: u64 = 5;
@@ -566,7 +557,6 @@ mod test {
         ];
 
         for (cid, offset) in index_entries.iter() {
-            println!("{}", bytes_to_str(cid));
             all_car_bytes.extend_from_slice(cid);
             all_car_bytes.extend_from_slice(&offset.to_le_bytes());
         }
