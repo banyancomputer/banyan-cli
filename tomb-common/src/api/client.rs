@@ -1,5 +1,6 @@
 use anyhow::Result;
 use reqwest::Url;
+use crate::api::request::Respondable;
 use super::{request::Requestable, error::ClientError, token::Token, credentials::Credentials};
 
 pub struct Client {
@@ -56,12 +57,18 @@ impl Client {
 
         // Send and await the response
         let response = builder.send().await.map_err(ClientError::http_error)?;
+
+        let x = R::ResponseType::process(request, response).await;
+
+
         // If we succeeded
         if response.status().is_success() {
-            response
-                .json::<R::ResponseType>()
-                .await
-                .map_err(ClientError::bad_format)
+            let x: R::ResponseType = R::ResponseType::process(request, response).await.unwrap();
+            Ok(x)
+            // response
+            //     .json::<R::ResponseType>()
+            //     .await
+            //     .map_err(ClientError::bad_format)
         } else {
             let err = response
                 .json::<R::ErrorType>()

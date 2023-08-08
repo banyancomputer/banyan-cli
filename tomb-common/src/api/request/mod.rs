@@ -1,16 +1,34 @@
 use std::{error::Error, fmt::Display};
-use reqwest::Method;
+use async_trait::async_trait;
+use reqwest::{Method, Response};
 use serde::{Serialize, de::DeserializeOwned, Deserialize};
 use uuid::Uuid;
 
-pub trait Requestable: Serialize {
-    type ResponseType: DeserializeOwned;
+mod bucket;
+mod key;
+mod metadata;
+
+#[cfg(test)]
+mod fake;
+
+pub use bucket::*;
+pub use key::*;
+pub use metadata::*;
+
+#[async_trait(?Send)]
+pub trait Requestable: Serialize + Sized {
     type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
+    type ResponseType: Respondable<Self, Self::ErrorType>;
 
     // Obtain the url suffix of the endpoint
     fn endpoint(&self) -> String;
     fn method(&self) -> Method;
     fn authed(&self) -> bool;
+}
+
+#[async_trait(?Send)]
+pub trait Respondable<R: Requestable, E: Error>: Sized {
+    async fn process(request: R, response: Response) -> Result<Self, E>;
 }
 
 const API_PREFIX: &str = "/api/v1";
@@ -25,97 +43,31 @@ pub enum Request {
     Metadata(MetadataRequest),
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub enum BucketRequest {
-    Create(CreateBucketRequest),
-    List,
-    Get(Uuid),
-    Delete(Uuid),
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct CreateBucketRequest {
-    name: String
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub enum BucketError {
-    #[serde(rename = "status")]
-    Any(String)
-}
-
-impl Display for BucketError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("unknown")
-    }
-}
-
-impl Error for BucketError {}
-
-#[derive(Clone, Debug, Deserialize)]
-pub enum BucketResponse {
-    // #[serde(flatten)]
-    Create,
-    List,
-    Get,
-    Delete
-}
-
-impl Requestable for BucketRequest {
-    type ResponseType = BucketResponse;
-    type ErrorType = BucketError;
-
-    fn endpoint(&self) -> String {
-        match self {
-            BucketRequest::Create(_) | BucketRequest::List => format!("{}/buckets", API_PREFIX),
-            BucketRequest::Get(uuid) | BucketRequest::Delete(uuid) => format!("/buckets/{}", uuid),
-        }
-    }
-
-    fn method(&self) -> Method {
-        match self {
-            BucketRequest::Create(_) => Method::POST,
-            BucketRequest::List | BucketRequest::Get(_) => Method::GET,
-            BucketRequest::Delete(_) => Method::DELETE,
-        }
-    }
-
-    fn authed(&self) -> bool { true }
-}
-
-#[derive(Clone, Debug)]
-pub enum KeyRequest {
-    Create {
-        
-    },
-    Get {
-
-    },
-    Delete {
-
-    },
-}
-
-#[derive(Clone, Debug)]
-pub enum MetadataRequest {
-    Create {
-        
-    },
-    Get {
-
-    },
-    Delete {
-
-    },
-}
-
-
 #[cfg(test)]
 mod test {
-    use crate::api::{client::Client, request::{BucketRequest, CreateBucketRequest}, error::ClientError};
+    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey, WrappingPublicKey};
+
+    use crate::api::{client::Client, request::{BucketRequest, CreateBucketRequest, fake::*}, error::ClientError};
 
     const TEST_REMOTE: &str = "http://127.0.0.1:3001/";
 
+
+    #[tokio::test]
+    async fn fake() -> Result<(), ClientError> { 
+        let client = Client::new(TEST_REMOTE).unwrap();
+        let response: FakeResponse = client.send(FakeRequest::RegisterAccount).await?;
+        // Create a local key pair
+        let private_key = EcEncryptionKey::generate().await.unwrap();
+        let public_key = private_key.public_key().unwrap();
+        // Represent as PEM string
+        let public_key_pem_string = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        // Send a device registration request
+        let response: FakeResponse = client.send(FakeRequest::RegisterDeviceKey(FakeRegisterDeviceKeyRequest { public_key: public_key_pem_string })).await?;
+
+        println!("fake response: {:?}", response);
+
+        Ok(())
+    }
 
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {

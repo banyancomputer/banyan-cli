@@ -1,3 +1,7 @@
+use std::fmt::{Display, Formatter};
+
+use serde::Deserialize;
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ClientError {
@@ -41,3 +45,14 @@ enum ClientErrorKind {
     HttpClientError(reqwest::Error),
     ResponseFormatError(reqwest::Error),
 }
+
+#[derive(Debug, Deserialize)]
+pub struct InfallibleError;
+
+impl Display for InfallibleError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("an infallible API query returned a failed response")
+    }
+}
+
+impl std::error::Error for InfallibleError {}
