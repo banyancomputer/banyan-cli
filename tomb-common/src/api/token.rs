@@ -44,7 +44,7 @@ impl Token {
         }
     }
 
-    pub(crate) fn sign(self, fingerprint: &str, signing_key: &EncodingKey) -> String {
+    pub(crate) fn sign(&self, fingerprint: &str, signing_key: &EncodingKey) -> String {
         let bearer_header = Header {
             alg: Algorithm::ES384,
             kid: Some(fingerprint.to_string()),

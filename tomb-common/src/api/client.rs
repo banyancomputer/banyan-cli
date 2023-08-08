@@ -1,16 +1,19 @@
 use anyhow::Result;
 use reqwest::Url;
-use super::{request::Requestable, error::ClientError};
+use super::{request::Requestable, error::ClientError, token::Token, credentials::Credentials};
 
 pub struct Client {
-    remote: Url
-    // token: Token
+    remote: Url,
+    token: Option<Token>,
+    credentials: Option<Credentials>
 }
 
 impl Client {
     pub fn new(remote: &str) -> Result<Self> {
         Ok(Self {
-            remote: Url::parse(remote)?
+            remote: Url::parse(remote)?,
+            token: None,
+            credentials: None
         })
     }
 
@@ -19,14 +22,38 @@ impl Client {
         // This should never fail
         let full_url = self.remote.join(&request.endpoint()).unwrap();
 
-        println!("the full_url is {:?}", full_url);
+        // Default header
+        let mut default_headers = reqwest::header::HeaderMap::new();
+        default_headers.insert(
+            "Content-Type",
+            reqwest::header::HeaderValue::from_static("application/json"),
+        );
 
-        // Create a new client
-        let client = reqwest::Client::new();
+        // Create the Client
+        let client = reqwest::Client::builder()
+            .default_headers(default_headers)
+            .user_agent("banyan-api-client/0.1.0")
+            .build().unwrap();
+
         // Create the RequestBuilder
-        let builder = client
+        let mut builder = client
             .request(request.method(), full_url)
             .json(&request);
+
+        // If the request requires authentication
+        if request.authed() {
+            // If we have a Token and Credentials present
+            if let Some(token) = &self.token && let Some(credentials) = &self.credentials {
+                // Sign a new token
+                let signed_token = token.sign(&credentials.fingerprint, &credentials.signing_key);
+                // Apply bearer Authentication
+                builder = builder.bearer_auth(signed_token);
+            } else {
+                // Auth was not available but was required
+                return Err(ClientError::auth_unavailable());
+            }
+        }
+
         // Send and await the response
         let response = builder.send().await.map_err(ClientError::http_error)?;
         // If we succeeded

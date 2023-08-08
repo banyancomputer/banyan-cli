@@ -116,6 +116,7 @@ mod test {
 
     const TEST_REMOTE: &str = "http://127.0.0.1:3001/";
 
+
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {
         let client = Client::new(TEST_REMOTE).unwrap();
