@@ -3973,6 +3973,7 @@ dependencies = [
  "tokio",
  "tomb-crypt",
  "unsigned-varint",
+ "uuid",
  "wasm-bindgen",
  "wnfs",
 ]
