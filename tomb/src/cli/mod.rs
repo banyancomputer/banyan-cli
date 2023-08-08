@@ -59,8 +59,6 @@ pub async fn run(command: Command) -> Result<()> {
             }
         },
         Command::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
-        Command::Register { bucket_name: _ } =>
-            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
         Command::Configure { subcommand } => {
             match subcommand {
                 ConfigSubCommand::SetRemote { address } => {
@@ -74,7 +72,7 @@ pub async fn run(command: Command) -> Result<()> {
         },
         Command::Remove { origin, wnfs_path } => {
             remove::pipeline(&origin, &wnfs_path).await?;
-        }
+        },
     }
 
     Ok(())

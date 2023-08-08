@@ -6,7 +6,7 @@ use std::{
     process::Command,
     rc::Rc,
 };
-use tomb_common::utils::test::setup;
+use tomb_common::test::setup;
 use wnfs::private::{PrivateDirectory, PrivateForest};
 
 use crate::{pipelines::configure, types::blockstore::carv2::BlockStore};

@@ -5,7 +5,7 @@ use crate::{
     value,
 };
 use js_sys::{Array, Object, Reflect};
-use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
+use tomb_common::{keys::Manager, serialize::*};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use wnfs::private::{PrivateDirectory, PrivateForest};
 

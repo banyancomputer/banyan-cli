@@ -10,10 +10,10 @@
 /// Types
 pub mod api;
 pub mod blockstore;
-pub mod keys;
-pub mod test;
-pub mod serialize;
 pub mod error;
+pub mod keys;
+pub mod serialize;
+pub mod test;
 
 mod streamable;
 pub use streamable::Streamable;

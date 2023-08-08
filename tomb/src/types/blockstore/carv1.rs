@@ -8,11 +8,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
-    types::blockstore::{
+    blockstore::{
         car::carv1::{block::Block, CAR},
-        tombblockstore::TombBlockStore,
+        TombBlockStore,
     },
-    utils::test::{get_read, get_read_write, get_write},
+    test::{get_read, get_read_write, get_write},
 };
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
@@ -152,7 +152,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
+    use tomb_common::{blockstore::TombBlockStore, test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},

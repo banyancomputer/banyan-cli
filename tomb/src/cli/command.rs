@@ -65,12 +65,6 @@ pub enum Command {
     },
     /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
     Login,
-    /// tomb register <bucket_name> - Register a new bucket on the tombolo service for this data. then you can push to it. MUST be called before push.
-    Register {
-        /// Name of the bucket to create
-        #[arg(short, long, help = "bucket name")]
-        bucket_name: String,
-    },
     /// tomb config <subcommand> - Configure Tombolo
     Configure {
         /// Configuration subcommand

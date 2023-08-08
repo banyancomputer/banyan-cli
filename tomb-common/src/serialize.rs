@@ -11,11 +11,7 @@ use wnfs::{
     },
 };
 
-use crate::{
-    blockstore::TombBlockStore, 
-    keys::Manager,
-    error::SerialError,
-};
+use crate::{blockstore::TombBlockStore, error::SerialError, keys::Manager};
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(

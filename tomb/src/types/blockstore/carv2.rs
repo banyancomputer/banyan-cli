@@ -9,17 +9,15 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
-    types::{
-        blockstore::{
-            car::{
-                carv1::block::Block,
-                carv2::{index::indexable::Indexable, CAR},
-            },
-            tombblockstore::TombBlockStore,
+    blockstore::{
+        car::{
+            carv1::block::Block,
+            carv2::{index::indexable::Indexable, CAR},
         },
-        streamable::Streamable,
+        TombBlockStore,
     },
-    utils::test::{get_read, get_read_write, get_write},
+    test::{get_read, get_read_write, get_write},
+    Streamable,
 };
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
@@ -185,7 +183,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
+    use tomb_common::{blockstore::TombBlockStore, test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},

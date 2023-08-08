@@ -2,7 +2,7 @@
 use crate::fetch::http::*;
 use async_trait::async_trait;
 use std::{borrow::Cow, io::Cursor};
-use tomb_common::types::blockstore::{car::carv2::CAR, tombblockstore::TombBlockStore};
+use tomb_common::blockstore::{car::carv2::CAR, TombBlockStore};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use wnfs::{
     common::blockstore::BlockStore as WnfsBlockStore,
