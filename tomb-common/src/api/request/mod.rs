@@ -1,7 +1,7 @@
-use std::{error::Error, fmt::Display};
 use async_trait::async_trait;
 use reqwest::{Method, Response};
-use serde::{Serialize, de::DeserializeOwned, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{error::Error, fmt::Display};
 use uuid::Uuid;
 
 mod bucket;
@@ -17,8 +17,8 @@ pub use metadata::*;
 
 #[async_trait(?Send)]
 pub trait Requestable: Serialize + Sized {
-    type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
-    type ResponseType: Respondable<Self, Self::ErrorType>;
+    // type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
+    // type ResponseType: Respondable<Self, Self::ErrorType>;
 
     // Obtain the url suffix of the endpoint
     fn endpoint(&self) -> String;
@@ -47,38 +47,60 @@ pub enum Request {
 mod test {
     use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey, WrappingPublicKey};
 
-    use crate::api::{client::Client, request::{BucketRequest, CreateBucketRequest, fake::*}, error::ClientError};
+    use crate::api::{
+        client::Client,
+        error::{ClientError, InfallibleError},
+        request::{fake::*, BucketRequest, CreateBucketRequest}, token::Token,
+    };
 
     const TEST_REMOTE: &str = "http://127.0.0.1:3001/";
 
-
     #[tokio::test]
-    async fn fake() -> Result<(), ClientError> { 
-        let client = Client::new(TEST_REMOTE).unwrap();
-        let response: FakeResponse = client.send(FakeRequest::RegisterAccount).await?;
+    async fn fake() -> Result<(), ClientError> {
+        let mut client = Client::new(TEST_REMOTE).unwrap();
+
+        let response = client
+            .send::<FakeRequest, RegisterAccountResponse, InfallibleError>(
+                FakeRequest::RegisterAccount,
+            )
+            .await?;
+
+        println!("fake response: {:?}", response);
+
         // Create a local key pair
         let private_key = EcEncryptionKey::generate().await.unwrap();
         let public_key = private_key.public_key().unwrap();
+        
         // Represent as PEM string
         let public_key_pem_string = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+
+        // 
+        client.bearer_token = Some(response.token);
+
         // Send a device registration request
-        let response: FakeResponse = client.send(FakeRequest::RegisterDeviceKey(FakeRegisterDeviceKeyRequest { public_key: public_key_pem_string })).await?;
+        let response = client
+            .send::<FakeRequest, RegisterDeviceKeyResponse, InfallibleError>(
+                FakeRequest::RegisterDeviceKey(FakeRegisterDeviceKeyRequest {
+                    public_key: public_key_pem_string,
+                }),
+            )
+            .await?;
 
         println!("fake response: {:?}", response);
 
         Ok(())
     }
 
-    #[tokio::test]
-    async fn create() -> Result<(), ClientError> {
-        let client = Client::new(TEST_REMOTE).unwrap();
-        let request = BucketRequest::Create(CreateBucketRequest {
-            name: "silly name :3".to_string()
-        });
-        let response = client.send(request).await?;
-        println!("response is: {:?}", response);
-        Ok(())
-    }
+    // #[tokio::test]
+    // async fn create() -> Result<(), ClientError> {
+    //     let client = Client::new(TEST_REMOTE).unwrap();
+    //     let request = BucketRequest::Create(CreateBucketRequest {
+    //         name: "silly name :3".to_string()
+    //     });
+    //     let response = client.send(request).await?;
+    //     println!("response is: {:?}", response);
+    //     Ok(())
+    // }
 
     // #[tokio::test]
     // async fn create_get() -> Result<(), ClientError> {

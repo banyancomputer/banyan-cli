@@ -53,4 +53,8 @@ impl Token {
 
         jsonwebtoken::encode(&bearer_header, &self, signing_key).unwrap()
     }
+
+    // pub(crate) fn from_str(token: &str) -> Self {
+    //     let x = jsonwebtoken::decode(token, key, validation);
+    // }
 }

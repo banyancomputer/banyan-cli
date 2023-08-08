@@ -1,8 +1,8 @@
-mod request;
 mod client;
-mod token;
-mod error;
 mod credentials;
+mod error;
+mod request;
+mod token;
 
 #[cfg(test)]
 mod test {
