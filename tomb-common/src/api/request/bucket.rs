@@ -1,45 +1,101 @@
-use std::{error::Error, fmt::Display};
+use std::{convert::Infallible, error::Error, fmt::Display};
 
 use async_trait::async_trait;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{Requestable, Respondable};
+use crate::api::error::InfallibleError;
+
+use super::Requestable;
 
 const API_PREFIX: &str = "/api/v1/buckets";
 
 #[derive(Clone, Debug, Serialize)]
 pub enum BucketRequest {
     Create(CreateBucketRequest),
-    List,
-    Get(Uuid),
-    Delete(Uuid),
+    List(ListBucketRequest),
+    Get(GetBucketRequest),
+    Delete(DeleteBucketRequest),
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct CreateBucketRequest {
+    #[serde(rename = "friendly_name")]
     pub name: String,
+    pub r#type: BucketType,
+    pub initial_public_key: String,
 }
 
-impl Requestable for BucketRequest {
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BucketType {
+    Backup,
+    Interactive,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ListBucketRequest;
+#[derive(Clone, Debug, Serialize)]
+pub struct GetBucketRequest {
+    pub bucket_id: String,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct DeleteBucketRequest {
+    pub bucket_id: String,
+}
+
+impl Requestable for CreateBucketRequest {
+    type ErrorType = BucketError;
+    type ResponseType = BucketResponse;
     fn endpoint(&self) -> String {
-        match self {
-            BucketRequest::Create(_) | BucketRequest::List => format!("{}", API_PREFIX),
-            BucketRequest::Get(uuid) | BucketRequest::Delete(uuid) => {
-                format!("{}{}", API_PREFIX, uuid)
-            }
-        }
+        format!("{}", API_PREFIX)
     }
-
     fn method(&self) -> Method {
-        match self {
-            BucketRequest::Create(_) => Method::POST,
-            BucketRequest::List | BucketRequest::Get(_) => Method::GET,
-            BucketRequest::Delete(_) => Method::DELETE,
-        }
+        Method::POST
     }
+    fn authed(&self) -> bool {
+        true
+    }
+}
 
+impl Requestable for ListBucketRequest {
+    type ErrorType = BucketError;
+    type ResponseType = ListBucketResponse;
+    fn endpoint(&self) -> String {
+        format!("{}", API_PREFIX)
+    }
+    fn method(&self) -> Method {
+        Method::GET
+    }
+    fn authed(&self) -> bool {
+        true
+    }
+}
+
+impl Requestable for GetBucketRequest {
+    type ErrorType = BucketError;
+    type ResponseType = BucketResponse;
+    fn endpoint(&self) -> String {
+        format!("{}/{}", API_PREFIX, self.bucket_id)
+    }
+    fn method(&self) -> Method {
+        Method::GET
+    }
+    fn authed(&self) -> bool {
+        true
+    }
+}
+
+impl Requestable for DeleteBucketRequest {
+    type ErrorType = BucketError;
+    type ResponseType = BucketResponse;
+    fn endpoint(&self) -> String {
+        format!("{}/{}", API_PREFIX, self.bucket_id)
+    }
+    fn method(&self) -> Method {
+        Method::DELETE
+    }
     fn authed(&self) -> bool {
         true
     }
@@ -59,25 +115,12 @@ impl Display for BucketError {
 
 impl Error for BucketError {}
 
-#[derive(Clone, Debug, Deserialize)]
-pub enum BucketResponse {
-    Create,
-    List,
-    Get,
-    Delete,
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct BucketResponse {
+    pub id: String,
+    pub friendly_name: String,
+    pub r#type: BucketType,
 }
 
-#[async_trait(?Send)]
-impl Respondable<BucketRequest, BucketError> for BucketResponse {
-    async fn process(
-        request: BucketRequest,
-        response: reqwest::Response,
-    ) -> Result<Self, BucketError> {
-        match request {
-            BucketRequest::Create(_) => todo!(),
-            BucketRequest::List => todo!(),
-            BucketRequest::Get(_) => todo!(),
-            BucketRequest::Delete(_) => todo!(),
-        }
-    }
-}
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct ListBucketResponse(Vec<BucketResponse>);

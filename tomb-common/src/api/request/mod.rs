@@ -7,6 +7,7 @@ use uuid::Uuid;
 mod bucket;
 mod key;
 mod metadata;
+mod who;
 
 #[cfg(test)]
 mod fake;
@@ -14,21 +15,17 @@ mod fake;
 pub use bucket::*;
 pub use key::*;
 pub use metadata::*;
+pub use who::*;
 
 #[async_trait(?Send)]
 pub trait Requestable: Serialize + Sized {
-    // type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
-    // type ResponseType: Respondable<Self, Self::ErrorType>;
+    type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
+    type ResponseType: DeserializeOwned;
 
     // Obtain the url suffix of the endpoint
     fn endpoint(&self) -> String;
     fn method(&self) -> Method;
     fn authed(&self) -> bool;
-}
-
-#[async_trait(?Send)]
-pub trait Respondable<R: Requestable, E: Error>: Sized {
-    async fn process(request: R, response: Response) -> Result<Self, E>;
 }
 
 const API_PREFIX: &str = "/api/v1";
@@ -45,90 +42,115 @@ pub enum Request {
 
 #[cfg(test)]
 mod test {
-    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey, WrappingPublicKey};
+    use jsonwebtoken::{get_current_timestamp, EncodingKey};
+    use serial_test::serial;
+    use tomb_crypt::{
+        prelude::{EcEncryptionKey, EcPublicEncryptionKey, WrappingPrivateKey, WrappingPublicKey},
+        pretty_fingerprint,
+    };
 
     use crate::api::{
         client::Client,
+        credentials::Credentials,
         error::{ClientError, InfallibleError},
-        request::{fake::*, BucketRequest, CreateBucketRequest}, token::Token,
+        request::{
+            fake::*, BucketRequest, BucketType, CreateBucketRequest, GetBucketRequest,
+            ListBucketRequest, WhoRequest,
+        },
+        token::Token,
     };
 
     const TEST_REMOTE: &str = "http://127.0.0.1:3001/";
 
-    #[tokio::test]
-    async fn fake() -> Result<(), ClientError> {
+    async fn setup() -> Result<(Client, EcEncryptionKey, EcPublicEncryptionKey), ClientError> {
         let mut client = Client::new(TEST_REMOTE).unwrap();
-
-        let response = client
-            .send::<FakeRequest, RegisterAccountResponse, InfallibleError>(
-                FakeRequest::RegisterAccount,
-            )
-            .await?;
-
-        println!("fake response: {:?}", response);
-
+        // Register
+        let account_response = client.send(RegisterAccountRequest).await?;
         // Create a local key pair
         let private_key = EcEncryptionKey::generate().await.unwrap();
         let public_key = private_key.public_key().unwrap();
-        
         // Represent as PEM string
         let public_key_pem_string = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        // Set the bearer token
+        client.bearer_token = Some((
+            get_current_timestamp() + 870,
+            account_response.token.clone(),
+        ));
+        // Assert that it's accessible
+        assert!(client.bearer_token().is_some());
 
-        // 
-        client.bearer_token = Some(response.token);
+        //
+        let jwt_signing_key =
+            EncodingKey::from_ec_pem(&private_key.export().await.unwrap()).unwrap();
+
+        // Update the credentials
+        client.credentials = Some(Credentials {
+            account_id: account_response.id,
+            fingerprint: pretty_fingerprint(&public_key.fingerprint().await.unwrap()),
+            signing_key: jwt_signing_key,
+        });
 
         // Send a device registration request
-        let response = client
-            .send::<FakeRequest, RegisterDeviceKeyResponse, InfallibleError>(
-                FakeRequest::RegisterDeviceKey(FakeRegisterDeviceKeyRequest {
-                    public_key: public_key_pem_string,
-                }),
-            )
+        let device_response = client
+            .send(RegisterDeviceKeyRequest {
+                token: account_response.token,
+                public_key: public_key_pem_string,
+            })
             .await?;
 
-        println!("fake response: {:?}", response);
+        // Empty out the broken bearer token
+        client.bearer_token = None;
+
+        let authenticated_info = client.send(WhoRequest).await?;
+        assert_eq!(authenticated_info.account_id, device_response.account_id);
+
+        Ok((client, private_key, public_key))
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn create() -> Result<(), ClientError> {
+        let (mut client, _, public_key) = setup().await?;
+        let public_pem = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        let request = CreateBucketRequest {
+            name: "test interactive bucket".to_string(),
+            r#type: BucketType::Interactive,
+            initial_public_key: public_pem,
+        };
+        let response = client.send(request.clone()).await?;
+
+        assert_eq!(request.name, response.friendly_name);
+        assert_eq!(request.r#type, response.r#type);
 
         Ok(())
     }
 
-    // #[tokio::test]
-    // async fn create() -> Result<(), ClientError> {
-    //     let client = Client::new(TEST_REMOTE).unwrap();
-    //     let request = BucketRequest::Create(CreateBucketRequest {
-    //         name: "silly name :3".to_string()
-    //     });
-    //     let response = client.send(request).await?;
-    //     println!("response is: {:?}", response);
-    //     Ok(())
-    // }
+    #[tokio::test]
+    #[serial]
+    async fn create_get() -> Result<(), ClientError> {
+        let (mut client, _, public_key) = setup().await?;
+        let public_pem = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        let request = CreateBucketRequest {
+            name: "test interactive bucket".to_string(),
+            r#type: BucketType::Interactive,
+            initial_public_key: public_pem,
+        };
+        let response1 = client.send(request.clone()).await?;
+        let response2 = client
+            .send(GetBucketRequest {
+                bucket_id: response1.clone().id,
+            })
+            .await?;
 
-    // #[tokio::test]
-    // async fn create_get() -> Result<(), ClientError> {
-    //     let mut api_client = fake_authenticated_client().await;
-    //     let friendly_name = "test interactive bucket".to_string();
-    //     let response1 = api_client.call(CreateBucket {
-    //         friendly_name: friendly_name.clone(),
-    //         r#type: BucketType::Interactive,
-    //         initial_public_key: "ECDH public key pem formatted bits".to_string(),
-    //     }).await?;
+        assert_eq!(response1, response2);
+        Ok(())
+    }
 
-    //     let response2 = api_client.call(GetBucket {
-    //         bucket_id: response1.id,
-    //     }).await?;
-
-    //     assert_eq!(response1, response2);
-    //     Ok(())
-    // }
-
-    // #[tokio::test]
-    // async fn list() -> Result<(), ClientError> {
-    //     let mut api_client = fake_authenticated_client().await;
-    //     let buckets = api_client.call(ListBuckets{
-
-    //     }).await?;
-
-    //     println!("{buckets:?}");
-
-    //     Ok(())
-    // }
+    #[tokio::test]
+    #[serial]
+    async fn list() -> Result<(), ClientError> {
+        let (mut client, _, _) = setup().await?;
+        let _ = client.send(ListBucketRequest).await?;
+        Ok(())
+    }
 }
