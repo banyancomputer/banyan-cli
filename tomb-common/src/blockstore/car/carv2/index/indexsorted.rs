@@ -6,9 +6,9 @@ use std::{
 };
 use wnfs::libipld::Cid;
 
-use crate::types::{
+use crate::{
     blockstore::car::{carv2::index::indexable::Indexable, error::CARError, varint::*},
-    streamable::Streamable,
+    Streamable,
 };
 
 /// Buckets contain a list of values

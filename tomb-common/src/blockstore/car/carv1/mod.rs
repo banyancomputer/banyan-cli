@@ -2,8 +2,6 @@
 pub mod block;
 /// CARv1 Header
 pub mod header;
-/// Custom Index of CARv1 content
-// pub mod index;
 
 // Code
 use anyhow::Result;
@@ -15,7 +13,7 @@ use std::{
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
-use crate::types::{blockstore::car::carv2::index::INDEX_SORTED_CODEC, streamable::Streamable};
+use crate::{blockstore::car::carv2::index::INDEX_SORTED_CODEC, Streamable};
 
 use self::{block::Block, header::Header};
 use super::carv2::index::{indexable::Indexable, indexsorted::Bucket, Index};
@@ -196,8 +194,8 @@ impl CAR {
 #[cfg(test)]
 mod test {
     use crate::{
-        types::blockstore::car::carv1::{block::Block, CAR},
-        utils::test::{car_setup, get_read_write},
+        blockstore::car::carv1::{block::Block, CAR},
+        test::{car_setup, get_read_write},
     };
     use anyhow::Result;
     use serial_test::serial;

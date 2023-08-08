@@ -1,6 +1,6 @@
-use crate::types::{
+use crate::{
     blockstore::car::varint::{encode_varint_u128, read_varint_u128},
-    streamable::Streamable,
+    Streamable,
 };
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};

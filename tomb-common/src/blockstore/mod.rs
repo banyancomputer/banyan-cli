@@ -1,18 +1,23 @@
 /// CAR readers and writers
 pub mod car;
 /// Disk based BlockStore
-pub mod diskblockstore;
+mod diskblockstore;
 /// Network based BlockStore
-pub mod networkblockstore;
+mod networkblockstore;
 /// Tomb BlockStore trait
-pub mod tombblockstore;
+mod tombblockstore;
 /// Memory implementation of Tomb BlockStore trait
-pub mod tombmemoryblockstore;
+mod tombmemoryblockstore;
+
+pub use diskblockstore::DiskBlockStore;
+pub use networkblockstore::NetworkBlockStore;
+pub use tombblockstore::TombBlockStore;
+pub use tombmemoryblockstore::TombMemoryBlockStore;
 
 #[cfg(test)]
 mod test {
     use super::diskblockstore::DiskBlockStore;
-    use crate::types::blockstore::tombmemoryblockstore::TombMemoryBlockStore;
+    use crate::blockstore::tombmemoryblockstore::TombMemoryBlockStore;
     use anyhow::Result;
     use std::{fs::create_dir_all, path::PathBuf};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};

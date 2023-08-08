@@ -12,8 +12,9 @@ use wnfs::{
 };
 
 use crate::{
-    types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
-    utils::error::SerialError,
+    blockstore::TombBlockStore, 
+    keys::Manager,
+    error::SerialError,
 };
 
 /// Store a given PrivateForest in a given Store
@@ -372,7 +373,7 @@ pub async fn update_manager(
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{serialize::*, test::*};
+    use crate::{serialize::*, test::*};
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;

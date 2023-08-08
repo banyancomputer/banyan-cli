@@ -13,7 +13,7 @@ use std::{
 use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
-use crate::types::{
+use crate::{
     blockstore::car::{
         carv1::block::Block,
         error::CARError,

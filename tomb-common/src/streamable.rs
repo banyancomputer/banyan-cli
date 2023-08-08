@@ -19,7 +19,7 @@ macro_rules! streamable_tests {
     $(
         mod $name {
             #[allow(unused_imports)]
-            use $crate::types::streamable::Streamable;
+            use $crate::Streamable;
             #[allow(unused_imports)]
             use anyhow::Result;
             #[allow(unused_imports)]

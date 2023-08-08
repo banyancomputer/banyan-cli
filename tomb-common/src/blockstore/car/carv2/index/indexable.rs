@@ -1,4 +1,4 @@
-use crate::types::streamable::Streamable;
+use crate::Streamable;
 use std::fmt::Debug;
 use wnfs::libipld::Cid;
 

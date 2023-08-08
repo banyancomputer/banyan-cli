@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test {
-    use crate::types::blockstore::car::carv2::CAR;
-    use crate::types::blockstore::car::{
+    use crate::blockstore::car::carv2::CAR;
+    use crate::blockstore::car::{
         carv1::header::Header,
         carv2::{header::HEADER_SIZE, PH_SIZE},
     };

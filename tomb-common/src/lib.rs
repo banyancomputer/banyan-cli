@@ -8,6 +8,12 @@
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
 /// Types
-pub mod types;
-/// Utilities
-pub mod utils;
+pub mod api;
+pub mod blockstore;
+pub mod keys;
+pub mod test;
+pub mod serialize;
+pub mod error;
+
+mod streamable;
+pub use streamable::Streamable;

@@ -2,9 +2,9 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
 
-use crate::types::{
+use crate::{
     blockstore::car::varint::{read_leu128, read_leu64},
-    streamable::Streamable,
+    Streamable,
 };
 
 pub const HEADER_SIZE: usize = 40;
@@ -75,11 +75,9 @@ impl<'de> Deserialize<'de> for Header {
 mod test {
     use crate::{
         streamable_tests,
-        types::{
-            blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
-            streamable::Streamable,
-        },
-        utils::test::car_setup,
+        blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
+        Streamable,
+        test::car_setup,
     };
 
     use super::Header;

@@ -1,13 +1,16 @@
 /// Errors that can be encountered in these utils
 pub mod error;
 /// Manages original and current TemporalKeys
-pub mod manager;
+mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
-pub mod mapper;
+mod mapper;
+
+pub use manager::Manager;
+pub use mapper::Mapper;
 
 #[cfg(test)]
 mod test {
-    use crate::types::keys::manager::Manager;
+    use crate::keys::manager::Manager;
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
