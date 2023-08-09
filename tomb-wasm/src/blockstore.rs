@@ -21,11 +21,8 @@ impl CarV2BlockStore {
         // Read data
         let data = vec;
         // Load car
-        let car = CarV2::read_bytes(Cursor::new(&data)).map_err(|e| {
-            TombWasmError::car_error(
-                format!("error reading car: {}", e)
-            )
-        })?;
+        let car = CarV2::read_bytes(Cursor::new(&data))
+            .map_err(|e| TombWasmError::car_error(format!("error reading car: {}", e)))?;
         // Ok
         Ok(Self { data, car })
     }

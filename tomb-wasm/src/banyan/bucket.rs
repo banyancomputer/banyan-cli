@@ -1,5 +1,4 @@
 use chrono::Utc;
-use gloo::console::log;
 use js_sys::{Object, Reflect};
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
@@ -12,10 +11,10 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-
 use crate::{
-    banyan::snapshot::Snapshot,
-    blockstore::CarV2BlockStore as BlockStore, error::TombWasmError, value};
+    banyan::snapshot::Snapshot, blockstore::CarV2BlockStore as BlockStore, error::TombWasmError,
+    value,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BucketEntry(pub(crate) WnfsMetadata);
@@ -115,10 +114,21 @@ impl Bucket {
         //     .map_err(TombWasmError::bucket_error)?;
         // Ok(entries)
         // Return some sample data
+        // file size
+        // file cid or id
         Ok([
-            ("puppy.png".to_string(), BucketEntry(WnfsMetadata::new(Utc::now()))),
-            ("chonker.jpg".to_string(), BucketEntry(WnfsMetadata::new(Utc::now()))),
-            ("floof_doof.mp3".to_string(), BucketEntry(WnfsMetadata::new(Utc::now()))),
+            (
+                "puppy.png".to_string(),
+                BucketEntry(WnfsMetadata::new(Utc::now())),
+            ),
+            (
+                "chonker.jpg".to_string(),
+                BucketEntry(WnfsMetadata::new(Utc::now())),
+            ),
+            (
+                "floof_doof.mp3".to_string(),
+                BucketEntry(WnfsMetadata::new(Utc::now())),
+            ),
         ]
         .to_vec())
     }
@@ -205,6 +215,9 @@ impl TryFrom<BucketEntry> for JsValue {
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
+        // TODO: Remove stubs, with standard metadata
+        Reflect::set(&metadata, &value!("size"), &value!(1024))?;
+        Reflect::set(&metadata, &value!("cid"), &value!("Qmabcde"))?;
         Ok(value!(metadata))
     }
 }

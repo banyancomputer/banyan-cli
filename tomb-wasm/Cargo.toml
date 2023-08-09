@@ -59,3 +59,18 @@ tomb-crypt = { workspace = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.36"
+web-sys = { version = "0.3.64", features = [
+    "console",
+    "Headers",
+    "Request",
+    "Window",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "ReadableStream",
+    "Window",
+    "Crypto",
+    "CryptoKey",
+    "EcKeyGenParams",
+    "SubtleCrypto",
+]}

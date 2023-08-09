@@ -58,7 +58,7 @@ impl Client {
             BucketMetadata {
                 id: "3".to_string(),
                 bucket_type: "hot".to_string(),
-                name: "trash".to_string(),
+                name: "monkey photos".to_string(),
             },
         ]
         .to_vec())
@@ -90,7 +90,7 @@ impl Client {
     }
 
     // Bucket Metadata
-    
+
     pub async fn get_bucket_keys(&self, _bucket_id: &str) -> Result<Vec<BucketKey>, TombWasmError> {
         // Return some sample data
         Ok([
@@ -150,9 +150,7 @@ impl Client {
         // Create a blockstore
         let blockstore = BlockStore::new(vec).map_err(|e| {
             log!("tomb-wasm/banyan: load_bucket() error: {}", e.to_string());
-            TombWasmError::car_error(
-                format!("error reading car: {}", e)
-            )
+            TombWasmError::car_error(format!("error reading car: {}", e))
         })?;
         // Create a bucket
         let bucket = Bucket::new(
@@ -189,7 +187,11 @@ impl Client {
     // Snapshot Management
 
     // TODO: What does this response look like?
-    pub async fn snapshot_bucket(&self, _bucket_id: &str, _snapshot: &Snapshot) -> Result<(), TombWasmError> {
+    pub async fn snapshot_bucket(
+        &self,
+        _bucket_id: &str,
+        _snapshot: &Snapshot,
+    ) -> Result<(), TombWasmError> {
         panic!("not implemented")
     }
 
@@ -228,6 +230,4 @@ impl Client {
         // TODO: What is the response?
         Ok(())
     }
-
-    
 }
