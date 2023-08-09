@@ -393,17 +393,42 @@ impl TombWasm {
         Ok(entries)
     }
 
+    /// Snapshot a bucket
+    /// # Arguments
+    /// * `bucket_id` - The id of the bucket to snapshot
+    pub async fn snapshot_bucket(&mut self, bucket_id: &str) -> JsResult<()> {
+        // Get the bucket
+        let bucket = match self.buckets.get_mut(bucket_id) {
+            Some(bucket) => bucket,
+            None => {
+                panic!("Bucket not loaded");
+            }
+        };
+        // Check if the bucket is unlocked
+        if bucket.is_locked() {
+            panic!("Bucket is locked");
+        };
+        // Call the bucket
+        bucket.snapshot().await?;
+        // Ok
+        Ok(())
+    }
+
+    // Snapshot Management
+
+    /// Purge a snapshot
+    /// # Arguments
+    /// * `snapshot_id` - The id of the snapshot to purge
+    #[wasm_bindgen(js_name = purgeSnapshot)]
+    pub async fn purge_snapshot(&self, _snapshot_id: &str) -> JsResult<()> {
+        // Call the api
+        self.banyan_client.purge_snapshot(_snapshot_id).await?;
+        // Ok
+        Ok(())
+    }
+
     /*
-
-    Unlock (takes a private ECDH key and attempts to open the bucket), returns an OpenedBucket
-
-
-    List current bucket keys
-
-    Retrieve current storage use by bucket
-
-    List contents (takes a path to a directory inside the bucket)
-
+    TODO: 
     Read / Download a File (takes a path to a file inside the bucket, not available for cold only buckets)
 
     Get file / folder versions (takes a path to a file or directory inside the bucket)
@@ -421,25 +446,8 @@ impl TombWasm {
 
     Delete a File (tasks a path)
 
-    Sync
-        Takes all outstanding changes to file/directories, and publishes them to our platform
-
-    Snapshot (takes no parameters)
-
-    List snapshots (takes no parameters, returns list of Snapshots)
-
     Upload file (takes a path to a non-existent file, and a ReadableStream)
-
-    Should produce a promise for a completed upload and a way to track its progress
-
-    I suspect this is going to be the hardest to implement, I'd save it for last
-    */
-    /*  Snapshot
-
-        Get details about specific snapshot
-
-        Restore to bucket (takes a specific bucket ID)
-
-        Purge keys (takes a signed authorization by an approved key)
+        Should produce a promise for a completed upload and a way to track its progress
+        I suspect this is going to be the hardest to implement, I'd save it for last
     */
 }

@@ -166,6 +166,7 @@ impl Client {
         Ok(bucket)
     }
 
+    /// Takes all outstanding changes to file/directories + keys , and publishes them to our platform
     pub async fn sync_bucket(&self, _bucket: &Bucket) -> Result<(), TombWasmError> {
         // TODO: What does this response look like?
         Ok(())
@@ -186,6 +187,11 @@ impl Client {
     }
 
     // Snapshot Management
+
+    // TODO: What does this response look like?
+    pub async fn snapshot_bucket(&self, _bucket_id: &str, _snapshot: &Snapshot) -> Result<(), TombWasmError> {
+        panic!("not implemented")
+    }
 
     pub async fn load_snapshot(&self, _snapshot_id: &str) -> Result<Snapshot, TombWasmError> {
         // Get a random
@@ -209,7 +215,7 @@ impl Client {
         Ok(snapshot)
     }
 
-    pub async fn purge_keys_from_snapshot(&self, _snapshot_id: &str) -> Result<(), TombWasmError> {
+    pub async fn purge_snapshot(&self, _snapshot_id: &str) -> Result<(), TombWasmError> {
         // TODO: What is the response?
         Ok(())
     }
@@ -222,4 +228,6 @@ impl Client {
         // TODO: What is the response?
         Ok(())
     }
+
+    
 }

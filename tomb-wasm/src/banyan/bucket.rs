@@ -12,7 +12,10 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::{blockstore::CarV2BlockStore as BlockStore, error::TombWasmError, value};
+
+use crate::{
+    banyan::snapshot::Snapshot,
+    blockstore::CarV2BlockStore as BlockStore, error::TombWasmError, value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BucketEntry(pub(crate) WnfsMetadata);
@@ -125,6 +128,10 @@ impl Bucket {
         _recipient_key: &EcPublicEncryptionKey,
         _wrapping_key: &EcEncryptionKey,
     ) -> Result<(), TombWasmError> {
+        panic!("not implemented")
+    }
+
+    pub async fn snapshot(&mut self) -> Result<Snapshot, TombWasmError> {
         panic!("not implemented")
     }
 
