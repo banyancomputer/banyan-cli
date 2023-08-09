@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::api::error::InfallibleError;
 
-use super::{BucketResponse, Requestable};
+use super::Requestable;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhoRequest;

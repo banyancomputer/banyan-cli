@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use serde::Deserialize;
+use thiserror::Error;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -37,6 +38,19 @@ impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ClientError {
     }
 }
 
+// impl Display for ClientError {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         match &self.kind {
+//             ClientErrorKind::ApiResponseError(_) => todo!(),
+//             ClientErrorKind::AuthUnavailable => todo!(),
+//             ClientErrorKind::HttpClientError(_) => todo!(),
+//             ClientErrorKind::ResponseFormatError(err) => {
+//                 f.write_str(err.fmt(f))
+//             },
+//         }
+//     }
+// }
+
 #[derive(Debug)]
 #[non_exhaustive]
 enum ClientErrorKind {
@@ -56,3 +70,14 @@ impl Display for InfallibleError {
 }
 
 impl std::error::Error for InfallibleError {}
+
+
+#[derive(Debug, Error, Deserialize)]
+pub struct StatusError {
+    status: String
+}
+impl Display for StatusError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.status)
+    }
+}

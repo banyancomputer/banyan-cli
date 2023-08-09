@@ -1,11 +1,7 @@
-use std::{convert::Infallible, error::Error, fmt::Display};
-
-use async_trait::async_trait;
+use std::{error::Error, fmt::Display};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-use crate::api::error::InfallibleError;
+use crate::api::error::StatusError;
 
 use super::Requestable;
 
@@ -46,7 +42,7 @@ pub struct DeleteBucketRequest {
 }
 
 impl Requestable for CreateBucketRequest {
-    type ErrorType = BucketError;
+    type ErrorType = StatusError;
     type ResponseType = BucketResponse;
     fn endpoint(&self) -> String {
         format!("{}", API_PREFIX)
@@ -60,7 +56,7 @@ impl Requestable for CreateBucketRequest {
 }
 
 impl Requestable for ListBucketRequest {
-    type ErrorType = BucketError;
+    type ErrorType = StatusError;
     type ResponseType = ListBucketResponse;
     fn endpoint(&self) -> String {
         format!("{}", API_PREFIX)
@@ -74,7 +70,7 @@ impl Requestable for ListBucketRequest {
 }
 
 impl Requestable for GetBucketRequest {
-    type ErrorType = BucketError;
+    type ErrorType = StatusError;
     type ResponseType = BucketResponse;
     fn endpoint(&self) -> String {
         format!("{}/{}", API_PREFIX, self.bucket_id)
@@ -88,7 +84,7 @@ impl Requestable for GetBucketRequest {
 }
 
 impl Requestable for DeleteBucketRequest {
-    type ErrorType = BucketError;
+    type ErrorType = StatusError;
     type ResponseType = BucketResponse;
     fn endpoint(&self) -> String {
         format!("{}/{}", API_PREFIX, self.bucket_id)
@@ -101,20 +97,6 @@ impl Requestable for DeleteBucketRequest {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
-pub enum BucketError {
-    #[serde(rename = "status")]
-    Any(String),
-}
-
-impl Display for BucketError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("unknown")
-    }
-}
-
-impl Error for BucketError {}
-
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct BucketResponse {
     pub id: String,
@@ -124,3 +106,86 @@ pub struct BucketResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct ListBucketResponse(Vec<BucketResponse>);
+
+
+#[cfg(test)]
+mod test {
+    use serial_test::serial;
+    use tomb_crypt::prelude::WrappingPublicKey;
+    use crate::api::{
+        error::ClientError,
+        request::{
+            fake::*, BucketType, CreateBucketRequest, GetBucketRequest,
+            ListBucketRequest, DeleteBucketRequest,
+        }
+    };
+
+    #[tokio::test]
+    #[serial]
+    async fn create() -> Result<(), ClientError> {
+        let (mut client, _, public_key) = setup().await?;
+        let public_pem = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        let request = CreateBucketRequest {
+            name: "test interactive bucket".to_string(),
+            r#type: BucketType::Interactive,
+            initial_public_key: public_pem,
+        };
+        let response = client.send(request.clone()).await?;
+
+        assert_eq!(request.name, response.friendly_name);
+        assert_eq!(request.r#type, response.r#type);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn create_get() -> Result<(), ClientError> {
+        let (mut client, _, public_key) = setup().await?;
+        let public_pem = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        let request = CreateBucketRequest {
+            name: "test interactive bucket".to_string(),
+            r#type: BucketType::Interactive,
+            initial_public_key: public_pem,
+        };
+        let response1 = client.send(request.clone()).await?;
+        let response2 = client
+            .send(GetBucketRequest {
+                bucket_id: response1.clone().id,
+            })
+            .await?;
+
+        assert_eq!(response1, response2);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn list() -> Result<(), ClientError> {
+        let (mut client, _, _) = setup().await?;
+        let _ = client.send(ListBucketRequest).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn create_delete() -> Result<(), ClientError> {
+        let (mut client, _, public_key) = setup().await?;
+        let public_pem = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        let request = CreateBucketRequest {
+            name: "test interactive bucket".to_string(),
+            r#type: BucketType::Interactive,
+            initial_public_key: public_pem,
+        };
+        let response1 = client.send(request.clone()).await?;
+        let bucket_id = response1.clone().id;
+
+        let response2 = client.send(DeleteBucketRequest {
+            bucket_id
+        }).await;
+
+        assert!(response2.is_err());
+
+        Ok(())
+    }
+}

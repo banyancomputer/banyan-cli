@@ -1,10 +1,6 @@
-use std::error::Error;
-
 use super::{credentials::Credentials, error::ClientError, request::Requestable, token::Token};
 use anyhow::Result;
-use jsonwebtoken::get_current_timestamp;
 use reqwest::Url;
-use serde::de::DeserializeOwned;
 
 pub struct Client {
     pub remote: Url,
@@ -86,18 +82,23 @@ impl Client {
         let response = builder.send().await.map_err(ClientError::http_error)?;
         // If we succeeded
         if response.status().is_success() {
-            // let r2 = response;
-            let bytes = response.bytes().await.unwrap().to_vec();
-            println!(
-                "response as str: {}",
-                String::from_utf8(bytes.clone()).unwrap()
-            );
-            Ok(serde_json::from_slice(&bytes).unwrap())
+            let response = response.json::<R::ResponseType>()
+                .await
+                .map_err(ClientError::bad_format)?;
+            // let bytes = response.bytes().await.unwrap().to_vec();
+
+            // println!(
+            //     "response as str: {}",
+            //     String::from_utf8(bytes.clone()).unwrap()
+            // );
+            Ok(response)
         } else {
-            // let r2 = response;
-            let bytes = response.bytes().await.unwrap().to_vec();
-            println!("error as str: {}", String::from_utf8(bytes).unwrap());
-            Err(ClientError::auth_unavailable())
+            let err = response
+                .json::<R::ErrorType>()
+                .await
+                .map_err(ClientError::bad_format)?;
+            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            Err(ClientError::from(err))
         }
     }
 }
