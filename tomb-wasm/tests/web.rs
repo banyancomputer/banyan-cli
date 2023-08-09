@@ -25,7 +25,7 @@ fn js_array(values: &[&str]) -> JsValue {
 }
 
 #[cfg(test)]
-async fn private_crypto_key() -> CryptoKey {
+async fn encryption_key() -> CryptoKey {
     let subtle = window().crypto().unwrap().subtle();
     let params = web_sys::EcKeyGenParams::new("ECDH", "P-256");
     let usages = js_array(&["deriveBits"]);
@@ -40,9 +40,62 @@ async fn private_crypto_key() -> CryptoKey {
     private_key
 }
 
+#[cfg(test)]
+async fn api_key() -> CryptoKey {
+    let subtle = window().crypto().unwrap().subtle();
+    let params = web_sys::EcKeyGenParams::new("ECDSA", "P-256");
+    let usages = js_array(&["sign", "verify"]);
+    let future = subtle
+        .generate_key_with_object(&params, true, &usages)
+        .unwrap();
+    let key_pair = wasm_bindgen_futures::JsFuture::from(future).await.unwrap();
+    let private_key = Reflect::get(&key_pair, &tomb_wasm::value!("privateKey"))
+        .unwrap()
+        .dyn_into::<web_sys::CryptoKey>()
+        .unwrap();
+    private_key
+}
+
 #[wasm_bindgen_test]
 async fn tomb_new() {
+    let subtle = window().crypto().unwrap().subtle();
+    let params = web_sys::EcKeyGenParams::new("ECDH", "P-256");
+    let usages = js_array(&["deriveBits"]);
+    let future = subtle
+        .generate_key_with_object(&params, true, &usages)
+        .unwrap();
+    let key_pair = wasm_bindgen_futures::JsFuture::from(future).await.unwrap();
+    let encryption_key = Reflect::get(&key_pair, &tomb_wasm::value!("privateKey"))
+        .unwrap()
+        .dyn_into::<web_sys::CryptoKey>()
+        .unwrap();
+    // private_key
     // calling a setup function.
-    let crypto_key = private_crypto_key().await;
-    let tomb = tomb_wasm::TombWasm::new(crypto_key, "http://echo.jsontest.com".to_string());
+    // let encryption_key = encryption_key().await;
+    let api_key = api_key().await;
+    let mut tomb = tomb_wasm::TombWasm::new(
+        encryption_key,
+        api_key,
+        "account-identifier".to_string(),
+        "https://api.tomb-demo.org".to_string(),
+    );
+
+    tomb.load_bucket("bucket-identifier")
+        .await
+        .unwrap();
+
+    let future = subtle
+        .generate_key_with_object(&params, true, &usages)
+        .unwrap();
+    let key_pair = wasm_bindgen_futures::JsFuture::from(future).await.unwrap();
+    let encryption_key = Reflect::get(&key_pair, &tomb_wasm::value!("privateKey"))
+        .unwrap()
+        .dyn_into::<web_sys::CryptoKey>()
+        .unwrap();
+
+    tomb.unlock_bucket("bucket-identifier", encryption_key)
+        .await
+        .unwrap();
+
+    tomb.ls_bucket("bucket-identifier", "/").await.unwrap();
 }

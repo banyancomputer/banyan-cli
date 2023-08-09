@@ -12,6 +12,11 @@ macro_rules! value {
     };
 }
 
+pub fn set_panic_hook() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+}
+
 pub(crate) fn map_to_rust_vec<T, F: FnMut(JsValue) -> JsResult<T>>(
     array: &Array,
     f: F,

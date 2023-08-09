@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::TemporalKey;
 
+
+// TODO: Genericize this
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
 #[derive(Debug, Default, PartialEq)]
 pub struct Manager {

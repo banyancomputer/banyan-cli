@@ -19,9 +19,19 @@ impl TombWasmError {
             kind: TombWasmErrorKind::BlockStoreError(err),
         }
     }
-    pub fn fs_error(err: anyhow::Error) -> Self {
+    pub fn bucket_error(err: anyhow::Error) -> Self {
         Self {
-            kind: TombWasmErrorKind::FsError(err),
+            kind: TombWasmErrorKind::BucketError(err),
+        }
+    }
+    pub fn client_error(err: anyhow::Error) -> Self {
+        Self {
+            kind: TombWasmErrorKind::ClientError(err),
+        }
+    }
+    pub fn car_error(err: String) -> Self {
+        Self {
+            kind: TombWasmErrorKind::BlockStoreError(JsValue::from(err).into()),
         }
     }
 }
@@ -33,7 +43,8 @@ impl Display for TombWasmError {
         match &self.kind {
             FetchError(err) => write!(f, "fetch error: {}", err.message()),
             BlockStoreError(err) => write!(f, "blockstore error: {}", err.message()),
-            FsError(err) => write!(f, "fs error: {}", err.to_string()),
+            BucketError(err) => write!(f, "bucket error: {}", err.to_string()),
+            ClientError(err) => write!(f, "client error: {}", err.to_string()),
         }
     }
 }
@@ -45,7 +56,8 @@ impl From<TombWasmError> for js_sys::Error {
         match err.kind {
             FetchError(err) => err,
             BlockStoreError(err) => err,
-            FsError(err) => JsValue::from(err.to_string()).into(),
+            BucketError(err) => JsValue::from(err.to_string()).into(),
+            ClientError(err) => JsValue::from(err.to_string()).into(),
         }
     }
 }
@@ -59,6 +71,8 @@ enum TombWasmErrorKind {
     FetchError(js_sys::Error),
     /// Error from the blockstore
     BlockStoreError(js_sys::Error),
-    /// Error from the filesystem
-    FsError(anyhow::Error),
+    /// Error from Bucket
+    BucketError(anyhow::Error),
+    /// Error from Fetching a remote resource using Client
+    ClientError(anyhow::Error),
 }
