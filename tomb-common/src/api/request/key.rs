@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::api::error::StatusError;
 
-use super::Requestable;
+use super::{Requestable, RequestMetadata};
 
 const API_PREFIX: &str = "/api/v1/auth";
 
@@ -31,14 +31,12 @@ impl Requestable for CreateKeyRequest {
     type ErrorType = StatusError;
     type ResponseType = CreateKeyResponse;
 
-    fn endpoint(&self) -> String {
-        format!("{}", API_PREFIX)
-    }
-    fn method(&self) -> Method {
-        Method::POST
-    }
-    fn authed(&self) -> bool {
-        true
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}", API_PREFIX),
+            method: Method::POST,
+            auth: true,
+        }
     }
 }
 
@@ -46,14 +44,12 @@ impl Requestable for GetKeyRequest {
     type ErrorType = StatusError;
     type ResponseType = GetKeyResponse;
 
-    fn endpoint(&self) -> String {
-        format!("{}", API_PREFIX)
-    }
-    fn method(&self) -> Method {
-        Method::GET
-    }
-    fn authed(&self) -> bool {
-        true
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}", API_PREFIX),
+            method: Method::GET,
+            auth: true,
+        }
     }
 }
 
@@ -61,14 +57,12 @@ impl Requestable for DeleteKeyRequest {
     type ErrorType = StatusError;
     type ResponseType = DeleteKeyResponse;
 
-    fn endpoint(&self) -> String {
-        format!("{}", API_PREFIX)
-    }
-    fn method(&self) -> Method {
-        Method::DELETE
-    }
-    fn authed(&self) -> bool {
-        true
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}", API_PREFIX),
+            method: Method::DELETE,
+            auth: true,
+        }
     }
 }
 

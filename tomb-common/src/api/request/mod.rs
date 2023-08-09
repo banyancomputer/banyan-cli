@@ -17,11 +17,11 @@ pub use key::*;
 pub use metadata::*;
 pub use who::*;
 
-// pub struct RequestMetadata {
-//     pub endpoint: String,
-//     pub method: Method,
-//     pub auth: bool
-// }
+pub struct RequestMetadata {
+    pub endpoint: String,
+    pub method: Method,
+    pub auth: bool
+}
 
 /// An enum or struct which can be used to crate a request
 pub trait Requestable: Serialize + Sized {
@@ -29,9 +29,7 @@ pub trait Requestable: Serialize + Sized {
     type ResponseType: DeserializeOwned;
 
     // Obtain the url suffix of the endpoint
-    fn endpoint(&self) -> String;
-    fn method(&self) -> Method;
-    fn authed(&self) -> bool;
+    fn metadata(&self) -> RequestMetadata;
 }
 
 /// A request to the Metadata API

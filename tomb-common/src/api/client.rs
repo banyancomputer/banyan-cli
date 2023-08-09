@@ -46,9 +46,11 @@ impl Client {
         &mut self,
         request: R,
     ) -> Result<R::ResponseType, ClientError> {
+        let metadata = request.metadata();
+        
         // Determine the full URL to send the request to
         // This should never fail
-        let full_url = self.remote.join(&request.endpoint()).unwrap();
+        let full_url = self.remote.join(&metadata.endpoint).unwrap();
 
         // Default header
         let mut default_headers = reqwest::header::HeaderMap::new();
@@ -65,7 +67,7 @@ impl Client {
             .unwrap();
 
         // Create the RequestBuilder
-        let mut builder = client.request(request.method(), full_url).json(&request);
+        let mut builder = client.request(metadata.method, full_url).json(&request);
 
         // Apply bearer Authentication
         if let Some(bearer_token) = self.bearer_token() {
@@ -73,7 +75,7 @@ impl Client {
         }
 
         // If the request requires authentication
-        if request.authed() && (self.bearer_token.is_none() || self.credentials.is_none()) {
+        if metadata.auth && (self.bearer_token.is_none() || self.credentials.is_none()) {
             // Auth was not available but was required
             return Err(ClientError::auth_unavailable());
         }

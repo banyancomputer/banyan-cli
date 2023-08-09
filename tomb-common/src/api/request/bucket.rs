@@ -4,7 +4,7 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt::Display, str::FromStr};
 
-use super::Requestable;
+use super::{Requestable, RequestMetadata};
 
 const API_PREFIX: &str = "/api/v1/buckets";
 
@@ -45,56 +45,51 @@ pub struct DeleteBucketRequest {
 impl Requestable for CreateBucketRequest {
     type ErrorType = StatusError;
     type ResponseType = BucketResponse;
-    fn endpoint(&self) -> String {
-        format!("{}", API_PREFIX)
-    }
-    fn method(&self) -> Method {
-        Method::POST
-    }
-    fn authed(&self) -> bool {
-        true
+
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}", API_PREFIX),
+            method: Method::POST,
+            auth: true,
+        }
     }
 }
 
 impl Requestable for ListBucketRequest {
     type ErrorType = StatusError;
     type ResponseType = ListBucketResponse;
-    fn endpoint(&self) -> String {
-        format!("{}", API_PREFIX)
-    }
-    fn method(&self) -> Method {
-        Method::GET
-    }
-    fn authed(&self) -> bool {
-        true
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}", API_PREFIX),
+            method: Method::GET,
+            auth: true,
+        }
     }
 }
 
 impl Requestable for GetBucketRequest {
     type ErrorType = StatusError;
     type ResponseType = BucketResponse;
-    fn endpoint(&self) -> String {
-        format!("{}/{}", API_PREFIX, self.bucket_id)
-    }
-    fn method(&self) -> Method {
-        Method::GET
-    }
-    fn authed(&self) -> bool {
-        true
+
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}/{}", API_PREFIX, self.bucket_id),
+            method: Method::GET,
+            auth: true,
+        }
     }
 }
 
 impl Requestable for DeleteBucketRequest {
     type ErrorType = StatusError;
     type ResponseType = BucketResponse;
-    fn endpoint(&self) -> String {
-        format!("{}/{}", API_PREFIX, self.bucket_id)
-    }
-    fn method(&self) -> Method {
-        Method::DELETE
-    }
-    fn authed(&self) -> bool {
-        true
+    
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("{}/{}", API_PREFIX, self.bucket_id),
+            method: Method::DELETE,
+            auth: true,
+        }
     }
 }
 

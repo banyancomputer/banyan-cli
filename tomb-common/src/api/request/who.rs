@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::api::error::InfallibleError;
 
-use super::Requestable;
+use super::{Requestable, RequestMetadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WhoRequest;
@@ -12,15 +12,13 @@ pub struct WhoRequest;
 impl Requestable for WhoRequest {
     type ErrorType = InfallibleError;
     type ResponseType = WhoResponse;
-
-    fn endpoint(&self) -> String {
-        format!("/api/v1/auth/whoami")
-    }
-    fn method(&self) -> Method {
-        Method::GET
-    }
-    fn authed(&self) -> bool {
-        true
+    
+    fn metadata(&self) -> RequestMetadata {
+        RequestMetadata {
+            endpoint: format!("/api/v1/auth/whoami"),
+            method: Method::GET,
+            auth: true,
+        }
     }
 }
 
