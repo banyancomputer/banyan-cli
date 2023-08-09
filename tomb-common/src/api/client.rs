@@ -60,7 +60,7 @@ impl Client {
         // Create the Client
         let client = reqwest::Client::builder()
             .default_headers(default_headers)
-            .user_agent("banyan-api-client/0.1.0")
+            // .user_agent("banyan-api-client/0.1.0")
             .build()
             .unwrap();
 
@@ -82,7 +82,8 @@ impl Client {
         let response = builder.send().await.map_err(ClientError::http_error)?;
         // If we succeeded
         if response.status().is_success() {
-            let response = response.json::<R::ResponseType>()
+            let response = response
+                .json::<R::ResponseType>()
                 .await
                 .map_err(ClientError::bad_format)?;
             // let bytes = response.bytes().await.unwrap().to_vec();

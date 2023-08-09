@@ -5,10 +5,17 @@ pub mod command;
 /// Debug level
 pub mod verbosity;
 
-use crate::pipelines::{add, configure, pack, remove, unpack};
+use crate::{
+    pipelines::{add, configure, pack, remove, unpack},
+    types::config::globalconfig::GlobalConfig,
+};
 use anyhow::Result;
 use command::{Command, ConfigSubCommand};
 use std::env::current_dir;
+use tomb_common::api::{
+    client::Client,
+    request::{BucketRequest, KeyRequest, MetadataRequest, Request},
+};
 
 /// Based on the Command, run pipelines
 pub async fn run(command: Command) -> Result<()> {
@@ -73,6 +80,48 @@ pub async fn run(command: Command) -> Result<()> {
         Command::Remove { origin, wnfs_path } => {
             remove::pipeline(&origin, &wnfs_path).await?;
         },
+        Command::Api { subcommand } => {
+            let mut client = Client::new(&GlobalConfig::from_disk().await?.remote)?;
+
+            match subcommand {
+                Request::Bucket { subcommand } => {
+                    match subcommand {
+                        BucketRequest::Create(request) => {
+                            let response = client.send(request).await;
+                        },
+                        BucketRequest::List(request) => {
+                            let response = client.send(request).await;
+                        },
+                        BucketRequest::Get(request) => {
+                            let response = client.send(request).await;
+                        },
+                        BucketRequest::Delete(request) => {
+                            let response = client.send(request).await;
+                        },
+                    }
+                },
+                Request::Keys { subcommand } => {
+                    match subcommand {
+                        KeyRequest::Create(request) => {
+                            let response = client.send(request).await;
+                        },
+                        KeyRequest::Get(request) => {
+                            let response = client.send(request).await;
+                        },
+                        KeyRequest::Delete(request) => {
+                            let response = client.send(request).await;
+                        },
+                    }
+                },
+                Request::Metadata { subcommand } => {
+                    match subcommand {
+                        MetadataRequest::Create => todo!(),
+                        MetadataRequest::Get => todo!(),
+                        MetadataRequest::Delete => todo!(),
+                    }
+                },
+            }
+        }
     }
 
     Ok(())

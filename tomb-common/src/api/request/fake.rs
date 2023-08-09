@@ -1,9 +1,17 @@
 use super::Requestable;
-use crate::api::{error::{InfallibleError, ClientError}, client::Client, credentials::Credentials, request::WhoRequest};
+use crate::api::{
+    client::Client,
+    credentials::Credentials,
+    error::{ClientError, InfallibleError},
+    request::WhoRequest,
+};
 use jsonwebtoken::{get_current_timestamp, EncodingKey};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::{prelude::{EcEncryptionKey, EcPublicEncryptionKey, WrappingPrivateKey, WrappingPublicKey}, pretty_fingerprint};
+use tomb_crypt::{
+    prelude::{EcEncryptionKey, EcPublicEncryptionKey, WrappingPrivateKey, WrappingPublicKey},
+    pretty_fingerprint,
+};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,8 +83,7 @@ pub async fn setup() -> Result<(Client, EcEncryptionKey, EcPublicEncryptionKey),
     assert!(client.bearer_token().is_some());
 
     //
-    let jwt_signing_key =
-        EncodingKey::from_ec_pem(&private_key.export().await.unwrap()).unwrap();
+    let jwt_signing_key = EncodingKey::from_ec_pem(&private_key.export().await.unwrap()).unwrap();
 
     // Update the credentials
     client.credentials = Some(Credentials {

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use clap::{Subcommand, ValueEnum};
 use reqwest::Method;
 use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
@@ -16,7 +17,13 @@ pub use key::*;
 pub use metadata::*;
 pub use who::*;
 
-#[async_trait(?Send)]
+// pub struct RequestMetadata {
+//     pub endpoint: String,
+//     pub method: Method,
+//     pub auth: bool
+// }
+
+/// An enum or struct which can be used to crate a request
 pub trait Requestable: Serialize + Sized {
     type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
     type ResponseType: DeserializeOwned;
@@ -27,11 +34,25 @@ pub trait Requestable: Serialize + Sized {
     fn authed(&self) -> bool;
 }
 
+/// A request to the Metadata API
+#[derive(Clone, Debug, Subcommand)]
 pub enum Request {
-    /// Set the remote endpoint where buckets are synced to / from
-    Bucket(BucketRequest),
-    /// Set the remote endpoint where buckets are synced to / from
-    Keys(KeyRequest),
-    /// Set the remote endpoint where buckets are synced to / from
-    Metadata(MetadataRequest),
+    /// Create, Delete, or get info on Buckets
+    Bucket {
+        /// Bucket Subcommand
+        #[clap(subcommand)]
+        subcommand: BucketRequest,
+    },
+    /// Create, Delete, or get info on Keys
+    Keys {
+        /// Key Subcommand
+        #[clap(subcommand)]
+        subcommand: KeyRequest,
+    },
+    /// Create, Delete, or get info on Metadata
+    Metadata {
+        /// Metadata Subcommand
+        #[clap(subcommand)]
+        subcommand: MetadataRequest,
+    },
 }

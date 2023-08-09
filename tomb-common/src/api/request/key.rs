@@ -1,7 +1,8 @@
 use std::{convert::Infallible, fmt::Display};
 
+use clap::{Args, Subcommand};
 use reqwest::Method;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::api::error::StatusError;
@@ -10,59 +11,77 @@ use super::Requestable;
 
 const API_PREFIX: &str = "/api/v1/auth";
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Subcommand)]
 pub enum KeyRequest {
     Create(CreateKeyRequest),
     Get(GetKeyRequest),
     Delete(DeleteKeyRequest),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Args)]
 pub struct CreateKeyRequest;
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Args)]
 pub struct GetKeyRequest {
-    fingerprint: String
+    fingerprint: String,
 }
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Args)]
 pub struct DeleteKeyRequest;
 
 impl Requestable for CreateKeyRequest {
     type ErrorType = StatusError;
     type ResponseType = CreateKeyResponse;
 
-    fn endpoint(&self) -> String { format!("{}", API_PREFIX) }
-    fn method(&self) -> Method { Method::POST }
-    fn authed(&self) -> bool { true }
+    fn endpoint(&self) -> String {
+        format!("{}", API_PREFIX)
+    }
+    fn method(&self) -> Method {
+        Method::POST
+    }
+    fn authed(&self) -> bool {
+        true
+    }
 }
 
 impl Requestable for GetKeyRequest {
     type ErrorType = StatusError;
     type ResponseType = GetKeyResponse;
 
-    fn endpoint(&self) -> String { format!("{}", API_PREFIX) }
-    fn method(&self) -> Method { Method::GET }
-    fn authed(&self) -> bool { true }
+    fn endpoint(&self) -> String {
+        format!("{}", API_PREFIX)
+    }
+    fn method(&self) -> Method {
+        Method::GET
+    }
+    fn authed(&self) -> bool {
+        true
+    }
 }
 
 impl Requestable for DeleteKeyRequest {
     type ErrorType = StatusError;
     type ResponseType = DeleteKeyResponse;
 
-    fn endpoint(&self) -> String { format!("{}", API_PREFIX) }
-    fn method(&self) -> Method { Method::DELETE }
-    fn authed(&self) -> bool { true }
+    fn endpoint(&self) -> String {
+        format!("{}", API_PREFIX)
+    }
+    fn method(&self) -> Method {
+        Method::DELETE
+    }
+    fn authed(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateKeyResponse {
     /// Public Key PEM string
-    public_key: String
+    public_key: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct GetKeyResponse {
     /// Public Key PEM string
-    public_key: String
+    public_key: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -70,13 +89,14 @@ pub struct DeleteKeyResponse;
 
 #[cfg(test)]
 mod test {
-    use serial_test::serial;
-    use tomb_crypt::{prelude::{WrappingPublicKey, EcPublicEncryptionKey}, pretty_fingerprint};
     use crate::api::{
         error::ClientError,
-        request::{
-            fake::*, CreateKeyRequest, GetKeyRequest, DeleteKeyRequest,
-        }
+        request::{fake::*, CreateKeyRequest, DeleteKeyRequest, GetKeyRequest},
+    };
+    use serial_test::serial;
+    use tomb_crypt::{
+        prelude::{EcPublicEncryptionKey, WrappingPublicKey},
+        pretty_fingerprint,
     };
 
     #[tokio::test]
@@ -92,7 +112,6 @@ mod test {
         Ok(())
     }
 
-    
     #[tokio::test]
     #[serial]
     async fn create_get() -> Result<(), ClientError> {

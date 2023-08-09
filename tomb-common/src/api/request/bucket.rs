@@ -1,13 +1,14 @@
-use std::{error::Error, fmt::Display};
+use crate::api::error::{ClientError, StatusError};
+use clap::{Args, Subcommand};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use crate::api::error::StatusError;
+use std::{error::Error, fmt::Display, str::FromStr};
 
 use super::Requestable;
 
 const API_PREFIX: &str = "/api/v1/buckets";
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Subcommand)]
 pub enum BucketRequest {
     Create(CreateBucketRequest),
     List(ListBucketRequest),
@@ -15,7 +16,7 @@ pub enum BucketRequest {
     Delete(DeleteBucketRequest),
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Args)]
 pub struct CreateBucketRequest {
     #[serde(rename = "friendly_name")]
     pub name: String,
@@ -23,20 +24,20 @@ pub struct CreateBucketRequest {
     pub initial_public_key: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, clap::clap_derive::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum BucketType {
     Backup,
     Interactive,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Args)]
 pub struct ListBucketRequest;
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Args)]
 pub struct GetBucketRequest {
     pub bucket_id: String,
 }
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Args)]
 pub struct DeleteBucketRequest {
     pub bucket_id: String,
 }
@@ -107,18 +108,17 @@ pub struct BucketResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct ListBucketResponse(Vec<BucketResponse>);
 
-
 #[cfg(test)]
 mod test {
-    use serial_test::serial;
-    use tomb_crypt::prelude::WrappingPublicKey;
     use crate::api::{
         error::ClientError,
         request::{
-            fake::*, BucketType, CreateBucketRequest, GetBucketRequest,
-            ListBucketRequest, DeleteBucketRequest,
-        }
+            fake::*, BucketType, CreateBucketRequest, DeleteBucketRequest, GetBucketRequest,
+            ListBucketRequest,
+        },
     };
+    use serial_test::serial;
+    use tomb_crypt::prelude::WrappingPublicKey;
 
     #[tokio::test]
     #[serial]
@@ -180,9 +180,7 @@ mod test {
         let response1 = client.send(request.clone()).await?;
         let bucket_id = response1.clone().id;
 
-        let response2 = client.send(DeleteBucketRequest {
-            bucket_id
-        }).await;
+        let response2 = client.send(DeleteBucketRequest { bucket_id }).await;
 
         assert!(response2.is_err());
 

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{arg, Subcommand};
+use tomb_common::api::request::{BucketRequest, CreateBucketRequest, Request};
 
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
@@ -73,6 +74,12 @@ pub enum Command {
     },
     /// We don't know yet
     Daemon,
+    /// Interact with Banyan Metadata API
+    Api {
+        /// Request subcommand
+        #[clap(subcommand)]
+        subcommand: Request,
+    },
 }
 
 /// Sub-commands associated with configuration

@@ -71,10 +71,9 @@ impl Display for InfallibleError {
 
 impl std::error::Error for InfallibleError {}
 
-
 #[derive(Debug, Error, Deserialize)]
 pub struct StatusError {
-    status: String
+    status: String,
 }
 impl Display for StatusError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
