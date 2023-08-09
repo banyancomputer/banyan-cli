@@ -1,5 +1,4 @@
-use async_trait::async_trait;
-use clap::{Subcommand, ValueEnum};
+use clap::Subcommand;
 use reqwest::Method;
 use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
@@ -17,18 +16,24 @@ pub use key::*;
 pub use metadata::*;
 pub use who::*;
 
+/// Metadata necessary to create a request
+#[derive(Debug)]
 pub struct RequestMetadata {
+    /// The API endpoint which we are speaking to
     pub endpoint: String,
+    /// The Method of speaking
     pub method: Method,
-    pub auth: bool
+    /// The need or lack thereof for authenticating this request
+    pub auth: bool,
 }
 
 /// An enum or struct which can be used to crate a request
 pub trait Requestable: Serialize + Sized {
+    /// The Error that the server will return on the failure of this request
     type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
+    /// The Response that the server will return on the success of this request
     type ResponseType: DeserializeOwned;
-
-    // Obtain the url suffix of the endpoint
+    /// Metadata associated with the request
     fn metadata(&self) -> RequestMetadata;
 }
 

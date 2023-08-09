@@ -2,13 +2,19 @@ use super::{credentials::Credentials, error::ClientError, request::Requestable, 
 use anyhow::Result;
 use reqwest::Url;
 
+/// Client for interacting with our API
+#[derive(Debug)]
 pub struct Client {
+    /// Base URL
     pub remote: Url,
+    /// Bearer auth
     pub bearer_token: Option<(u64, String)>,
+    /// Credentials for signing
     pub credentials: Option<Credentials>,
 }
 
 impl Client {
+    /// Create a new Client at a remote endpoint
     pub fn new(remote: &str) -> Result<Self> {
         Ok(Self {
             remote: Url::parse(remote)?,
@@ -17,11 +23,13 @@ impl Client {
         })
     }
 
+    /// Find or sign a new bearer token
     pub fn bearer_token(&mut self) -> Option<String> {
         match &self.bearer_token {
             // Good to go
-            Some((exp, token)) => {
+            Some((_exp, token)) => {
                 // if exp <= &(get_current_timestamp() - 15)
+                // The token is ready
                 Some(token.clone())
             }
             // Either expired or not yet generated
@@ -42,12 +50,13 @@ impl Client {
         }
     }
 
+    /// Send a request to the server
     pub async fn send<R: Requestable>(
         &mut self,
         request: R,
     ) -> Result<R::ResponseType, ClientError> {
         let metadata = request.metadata();
-        
+
         // Determine the full URL to send the request to
         // This should never fail
         let full_url = self.remote.join(&metadata.endpoint).unwrap();

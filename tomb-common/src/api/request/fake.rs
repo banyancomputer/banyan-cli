@@ -1,4 +1,4 @@
-use super::{Requestable, RequestMetadata};
+use super::{RequestMetadata, Requestable};
 use crate::api::{
     client::Client,
     credentials::Credentials,
@@ -42,7 +42,7 @@ impl Requestable for RegisterAccountRequest {
 
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("/api/v1/auth/create_fake_account"),
+            endpoint: "/api/v1/auth/create_fake_account".to_string(),
             method: Method::GET,
             auth: false,
         }
@@ -52,10 +52,10 @@ impl Requestable for RegisterAccountRequest {
 impl Requestable for RegisterDeviceKeyRequest {
     type ResponseType = RegisterDeviceKeyResponse;
     type ErrorType = InfallibleError;
-    
+
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("/api/v1/auth/fake_register_device_key"),
+            endpoint: "/api/v1/auth/fake_register_device_key".to_string(),
             method: Method::POST,
             auth: false,
         }

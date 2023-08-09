@@ -1,29 +1,33 @@
-use std::{convert::Infallible, fmt::Display};
-
+use super::{RequestMetadata, Requestable};
+use crate::api::error::StatusError;
 use clap::{Args, Subcommand};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
-use crate::api::error::StatusError;
-
-use super::{Requestable, RequestMetadata};
 
 const API_PREFIX: &str = "/api/v1/auth";
 
+/// Key requests
 #[derive(Debug, Clone, Serialize, Subcommand)]
 pub enum KeyRequest {
+    /// Create a Key
     Create(CreateKeyRequest),
+    /// Get a Key
     Get(GetKeyRequest),
+    /// Delete a Key
     Delete(DeleteKeyRequest),
 }
 
+/// Request to create a Key
 #[derive(Debug, Clone, Serialize, Args)]
 pub struct CreateKeyRequest;
+
+/// Request to get a Key
 #[derive(Debug, Clone, Serialize, Args)]
 pub struct GetKeyRequest {
     fingerprint: String,
 }
+
+/// Request to delete a Key
 #[derive(Debug, Clone, Serialize, Args)]
 pub struct DeleteKeyRequest;
 
@@ -33,7 +37,7 @@ impl Requestable for CreateKeyRequest {
 
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("{}", API_PREFIX),
+            endpoint: API_PREFIX.to_string(),
             method: Method::POST,
             auth: true,
         }
@@ -46,7 +50,7 @@ impl Requestable for GetKeyRequest {
 
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("{}", API_PREFIX),
+            endpoint: API_PREFIX.to_string(),
             method: Method::GET,
             auth: true,
         }
@@ -59,25 +63,30 @@ impl Requestable for DeleteKeyRequest {
 
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("{}", API_PREFIX),
+            endpoint: API_PREFIX.to_string(),
             method: Method::DELETE,
             auth: true,
         }
     }
 }
 
+/// Response from requesting to create a Key
 #[derive(Debug, Deserialize)]
 pub struct CreateKeyResponse {
     /// Public Key PEM string
+    #[allow(dead_code)]
     public_key: String,
 }
 
+/// Response from requesting to get a Key
 #[derive(Debug, Deserialize)]
 pub struct GetKeyResponse {
     /// Public Key PEM string
+    #[allow(dead_code)]
     public_key: String,
 }
 
+/// Response from requesting to delete a Key
 #[derive(Debug, Deserialize)]
 pub struct DeleteKeyResponse;
 
@@ -85,19 +94,15 @@ pub struct DeleteKeyResponse;
 mod test {
     use crate::api::{
         error::ClientError,
-        request::{fake::*, CreateKeyRequest, DeleteKeyRequest, GetKeyRequest},
+        request::{fake::*, CreateKeyRequest, DeleteKeyRequest},
     };
     use serial_test::serial;
-    use tomb_crypt::{
-        prelude::{EcPublicEncryptionKey, WrappingPublicKey},
-        pretty_fingerprint,
-    };
 
     #[tokio::test]
     #[serial]
     async fn create() -> Result<(), ClientError> {
-        let (mut client, _, public_key) = setup().await?;
-        let public_pem = String::from_utf8(public_key.export().await.unwrap()).unwrap();
+        let (mut client, _, _) = setup().await?;
+
         let request = CreateKeyRequest;
         let response = client.send(request).await;
 

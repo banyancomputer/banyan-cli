@@ -7,12 +7,18 @@
 #![feature(duration_constants)]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
-/// Types
+
+/// Server API
 pub mod api;
+/// BlockStores
 pub mod blockstore;
+/// Errors
 pub mod error;
+/// Keys and Auth
 pub mod keys;
+/// Serialization
 pub mod serialize;
+/// Tests
 pub mod test;
 
 mod streamable;

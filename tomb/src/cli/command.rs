@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{arg, Subcommand};
-use tomb_common::api::request::{BucketRequest, CreateBucketRequest, Request};
+use tomb_common::api::request::Request;
 
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]

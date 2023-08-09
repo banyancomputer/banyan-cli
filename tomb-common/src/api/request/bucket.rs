@@ -1,44 +1,61 @@
-use crate::api::error::{ClientError, StatusError};
+use super::{RequestMetadata, Requestable};
+use crate::api::error::StatusError;
 use clap::{Args, Subcommand};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fmt::Display, str::FromStr};
-
-use super::{Requestable, RequestMetadata};
 
 const API_PREFIX: &str = "/api/v1/buckets";
 
+/// Bucket Request
 #[derive(Clone, Debug, Serialize, Subcommand)]
 pub enum BucketRequest {
+    /// Create a Bucket
     Create(CreateBucketRequest),
+    /// List a Bucket
     List(ListBucketRequest),
+    /// Get a Bucket
     Get(GetBucketRequest),
+    /// Delete a Bucket
     Delete(DeleteBucketRequest),
 }
 
+/// Request to create a Bucket
 #[derive(Clone, Debug, Serialize, Args)]
 pub struct CreateBucketRequest {
+    /// Bucket Name
     #[serde(rename = "friendly_name")]
     pub name: String,
+    /// Bucket Type
     pub r#type: BucketType,
+    /// Bucket Public Key
     pub initial_public_key: String,
 }
 
+/// Possible types of Bucket
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, clap::clap_derive::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum BucketType {
+    /// Storage only
     Backup,
+    /// Syncable
     Interactive,
 }
 
+/// Request to list all Buckets
 #[derive(Clone, Debug, Serialize, Args)]
 pub struct ListBucketRequest;
+
+/// Request to get a Bucket
 #[derive(Clone, Debug, Serialize, Args)]
 pub struct GetBucketRequest {
+    /// Bucket Id
     pub bucket_id: String,
 }
+
+/// Request to delete a Bucket
 #[derive(Clone, Debug, Serialize, Args)]
 pub struct DeleteBucketRequest {
+    /// Bucket Id
     pub bucket_id: String,
 }
 
@@ -48,7 +65,7 @@ impl Requestable for CreateBucketRequest {
 
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("{}", API_PREFIX),
+            endpoint: API_PREFIX.to_string(),
             method: Method::POST,
             auth: true,
         }
@@ -60,7 +77,7 @@ impl Requestable for ListBucketRequest {
     type ResponseType = ListBucketResponse;
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
-            endpoint: format!("{}", API_PREFIX),
+            endpoint: API_PREFIX.to_string(),
             method: Method::GET,
             auth: true,
         }
@@ -83,7 +100,7 @@ impl Requestable for GetBucketRequest {
 impl Requestable for DeleteBucketRequest {
     type ErrorType = StatusError;
     type ResponseType = BucketResponse;
-    
+
     fn metadata(&self) -> RequestMetadata {
         RequestMetadata {
             endpoint: format!("{}/{}", API_PREFIX, self.bucket_id),
@@ -93,13 +110,18 @@ impl Requestable for DeleteBucketRequest {
     }
 }
 
+/// Response from requesting Bucket
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct BucketResponse {
+    /// Bucket ID
     pub id: String,
+    /// Bucket Name
     pub friendly_name: String,
+    /// Bucket Type
     pub r#type: BucketType,
 }
 
+/// Response from requesting list of Buckets
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct ListBucketResponse(Vec<BucketResponse>);
 

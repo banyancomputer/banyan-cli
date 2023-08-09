@@ -87,29 +87,29 @@ pub async fn run(command: Command) -> Result<()> {
                 Request::Bucket { subcommand } => {
                     match subcommand {
                         BucketRequest::Create(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                         BucketRequest::List(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                         BucketRequest::Get(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                         BucketRequest::Delete(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                     }
                 },
                 Request::Keys { subcommand } => {
                     match subcommand {
                         KeyRequest::Create(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                         KeyRequest::Get(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                         KeyRequest::Delete(request) => {
-                            let response = client.send(request).await;
+                            let _response = client.send(request).await;
                         },
                     }
                 },
