@@ -5,10 +5,17 @@ pub mod command;
 /// Debug level
 pub mod verbosity;
 
-use crate::pipelines::{add, configure, pack, remove, unpack};
+use crate::{
+    pipelines::{add, configure, pack, remove, unpack},
+    types::config::globalconfig::GlobalConfig,
+};
 use anyhow::Result;
 use command::{Command, ConfigSubCommand};
 use std::env::current_dir;
+use tomb_common::api::{
+    client::Client,
+    request::{BucketRequest, KeyRequest, MetadataRequest, Request},
+};
 
 /// Based on the Command, run pipelines
 pub async fn run(command: Command) -> Result<()> {
@@ -59,8 +66,6 @@ pub async fn run(command: Command) -> Result<()> {
             }
         },
         Command::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
-        Command::Register { bucket_name: _ } =>
-            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
         Command::Configure { subcommand } => {
             match subcommand {
                 ConfigSubCommand::SetRemote { address } => {
@@ -74,6 +79,48 @@ pub async fn run(command: Command) -> Result<()> {
         },
         Command::Remove { origin, wnfs_path } => {
             remove::pipeline(&origin, &wnfs_path).await?;
+        },
+        Command::Api { subcommand } => {
+            let mut client = Client::new(&GlobalConfig::from_disk().await?.remote)?;
+
+            match subcommand {
+                Request::Bucket { subcommand } => {
+                    match subcommand {
+                        BucketRequest::Create(request) => {
+                            let _response = client.send(request).await;
+                        },
+                        BucketRequest::List(request) => {
+                            let _response = client.send(request).await;
+                        },
+                        BucketRequest::Get(request) => {
+                            let _response = client.send(request).await;
+                        },
+                        BucketRequest::Delete(request) => {
+                            let _response = client.send(request).await;
+                        },
+                    }
+                },
+                Request::Keys { subcommand } => {
+                    match subcommand {
+                        KeyRequest::Create(request) => {
+                            let _response = client.send(request).await;
+                        },
+                        KeyRequest::Get(request) => {
+                            let _response = client.send(request).await;
+                        },
+                        KeyRequest::Delete(request) => {
+                            let _response = client.send(request).await;
+                        },
+                    }
+                },
+                Request::Metadata { subcommand } => {
+                    match subcommand {
+                        MetadataRequest::Create => todo!(),
+                        MetadataRequest::Get => todo!(),
+                        MetadataRequest::Delete => todo!(),
+                    }
+                },
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{arg, Subcommand};
+use tomb_common::api::request::Request;
 
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
@@ -65,12 +66,6 @@ pub enum Command {
     },
     /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
     Login,
-    /// tomb register <bucket_name> - Register a new bucket on the tombolo service for this data. then you can push to it. MUST be called before push.
-    Register {
-        /// Name of the bucket to create
-        #[arg(short, long, help = "bucket name")]
-        bucket_name: String,
-    },
     /// tomb config <subcommand> - Configure Tombolo
     Configure {
         /// Configuration subcommand
@@ -79,6 +74,12 @@ pub enum Command {
     },
     /// We don't know yet
     Daemon,
+    /// Interact with Banyan Metadata API
+    Api {
+        /// Request subcommand
+        #[clap(subcommand)]
+        subcommand: Request,
+    },
 }
 
 /// Sub-commands associated with configuration

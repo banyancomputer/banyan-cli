@@ -12,8 +12,8 @@ mod test {
     use crate::types::blockstore::{carv1, carv2, multi};
     use anyhow::Result;
     use serial_test::serial;
-    use std::path::Path;
-    use tomb_common::utils::test::car_setup;
+    use std::{fs::remove_dir_all, path::Path};
+    use tomb_common::test::car_setup;
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
 
     #[tokio::test]
@@ -40,6 +40,9 @@ mod test {
     #[serial]
     async fn multifileblockstore() -> Result<()> {
         let test_dir = &Path::new("test").join("car").join("multifile_blockstore");
+        if test_dir.exists() {
+            remove_dir_all(test_dir)?;
+        }
         let mut store = multi::BlockStore::new(test_dir)?;
         store.add_delta()?;
         bs_retrieval_test(&store).await?;

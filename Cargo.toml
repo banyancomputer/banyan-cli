@@ -38,10 +38,10 @@ categories = [
 # Dependencies
 clap = { version = "4.0.32", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
-tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
+tokio = { version = "1.24", features = ["full", "io-util", "fs"] }
 jwalk = "0.8.1"
 rand = "0.8.4"
-serde = {version= "^1", features = ["derive"]}
+serde = { version= "^1", features = ["derive", "unstable"] }
 serde_json = { version = "^1", features = ["std"]}
 # Dev dependencies
 criterion = { version = "0.4.0", features = ["async_tokio"] }

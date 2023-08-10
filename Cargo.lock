@@ -383,10 +383,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "banyan-api-client"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "jsonwebtoken",
+ "openssl",
+ "pem 2.0.1",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "base-x"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4cbbc9d0964165b47557570cce6c952866c2678457aca742aafc9fb771d30270"
+
+[[package]]
+name = "base58"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6107fe1be6682a68940da878d9e9f5e90ca5745b3dec9fd1bb393c8777d4f581"
 
 [[package]]
 name = "base64"
@@ -613,7 +635,7 @@ dependencies = [
  "js-sys",
  "num-traits",
  "serde",
- "time",
+ "time 0.1.45",
  "wasm-bindgen",
  "winapi",
 ]
@@ -1051,6 +1073,12 @@ dependencies = [
  "pem-rfc7468",
  "zeroize",
 ]
+
+[[package]]
+name = "deranged"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7684a49fb1af197853ef7b2ee694bc1f5b4179556f1e5710e1760c5db6f5e929"
 
 [[package]]
 name = "digest"
@@ -1997,6 +2025,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonwebtoken"
+version = "8.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6971da4d9c3aa03c3d8f3ff0f4155b534aad021292003895a469716b2a230378"
+dependencies = [
+ "base64 0.21.2",
+ "pem 1.1.1",
+ "ring",
+ "serde",
+ "serde_json",
+ "simple_asn1",
+]
+
+[[package]]
 name = "jwalk"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2427,6 +2469,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-bigint"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f93ab6289c7b344a8a9f60f88d80aa20032336fe78da341afc91c8a2341fc75f"
+dependencies = [
+ "autocfg 1.1.0",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
 name = "num-bigint-dig"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2646,6 +2699,15 @@ dependencies = [
  "redox_syscall 0.3.5",
  "smallvec",
  "windows-targets 0.48.1",
+]
+
+[[package]]
+name = "pem"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8835c273a76a90455d7344889b0964598e3316e2a79ede8e36f16bdcf2228b8"
+dependencies = [
+ "base64 0.13.0",
 ]
 
 [[package]]
@@ -3145,12 +3207,29 @@ dependencies = [
  "serde_urlencoded",
  "tokio",
  "tokio-native-tls",
+ "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams 0.2.3",
  "web-sys",
  "winreg",
+]
+
+[[package]]
+name = "ring"
+version = "0.16.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
+dependencies = [
+ "cc",
+ "libc",
+ "once_cell",
+ "spin",
+ "untrusted",
+ "web-sys",
+ "winapi",
 ]
 
 [[package]]
@@ -3414,6 +3493,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f04293dc80c3993519f2d7f6f511707ee7094fe0c6d3406feb330cdb3540eba3"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3460,6 +3550,18 @@ checksum = "5e1788eed21689f9cf370582dfc467ef36ed9c707f073528ddafa8d83e3b8500"
 dependencies = [
  "digest",
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "simple_asn1"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adc4e5204eb1910f40f9cfa375f6f05b68c3abac4b6fd879c8ff5e7ae8a0a085"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+ "thiserror",
+ "time 0.3.25",
 ]
 
 [[package]]
@@ -3684,6 +3786,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-case"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a1d6e7bde536b0412f20765b76e921028059adfd1b90d8974d33fd3c91b25df"
+dependencies = [
+ "test-case-macros",
+]
+
+[[package]]
+name = "test-case-core"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d10394d5d1e27794f772b6fc854c7e91a2dc26e2cbf807ad523370c2a59c0cee"
+dependencies = [
+ "cfg-if",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "test-case-macros"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eeb9a44b1c6a54c1ba58b152797739dba2a83ca74e18168a68c980eb142f9404"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "test-case-core",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3728,6 +3865,34 @@ dependencies = [
  "libc",
  "wasi 0.10.0+wasi-snapshot-preview1",
  "winapi",
+]
+
+[[package]]
+name = "time"
+version = "0.3.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fdd63d58b18d663fbdf70e049f00a22c8e42be082203be7f26589213cd75ea"
+dependencies = [
+ "deranged",
+ "itoa",
+ "serde",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
+
+[[package]]
+name = "time-macros"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb71511c991639bb078fd5bf97757e03914361c48100d52878b8e52b46fb92cd"
+dependencies = [
+ "time-core",
 ]
 
 [[package]]
@@ -3818,6 +3983,7 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
+ "banyan-api-client",
  "chrono",
  "clap 4.3.19",
  "criterion",
@@ -3832,6 +3998,7 @@ dependencies = [
  "lazy_static",
  "log",
  "rand 0.8.5",
+ "reqwest",
  "serde",
  "serde_json",
  "serial_test",
@@ -3839,7 +4006,7 @@ dependencies = [
  "tokio",
  "tomb-common",
  "tomb-crypt",
- "wnfs 0.1.21",
+ "wnfs",
  "zstd",
 ]
 
@@ -3850,31 +4017,38 @@ dependencies = [
  "anyhow",
  "async-std",
  "async-trait",
+ "base58",
  "base64 0.21.2",
+ "blake3",
  "chrono",
+ "clap 4.3.19",
  "fs_extra",
  "hex",
  "hex-literal",
+ "jsonwebtoken",
  "rand 0.8.5",
  "reqwest",
  "rsa",
  "serde",
  "serde_json",
  "serial_test",
+ "sha1",
  "sha2",
  "spki",
+ "test-case",
  "thiserror",
  "tokio",
  "tomb-crypt",
  "unsigned-varint",
+ "uuid",
  "wasm-bindgen",
- "wnfs 0.1.21",
+ "wnfs",
 ]
 
 [[package]]
 name = "tomb-crypt"
 version = "0.1.0"
-source = "git+https://github.com/banyancomputer/tomb-crypt#d18c23c3961124279d853070ece545bcd1e360a8"
+source = "git+https://github.com/banyancomputer/tomb-crypt#ac746ca6c3e51a1e405a42243d2bce48d5eb6c06"
 dependencies = [
  "async-trait",
  "base64 0.21.2",
@@ -3883,7 +4057,7 @@ dependencies = [
  "js-sys",
  "openssl",
  "openssl-hkdf",
- "pem",
+ "pem 2.0.1",
  "tokio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -3901,10 +4075,11 @@ dependencies = [
  "console_error_panic_hook",
  "futures",
  "futures-util",
+ "getrandom",
  "gloo",
  "js-sys",
  "noosphere-car",
- "pem",
+ "pem 2.0.1",
  "rand 0.8.5",
  "rc",
  "serde",
@@ -3917,11 +4092,9 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
- "wasm-streams",
+ "wasm-streams 0.3.0",
  "web-sys",
- "wnfs 0.1.21",
- "wnfs-common 0.1.23",
- "wnfs-wasm",
+ "wnfs",
 ]
 
 [[package]]
@@ -4087,6 +4260,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d86a8dc7f45e4c1b0d30e43038c38f274e77af056aa5f74b93c2cf9eb3c1c836"
 
 [[package]]
+name = "untrusted"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
+
+[[package]]
 name = "url"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4116,6 +4295,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79daa5ed5740825c40b389c5e50312b9c86df53fccd33f281df655642b43869d"
 dependencies = [
  "getrandom",
+ "rand 0.8.5",
+ "serde",
 ]
 
 [[package]]
@@ -4186,8 +4367,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7706a72ab36d8cb1f80ffbf0e071533974a60d0a308d01a5d0375bf60499a342"
 dependencies = [
  "cfg-if",
- "serde",
- "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -4269,6 +4448,19 @@ checksum = "ecb993dd8c836930ed130e020e77d9b2e65dd0fbab1b67c790b0f5d80b11a575"
 dependencies = [
  "proc-macro2",
  "quote",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bbae3363c08332cadccd13b67db371814cd214c2524020932f0804b8cf7c078"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]
@@ -4501,36 +4693,6 @@ dependencies = [
 
 [[package]]
 name = "wnfs"
-version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#58ff78b85c2c7bc5c1a690265e4e60ad4f5d6672"
-dependencies = [
- "aes-gcm",
- "aes-kw",
- "anyhow",
- "async-once-cell",
- "async-recursion",
- "async-stream",
- "async-trait",
- "chrono",
- "futures",
- "libipld",
- "multihash 0.19.0",
- "once_cell",
- "rand_core 0.6.4",
- "semver",
- "serde",
- "serde_ipld_dagcbor 0.3.0",
- "sha3",
- "skip_ratchet 0.1.6",
- "thiserror",
- "wnfs-common 0.1.21",
- "wnfs-hamt 0.1.21",
- "wnfs-namefilter",
- "xxhash-rust",
-]
-
-[[package]]
-name = "wnfs"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f9409f46d98cb34685bf87923af8f021d8f109b2445320b26d59d96391bf518"
@@ -4555,27 +4717,10 @@ dependencies = [
  "serde_ipld_dagcbor 0.4.0",
  "skip_ratchet 0.3.0",
  "thiserror",
- "wnfs-common 0.1.23",
- "wnfs-hamt 0.1.23",
- "wnfs-nameaccumulator",
-]
-
-[[package]]
-name = "wnfs-common"
-version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#58ff78b85c2c7bc5c1a690265e4e60ad4f5d6672"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "async-trait",
- "chrono",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "serde",
- "thiserror",
+ "wnfs-common",
+ "wnfs-hamt",
+ "wnfs-namefilter",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -4600,30 +4745,6 @@ dependencies = [
 
 [[package]]
 name = "wnfs-hamt"
-version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#58ff78b85c2c7bc5c1a690265e4e60ad4f5d6672"
-dependencies = [
- "anyhow",
- "async-once-cell",
- "async-recursion",
- "async-trait",
- "bitvec",
- "chrono",
- "either",
- "futures",
- "libipld",
- "multihash 0.18.1",
- "once_cell",
- "rand_core 0.6.4",
- "semver",
- "serde",
- "sha3",
- "thiserror",
- "wnfs-common 0.1.21",
-]
-
-[[package]]
-name = "wnfs-hamt"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e1a553bdf3642ee6e5a55b742b5a07b234afbf0f809d5c2cadbd7f876999b64"
@@ -4644,27 +4765,7 @@ dependencies = [
  "semver",
  "serde",
  "thiserror",
- "wnfs-common 0.1.23",
-]
-
-[[package]]
-name = "wnfs-nameaccumulator"
-version = "0.1.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "504eda30a30a0533f6a6fe81d0b7df531b3d6984bf280bb422ed82b1895c76d1"
-dependencies = [
- "anyhow",
- "blake3",
- "libipld",
- "num-bigint-dig",
- "num-integer",
- "num-traits",
- "once_cell",
- "rand_core 0.6.4",
- "serde",
- "serde_bytes",
- "thiserror",
- "zeroize",
+ "wnfs-common",
 ]
 
 [[package]]
@@ -4684,30 +4785,8 @@ dependencies = [
  "serde",
  "sha3",
  "thiserror",
- "wnfs-common 0.1.21",
+ "wnfs-common",
  "xxhash-rust",
-]
-
-[[package]]
-name = "wnfs-wasm"
-version = "0.1.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b06c92d4074dd342e41a78ecc7cf9068282cea995e5361a2dc4aa9bc4bddbd10"
-dependencies = [
- "anyhow",
- "async-trait",
- "bytes",
- "cfg-if",
- "chrono",
- "console_error_panic_hook",
- "getrandom",
- "js-sys",
- "libipld-core",
- "rand_core 0.6.4",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wnfs 0.1.23",
- "wnfs-nameaccumulator",
 ]
 
 [[package]]
