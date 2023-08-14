@@ -12,7 +12,7 @@ use crate::{
 use anyhow::Result;
 use command::{Command, ConfigSubCommand};
 use std::env::current_dir;
-use tomb_common::api::{
+use tomb_common::banyan::{
     client::Client,
     request::{BucketRequest, KeyRequest, MetadataRequest, Request},
 };

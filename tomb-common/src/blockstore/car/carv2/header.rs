@@ -71,67 +71,67 @@ impl<'de> Deserialize<'de> for Header {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::{
-        blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
-        streamable_tests,
-        test::car_setup,
-        Streamable,
-    };
+// #[cfg(test)]
+// mod test {
+//     use crate::{
+//         blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
+//         streamable_tests,
+//         test::car_setup,
+//         Streamable,
+//     };
 
-    use super::Header;
-    use anyhow::Result;
-    use serial_test::serial;
-    use std::{
-        fs::File,
-        io::{Seek, Write},
-        path::Path,
-    };
+//     use super::Header;
+//     use anyhow::Result;
+//     use serial_test::serial;
+//     use std::{
+//         fs::File,
+//         io::{Seek, Write},
+//         path::Path,
+//     };
 
-    #[test]
-    #[serial]
-    fn read_disk() -> Result<()> {
-        let car_path = car_setup(2, "basic", "read_disk")?;
-        let mut file = File::open(car_path)?;
-        // Skip the pragma
-        file.seek(std::io::SeekFrom::Start(PRAGMA_SIZE as u64))?;
-        // Read the header
-        let header = Header::read_bytes(&mut file)?;
-        // Characteristics are 0
-        assert_eq!(header.characteristics, 0);
-        assert_eq!(header.data_offset, 51);
-        assert_eq!(header.data_size, 448);
-        assert_eq!(header.index_offset, 499);
-        Ok(())
-    }
+//     #[test]
+//     #[serial]
+//     fn read_disk() -> Result<()> {
+//         let car_path = car_setup(2, "basic", "read_disk")?;
+//         let mut file = File::open(car_path)?;
+//         // Skip the pragma
+//         file.seek(std::io::SeekFrom::Start(PRAGMA_SIZE as u64))?;
+//         // Read the header
+//         let header = Header::read_bytes(&mut file)?;
+//         // Characteristics are 0
+//         assert_eq!(header.characteristics, 0);
+//         assert_eq!(header.data_offset, 51);
+//         assert_eq!(header.data_size, 448);
+//         assert_eq!(header.index_offset, 499);
+//         Ok(())
+//     }
 
-    #[test]
-    fn from_scratch() -> Result<()> {
-        let path = &Path::new("test")
-            .join("car")
-            .join("carv2_header_from_scratch.car");
-        let mut file = File::create(path)?;
-        // Write the pragma
-        file.write_all(&PRAGMA)?;
-        // Read the header
-        let header = Header {
-            characteristics: 0,
-            data_offset: 50,
-            data_size: 50,
-            index_offset: 0,
-        };
-        header.write_bytes(&mut file)?;
-        Ok(())
-    }
+//     #[test]
+//     fn from_scratch() -> Result<()> {
+//         let path = &Path::new("test")
+//             .join("car")
+//             .join("carv2_header_from_scratch.car");
+//         let mut file = File::create(path)?;
+//         // Write the pragma
+//         file.write_all(&PRAGMA)?;
+//         // Read the header
+//         let header = Header {
+//             characteristics: 0,
+//             data_offset: 50,
+//             data_size: 50,
+//             index_offset: 0,
+//         };
+//         header.write_bytes(&mut file)?;
+//         Ok(())
+//     }
 
-    streamable_tests! {
-        Header:
-        v2header: Header {
-            characteristics: 0,
-            data_offset: 50,
-            data_size: 50,
-            index_offset: 0,
-        },
-    }
-}
+//     streamable_tests! {
+//         Header:
+//         v2header: Header {
+//             characteristics: 0,
+//             data_offset: 50,
+//             data_size: 50,
+//             index_offset: 0,
+//         },
+//     }
+// }

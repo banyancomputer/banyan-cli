@@ -132,7 +132,7 @@ mod test {
     use rand::thread_rng;
     use serial_test::serial;
     use tomb_common::{keys::Manager, serialize::*};
-    use tomb_crypt::prelude::WrappingPrivateKey;
+    use tomb_crypt::prelude::PrivateKey;
     use wnfs::{
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},

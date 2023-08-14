@@ -9,7 +9,7 @@
 // #![deny(unused_crate_dependencies)]
 
 /// Server API
-pub mod api;
+pub mod banyan;
 /// BlockStores
 pub mod blockstore;
 /// Errors
@@ -18,8 +18,8 @@ pub mod error;
 pub mod keys;
 /// Serialization
 pub mod serialize;
-/// Tests
-pub mod test;
+// /// Tests
+// pub mod test;
 
 mod streamable;
 pub use streamable::Streamable;

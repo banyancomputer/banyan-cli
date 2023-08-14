@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use banyan::bucket::Bucket as BanyanBucket;
 use banyan::client::Client as BanyanClient;
 use banyan::snapshot::Snapshot as BanyanSnapshot;
-use gloo::console::log;
+use gloo::{console::log, utils::format::JsValueSerdeExt};
 use js_sys::{Array, Object, Reflect};
 use std::convert::TryFrom;
 pub use web_sys::CryptoKey;
@@ -315,11 +315,7 @@ impl TombWasm {
     /// * `bucket_id` - The id of the bucket to unlock
     /// * `wrapping_key` - The wrapping key to unlock the bucket with
     #[wasm_bindgen(js_name = unlock)]
-    pub async fn unlock(
-        &mut self,
-        bucket_id: &str,
-        _wrapping_key: CryptoKey,
-    ) -> JsResult<()> {
+    pub async fn unlock(&mut self, bucket_id: &str, _wrapping_key: CryptoKey) -> JsResult<()> {
         log!("tomb-wasm: unlock({})", bucket_id);
         let bucket = match self.buckets.get_mut(bucket_id) {
             Some(bucket) => bucket,
@@ -343,7 +339,12 @@ impl TombWasm {
     /// # Returns
     /// An array of entries TODO: What form is this?
     #[wasm_bindgen(js_name = ls)]
-    pub async fn ls(&self, bucket_id: &str, path: &str, version: Option<String>) -> JsResult<Array> {
+    pub async fn ls(
+        &self,
+        bucket_id: &str,
+        path: &str,
+        version: Option<String>,
+    ) -> JsResult<Array> {
         log!("tomb-wasm: ls({}/{})", bucket_id, path);
         let bucket = match self.buckets.get(bucket_id) {
             Some(bucket) => bucket,
@@ -545,7 +546,12 @@ impl TombWasm {
     /// TODO: What form is this?
     #[wasm_bindgen(js_name = rename)]
     pub async fn rename(&self, bucket_id: &str, _source: &str, _destination: &str) -> JsResult<()> {
-        log!("tomb-wasm: rename({}/{}/{})", bucket_id, _source, _destination);
+        log!(
+            "tomb-wasm: rename({}/{}/{})",
+            bucket_id,
+            _source,
+            _destination
+        );
         // Get the bucket
         let bucket = match self.buckets.get(bucket_id) {
             Some(bucket) => bucket,
@@ -578,7 +584,11 @@ impl TombWasm {
         _sources: Array,
         _destinations: Array,
     ) -> JsResult<()> {
-        log!("tomb-wasm: migrate({}/{})", _source_bucket_id, _destination_bucket_id);
+        log!(
+            "tomb-wasm: migrate({}/{})",
+            _source_bucket_id,
+            _destination_bucket_id
+        );
         // Get the bucket
         let source = match self.buckets.get(_source_bucket_id) {
             Some(bucket) => bucket,
@@ -619,12 +629,7 @@ impl TombWasm {
     ///    Should produce a promise for a completed upload and a way to track its progress
     ///    I suspect this is going to be the hardest to implement, I'd save it for last
     #[wasm_bindgen(js_name = upload)]
-    pub async fn upload(
-        &self,
-        bucket_id: &str,
-        _path: &str,
-        _file: JsValue,
-    ) -> JsResult<()> {
+    pub async fn upload(&self, bucket_id: &str, _path: &str, _file: JsValue) -> JsResult<()> {
         log!("tomb-wasm: upload({}/{})", bucket_id, _path);
         // Get the bucket
         let bucket = match self.buckets.get(bucket_id) {

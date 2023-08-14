@@ -5,7 +5,7 @@ mod diskblockstore;
 /// Network based BlockStore
 mod networkblockstore;
 /// Tomb BlockStore trait
-mod tombblockstore;
+pub mod tombblockstore;
 /// Memory implementation of Tomb BlockStore trait
 mod tombmemoryblockstore;
 

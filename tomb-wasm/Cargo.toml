@@ -11,9 +11,6 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["console_error_panic_hook"]
 
-[profile.release]
-opt-level = "s" # Optimize for binary size
-
 [dependencies]
 # Workspace dependencies
 anyhow = { workspace = true }

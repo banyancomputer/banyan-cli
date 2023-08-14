@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use serde::Deserialize;
 use thiserror::Error;
+use tomb_crypt::prelude::TombCryptError;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -28,6 +29,12 @@ impl ClientError {
             kind: ClientErrorKind::HttpClientError(err),
         }
     }
+
+    pub fn crypto_error(err: TombCryptError) -> Self {
+        Self {
+            kind: ClientErrorKind::CryptoError(err),
+        }
+    }
 }
 
 impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ClientError {
@@ -37,27 +44,15 @@ impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ClientError {
         }
     }
 }
-
-// impl Display for ClientError {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         match &self.kind {
-//             ClientErrorKind::ApiResponseError(_) => todo!(),
-//             ClientErrorKind::AuthUnavailable => todo!(),
-//             ClientErrorKind::HttpClientError(_) => todo!(),
-//             ClientErrorKind::ResponseFormatError(err) => {
-//                 f.write_str(err.fmt(f))
-//             },
-//         }
-//     }
-// }
-
+ 
 #[derive(Debug)]
 #[non_exhaustive]
-enum ClientErrorKind {
+pub enum ClientErrorKind {
     ApiResponseError(Box<dyn std::error::Error + Send + Sync + 'static>),
     AuthUnavailable,
     HttpClientError(reqwest::Error),
     ResponseFormatError(reqwest::Error),
+    CryptoError(TombCryptError),
 }
 
 #[derive(Debug, Deserialize)]

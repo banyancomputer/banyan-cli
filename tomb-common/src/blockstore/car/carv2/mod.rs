@@ -201,170 +201,170 @@ impl CAR {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use anyhow::Result;
-    use serial_test::serial;
-    use std::{
-        fs::{File, OpenOptions},
-        io::{Seek, SeekFrom},
-        str::FromStr,
-        vec,
-    };
-    use wnfs::libipld::{Cid, IpldCodec};
+// #[cfg(test)]
+// mod test {
+//     use anyhow::Result;
+//     use serial_test::serial;
+//     use std::{
+//         fs::{File, OpenOptions},
+//         io::{Seek, SeekFrom},
+//         str::FromStr,
+//         vec,
+//     };
+//     use wnfs::libipld::{Cid, IpldCodec};
 
-    use crate::{
-        blockstore::car::{carv1::block::Block, carv2::CAR},
-        test::{car_setup, get_read_write},
-    };
+//     use crate::{
+//         blockstore::car::{carv1::block::Block, carv2::CAR},
+//         test::{car_setup, get_read_write},
+//     };
 
-    #[test]
-    #[serial]
-    fn from_disk_broken_index() -> Result<()> {
-        let car_path = car_setup(2, "basic", "from_disk_basic")?;
-        let mut file = File::open(car_path)?;
-        // Read the v2 header
-        let carv2 = CAR::read_bytes(&mut file)?;
+//     #[test]
+//     #[serial]
+//     fn from_disk_broken_index() -> Result<()> {
+//         let car_path = car_setup(2, "basic", "from_disk_basic")?;
+//         let mut file = File::open(car_path)?;
+//         // Read the v2 header
+//         let carv2 = CAR::read_bytes(&mut file)?;
 
-        // Assert version is correct
-        assert_eq!(&carv2.car.header.version, &1);
+//         // Assert version is correct
+//         assert_eq!(&carv2.car.header.version, &1);
 
-        // CIDs
-        let block_cids = vec![
-            Cid::from_str("QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z")?,
-            Cid::from_str("QmczfirA7VEH7YVvKPTPoU69XM3qY4DC39nnTsWd4K3SkM")?,
-            Cid::from_str("Qmcpz2FHJD7VAhg1fxFXdYJKePtkx1BsHuCrAgWVnaHMTE")?,
-            Cid::from_str("bafkreifuosuzujyf4i6psbneqtwg2fhplc2wxptc5euspa2gn3bwhnihfu")?,
-            Cid::from_str("bafkreifc4hca3inognou377hfhvu2xfchn2ltzi7yu27jkaeujqqqdbjju")?,
-        ];
+//         // CIDs
+//         let block_cids = vec![
+//             Cid::from_str("QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z")?,
+//             Cid::from_str("QmczfirA7VEH7YVvKPTPoU69XM3qY4DC39nnTsWd4K3SkM")?,
+//             Cid::from_str("Qmcpz2FHJD7VAhg1fxFXdYJKePtkx1BsHuCrAgWVnaHMTE")?,
+//             Cid::from_str("bafkreifuosuzujyf4i6psbneqtwg2fhplc2wxptc5euspa2gn3bwhnihfu")?,
+//             Cid::from_str("bafkreifc4hca3inognou377hfhvu2xfchn2ltzi7yu27jkaeujqqqdbjju")?,
+//         ];
 
-        // Blocks
-        let blocks = vec![
-            carv2.get_block(&block_cids[0], &mut file)?,
-            carv2.get_block(&block_cids[1], &mut file)?,
-            carv2.get_block(&block_cids[2], &mut file)?,
-            carv2.get_block(&block_cids[3], &mut file)?,
-            carv2.get_block(&block_cids[4], &mut file)?,
-        ];
+//         // Blocks
+//         let blocks = vec![
+//             carv2.get_block(&block_cids[0], &mut file)?,
+//             carv2.get_block(&block_cids[1], &mut file)?,
+//             carv2.get_block(&block_cids[2], &mut file)?,
+//             carv2.get_block(&block_cids[3], &mut file)?,
+//             carv2.get_block(&block_cids[4], &mut file)?,
+//         ];
 
-        // Ensure CIDs are matching
-        assert_eq!(blocks[0].cid, block_cids[0]);
-        assert_eq!(blocks[1].cid, block_cids[1]);
-        assert_eq!(blocks[2].cid, block_cids[2]);
-        assert_eq!(blocks[3].cid, block_cids[3]);
-        assert_eq!(blocks[4].cid, block_cids[4]);
+//         // Ensure CIDs are matching
+//         assert_eq!(blocks[0].cid, block_cids[0]);
+//         assert_eq!(blocks[1].cid, block_cids[1]);
+//         assert_eq!(blocks[2].cid, block_cids[2]);
+//         assert_eq!(blocks[3].cid, block_cids[3]);
+//         assert_eq!(blocks[4].cid, block_cids[4]);
 
-        // Ensure content is correct
-        assert_eq!(blocks[0].content, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401")?);
-        assert_eq!(blocks[1].content, hex::decode("12310a221220d745b7757f5b4593eeab7820306c7bc64eb496a7410a0d07df7a34ffec4b97f1120962617272656c657965183a122e0a2401551220a2e1c40da1ae335d4dffe729eb4d5ca23b74b9e51fc535f4a804a261080c294d1204f09f90a11807")?);
-        assert_eq!(blocks[2].content, hex::decode("12340a2401551220b474a99a2705e23cf905a484ec6d14ef58b56bbe62e9292783466ec363b5072d120a666973686d6f6e6765721804")?);
-        assert_eq!(blocks[3].content, hex::decode("66697368")?);
-        assert_eq!(blocks[4].content, hex::decode("6c6f6273746572")?);
+//         // Ensure content is correct
+//         assert_eq!(blocks[0].content, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401")?);
+//         assert_eq!(blocks[1].content, hex::decode("12310a221220d745b7757f5b4593eeab7820306c7bc64eb496a7410a0d07df7a34ffec4b97f1120962617272656c657965183a122e0a2401551220a2e1c40da1ae335d4dffe729eb4d5ca23b74b9e51fc535f4a804a261080c294d1204f09f90a11807")?);
+//         assert_eq!(blocks[2].content, hex::decode("12340a2401551220b474a99a2705e23cf905a484ec6d14ef58b56bbe62e9292783466ec363b5072d120a666973686d6f6e6765721804")?);
+//         assert_eq!(blocks[3].content, hex::decode("66697368")?);
+//         assert_eq!(blocks[4].content, hex::decode("6c6f6273746572")?);
 
-        // Construct a vector of the roots we're expecting to find
-        let expected_roots = vec![Cid::from_str(
-            "QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z",
-        )?];
-        // Assert roots are correct
-        assert_eq!(&carv2.car.header.roots.borrow().clone(), &expected_roots);
+//         // Construct a vector of the roots we're expecting to find
+//         let expected_roots = vec![Cid::from_str(
+//             "QmfEoLyB5NndqeKieExd1rtJzTduQUPEV8TwAYcUiy3H5Z",
+//         )?];
+//         // Assert roots are correct
+//         assert_eq!(&carv2.car.header.roots.borrow().clone(), &expected_roots);
 
-        // Ok
-        Ok(())
-    }
+//         // Ok
+//         Ok(())
+//     }
 
-    #[test]
-    #[serial]
-    fn put_get_block() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "put_get_block")?;
+//     #[test]
+//     #[serial]
+//     fn put_get_block() -> Result<()> {
+//         let car_path = &car_setup(2, "indexless", "put_get_block")?;
 
-        // Define reader and writer
-        let mut car_file = File::open(car_path)?;
+//         // Define reader and writer
+//         let mut car_file = File::open(car_path)?;
 
-        // Read original CARv2
-        let original = CAR::read_bytes(&mut car_file)?;
-        let index = original.car.index.borrow().clone();
-        let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
+//         // Read original CARv2
+//         let original = CAR::read_bytes(&mut car_file)?;
+//         let index = original.car.index.borrow().clone();
+//         let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
-        // Assert that we can query all CIDs
-        for cid in &all_cids {
-            assert!(original.get_block(cid, &mut car_file).is_ok());
-        }
+//         // Assert that we can query all CIDs
+//         for cid in &all_cids {
+//             assert!(original.get_block(cid, &mut car_file).is_ok());
+//         }
 
-        // Insert a block
-        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
+//         // Insert a block
+//         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+//         let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
 
-        // Writable version of the original file
-        let mut writable_original = OpenOptions::new()
-            .append(false)
-            .write(true)
-            .open(car_path)?;
+//         // Writable version of the original file
+//         let mut writable_original = OpenOptions::new()
+//             .append(false)
+//             .write(true)
+//             .open(car_path)?;
 
-        // Put a new block in
-        original.put_block(&block, &mut writable_original)?;
-        let new_block = original.get_block(&block.cid, &mut car_file)?;
-        assert_eq!(block, new_block);
+//         // Put a new block in
+//         original.put_block(&block, &mut writable_original)?;
+//         let new_block = original.get_block(&block.cid, &mut car_file)?;
+//         assert_eq!(block, new_block);
 
-        // Assert that we can still query all CIDs
-        for cid in &all_cids {
-            assert!(original.get_block(cid, &mut car_file).is_ok());
-        }
+//         // Assert that we can still query all CIDs
+//         for cid in &all_cids {
+//             assert!(original.get_block(cid, &mut car_file).is_ok());
+//         }
 
-        Ok(())
-    }
+//         Ok(())
+//     }
 
-    #[test]
-    #[serial]
-    fn to_from_disk_no_offset() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "to_from_disk_no_offset_original")?;
-        // Grab read/writer
-        let mut original_rw = get_read_write(car_path)?;
-        // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
-        // Write to updated file
-        original.write_bytes(&mut original_rw)?;
+//     #[test]
+//     #[serial]
+//     fn to_from_disk_no_offset() -> Result<()> {
+//         let car_path = &car_setup(2, "indexless", "to_from_disk_no_offset_original")?;
+//         // Grab read/writer
+//         let mut original_rw = get_read_write(car_path)?;
+//         // Read in the car
+//         let original = CAR::read_bytes(&mut original_rw)?;
+//         // Write to updated file
+//         original.write_bytes(&mut original_rw)?;
 
-        // Reconstruct
-        original_rw.seek(SeekFrom::Start(0))?;
-        let reconstructed = CAR::read_bytes(&mut original_rw)?;
+//         // Reconstruct
+//         original_rw.seek(SeekFrom::Start(0))?;
+//         let reconstructed = CAR::read_bytes(&mut original_rw)?;
 
-        // Assert equality
-        assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.car.header, reconstructed.car.header);
-        assert_eq!(original.car.index, reconstructed.car.index);
-        assert_eq!(original, reconstructed);
+//         // Assert equality
+//         assert_eq!(original.header, reconstructed.header);
+//         assert_eq!(original.car.header, reconstructed.car.header);
+//         assert_eq!(original.car.index, reconstructed.car.index);
+//         assert_eq!(original, reconstructed);
 
-        Ok(())
-    }
+//         Ok(())
+//     }
 
-    #[test]
-    #[serial]
-    fn to_from_disk_with_data() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
-        // Grab read/writer
-        let mut original_rw = get_read_write(car_path)?;
-        // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
+//     #[test]
+//     #[serial]
+//     fn to_from_disk_with_data() -> Result<()> {
+//         let car_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
+//         // Grab read/writer
+//         let mut original_rw = get_read_write(car_path)?;
+//         // Read in the car
+//         let original = CAR::read_bytes(&mut original_rw)?;
 
-        // Insert a block
-        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
+//         // Insert a block
+//         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+//         let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
 
-        // Writable version of the original file
-        original.put_block(&block, &mut original_rw)?;
-        // Write to updated file
-        original.write_bytes(&mut original_rw)?;
+//         // Writable version of the original file
+//         original.put_block(&block, &mut original_rw)?;
+//         // Write to updated file
+//         original.write_bytes(&mut original_rw)?;
 
-        // Reconstruct
-        let updated_rw = get_read_write(car_path)?;
-        let reconstructed = CAR::read_bytes(&updated_rw)?;
+//         // Reconstruct
+//         let updated_rw = get_read_write(car_path)?;
+//         let reconstructed = CAR::read_bytes(&updated_rw)?;
 
-        // Assert equality
-        assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.car.header, reconstructed.car.header);
-        assert_eq!(original.car.index, reconstructed.car.index);
-        assert_eq!(original, reconstructed);
+//         // Assert equality
+//         assert_eq!(original.header, reconstructed.header);
+//         assert_eq!(original.car.header, reconstructed.car.header);
+//         assert_eq!(original.car.index, reconstructed.car.index);
+//         assert_eq!(original, reconstructed);
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }

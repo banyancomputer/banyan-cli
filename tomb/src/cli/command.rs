@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{arg, Subcommand};
-use tomb_common::api::request::Request;
+use tomb_common::banyan::request::Request;
 
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
@@ -91,4 +91,63 @@ pub enum ConfigSubCommand {
         #[arg(short, long, help = "full server address")]
         address: String,
     },
+}
+
+
+/// A request to the Metadata API
+#[derive(Clone, Debug, Subcommand)]
+pub enum BanyanApiRequest {
+    /// Create, Delete, or get info on Buckets
+    Bucket {
+        /// Bucket Subcommand
+        #[clap(subcommand)]
+        subcommand: BucketRequest,
+    },
+    /// Create, Delete, or get info on Keys
+    Keys {
+        /// Key Subcommand
+        #[clap(subcommand)]
+        subcommand: KeyRequest,
+    },
+    /// Create, Delete, or get info on Metadata
+    Metadata {
+        /// Metadata Subcommand
+        #[clap(subcommand)]
+        subcommand: MetadataRequest,
+    },
+}
+
+/// Metadata Request
+#[derive(Clone, Debug, Subcommand)]
+pub enum MetadataRequest {
+    /// Create Metadata
+    Create,
+    /// Get Metadata
+    Read,
+    /// Delete Metadata
+    Delete,
+}
+
+/// Bucket Request
+#[derive(Clone, Debug, Serialize, Subcommand)]
+pub enum BucketRequest {
+    /// Create a Bucket
+    Create,
+    /// List a Bucket
+    ReadAll,
+    /// Get a Bucket
+    Read,
+    /// Delete a Bucket
+    Delete,
+}
+
+/// Key requests
+#[derive(Debug, Clone, Serialize, Subcommand)]
+pub enum BucketKeyRequest {
+    /// Create a Key
+    Create,
+    /// Get a Key
+    Get,
+    /// Delete a Key
+    Delete,
 }

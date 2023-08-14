@@ -11,7 +11,7 @@ use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
 use tomb_common::{keys::Manager, serialize::store_manager};
-use tomb_crypt::prelude::WrappingPrivateKey;
+use tomb_crypt::prelude::PrivateKey;
 use wnfs::{
     libipld::Cid,
     namefilter::Namefilter,

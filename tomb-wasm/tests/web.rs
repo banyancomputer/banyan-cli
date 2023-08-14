@@ -68,9 +68,7 @@ async fn tomb_wasm() {
     log!("tomb_wasm_test: bucket interaction");
     tomb.load(bucket_id).await.unwrap();
     let wrapping_key = ec_key("ECDH", &["deriveBits"]).await;
-    tomb.unlock(bucket_id, wrapping_key)
-        .await
-        .unwrap();
+    tomb.unlock(bucket_id, wrapping_key).await.unwrap();
     let _ = tomb.ls(bucket_id, "/", None).await.unwrap();
     let _ = tomb.ls(bucket_id, "/", Some("1".into())).await.unwrap();
 }
