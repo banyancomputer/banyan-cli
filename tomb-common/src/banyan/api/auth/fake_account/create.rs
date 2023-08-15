@@ -1,8 +1,8 @@
+use crate::banyan::api::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
-use crate::banyan::requests::ApiRequest;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
 pub struct CreateAccount {

@@ -1,9 +1,9 @@
 use reqwest::{Client, RequestBuilder, Url};
 use serde::Deserialize;
-use uuid::Uuid;
 use std::error::Error;
+use uuid::Uuid;
 
-use crate::banyan::requests::ApiRequest;
+use crate::banyan::api::ApiRequest;
 
 #[derive(Debug)]
 pub struct ReadWhoAmI;
@@ -52,4 +52,3 @@ impl std::fmt::Display for ReadWhoAmIError {
         f.write_str(msg)
     }
 }
-

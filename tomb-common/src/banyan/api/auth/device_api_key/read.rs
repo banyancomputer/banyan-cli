@@ -1,9 +1,9 @@
+use crate::banyan::api::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::de::Read;
-use uuid::Uuid;
 use std::error::Error;
-use crate::banyan::requests::ApiRequest;
+use uuid::Uuid;
 
 pub struct ReadDeviceApiKey {
     pub id: Uuid,
@@ -14,7 +14,6 @@ pub struct ReadAllDeviceApiKeys;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReadDeviceApiKeyResponse {
     pub id: Uuid,
-    pub account_id: Uuid,
     pub fingerprint: String,
     pub pem: String,
 }
@@ -28,12 +27,14 @@ impl ApiRequest for ReadDeviceApiKey {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let device_api_key_id = self.id.to_string();
-        let full_url = base_url.join(format!("/api/v1/auth/device_api_key/{}", device_api_key_id).as_str()).unwrap();
+        let full_url = base_url
+            .join(format!("/api/v1/auth/device_api_key/{}", device_api_key_id).as_str())
+            .unwrap();
         client.get(full_url)
     }
 
     fn requires_authentication(&self) -> bool {
-       true 
+        true
     }
 }
 
@@ -47,7 +48,7 @@ impl ApiRequest for ReadAllDeviceApiKeys {
     }
 
     fn requires_authentication(&self) -> bool {
-       true 
+        true
     }
 }
 

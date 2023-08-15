@@ -44,7 +44,7 @@ impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ClientError {
         }
     }
 }
- 
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ClientErrorKind {

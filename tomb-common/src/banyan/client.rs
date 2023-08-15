@@ -1,6 +1,9 @@
-use super::{credentials::Credentials, error::ClientError, requests::ApiRequest};
+use super::{api::ApiRequest, credentials::Credentials, error::ClientError};
 use anyhow::Result;
-use reqwest::{Client as ReqwestClient, Url, header::{HeaderMap, HeaderValue}};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client as ReqwestClient, Url,
+};
 use tomb_crypt::prelude::*;
 
 /// The audience for the API token
@@ -18,7 +21,7 @@ pub struct Client {
     /// The current bearer token
     pub bearer_token: Option<String>,
 
-    reqwest_client: ReqwestClient
+    reqwest_client: ReqwestClient,
 }
 
 impl Client {
@@ -29,10 +32,7 @@ impl Client {
     /// * `Self` - The client
     pub fn new(remote: &str) -> Result<Self> {
         let mut default_headers = HeaderMap::new();
-        default_headers.insert(
-            "Content-Type",
-            HeaderValue::from_static("application/json"),
-        );
+        default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
             .default_headers(default_headers)
             .build()
@@ -43,7 +43,7 @@ impl Client {
             claims: None,
             signing_key: None,
             bearer_token: None,
-            reqwest_client
+            reqwest_client,
         })
     }
 
@@ -103,6 +103,16 @@ impl Client {
                 Some(bearer_token) => Ok(bearer_token.clone()),
                 _ => Err(ClientError::auth_unavailable()),
             },
+        }
+    }
+
+    pub fn subject(&self) -> Result<String, ClientError> {
+        match &self.claims {
+            Some(claims) => {
+                let sub = claims.sub().map_err(ClientError::crypto_error)?;
+                Ok(sub.to_string())
+            }
+            _ => Err(ClientError::auth_unavailable()),
         }
     }
 

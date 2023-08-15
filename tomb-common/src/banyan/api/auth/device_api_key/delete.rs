@@ -1,18 +1,17 @@
+use crate::banyan::api::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
-use crate::banyan::requests::ApiRequest;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
-pub struct DeleteDeviceApiKey  {
+pub struct DeleteDeviceApiKey {
     pub id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeleteDeviceApiKeyResponse {
     pub id: Uuid,
-    pub account_id: Uuid,
     pub fingerprint: String,
 }
 
@@ -22,7 +21,9 @@ impl ApiRequest for DeleteDeviceApiKey {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let id = self.id.to_string();
-        let full_url = base_url.join(format!("/api/v1/auth/device_api_key/{}", id).as_str()).unwrap();
+        let full_url = base_url
+            .join(format!("/api/v1/auth/device_api_key/{}", id).as_str())
+            .unwrap();
         client.delete(full_url)
     }
 

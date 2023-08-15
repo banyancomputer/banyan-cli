@@ -1,18 +1,17 @@
+use crate::banyan::api::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
-use crate::banyan::requests::ApiRequest;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
-pub struct CreateDeviceApiKey  {
-    pub device_api_key_pem: String,
+pub struct CreateDeviceApiKey {
+    pub pem: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateDeviceApiKeyResponse {
     pub id: Uuid,
-    pub account_id: Uuid,
     pub fingerprint: String,
 }
 
@@ -27,7 +26,7 @@ impl ApiRequest for CreateDeviceApiKey {
     }
 
     fn requires_authentication(&self) -> bool {
-        false
+        true
     }
 }
 

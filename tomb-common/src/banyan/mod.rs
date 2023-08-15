@@ -1,6 +1,6 @@
+pub mod api;
 pub mod client;
-pub mod requests;
-pub mod requestable;
+pub mod models;
 
 mod credentials;
 mod error;
