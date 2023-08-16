@@ -112,7 +112,7 @@ impl GlobalConfig {
         Ok(bucket)
     }
 
-    fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {
+    pub(crate) fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {
         let existing = self.get_bucket(path);
         if let Some(config) = existing {
             Ok(config)
@@ -235,68 +235,8 @@ mod test {
 
         // Assert equality
         assert_eq!(original_bucket.metadata, reconstructed_bucket.metadata);
-        assert_eq!(
-            original_bucket.content.deltas[0],
-            reconstructed_bucket.content.deltas[0]
-        );
+        assert_eq!(original_bucket.content, reconstructed_bucket.content);
 
         Ok(())
     }
-
-    /*
-    #[tokio::test]
-    #[serial]
-    #[ignore]
-    async fn get_set_all() -> Result<()> {
-        let test_name = "get_set_key";
-        // Start er up!
-        let (origin, global, config, metadata_forest, content_forest, dir) =
-            &mut setup(test_name).await?;
-
-        config
-            .set_all(metadata_forest, content_forest, &dir)
-            .await?;
-        global.update_config(config)?;
-        global.to_disk()?;
-
-        let new_global = GlobalConfig::from_disk()?;
-        let new_config = &mut new_global.get_bucket(origin).unwrap();
-
-        assert_eq!(config.origin, new_config.origin);
-        assert_eq!(config.generated, new_config.generated);
-        assert_eq!(config.metadata.car.header, new_config.metadata.car.header);
-        assert_eq!(config.metadata.car.index, new_config.metadata.car.index);
-        assert_eq!(
-            config.metadata.car.car.header,
-            new_config.metadata.car.car.header
-        );
-        assert_eq!(
-            config.metadata.car.car.index,
-            new_config.metadata.car.car.index
-        );
-        assert_eq!(config, new_config);
-
-        let (new_metadata_forest, new_content_forest, new_dir) = &new_config.get_all().await?;
-
-        // Assert equality
-        assert_eq!(
-            metadata_forest
-                .diff(new_metadata_forest, &new_config.metadata)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(
-            content_forest
-                .diff(new_content_forest, &new_config.content)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(dir, new_dir);
-
-        // Teardown
-        teardown(test_name).await
-    }
-     */
 }

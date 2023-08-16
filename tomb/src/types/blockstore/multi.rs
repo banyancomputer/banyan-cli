@@ -10,7 +10,9 @@ use std::{
     fs::{self, create_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_common::types::blockstore::tombblockstore::TombBlockStore;
+use tomb_common::types::blockstore::{
+    car::carv2::index::indexable::Indexable, tombblockstore::TombBlockStore,
+};
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
@@ -83,7 +85,6 @@ impl WnfsBlockStore for BlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
-            println!("searching through {}", store.path.display());
             // If block is retrieved
             if let Ok(data) = store.get_block(cid).await {
                 // Ok
@@ -99,7 +100,6 @@ impl WnfsBlockStore for BlockStore {
         // If there is a delta
         if let Some(current_delta) = self.deltas.last() {
             let cid = current_delta.put_block(bytes, codec).await?;
-            println!("putting {} in {}", cid, current_delta.path.display());
             Ok(cid)
         } else {
             Err(BlockStoreError::LockPoisoned.into())
@@ -123,15 +123,15 @@ impl TombBlockStore for BlockStore {
         }
     }
 
-    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
             // Bind to avoid awaiting
             let index = store.car.car.index.borrow().clone();
             // If this store has the data we are replacing
-            if index.get_offset(cid).is_ok() {
+            if index.get_offset(cid).is_some() {
                 // Update the content in this store and return new cid
-                return store.update_content(cid, bytes, codec).await;
+                return store.update_block(cid, bytes, codec).await;
             }
         }
 
@@ -146,6 +146,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
+    use tomb_common::serial_tests;
     use wnfs::{common::BlockStore as WnfsBlockStore, libipld::IpldCodec};
 
     #[tokio::test]
@@ -158,7 +159,6 @@ mod test {
         }
 
         let mut store = BlockStore::new(path)?;
-
         // Create a new delta
         store.add_delta()?;
 
@@ -226,5 +226,25 @@ mod test {
         );
 
         Ok(())
+    }
+
+    //
+    fn example() -> Result<BlockStore> {
+        let path = &Path::new("test").join("serial");
+        // Delete this if it exists
+        if path.exists() {
+            remove_dir_all(path)?;
+        }
+
+        let mut store = BlockStore::new(path)?;
+        // Create a new delta
+        store.add_delta()?;
+
+        Ok(store)
+    }
+
+    serial_tests! {
+        BlockStore:
+        multifileblockstore: &example().unwrap(),
     }
 }

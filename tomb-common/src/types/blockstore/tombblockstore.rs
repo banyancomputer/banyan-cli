@@ -13,5 +13,5 @@ pub trait TombBlockStore: WnfsBlockStore {
     /// Set the root CID
     fn set_root(&self, root: &Cid);
     /// Update the bytes of a block in-place
-    async fn update_content(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid>;
+    async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid>;
 }

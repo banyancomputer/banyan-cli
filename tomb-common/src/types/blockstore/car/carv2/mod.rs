@@ -1,16 +1,23 @@
+/// Fixture
+pub mod fixture;
+/// CARv2 Header
 pub(crate) mod header;
-pub(crate) mod index;
+/// CARv2 Index
+pub mod index;
 
 // Code
-use self::{header::Header, index::Index};
-use crate::types::blockstore::car::carv1::{block::Block, CAR as CARv1};
+use self::{header::Header, index::indexable::Indexable};
+use crate::types::{
+    blockstore::car::carv1::{block::Block, CAR as CARv1},
+    streamable::Streamable,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use wnfs::{common::BlockStoreError, libipld::Cid};
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
@@ -22,13 +29,11 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 ];
 
 /// Reading / writing a CARv2 from a Byte Stream
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct CAR {
     pub(crate) header: RefCell<Header>,
     /// The CARv1 internal to the CARv2
-    pub car: CARv1,
-    /// The CARv2 Index (currently non-functional)
-    pub(crate) index: Option<Index>,
+    pub car: CARv1, // Note that the index is actually stored internally to the CARv1 struct
 }
 
 impl CAR {
@@ -43,21 +48,20 @@ impl CAR {
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
         // Load in the CARv1
-        let car = CARv1::read_bytes(&mut r)?;
+        let car = CARv1::read_bytes(
+            if header.index_offset == 0 {
+                None
+            } else {
+                Some(header.index_offset)
+            },
+            &mut r,
+        )?;
         // Seek to the index offset
         r.seek(SeekFrom::Start(header.index_offset))?;
-        // Load the index if one is present
-        let index: Option<Index> = if header.index_offset != 0 {
-            // Load in the index
-            Index::read_bytes(&mut r)?
-        } else {
-            None
-        };
         // Create the new object
         Ok(Self {
             header: RefCell::new(header),
             car,
-            index,
         })
     }
 
@@ -71,8 +75,11 @@ impl CAR {
         // Write the CARv1
         self.car.write_bytes(&mut rw)?;
         // Update our data size in the Header
-        self.update_data_size(&mut rw)?;
-
+        self.update_header(&mut rw)?;
+        // Move to index offset
+        rw.seek(SeekFrom::Start(self.header.borrow().index_offset))?;
+        // Write out the index
+        self.car.index.borrow().write_bytes(&mut rw)?;
         // Move back to the start
         rw.seek(SeekFrom::Start(0))?;
         // Write the PRAGMA
@@ -99,25 +106,37 @@ impl CAR {
 
     /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
-        let index = self.car.index.borrow();
-        let block_offset = index.get_offset(cid)?;
-        r.seek(SeekFrom::Start(block_offset))?;
-        Block::read_bytes(&mut r)
+        // If there is a V2Index
+        if let Some(block_offset) = self.car.index.borrow().get_offset(cid) {
+            // Move to the start of the block
+            r.seek(SeekFrom::Start(block_offset))?;
+            // Read the block
+            Block::read_bytes(&mut r)
+        } else {
+            Err(BlockStoreError::CIDNotFound(*cid).into())
+        }
     }
 
     /// Set a Block directly in the CAR
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
-        let mut index = self.car.index.borrow_mut();
+        // Grab the header
+        let header = *self.header.borrow();
+        // Determine offset of the next block
+        let next_block = header.data_offset + header.data_size;
+
+        // If there is a V2Index
+        self.car
+            .index
+            .borrow_mut()
+            .insert_offset(&block.cid, next_block);
+
         // Move to the end
-        w.seek(SeekFrom::Start(index.next_block))?;
-        // Insert current offset before bytes are written
-        index.map.insert(block.cid, w.stream_position()?);
+        w.seek(SeekFrom::Start(next_block))?;
         // Write the bytes
         block.write_bytes(&mut w)?;
-        // Update the next block
-        index.next_block = w.stream_position()?;
         // Update the data size
-        self.update_data_size(&mut w)?;
+        self.update_header(&mut w)?;
+        // Flush
         w.flush()?;
         // Return Ok
         Ok(())
@@ -152,15 +171,22 @@ impl CAR {
         Self::read_bytes(&mut rw)
     }
 
-    fn update_data_size<X: Seek>(&self, mut x: X) -> Result<()> {
+    fn update_header<X: Seek>(&self, mut x: X) -> Result<()> {
+        let mut header = self.header.borrow_mut();
         // Update the data size
         let v1_end = x.seek(SeekFrom::End(0))?;
         // Update the data size
-        self.header.borrow_mut().data_size = if v1_end > PH_SIZE {
+        header.data_size = if v1_end > PH_SIZE {
             v1_end - PH_SIZE
         } else {
             0
         };
+
+        // Update the index offset
+        header.index_offset = header.data_offset + header.data_size;
+        // Mark the characteristics as being fully indexed
+        header.characteristics = 1;
+
         Ok(())
     }
 
@@ -181,6 +207,7 @@ mod test {
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
+        io::{Seek, SeekFrom},
         str::FromStr,
         vec,
     };
@@ -193,12 +220,11 @@ mod test {
 
     #[test]
     #[serial]
-    fn from_disk_basic() -> Result<()> {
+    fn from_disk_broken_index() -> Result<()> {
         let car_path = car_setup(2, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
+        // Read the v2 header
         let carv2 = CAR::read_bytes(&mut file)?;
-        // Assert that this index was in an unrecognized format
-        assert_eq!(carv2.index, None);
 
         // Assert version is correct
         assert_eq!(&carv2.car.header.version, &1);
@@ -257,7 +283,7 @@ mod test {
         // Read original CARv2
         let original = CAR::read_bytes(&mut car_file)?;
         let index = original.car.index.borrow().clone();
-        let all_cids = index.map.keys().collect::<Vec<&Cid>>();
+        let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
@@ -299,12 +325,11 @@ mod test {
         original.write_bytes(&mut original_rw)?;
 
         // Reconstruct
-        let mut updated_rw = get_read_write(car_path)?;
-        let reconstructed = CAR::read_bytes(&mut updated_rw)?;
+        original_rw.seek(SeekFrom::Start(0))?;
+        let reconstructed = CAR::read_bytes(&mut original_rw)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.car.header, reconstructed.car.header);
         assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);
@@ -336,7 +361,6 @@ mod test {
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
-        assert_eq!(original.index, reconstructed.index);
         assert_eq!(original.car.header, reconstructed.car.header);
         assert_eq!(original.car.index, reconstructed.car.index);
         assert_eq!(original, reconstructed);

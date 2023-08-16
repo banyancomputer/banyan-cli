@@ -1,10 +1,10 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Seek, Write};
 
-use crate::types::blockstore::car::varint::{
-    encode_varint_u128_exact, encode_varint_u64_exact, read_varint_u128_exact,
-    read_varint_u64_exact,
+use crate::types::{
+    blockstore::car::varint::{read_leu128, read_leu64},
+    streamable::Streamable,
 };
 
 pub const HEADER_SIZE: usize = 40;
@@ -18,36 +18,36 @@ pub struct Header {
     pub index_offset: u64,
 }
 
-impl Header {
-    pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<usize> {
-        let mut bytes = 0;
-        bytes += w.write(&encode_varint_u128_exact(self.characteristics))?;
-        bytes += w.write(&encode_varint_u64_exact(self.data_offset))?;
-        bytes += w.write(&encode_varint_u64_exact(self.data_size))?;
-        bytes += w.write(&encode_varint_u64_exact(self.index_offset))?;
-        assert_eq!(bytes, HEADER_SIZE);
+impl Streamable for Header {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+        let start = w.stream_position()?;
+        // Write
+        w.write_all(&self.characteristics.to_le_bytes())?;
+        w.write_all(&self.data_offset.to_le_bytes())?;
+        w.write_all(&self.data_size.to_le_bytes())?;
+        w.write_all(&self.index_offset.to_le_bytes())?;
+        // Assert correct number of bytes written
+        assert_eq!((w.stream_position()? - start) as usize, HEADER_SIZE);
         // Flush
         w.flush()?;
-        Ok(bytes)
+        Ok(())
     }
 
-    pub fn read_bytes<R: Read>(mut r: R) -> Result<Self> {
-        let characteristics = read_varint_u128_exact(&mut r)?;
-
-        assert_eq!(characteristics, 0);
-
+    fn read_bytes<R: Read>(r: &mut R) -> Result<Self> {
         Ok(Self {
-            characteristics,
-            data_offset: read_varint_u64_exact(&mut r)?,
-            data_size: read_varint_u64_exact(&mut r)?,
-            index_offset: read_varint_u64_exact(&mut r)?,
+            characteristics: read_leu128(r)?,
+            data_offset: read_leu64(r)?,
+            data_size: read_leu64(r)?,
+            index_offset: read_leu64(r)?,
         })
     }
+}
 
+impl Header {
     pub fn to_bytes(self) -> Result<Vec<u8>> {
-        let mut header_bytes: Vec<u8> = Vec::new();
+        let mut header_bytes = Cursor::new(<Vec<u8>>::new());
         self.write_bytes(&mut header_bytes)?;
-        Ok(header_bytes)
+        Ok(header_bytes.into_inner())
     }
 }
 
@@ -65,8 +65,8 @@ impl<'de> Deserialize<'de> for Header {
     where
         D: serde::Deserializer<'de>,
     {
-        let header_bytes = <Vec<u8>>::deserialize(deserializer)?;
-        let new_header = Self::read_bytes(header_bytes.as_slice()).unwrap();
+        let header_bytes = &mut Cursor::new(<Vec<u8>>::deserialize(deserializer)?);
+        let new_header = Self::read_bytes(header_bytes).unwrap();
         Ok(new_header)
     }
 }
@@ -74,7 +74,11 @@ impl<'de> Deserialize<'de> for Header {
 #[cfg(test)]
 mod test {
     use crate::{
-        types::blockstore::car::carv2::{header::HEADER_SIZE, PRAGMA, PRAGMA_SIZE},
+        streamable_tests,
+        types::{
+            blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
+            streamable::Streamable,
+        },
         utils::test::car_setup,
     };
 
@@ -83,27 +87,9 @@ mod test {
     use serial_test::serial;
     use std::{
         fs::File,
-        io::{Cursor, Seek, Write},
+        io::{Seek, Write},
         path::Path,
     };
-
-    #[test]
-    fn read_write_bytes() -> Result<()> {
-        let header = Header {
-            characteristics: 0,
-            data_offset: 50,
-            data_size: 50,
-            index_offset: 0,
-        };
-
-        let mut header_bytes: Vec<u8> = Vec::new();
-        header.write_bytes(&mut header_bytes)?;
-
-        let header_cursor = Cursor::new(header_bytes);
-        let new_header = Header::read_bytes(header_cursor)?;
-        assert_eq!(header, new_header);
-        Ok(())
-    }
 
     #[test]
     #[serial]
@@ -137,8 +123,17 @@ mod test {
             data_size: 50,
             index_offset: 0,
         };
-        let bytes = header.write_bytes(&mut file)?;
-        assert_eq!(bytes, HEADER_SIZE);
+        header.write_bytes(&mut file)?;
         Ok(())
+    }
+
+    streamable_tests! {
+        Header:
+        v2header: Header {
+            characteristics: 0,
+            data_offset: 50,
+            data_size: 50,
+            index_offset: 0,
+        },
     }
 }

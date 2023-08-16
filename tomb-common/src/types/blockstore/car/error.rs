@@ -3,7 +3,16 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 /// CAR errors.
 pub enum CARError {
-    #[error("CAR v1 Had a malformed header")]
-    /// The CARv1Header was not correct
-    MalformedV1Header,
+    #[error("CARv1 had a malformed header")]
+    /// The CARv1 Header was not correct
+    V1Header,
+    #[error("CARv2 had a malformed index")]
+    /// The CARv2 Index was not correct
+    Index,
+    /// Index codec
+    #[error("CARv2 Index codec was wrong")]
+    Codec,
+    /// Index codec
+    #[error("No more data blocks")]
+    EndOfData,
 }

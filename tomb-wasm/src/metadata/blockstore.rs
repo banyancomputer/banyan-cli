@@ -54,7 +54,7 @@ impl TombBlockStore for WasmBlockStore {
         panic!("WASM BlockStores are read-only")
     }
 
-    async fn update_content(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> anyhow::Result<Cid> {
+    async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> anyhow::Result<Cid> {
         panic!("WASM BlockStores are read-only")
     }
 }

@@ -112,7 +112,7 @@ impl Mapper {
 }
 
 impl Mapper {
-    fn to_ipld(&self) -> Ipld {
+    pub(crate) fn to_ipld(&self) -> Ipld {
         // New Map
         let mut map = BTreeMap::<String, Ipld>::new();
         // For each key value pair in the struct
@@ -124,7 +124,6 @@ impl Mapper {
             } else {
                 String::from_utf8(vec![b' '; 242]).unwrap()
             };
-            println!("encrypted key: {}", encrypted_key.len());
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
             // Insert the encrypted key
@@ -136,7 +135,7 @@ impl Mapper {
         Ipld::Map(map)
     }
 
-    fn from_ipld(ipld: Ipld) -> Result<Self> {
+    pub(crate) fn from_ipld(ipld: Ipld) -> Result<Self> {
         // New Mapper
         let mut mapper = Mapper::default();
 

@@ -40,13 +40,56 @@ pub fn car_setup(
     Ok(new_path)
 }
 
-/// Create all of the relevant objects, using real BlockStores and real data
-pub async fn setup(
+/// Create a copy of a given fixture to play around with
+pub fn carindex_setup(
+    version: usize,
+    fixture_suffix: &str,
+    test_name: &str,
+) -> Result<PathBuf, std::io::Error> {
+    // The existing path
+    let fixture_path = Path::new("..")
+        .join("car-fixtures")
+        .join(format!("carv{}-{}.carindex", version, fixture_suffix));
+    // Root of testing dir
+    let test_path = &Path::new("test").join("car");
+    // Create it it doesn't exist
+    create_dir_all(test_path).ok();
+    // The new path
+    let new_path = test_path.join(format!("carv{}_{}.carindex", version, test_name));
+    // Remove file if it's already there
+    std::fs::remove_file(&new_path).ok();
+    // Copy file from fixture path to tmp path
+    std::fs::copy(fixture_path, &new_path)?;
+    // Return Ok with new path
+    Ok(new_path)
+}
+
+/// Setup using a TombMemoryBlockStore
+pub async fn setup_memory(
     test_name: &str,
 ) -> Result<(
-    PathBuf,
     TombMemoryBlockStore,
     TombMemoryBlockStore,
+    Rc<PrivateForest>,
+    Rc<PrivateForest>,
+    Rc<PrivateDirectory>,
+)> {
+    setup(
+        test_name,
+        TombMemoryBlockStore::new(),
+        TombMemoryBlockStore::new(),
+    )
+    .await
+}
+
+/// Create all of the relevant objects, using real BlockStores and real data
+pub async fn setup<TBS: TombBlockStore>(
+    test_name: &str,
+    metadata: TBS,
+    content: TBS,
+) -> Result<(
+    TBS,
+    TBS,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
@@ -54,8 +97,6 @@ pub async fn setup(
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 
-    let metadata = TombMemoryBlockStore::new();
-    let content = TombMemoryBlockStore::new();
     metadata.set_root(&Cid::default());
     content.set_root(&Cid::default());
 
@@ -94,14 +135,7 @@ pub async fn setup(
     )
     .await?;
 
-    Ok((
-        origin,
-        metadata,
-        content,
-        metadata_forest,
-        content_forest,
-        root_dir,
-    ))
+    Ok((metadata, content, metadata_forest, content_forest, root_dir))
 }
 
 /// Delete the temporary directory
@@ -128,4 +162,34 @@ pub fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
         .read(true)
         .write(true)
         .open(path)
+}
+
+/// Macro for generating a serialization test for any type which conforms to the Serialize and Deserialize trait
+#[macro_export]
+macro_rules! serial_tests {
+    ($(
+        $type:ty:
+        $name:ident: $value:expr,
+    )*) => {
+    $(
+        mod $name {
+            use wnfs::common::dagcbor;
+            use anyhow::Result;
+            use super::*;
+            #[test]
+            fn dagcbor() -> Result<()> {
+                // Serialize
+                let mut bytes = dagcbor::encode($value)?;
+                // Reconstruct
+                let new_value = dagcbor::decode::<$type>(&bytes)?;
+                // Reserialize
+                let mut new_bytes = dagcbor::encode(&new_value)?;
+                // Assert equality of byte arrays
+                assert_eq!(bytes, new_bytes);
+                // Ok
+                Ok(())
+            }
+        }
+    )*
+    }
 }

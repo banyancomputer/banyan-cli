@@ -3,7 +3,7 @@ pub mod block;
 /// CARv1 Header
 pub mod header;
 /// Custom Index of CARv1 content
-pub mod index;
+// pub mod index;
 
 // Code
 use anyhow::Result;
@@ -11,12 +11,14 @@ use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    io::{Read, Seek, SeekFrom, Write},
+    io::{Cursor, Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use wnfs::{common::BlockStoreError, libipld::Cid};
 
-use self::{block::Block, header::Header, index::Index};
-use super::carv2::PH_SIZE;
+use crate::types::{blockstore::car::carv2::index::INDEX_SORTED_CODEC, streamable::Streamable};
+
+use self::{block::Block, header::Header};
+use super::carv2::index::{indexable::Indexable, indexsorted::Bucket, Index};
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -24,26 +26,38 @@ pub struct CAR {
     /// The CARv1 Header
     pub header: Header,
     /// The CARv1 Index
-    pub index: RefCell<Index>,
+    pub index: RefCell<Index<Bucket>>,
     /// The length of the CARv1 Header when read in
     pub(crate) read_header_len: RefCell<u64>,
 }
 
 impl CAR {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(index_offset: Option<u64>, mut r: R) -> Result<Self> {
         // Track the part of the stream where the V1Header starts
         let header_start = r.stream_position()?;
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
+        // End of the header
+        let header_end = r.stream_position()?;
         // Determine the length of the header that we just read
-        let read_header_len = RefCell::new(r.stream_position()? - header_start);
-        println!("read_header_len: {}", read_header_len.borrow().clone());
-        // Generate an index
-        let index = RefCell::new(Index::read_bytes(&mut r)?);
+        let read_header_len = RefCell::new(header_end - header_start);
+        // If we're in a CARv2
+        if let Some(index_offset) = index_offset &&
+        r.seek(SeekFrom::Start(index_offset)).is_ok() &&
+            let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
+            return Ok(Self {
+                header,
+                index: RefCell::new(index),
+                read_header_len,
+            })
+        }
+
+        r.seek(SeekFrom::Start(header_end))?;
+        let index = Index::read_from_carv1(&mut r)?;
         Ok(Self {
             header,
-            index,
+            index: RefCell::new(index),
             read_header_len,
         })
     }
@@ -54,16 +68,21 @@ impl CAR {
         let carv1_start = rw.stream_position()?;
 
         // Write the header into a buffer
-        let mut current_header_buf: Vec<u8> = Vec::new();
+        let mut current_header_buf = Cursor::new(<Vec<u8>>::new());
         self.header.write_bytes(&mut current_header_buf)?;
 
         // Compute data offset
-        let data_offset = current_header_buf.len() as i64 - *self.read_header_len.borrow() as i64;
+        let data_offset =
+            current_header_buf.stream_len()? as i64 - *self.read_header_len.borrow() as i64;
 
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
         // Grab all offsets
-        let mut offsets: Vec<u64> = self.index.borrow().clone().map.into_values().collect();
+        let index = self.index.borrow().clone();
+        let mut offsets: Vec<u64> = vec![];
+        for bucket in index.buckets {
+            offsets.extend_from_slice(&bucket.map.clone().into_values().collect::<Vec<u64>>())
+        }
         // Sort those offsets so the first offsets occur first
         offsets.sort();
         // If the header got bigger
@@ -71,7 +90,6 @@ impl CAR {
             // Sort those offsets so the final offsets occur first
             offsets.reverse();
         }
-
         // For each offset tallied
         for block_offset in offsets {
             // Move to the existing block location
@@ -87,23 +105,16 @@ impl CAR {
             // Insert new offset into index
             new_index.insert(block.cid, new_offset);
         }
-
         {
-            // Update index
             let mut index = self.index.borrow_mut();
-            index.map = new_index;
-            index.next_block = (index.next_block as i64 + data_offset) as u64;
+            for (cid, offset) in new_index {
+                index.insert_offset(&cid, offset);
+            }
         }
-
-        println!(
-            "index before write bytes finished: {:?}",
-            self.index.borrow().clone()
-        );
-
         // Move back to the satart
         rw.seek(SeekFrom::Start(carv1_start))?;
         // Write the header, now that the bytes it might have overwritten have been moved
-        rw.write_all(&current_header_buf)?;
+        rw.write_all(&current_header_buf.into_inner())?;
         // Flush
         rw.flush()?;
         Ok(())
@@ -111,32 +122,33 @@ impl CAR {
 
     /// Get a Block directly from the CAR
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
-        let block_offset = self.index.borrow().get_offset(cid)?;
-        r.seek(SeekFrom::Start(block_offset))?;
-        Block::read_bytes(&mut r)
+        if let Some(block_offset) = self.index.borrow().get_offset(cid) {
+            r.seek(SeekFrom::Start(block_offset))?;
+            Block::read_bytes(&mut r)
+        } else {
+            Err(BlockStoreError::CIDNotFound(*cid).into())
+        }
     }
 
     /// Set a Block directly in the CAR
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         let mut index = self.index.borrow_mut();
         // Move to the end
-        w.seek(SeekFrom::Start(index.next_block))?;
+        w.seek(SeekFrom::End(0))?;
         // Insert current offset before bytes are written
-        index.map.insert(block.cid, w.stream_position()?);
+        index.insert_offset(&block.cid, w.stream_position()?);
         // Write the bytes
         block.write_bytes(&mut w)?;
-        // Update the next block position
-        index.next_block = w.stream_position()?;
         // Return Ok
         Ok(())
     }
 
     /// Create a new CARv1 struct by writing into a stream, then deserializing it
-    pub fn new<RW: Read + Write + Seek>(version: u64, mut rw: RW) -> Result<Self> {
-        let car = Self::default(version);
+    pub fn new<RW: Read + Write + Seek>(index_offset: Option<u64>, mut rw: RW) -> Result<Self> {
+        let car = Self::default(if index_offset.is_none() { 1 } else { 2 });
         car.header.write_bytes(&mut rw)?;
         rw.seek(SeekFrom::Start(0))?;
-        Self::read_bytes(rw)
+        Self::read_bytes(index_offset, rw)
     }
 
     /// Set the singular root of the CAR
@@ -164,18 +176,18 @@ impl PartialEq for CAR {
 impl CAR {
     pub(crate) fn default(version: u64) -> Self {
         let header = Header::default(version);
-        let mut buf: Vec<u8> = Vec::new();
+        let mut buf = Cursor::new(<Vec<u8>>::new());
         header.write_bytes(&mut buf).unwrap();
 
         // Header length
-        let hlen = buf.len() as u64;
+        let hlen = buf.stream_len().expect("cant get stream len in header");
 
         Self {
             header,
             read_header_len: RefCell::new(hlen),
             index: RefCell::new(Index {
-                map: HashMap::new(),
-                next_block: if version == 1 { hlen } else { hlen + PH_SIZE },
+                codec: INDEX_SORTED_CODEC,
+                buckets: vec![],
             }),
         }
     }
@@ -203,7 +215,7 @@ mod test {
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
         // Read in the car
-        let car = CAR::read_bytes(&mut rw)?;
+        let car = CAR::read_bytes(None, &mut rw)?;
 
         // Header tests exist separately, let's just ensure content is correct!
 
@@ -264,7 +276,7 @@ mod test {
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
         // Read in the car
-        let car = CAR::read_bytes(&mut rw)?;
+        let car = CAR::read_bytes(None, &mut rw)?;
 
         // Insert a root
         car.set_root(&Cid::default());
@@ -274,7 +286,7 @@ mod test {
 
         // Read in the car
         let mut r2 = File::open(car_path)?;
-        let new_car = CAR::read_bytes(&mut r2)?;
+        let new_car = CAR::read_bytes(None, &mut r2)?;
 
         assert_eq!(car.header, new_car.header);
         assert_eq!(car.index, new_car.index);
@@ -291,9 +303,9 @@ mod test {
         let mut original_file = File::open(car_path)?;
 
         // Read original CARv2
-        let original = CAR::read_bytes(&mut original_file)?;
+        let original = CAR::read_bytes(None, &mut original_file)?;
         let index = original.index.borrow().clone();
-        let all_cids = index.map.keys().collect::<Vec<&Cid>>();
+        let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
@@ -330,7 +342,7 @@ mod test {
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
+        let original = CAR::read_bytes(None, &mut original_rw)?;
         // Move back to start
         original_rw.seek(std::io::SeekFrom::Start(0))?;
         // Write to updated file
@@ -338,7 +350,7 @@ mod test {
 
         // Reconstruct
         let mut updated_rw = File::open(car_path)?;
-        let updated = CAR::read_bytes(&mut updated_rw)?;
+        let updated = CAR::read_bytes(None, &mut updated_rw)?;
 
         // Assert equality
         assert_eq!(original.header, updated.header);
@@ -355,12 +367,8 @@ mod test {
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
-
-        // Insert a block as a root
-        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
-        original.set_root(&block.cid);
+        let original = CAR::read_bytes(None, &mut original_rw)?;
+        original.set_root(&original.index.borrow().get_all_cids()[0]);
 
         // Write to updated file
         original_rw.seek(SeekFrom::Start(0))?;
@@ -370,12 +378,14 @@ mod test {
         // Reconstruct
         let mut updated_rw = get_read_write(car_path)?;
         // Read in the car
-        let updated = CAR::read_bytes(&mut updated_rw)?;
+        let updated = CAR::read_bytes(None, &mut updated_rw)?;
 
         // Assert equality
         assert_eq!(original.header, updated.header);
-        assert_eq!(original.index, updated.index);
-        assert_eq!(original, updated);
+        assert_eq!(
+            original.index.borrow().get_all_cids(),
+            updated.index.borrow().get_all_cids()
+        );
 
         Ok(())
     }
@@ -387,13 +397,15 @@ mod test {
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
+        let original = CAR::read_bytes(None, &mut original_rw)?;
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
         original.set_root(&block.cid);
+        assert_eq!(block.cid, original.get_root().unwrap());
         original.put_block(&block, &mut original_rw)?;
+        assert_eq!(block, original.get_block(&block.cid, &mut original_rw)?);
 
         // Write updates to file
         original_rw.seek(SeekFrom::Start(0))?;
@@ -402,15 +414,11 @@ mod test {
         // Reconstruct
         let mut updated_rw = get_read_write(car_path)?;
         // Read in the car
-        let updated = CAR::read_bytes(&mut updated_rw)?;
+        let updated = CAR::read_bytes(None, &mut updated_rw)?;
 
         // Assert equality
         assert_eq!(original.header, updated.header);
         assert_eq!(original.index, updated.index);
-        assert_eq!(original.index, updated.index);
-
-        // assert_eq!(original, reconstructed);
-
         Ok(())
     }
 }

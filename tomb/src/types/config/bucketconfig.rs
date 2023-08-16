@@ -120,3 +120,126 @@ impl BucketConfig {
         load_history(wrapping_key, &self.metadata).await
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::{
+        fs::{create_dir_all, remove_dir_all},
+        path::Path,
+        rc::Rc,
+    };
+
+    use crate::types::config::globalconfig::GlobalConfig;
+    use anyhow::Result;
+    use chrono::Utc;
+    use rand::thread_rng;
+    use serial_test::serial;
+    use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
+    use tomb_crypt::prelude::WrappingPrivateKey;
+    use wnfs::{
+        namefilter::Namefilter,
+        private::{PrivateDirectory, PrivateForest},
+    };
+
+    #[tokio::test]
+    #[serial]
+    async fn set_get_all() -> Result<()> {
+        let test_name = "config_set_get_all";
+        let origin = &Path::new("test").join(test_name);
+        if origin.exists() {
+            remove_dir_all(origin)?;
+        }
+        create_dir_all(origin)?;
+
+        let mut global = GlobalConfig::from_disk().await?;
+        let mut config = global.find_or_create_config(origin)?;
+        config.content.add_delta()?;
+        let mut manager = Manager::default();
+        let wrapping_key = global.load_key().await?;
+        let public_key = wrapping_key.public_key()?;
+        manager.insert(&public_key).await?;
+        let manager_cid = store_manager(&manager, &config.metadata, &config.content).await?;
+
+        let rng = &mut thread_rng();
+
+        let mut root_dir = Rc::new(PrivateDirectory::new(
+            Namefilter::default(),
+            Utc::now(),
+            rng,
+        ));
+
+        let mut metadata_forest = Rc::new(PrivateForest::new());
+        let mut content_forest = Rc::new(PrivateForest::new());
+
+        let file = root_dir
+            .open_file_mut(
+                &["cat.png".to_string()],
+                true,
+                Utc::now(),
+                &mut metadata_forest,
+                &config.metadata,
+                rng,
+            )
+            .await?;
+        let file_content = "this is a cat image".as_bytes();
+        file.set_content(
+            Utc::now(),
+            file_content,
+            &mut content_forest,
+            &config.content,
+            rng,
+        )
+        .await?;
+
+        config
+            .set_all(
+                &mut metadata_forest,
+                &mut content_forest,
+                &mut root_dir,
+                &mut manager,
+                &manager_cid,
+            )
+            .await?;
+
+        // Get structs
+        let (new_metadata_forest, new_content_forest, new_root_dir, new_manager, _) =
+            config.get_all(&wrapping_key).await?;
+
+        assert_eq!(
+            metadata_forest
+                .diff(&new_metadata_forest, &config.metadata)
+                .await?
+                .len(),
+            0
+        );
+        assert_eq!(
+            content_forest
+                .diff(&new_content_forest, &config.content)
+                .await?
+                .len(),
+            0
+        );
+
+        assert_eq!(root_dir, new_root_dir);
+
+        assert_eq!(manager, new_manager);
+
+        let new_file = root_dir
+            .open_file_mut(
+                &["cat.png".to_string()],
+                true,
+                Utc::now(),
+                &mut metadata_forest,
+                &config.metadata,
+                rng,
+            )
+            .await?;
+        let new_file_content = new_file
+            .get_content(&content_forest, &config.content)
+            .await?;
+
+        assert_eq!(file_content, new_file_content);
+
+        Ok(())
+    }
+}

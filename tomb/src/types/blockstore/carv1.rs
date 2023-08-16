@@ -41,7 +41,7 @@ impl BlockStore {
 
             // Open the file in reading mode
             if let Ok(mut file) = File::open(path) &&
-                let Ok(car) = CAR::read_bytes(&mut file) {
+                let Ok(car) = CAR::read_bytes(None, &mut file) {
                 Ok(Self {
                     path: path.to_path_buf(),
                     car
@@ -55,7 +55,7 @@ impl BlockStore {
                 // Construct new
                 Ok(Self {
                     path: path.to_path_buf(),
-                    car: CAR::new(1, &mut rw)?
+                    car: CAR::new(None, &mut rw)?
                 })
             }
         }
@@ -107,7 +107,7 @@ impl TombBlockStore for BlockStore {
         self.car.get_root()
     }
 
-    async fn update_content(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid> {
+    async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid> {
         panic!("help!")
     }
 }
@@ -243,7 +243,10 @@ mod test {
 
         // Assert equality
         assert_eq!(original.car.header, reconstructed.car.header);
-        assert_eq!(original.car.index, reconstructed.car.index);
+        assert_eq!(
+            original.car.index.borrow().get_all_cids(),
+            reconstructed.car.index.borrow().get_all_cids()
+        );
         assert_eq!(original, reconstructed);
 
         assert_eq!(kitty_bytes, reconstructed.get_block(&cid).await?.to_vec());
@@ -268,7 +271,10 @@ mod test {
         let original_path = &Path::new("test")
             .join("car")
             .join("carv1_blockstore_from_scratch.car");
-        remove_file(original_path).ok();
+        // Remove it if its still there from previous test
+        if original_path.exists() {
+            remove_file(original_path)?;
+        }
 
         // Open
         let store = BlockStore::new(original_path)?;

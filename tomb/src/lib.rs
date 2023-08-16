@@ -11,9 +11,6 @@
 #![deny(unreachable_pub)]
 
 /* General Project Chores */
-// TODO (xBalbinus & thea-exe): Handle panics appropriately/get rid of all the unwraps
-// TODO (xBalbinus & thea-exe): get rid of all the clones and stop copying around pathbufs
-
 /* Bugs */
 // TODO (amiller68 and laudiacay): Pipeline unpacks single file input to a empty directory with the same name as the file, instead of the file
 

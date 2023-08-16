@@ -1,6 +1,9 @@
-use crate::types::blockstore::car::{
-    error::CARError,
-    varint::{encode_varint_u64, read_varint_u64},
+use crate::types::{
+    blockstore::car::{
+        error::CARError,
+        varint::{encode_varint_u64, read_varint_u64},
+    },
+    streamable::Streamable,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -25,35 +28,11 @@ pub struct Header {
 }
 
 impl Header {
-    /// Write a Header to a byte stream
-    pub fn write_bytes<W: Write>(&self, mut w: W) -> Result<()> {
-        // Represent as DAGCBOR IPLD
-        let ipld_buf = self.to_ipld_bytes()?;
-        // Tally bytes in this DAGCBOR, encode as u64
-        let varint_buf = encode_varint_u64(ipld_buf.len() as u64);
-        // Write the varint, then the IPLD
-        w.write_all(&varint_buf)?;
-        w.write_all(&ipld_buf)?;
-        Ok(())
-    }
-
-    /// Read a Header from a byte stream
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
-        // Determine the length of the remaining IPLD bytes
-        let ipld_len = read_varint_u64(&mut r)?;
-        // Allocate that space
-        let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
-        // Read that IPLD in as DAGCBOR bytes
-        r.read_exact(&mut ipld_buf)?;
-        // Reconstruct this object from those IPLD bytes
-        Self::from_ipld_bytes(&ipld_buf)
-    }
-
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
     pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self> {
-        let ipld: Ipld = dagcbor::decode(bytes)?;
         // If the IPLD is a true map and the correct keys exist within it
-        if let Ipld::Map(map) = ipld &&
+        if let Ok(ipld) = dagcbor::decode(bytes) &&
+            let Ipld::Map(map) = ipld &&
             let Some(Ipld::Integer(int)) = map.get("version") &&
             let Some(Ipld::List(roots_ipld)) = map.get("roots") {
             // Helper function for interpreting a given Cid as a Link
@@ -61,7 +40,7 @@ impl Header {
                 if let Ipld::Link(cid) = ipld {
                     Ok(*cid)
                 } else {
-                    Err(CARError::MalformedV1Header)
+                    Err(CARError::V1Header)
                 }
             }
             // Interpret all of the roots as CIDs
@@ -73,7 +52,7 @@ impl Header {
                 roots: RefCell::new(roots),
             })
         } else {
-            Err(CARError::MalformedV1Header.into())
+            Err(CARError::V1Header.into())
         }
     }
 
@@ -105,12 +84,41 @@ impl Header {
     }
 }
 
+impl Streamable for Header {
+    /// Write a Header to a byte stream
+    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<()> {
+        // Represent as DAGCBOR IPLD
+        let ipld_buf = self.to_ipld_bytes()?;
+        // Tally bytes in this DAGCBOR, encode as u64
+        let varint_buf = encode_varint_u64(ipld_buf.len() as u64);
+        // Write the varint, then the IPLD
+        w.write_all(&varint_buf)?;
+        w.write_all(&ipld_buf)?;
+        Ok(())
+    }
+
+    /// Read a Header from a byte stream
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
+        // Determine the length of the remaining IPLD bytes
+        let ipld_len = read_varint_u64(r)?;
+        // Allocate that space
+        let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
+        // Read that IPLD in as DAGCBOR bytes
+        r.read_exact(&mut ipld_buf)?;
+        // Reconstruct this object from those IPLD bytes
+        Self::from_ipld_bytes(&ipld_buf)
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::{streamable_tests, types::streamable::Streamable};
+
     use super::Header;
     use anyhow::Result;
     use serial_test::serial;
     use std::{
+        cell::RefCell,
         fs::File,
         io::{BufReader, Cursor},
         path::Path,
@@ -118,23 +126,6 @@ mod test {
         vec,
     };
     use wnfs::libipld::Cid;
-
-    #[test]
-    fn read_write_bytes() -> Result<()> {
-        // Construct a Header
-        let header = Header::default(1);
-        // Write the header into a buffer
-        let mut header_bytes: Vec<u8> = Vec::new();
-        header.write_bytes(&mut header_bytes)?;
-
-        // Reconstruct the header from this buffer
-        let header_cursor = Cursor::new(header_bytes);
-        let new_header = Header::read_bytes(header_cursor)?;
-
-        // Assert equality
-        assert_eq!(header, new_header);
-        Ok(())
-    }
 
     #[test]
     #[serial]
@@ -158,24 +149,29 @@ mod test {
     }
 
     #[test]
-    fn modify_roots() -> Result<()> {
-        // Construct a Header
-        let header = Header::default(1);
-        {
-            let mut roots = header.roots.borrow_mut();
-            roots.push(Cid::default());
-        }
+    fn output() -> Result<()> {
+        let cid1 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
+        let cid2 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
 
-        // Write the header into a buffer
-        let mut header_bytes: Vec<u8> = Vec::new();
-        header.write_bytes(&mut header_bytes)?;
+        let header = Header {
+            version: 1,
+            roots: RefCell::new(vec![cid1, cid2]),
+        };
 
-        // Reconstruct the header from this buffer
-        let header_cursor = Cursor::new(header_bytes);
-        let new_header = Header::read_bytes(header_cursor)?;
-
-        // Assert equality
-        assert_eq!(header, new_header);
+        let mut bytes = Cursor::new(<Vec<u8>>::new());
+        header.write_bytes(&mut bytes)?;
         Ok(())
+    }
+
+    streamable_tests! {
+        Header:
+        v1header: {
+            let header = Header::default(1);
+            {
+                let mut roots = header.roots.borrow_mut();
+                roots.push(Cid::default());
+            }
+            header
+        },
     }
 }

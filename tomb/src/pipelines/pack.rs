@@ -10,10 +10,7 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::{
-    types::keys::manager::Manager,
-    utils::serialize::{store_manager, update_manager},
-};
+use tomb_common::{types::keys::manager::Manager, utils::serialize::store_manager};
 use tomb_crypt::prelude::WrappingPrivateKey;
 use wnfs::{
     libipld::Cid,
@@ -93,7 +90,8 @@ pub async fn pipeline(
         manager_cid = if manager_cid == Cid::default() {
             store_manager(&manager, &config.metadata, &config.content).await?
         } else {
-            update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
+            store_manager(&manager, &config.metadata, &config.content).await?
+            // update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
         };
 
         // Process all of the PackPipelinePlans
