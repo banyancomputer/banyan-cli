@@ -7,7 +7,8 @@ pub mod account;
 pub mod bucket;
 pub mod bucket_key;
 pub mod device_api_key;
-// pub mod bucket_metadata;
+pub mod bucket_metadata;
+pub mod storage_ticket;
 
 // TODO: bubble up errors from the client
 

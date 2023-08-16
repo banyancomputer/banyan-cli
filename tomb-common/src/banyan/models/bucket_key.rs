@@ -5,8 +5,6 @@ use crate::banyan::api::buckets::keys::{create::*, delete::*, read::*};
 use crate::banyan::client::Client;
 use crate::banyan::models::ModelError;
 
-use super::bucket;
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BucketKey {
     pub id: uuid::Uuid,
@@ -162,8 +160,6 @@ mod test {
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
         let _ = BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client).await.unwrap();
     }
-
-
 }
 
 

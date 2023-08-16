@@ -13,3 +13,10 @@ pub trait ApiRequest {
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder;
     fn requires_authentication(&self) -> bool;
 }
+
+pub trait StreamableApiRequest {
+    type ErrorType: DeserializeOwned + Error + Send + Sync + 'static;
+
+    fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder;
+    fn requires_authentication(&self) -> bool;
+}

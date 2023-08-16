@@ -79,12 +79,19 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn create_read() -> Result<(), ModelError> {
+    async fn who_am_i() -> Result<(), ModelError> {
         let mut client = authenticated_client().await;
         let subject = client.subject().unwrap();
         let read = Account::who_am_i(&mut client).await?;
         let subject_uuid = uuid::Uuid::parse_str(&subject).unwrap();
         assert_eq!(subject_uuid, read.id);
         Ok(())
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn who_am_i_unauthenticated() {
+        let mut client = Client::new("http://localhost:3001").unwrap();
+        let _ = Account::who_am_i(&mut client).await.unwrap();
     }
 }

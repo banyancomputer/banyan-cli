@@ -1,5 +1,7 @@
-use super::{api::ApiRequest, credentials::Credentials, error::ClientError};
+use super::{api::{ApiRequest, StreamableApiRequest}, credentials::Credentials, error::ClientError};
 use anyhow::Result;
+use bytes::Bytes;
+use futures_core::stream::Stream;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Url,
@@ -137,6 +139,36 @@ impl Client {
                 .json::<T::ResponseType>()
                 .await
                 .map_err(ClientError::bad_format)
+        } else {
+            let err = response
+                .json::<T::ErrorType>()
+                .await
+                .map_err(ClientError::bad_format)?;
+
+            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            Err(ClientError::from(err))
+        }
+    }
+
+    /// Stream a response from the API
+    pub async fn stream<T: StreamableApiRequest> (
+        &mut self,
+        request: T,
+    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ClientError> {
+        let add_authentication = request.requires_authentication();
+        let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
+        if add_authentication {
+            let bearer_token = self.bearer_token().await?;
+            request_builder = request_builder.bearer_auth(bearer_token);
+        }
+
+        let response = request_builder
+            .send()
+            .await
+            .map_err(ClientError::http_error)?;
+
+        if response.status().is_success() {
+            Ok(response.bytes_stream())
         } else {
             let err = response
                 .json::<T::ErrorType>()
