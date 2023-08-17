@@ -78,7 +78,7 @@ impl Bucket {
 
     /// Get the account associated with the current credentials. You do not need to pass an ID for this request.
     pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ClientError> {
-        let response: ReadBucketResponse = client.call(ReadBucket { id: id.clone() }).await?;
+        let response: ReadBucketResponse = client.call(ReadBucket { id }).await?;
         Ok(Self {
             id: response.id,
             name: response.name,
@@ -87,18 +87,14 @@ impl Bucket {
     }
 
     /// Delete a bucket
-    pub async fn delete(self: Self, _client: &mut Client) -> Result<String, ClientError> {
-        let response: DeleteBucketResponse = _client
-            .call(DeleteBucket {
-                id: self.id.clone(),
-            })
-            .await?;
+    pub async fn delete(self, _client: &mut Client) -> Result<String, ClientError> {
+        let response: DeleteBucketResponse = _client.call(DeleteBucket { id: self.id }).await?;
         Ok(response.id.to_string())
     }
 
     /// Delete a bucket by id
     pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<String, ClientError> {
-        let response: DeleteBucketResponse = client.call(DeleteBucket { id: id.clone() }).await?;
+        let response: DeleteBucketResponse = client.call(DeleteBucket { id }).await?;
         Ok(response.id.to_string())
     }
 }

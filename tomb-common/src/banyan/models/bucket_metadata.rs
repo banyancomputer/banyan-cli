@@ -2,14 +2,15 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "api")]
 use {
+    crate::banyan::{
+        api::buckets::metadata::{pull::*, push::*, read::*},
+        client::Client,
+        error::ClientError,
+        models::storage_ticket::StorageTicket,
+    },
     bytes::Bytes,
     futures_core::stream::Stream,
-    crate::banyan::{
-    api::buckets::metadata::{pull::*, push::*, read::*},
-    client::Client,
-    error::ClientError,
-    models::storage_ticket::StorageTicket,
-}};
+};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -63,7 +64,7 @@ impl BucketMetadata {
     {
         let response = client
             .call(PushBucketMetadata {
-                bucket_id: bucket_id.clone(),
+                bucket_id,
                 root_cid: root_cid.clone(),
                 metadata_cid: metadata_cid.clone(),
                 data_size,
@@ -93,8 +94,8 @@ impl BucketMetadata {
     ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ClientError> {
         client
             .stream(PullBucketMetadata {
-                bucket_id: self.bucket_id.clone(),
-                id: self.id.clone(),
+                bucket_id: self.bucket_id,
+                id: self.id,
             })
             .await
     }
@@ -108,7 +109,7 @@ impl BucketMetadata {
         let response = client.call(ReadBucketMetadata { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
-            bucket_id: bucket_id,
+            bucket_id,
             root_cid: response.root_cid,
             metadata_cid: response.metadata_cid,
             data_size: response.data_size as usize,

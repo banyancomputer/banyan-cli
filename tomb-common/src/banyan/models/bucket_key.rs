@@ -71,7 +71,7 @@ impl BucketKey {
     }
 
     /// Delete a bucket key
-    pub async fn delete(self: Self, client: &mut Client) -> Result<String, ClientError> {
+    pub async fn delete(self, client: &mut Client) -> Result<String, ClientError> {
         let response = client
             .call(DeleteBucketKey {
                 bucket_id: self.bucket_id,

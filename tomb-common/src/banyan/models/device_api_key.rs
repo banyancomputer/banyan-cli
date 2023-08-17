@@ -49,8 +49,7 @@ impl DeviceApiKey {
 
     /// Get the account associated with the current credentials. You do not need to pass an ID for this request.
     pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ClientError> {
-        let response: ReadDeviceApiKeyResponse =
-            client.call(ReadDeviceApiKey { id: id.clone() }).await?;
+        let response: ReadDeviceApiKeyResponse = client.call(ReadDeviceApiKey { id }).await?;
         Ok(Self {
             id: response.id,
             fingerprint: response.fingerprint,
@@ -59,7 +58,7 @@ impl DeviceApiKey {
     }
 
     /// Delete the device api key from the account
-    pub async fn delete(self: Self, _client: &mut Client) -> Result<String, ClientError> {
+    pub async fn delete(self, _client: &mut Client) -> Result<String, ClientError> {
         let response: DeleteDeviceApiKeyResponse =
             _client.call(DeleteDeviceApiKey { id: self.id }).await?;
         Ok(response.id.to_string())
@@ -67,8 +66,7 @@ impl DeviceApiKey {
 
     /// Delete the device api key from the account by id
     pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse =
-            client.call(DeleteDeviceApiKey { id: id.clone() }).await?;
+        let response: DeleteDeviceApiKeyResponse = client.call(DeleteDeviceApiKey { id }).await?;
         Ok(response.id.to_string())
     }
 }
