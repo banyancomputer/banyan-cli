@@ -41,20 +41,19 @@ mod test {
         let test_name = "init";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
-        // // Deinitialize for user
-        // configure::deinit(origin).await?;
-        // // Assert that packing fails
-        // assert!(pack::pipeline(origin, true).await.is_err());
-        // // Initialize for this user
-        // configure::init(origin).await?;
-        // // Assert that a config exists for this bucket now
-        // assert!(GlobalConfig::from_disk()
-        //     .await?
-        //     .get_bucket(origin)
-        //     .is_some());
-        // // Teardown
-        // test_teardown(test_name).await
-        Ok(())
+        // Deinitialize for user
+        configure::deinit(origin).await?;
+        // Assert that packing fails
+        assert!(pack::pipeline(origin, true).await.is_err());
+        // Initialize for this user
+        configure::init(origin).await?;
+        // Assert that a config exists for this bucket now
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
+        // Teardown
+        test_teardown(test_name).await
     }
 
     #[tokio::test]
