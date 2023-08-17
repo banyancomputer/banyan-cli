@@ -11,7 +11,7 @@ mod test {
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;
-    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
+    use tomb_crypt::prelude::*;
     use wnfs::private::{AesKey, TemporalKey};
 
     fn random_temporal_key() -> TemporalKey {

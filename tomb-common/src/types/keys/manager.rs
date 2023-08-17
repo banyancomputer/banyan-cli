@@ -1,7 +1,7 @@
 use super::mapper::Mapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
+use tomb_crypt::prelude::*;
 use wnfs::private::TemporalKey;
 
 /// Simply a Map from RSA Public Key fingerprints to the encrypted Temporal Keys they created
