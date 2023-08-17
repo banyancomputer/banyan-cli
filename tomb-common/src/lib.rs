@@ -10,10 +10,10 @@
 
 /// Banyan types and client
 pub mod banyan;
-/// Car types and implementations
-pub mod car;
 /// BlockStore implementations
 pub mod blockstore;
+/// Car types and implementations
+pub mod car;
 /// Our encyption key types and helpers
 pub mod keys;
 /// Utilities

@@ -13,14 +13,12 @@ use std::{
 use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
-use crate::traits::streamable::Streamable;
-use crate::{
-    car::{
-        v1::block::Block,
-        error::CARError,
-        varint::{encode_varint_u128, read_varint_u128},
-    },
+use crate::car::{
+    error::CARError,
+    v1::block::Block,
+    varint::{encode_varint_u128, read_varint_u128},
 };
+use crate::traits::streamable::Streamable;
 use indexsorted::Bucket;
 
 /// The type of Index requires a format, and contains both a codec and a Bucket vec

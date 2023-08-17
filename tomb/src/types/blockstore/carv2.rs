@@ -9,15 +9,12 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
+    blockstore::TombBlockStore,
     car::{
-                Streamable,
-                v1::block::Block,
-                v2::{index::indexable::Indexable, CarV2},
-            },
-        blockstore::{
-            
-            TombBlockStore,
-        },
+        v1::block::Block,
+        v2::{index::indexable::Indexable, CarV2},
+        Streamable,
+    },
     utils::io::{get_read, get_read_write, get_write},
 };
 use wnfs::{

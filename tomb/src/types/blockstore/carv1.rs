@@ -8,10 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
+    blockstore::TombBlockStore,
     car::v1::{block::Block, CarV1},
-    blockstore::{
-        TombBlockStore,
-    },
     utils::io::{get_read, get_read_write, get_write},
 };
 use wnfs::{

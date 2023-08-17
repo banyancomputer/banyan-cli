@@ -5,10 +5,10 @@ pub use wnfs::common::blockstore::BlockStore as WnfsBlockStore;
 
 /// Disk based BlockStore implementation
 pub mod disk;
+/// Memory based BlockStore implementation
+pub mod memory;
 /// Network based BlockStore implementation
 pub mod network;
-/// Memory based BlockStore implementation 
-pub mod memory;
 
 #[cfg(test)]
 mod test {

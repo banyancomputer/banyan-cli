@@ -6,10 +6,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tomb_common::{
-    blockstore::TombBlockStore, keys::manager::Manager,
-    utils::serialize::*,
-};
+use tomb_common::{blockstore::TombBlockStore, keys::manager::Manager, utils::serialize::*};
 use tomb_crypt::prelude::*;
 use wnfs::{
     libipld::Cid,

@@ -1,10 +1,8 @@
-use crate::traits::streamable::Streamable;
-use crate::{
-    car::{
-        error::CARError,
-        varint::{encode_varint_u64, read_varint_u64},
-    },
+use crate::car::{
+    error::CARError,
+    varint::{encode_varint_u64, read_varint_u64},
 };
+use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{

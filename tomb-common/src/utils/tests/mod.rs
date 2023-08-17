@@ -12,8 +12,8 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::traits::blockstore::TombBlockStore;
 use crate::blockstore::memory::MemoryBlockStore;
+use crate::traits::blockstore::TombBlockStore;
 
 /// Macro for testing streamable implementations
 pub mod streamable;
@@ -83,12 +83,7 @@ pub async fn setup_memory_test(
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
-    setup_test(
-        test_name,
-        MemoryBlockStore::new(),
-        MemoryBlockStore::new(),
-    )
-    .await
+    setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data

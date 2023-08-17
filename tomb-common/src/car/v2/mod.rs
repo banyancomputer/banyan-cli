@@ -7,10 +7,8 @@ pub mod index;
 
 // Code
 use self::{header::Header, index::indexable::Indexable};
+use crate::car::v1::{block::Block, CarV1};
 use crate::traits::streamable::Streamable;
-use crate::{
-    car::v1::{block::Block, CarV1},
-};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -215,8 +213,8 @@ mod test {
 
     use crate::{
         car::{v1::block::Block, v2::CarV2},
-        utils::tests::car_test_setup,
         utils::io::get_read_write,
+        utils::tests::car_test_setup,
     };
 
     #[test]

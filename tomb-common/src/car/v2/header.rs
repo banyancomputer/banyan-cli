@@ -1,10 +1,8 @@
+use crate::car::varint::{read_leu128, read_leu64};
+use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
-use crate::traits::streamable::Streamable;
-use crate::{
-    car::varint::{read_leu128, read_leu64},
-};
 
 pub const HEADER_SIZE: usize = 40;
 

@@ -1,3 +1,5 @@
+use crate::car::{error::CARError, v2::index::indexable::Indexable, varint::*};
+use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -5,10 +7,6 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
 };
 use wnfs::libipld::Cid;
-use crate::traits::streamable::Streamable;
-use crate::{
-    car::{v2::index::indexable::Indexable, error::CARError, varint::*},
-};
 
 /// Buckets contain a list of values
 /// | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...

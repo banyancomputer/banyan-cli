@@ -1,7 +1,5 @@
+use crate::car::varint::{encode_varint_u128, read_varint_u128};
 use crate::traits::streamable::Streamable;
-use crate::{
-    car::varint::{encode_varint_u128, read_varint_u128},
-};
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
 use wnfs::libipld::{

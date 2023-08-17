@@ -1,3 +1,4 @@
+use crate::blockstore::{TombBlockStore, WnfsBlockStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -6,7 +7,6 @@ use wnfs::{
     common::MemoryBlockStore as WnfsMemoryBlockStore,
     libipld::{Cid, IpldCodec},
 };
-use crate::blockstore::{TombBlockStore, WnfsBlockStore};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 /// Memory implementation of a TombBlockStore
