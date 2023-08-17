@@ -63,6 +63,7 @@ jobs:
           args: --workspace --lib --bins --tests --benches
         env:
           CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
 
       - uses: actions-rs/cargo@v1
@@ -72,6 +73,7 @@ jobs:
           args: --workspace --doc
         env:
           CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
 
       - uses: actions-rs/grcov@v0.1
