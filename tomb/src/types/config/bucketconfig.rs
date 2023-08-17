@@ -33,7 +33,7 @@ pub struct BucketConfig {
     /// BlockStore for storing metadata only
     pub metadata: carv2::BlockStore,
     /// BlockStore for storing metadata and file content
-    pub content: carv2::BlockStore,
+    pub content: multi::BlockStore,
 }
 
 impl BucketConfig {
@@ -53,7 +53,7 @@ impl BucketConfig {
         create_dir_all(&generated)?;
 
         let metadata = carv2::BlockStore::new(&generated.join("meta.car"))?;
-        let content = carv2::BlockStore::new(&generated.join("content.car"))?;
+        let content = multi::BlockStore::new(&generated.join("content"))?;
 
         // Start with default roots such that we never have to shift blocks
         metadata.set_root(&Cid::default());
@@ -153,7 +153,7 @@ mod test {
 
         let mut global = GlobalConfig::from_disk().await?;
         let mut config = global.find_or_create_config(origin)?;
-        // config.content.add_delta()?;
+        config.content.add_delta()?;
         let mut manager = Manager::default();
         let wrapping_key = global.load_key().await?;
         let public_key = wrapping_key.public_key()?;

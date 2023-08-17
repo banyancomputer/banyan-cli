@@ -42,46 +42,18 @@ jobs:
           command: clippy
           args: --workspace --all-targets --all-features --tests -- -D warnings
 
-  tests2:
-    name: cargo test v2
+  tests:
+    name: project tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo test --all-features
 
-  tests:
+  docs:
+    name: docs tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-
-      - uses: actions-rs/cargo@v1
-        name: Run all workspace tests
-        with:
-          command: test
-          args: --workspace --lib --bins --tests --benches
-        env:
-          CARGO_INCREMENTAL: 0
-          RUST_BACKTRACE: 1
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-
-      - uses: actions-rs/cargo@v1
-        name: Run all doc tests
-        with:
-          command: test
-          args: --workspace --doc
-        env:
-          CARGO_INCREMENTAL: 0
-          RUST_BACKTRACE: 1
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-
-      - uses: actions-rs/grcov@v0.1
-        id: coverage
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo test --all-features --doc

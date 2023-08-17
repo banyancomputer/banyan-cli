@@ -88,9 +88,9 @@ pub async fn pipeline(
         }
 
         // Create a new delta for this packing operation
-        // println!("adding delta :3");
-        // config.content.add_delta()?;
-        // println!("added delta :3");
+        println!("adding delta :3");
+        config.content.add_delta()?;
+        println!("added delta :3");
         // Insert the wrapping key if it is not already there
         manager.insert(&wrapping_key.public_key().expect("failed to create public key")).await?;
         // Put the keys in the BlockStores before any other data
