@@ -43,14 +43,14 @@ pub fn grouper(
             // Construct a PathBuf version of the path of this file
             let file_path_buf = file.path.to_path_buf();
             // Construct a canonicalized version of the path
-            let canonicalized_path = file_path_buf.canonicalize().unwrap();
+            let canonicalized_path = file_path_buf.canonicalize().expect("failed to canonicalize path");
             // Insert that path into the list of seen paths
             seen_files.insert(canonicalized_path.clone());
 
             // Construct the original root and relative path
             let original_root = &group_config.base_dir;
             // Construct the original location relative to the root
-            let original_location = file.path.strip_prefix(original_root).unwrap().to_path_buf();
+            let original_location = file.path.strip_prefix(original_root).expect("failed to strip prefix").to_path_buf();
 
             // Construct the metadata
             let spider_metadata = Arc::new(SpiderMetadata {
@@ -58,7 +58,7 @@ pub fn grouper(
                 original_location,
                 canonicalized_path,
                 /// This is the metadata of the original file
-                original_metadata: fs::metadata(file_path_buf).unwrap(),
+                original_metadata: fs::metadata(file_path_buf).expect("failed to obtain metadata for path"),
             });
 
             // Append the metadata
@@ -74,7 +74,7 @@ pub fn grouper(
 /// This is used to make the main function more readable, as well as to ensure that
 /// the GroupConfig options are always set correctly.
 fn create_group_config(input_dir: &Path, follow_links: bool) -> GroupConfig {
-    let base_dir = input_dir.canonicalize().unwrap();
+    let base_dir = input_dir.canonicalize().expect("failed to canonicalize path");
 
     // we checked over these options manually and sorted them
     GroupConfig {
@@ -111,7 +111,7 @@ fn create_group_config(input_dir: &Path, follow_links: bool) -> GroupConfig {
 
         // we are using this option it is load bearing
         threads: vec![(
-            "default".to_string().parse().unwrap(),
+            "default".to_string().parse().expect("failed to parse as OsString"),
             fclones::config::Parallelism {
                 random: 1,
                 sequential: 1,

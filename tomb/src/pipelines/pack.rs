@@ -85,7 +85,7 @@ pub async fn pipeline(
         // Create a new delta for this packing operation
         config.content.add_delta()?;
         // Insert the wrapping key if it is not already there
-        manager.insert(&wrapping_key.public_key().unwrap()).await?;
+        manager.insert(&wrapping_key.public_key().expect("failed to create public key")).await?;
         // Put the keys in the BlockStores before any other data
         manager_cid = if manager_cid == Cid::default() {
             store_manager(&manager, &config.metadata, &config.content).await?

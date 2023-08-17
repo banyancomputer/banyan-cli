@@ -62,18 +62,18 @@ pub async fn spider(
         // If this is a symlink
         else if spidered.original_metadata.is_symlink() {
             // The canon path, as a String
-            let canon_path = origin_data.canonicalized_path.to_str().unwrap();
+            let canon_path = origin_data.canonicalized_path.to_str().expect("failed to represent path as string");
             // The suffix of the canon path we'd like to drop
-            let canon_ignored_suffix = origin_data.original_location.to_str().unwrap();
+            let canon_ignored_suffix = origin_data.original_location.to_str().expect("failed to represent path as string");
             // The new canon path has the suffix removed
-            let canon_path = canon_path.strip_suffix(canon_ignored_suffix).unwrap();
+            let canon_path = canon_path.strip_suffix(canon_ignored_suffix).expect("failed to strip suffix");
 
             // A portion of this canon path will be prefixes of the symlink target that need to be removed
             // Transform the canon path into a set of prefixes
             let prefixes: Vec<String> = canon_path.split('/').map(|x| format!("{}/", x)).collect();
 
             // Determine where this symlink points to, an operation that should never fail
-            let mut symlink_target = fs::read_link(&spidered.canonicalized_path).unwrap();
+            let mut symlink_target = fs::read_link(&spidered.canonicalized_path).expect("failed to read symlink");
 
             // For each real prefix (first and last are empty)
             for prefix in &prefixes[1..prefixes.len() - 1] {

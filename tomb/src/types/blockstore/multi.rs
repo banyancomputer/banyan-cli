@@ -44,7 +44,7 @@ impl BlockStore {
             for dir_entry in fs::read_dir(dir)? {
                 // If the dir entry is valid, the file is a .car, and a BlockStore can be read from it
                 if let Ok(entry) = dir_entry &&
-                   entry.file_name().to_str().unwrap().contains(".car") &&
+                   entry.file_name().to_str().expect("no file name str").contains(".car") &&
                    let Ok(car) = carv2::BlockStore::new(&entry.path()) {
                     // Push this to the vec
                     deltas.push(car);
@@ -245,6 +245,6 @@ mod test {
 
     serial_tests! {
         BlockStore:
-        multifileblockstore: &example().unwrap(),
+        multifileblockstore: &example().expect("failed to create blockstore example"),
     }
 }

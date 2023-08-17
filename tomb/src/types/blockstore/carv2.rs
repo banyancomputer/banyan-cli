@@ -238,7 +238,7 @@ mod test {
         let reconstructed = BlockStore::new(original_path)?;
 
         // Ensure content is still there
-        assert_eq!(kitty_cid, original.get_root().unwrap());
+        assert_eq!(kitty_cid, original.get_root().expect("no root in CAR"));
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
 
         // Assert equality

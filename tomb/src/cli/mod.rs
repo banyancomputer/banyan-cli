@@ -223,12 +223,12 @@ mod test {
         // Run pack and assert success
         run(cmd_pack(origin)).await?;
         // Create unpacked dir
-        let unpacked = &origin.parent().unwrap().join("unpacked");
+        let unpacked = &origin.parent().expect("origin has no parent").join("unpacked");
         create_dir(unpacked).ok();
         // Run unpack and assert success
         run(cmd_unpack(origin, unpacked)).await?;
         // Assert equality
-        assert_paths(origin, unpacked).unwrap();
+        assert_paths(origin, unpacked).expect("unpacked dir does not match origin");
         // Teardown test
         test_teardown(test_name).await
     }

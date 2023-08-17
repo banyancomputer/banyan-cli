@@ -177,7 +177,7 @@ impl CAR {
     pub(crate) fn default(version: u64) -> Self {
         let header = Header::default(version);
         let mut buf = Cursor::new(<Vec<u8>>::new());
-        header.write_bytes(&mut buf).unwrap();
+        header.write_bytes(&mut buf).expect("failed to write header as bytes");
 
         // Header length
         let hlen = buf.stream_len().expect("cant get stream len in header");
@@ -403,7 +403,7 @@ mod test {
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
         original.set_root(&block.cid);
-        assert_eq!(block.cid, original.get_root().unwrap());
+        assert_eq!(block.cid, original.get_root().expect("failed to get root"));
         original.put_block(&block, &mut original_rw)?;
         assert_eq!(block, original.get_block(&block.cid, &mut original_rw)?);
 

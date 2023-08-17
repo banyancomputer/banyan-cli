@@ -259,7 +259,7 @@ mod test {
                 .borrow()
                 .clone()
                 .last()
-                .unwrap()
+                .expect("there is no root in this CAR")
         );
 
         Ok(())

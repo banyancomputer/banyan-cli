@@ -82,7 +82,7 @@ pub async fn process_plans(
         match direct_plan {
             PackPipelinePlan::FileGroup(metadatas) => {
                 // Grab the metadata for the first occurrence of this file
-                let first = &metadatas.get(0).unwrap().original_location;
+                let first = &metadatas.first().expect("no metadatas present").original_location;
                 // Turn the relative path into a vector of segments
                 let path_segments = &path_to_segments(first)?;
                 // Grab the current time
@@ -143,8 +143,9 @@ pub async fn process_plans(
                     .get_node(&path_segments, true, metadata_forest, metadata)
                     .await;
 
+                if let Ok(node) = result && node.is_some() {}
                 // If there was an error searching for the Node or
-                if result.is_err() || result.as_ref().unwrap().is_none() {
+                else {
                     // Create the subdirectory
                     root_dir
                         .mkdir(
@@ -157,7 +158,6 @@ pub async fn process_plans(
                         )
                         .await?;
                 }
-                // We don't need an else here, directories don't actually contain any data
             }
             PackPipelinePlan::Symlink(_, _) => panic!("this is unreachable code"),
         }
@@ -176,7 +176,7 @@ pub async fn process_plans(
                 // Link the file or folder
                 root_dir
                     .write_symlink(
-                        symlink_target.to_str().unwrap().to_string(),
+                        symlink_target.to_str().expect("failed to represent as string").to_string(),
                         &symlink_segments,
                         true,
                         Utc::now(),

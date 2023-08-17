@@ -57,7 +57,7 @@ pub fn compute_directory_size(path: &Path) -> Result<usize> {
     // Interpret the output as a string
     let output_str = String::from_utf8(output.stdout)?;
     // Grab all text before the tab
-    let size_str = output_str.split('\t').next().unwrap();
+    let size_str = output_str.split('\t').next().expect("failed to extract size from output");
     // Parse that text as a number
     let size = size_str.parse::<usize>()?;
     // Ok status with size
