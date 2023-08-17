@@ -195,7 +195,7 @@ mod test {
             .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
             .await?;
         store.set_root(&kitty_cid);
-        assert_eq!(kitty_cid, store.get_root().unwrap());
+        assert_eq!(kitty_cid, store.get_root().expect("no root in CAR"));
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
         Ok(())
     }

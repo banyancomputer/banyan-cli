@@ -45,12 +45,17 @@ impl GlobalConfig {
     /// Initialize from a reader
     #[async_recursion(?Send)]
     pub async fn from_disk() -> Result<Self> {
+        println!("doing the from-disk Global config!");
         if let Ok(file) = Self::get_read() &&
            let Ok(config) = serde_json::from_reader(file) {
+            println!("found an existing config, returning it");
                 Ok(config)
         } else {
+            println!("creating a default to serialize");
             Self::default().await?.to_disk()?;
-            Self::from_disk().await
+            let r = Self::from_disk().await;
+            println!("successfully started from scratch");
+            r
         }
     }
 
