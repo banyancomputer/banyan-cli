@@ -220,7 +220,9 @@ mod test {
         let original_path = &Path::new("test")
             .join("car")
             .join("carv2_carv2blockstore_from_scratch.car");
-        remove_file(original_path).ok();
+        if original_path.exists() {
+            remove_file(original_path)?;
+        }
 
         // Open
         let original = BlockStore::new(original_path)?;

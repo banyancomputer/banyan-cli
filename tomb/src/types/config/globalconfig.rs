@@ -84,7 +84,10 @@ impl GlobalConfig {
             bucket.remove_data()?;
         }
         // Remove global
-        remove_file(Self::get_path()).ok();
+        let path = Self::get_path();
+        if path.exists() {
+            remove_file(path)?;
+        }
         // Ok
         Ok(())
     }
