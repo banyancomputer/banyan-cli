@@ -35,6 +35,7 @@ where
 
 /// Compress the contents of a file at a given path
 pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
+    println!("compressing file! {}", path.display());
     // Open the original file (just the first one!)
     let file = File::open(path)?;
     // Create a reader for the original file
@@ -43,6 +44,7 @@ pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
     let mut compressed: Vec<u8> = vec![];
     // Compress the chunk before feeding it to WNFS
     compress_bytes(reader, &mut compressed)?;
+    println!("compressed file! :3");
     // Return compressed bytes
     Ok(compressed)
 }
