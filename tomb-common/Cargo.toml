@@ -13,23 +13,23 @@ wnfs = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }
+chrono = { workspace = true }
 unsigned-varint = "0.7.1"
 async-trait = "0.1.68"
-reqwest = { version = "0.11.18", features = ["blocking", "multipart", "json"] }
+reqwest = { version = "0.11.18", features = ["blocking", "multipart", "json", "stream"] }
 thiserror = "1.0.40"
 wasm-bindgen = "0.2.86"
 hex = "0.4.3"
-rsa = "0.9.2"
 sha2 = "0.10.7"
-spki = { version = "0.7.2", features = ["fingerprint", "alloc", "base64"] }
-chrono = { workspace = true }
-# Default implementation
-# [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tomb-crypt = { workspace = true }
+tomb-crypt = { workspace = true } 
 test-case = "3.1.0"
 blake3 = "1.4.1"
 sha1 = "0.10.5"
 base58 = "0.2.0"
+uuid = { version = "1.4.1", features = ["serde"] }
+futures-core = "0.3.28"
+futures-util = "0.3.28"
+bytes = "1.4.0"
 
 [dev-dependencies]
 fs_extra = { workspace = true }
@@ -38,7 +38,12 @@ serial_test = "2.0.0"
 async-std = { version = "1.11", features = ["attributes"] }
 base64 = "0.21.2"
 hex-literal = "0.4.1"
+lazy_static.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
+
+[features]
+default = ["api"]
+api = []

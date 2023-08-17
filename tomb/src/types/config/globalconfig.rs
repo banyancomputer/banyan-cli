@@ -1,7 +1,7 @@
 use crate::utils::config::xdg_config_home;
 use anyhow::Result;
 use async_recursion::async_recursion;
-use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
+use tomb_crypt::prelude::*;
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};

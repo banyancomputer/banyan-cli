@@ -1,10 +1,7 @@
 use super::error::KeyError;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::{
-    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, PlainKey, ProtectedKey,
-    SymmetricKey, WrappingPrivateKey, WrappingPublicKey,
-};
+use tomb_crypt::prelude::*;
 use tomb_crypt::pretty_fingerprint;
 
 use std::collections::{BTreeMap, HashMap};
@@ -190,7 +187,7 @@ impl std::fmt::Debug for Mapper {
 mod test {
     use super::Mapper;
     use anyhow::Result;
-    use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
+    use tomb_crypt::prelude::*;
     use wnfs::{
         common::dagcbor,
         private::{AesKey, TemporalKey},
