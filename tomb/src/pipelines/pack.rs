@@ -10,7 +10,7 @@ use chrono::Utc;
 use log::info;
 use rand::thread_rng;
 use std::{path::Path, rc::Rc};
-use tomb_common::{types::keys::manager::Manager, utils::serialize::store_manager};
+use tomb_common::{keys::manager::Manager, utils::serialize::store_manager};
 use tomb_crypt::prelude::*;
 use wnfs::{
     libipld::Cid,

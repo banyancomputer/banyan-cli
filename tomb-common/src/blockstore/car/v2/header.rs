@@ -1,10 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
-
-use crate::types::{
+use crate::traits::streamable::Streamable;
+use crate::{
     blockstore::car::varint::{read_leu128, read_leu64},
-    streamable::Streamable,
 };
 
 pub const HEADER_SIZE: usize = 40;
@@ -75,13 +74,12 @@ impl<'de> Deserialize<'de> for Header {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::{
-        streamable_tests,
-        types::{
-            blockstore::car::carv2::{PRAGMA, PRAGMA_SIZE},
-            streamable::Streamable,
+        blockstore::{
+            car::v2::{PRAGMA, PRAGMA_SIZE},
         },
-        utils::test::car_setup,
+        utils::tests::car_test_setup,
     };
 
     use super::Header;
@@ -96,7 +94,7 @@ mod test {
     #[test]
     #[serial]
     fn read_disk() -> Result<()> {
-        let car_path = car_setup(2, "basic", "read_disk")?;
+        let car_path = car_test_setup(2, "basic", "read_disk")?;
         let mut file = File::open(car_path)?;
         // Skip the pragma
         file.seek(std::io::SeekFrom::Start(PRAGMA_SIZE as u64))?;
@@ -129,7 +127,7 @@ mod test {
         Ok(())
     }
 
-    streamable_tests! {
+    crate::utils::tests::streamable_tests! {
         Header:
         v2header: Header {
             characteristics: 0,

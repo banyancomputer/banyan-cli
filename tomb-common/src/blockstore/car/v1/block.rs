@@ -1,6 +1,6 @@
-use crate::types::{
-    blockstore::car::varint::{encode_varint_u128, read_varint_u128},
-    streamable::Streamable,
+use crate::traits::streamable::Streamable;
+use crate::blockstore::{
+    car::varint::{encode_varint_u128, read_varint_u128},
 };
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -93,14 +93,14 @@ impl Streamable for Block {
     }
 }
 
+#[cfg(test)]
 mod test {
     #[allow(unused_imports)]
     use super::Block;
-    use crate::streamable_tests;
     #[allow(unused_imports)]
     use wnfs::libipld::IpldCodec;
 
-    streamable_tests! {
+    crate::utils::tests::streamable_tests! {
         Block:
         carblock: {
             // Raw bytes

@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use std::{
-    fs::{create_dir_all, File, OpenOptions},
+    fs::create_dir_all,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -12,12 +12,21 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::types::blockstore::{
-    tombblockstore::TombBlockStore, tombmemoryblockstore::TombMemoryBlockStore,
-};
+use crate::traits::blockstore::TombBlockStore;
+use crate::blockstore::memory::MemoryBlockStore;
+
+/// Macro for testing streamable implementations
+pub mod streamable;
+// TODO: Is anything using this?
+/// Macro for testing whether a type can be serialized into DagCbor
+pub mod serialize;
+
+// Allows us to use this macro within this crate
+#[allow(unused_imports)]
+pub(crate) use streamable::streamable_tests;
 
 /// Create a copy of a given fixture to play around with
-pub fn car_setup(
+pub fn car_test_setup(
     version: usize,
     fixture_suffix: &str,
     test_name: &str,
@@ -41,7 +50,7 @@ pub fn car_setup(
 }
 
 /// Create a copy of a given fixture to play around with
-pub fn carindex_setup(
+pub fn car_index_test_setup(
     version: usize,
     fixture_suffix: &str,
     test_name: &str,
@@ -64,26 +73,26 @@ pub fn carindex_setup(
     Ok(new_path)
 }
 
-/// Setup using a TombMemoryBlockStore
-pub async fn setup_memory(
+/// Setup using a MemoryBlockStore
+pub async fn setup_memory_test(
     test_name: &str,
 ) -> Result<(
-    TombMemoryBlockStore,
-    TombMemoryBlockStore,
+    MemoryBlockStore,
+    MemoryBlockStore,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
-    setup(
+    setup_test(
         test_name,
-        TombMemoryBlockStore::new(),
-        TombMemoryBlockStore::new(),
+        MemoryBlockStore::new(),
+        MemoryBlockStore::new(),
     )
     .await
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data
-pub async fn setup<TBS: TombBlockStore>(
+pub async fn setup_test<TBS: TombBlockStore>(
     test_name: &str,
     metadata: TBS,
     content: TBS,
@@ -139,57 +148,8 @@ pub async fn setup<TBS: TombBlockStore>(
 }
 
 /// Delete the temporary directory
-pub async fn teardown(test_name: &str) -> Result<()> {
+pub async fn teardown_test(test_name: &str) -> Result<()> {
     let path = Path::new("test").join(test_name);
     std::fs::remove_dir_all(path)?;
     Ok(())
-}
-
-/// Grab a read-only reference to a file
-pub fn get_read(path: &Path) -> Result<File, std::io::Error> {
-    OpenOptions::new().read(true).open(path)
-}
-
-/// Grab a write-only reference to a file
-pub fn get_write(path: &Path) -> Result<File, std::io::Error> {
-    OpenOptions::new().append(false).write(true).open(path)
-}
-
-/// Get a read-write reference to a File on disk
-pub fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
-    OpenOptions::new()
-        .append(false)
-        .read(true)
-        .write(true)
-        .open(path)
-}
-
-/// Macro for generating a serialization test for any type which conforms to the Serialize and Deserialize trait
-#[macro_export]
-macro_rules! serial_tests {
-    ($(
-        $type:ty:
-        $name:ident: $value:expr,
-    )*) => {
-    $(
-        mod $name {
-            use wnfs::common::dagcbor;
-            use anyhow::Result;
-            use super::*;
-            #[test]
-            fn dagcbor() -> Result<()> {
-                // Serialize
-                let mut bytes = dagcbor::encode($value)?;
-                // Reconstruct
-                let new_value = dagcbor::decode::<$type>(&bytes)?;
-                // Reserialize
-                let mut new_bytes = dagcbor::encode(&new_value)?;
-                // Assert equality of byte arrays
-                assert_eq!(bytes, new_bytes);
-                // Ok
-                Ok(())
-            }
-        }
-    )*
-    }
 }

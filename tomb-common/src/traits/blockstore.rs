@@ -5,8 +5,9 @@ use wnfs::{
     libipld::{Cid, IpldCodec},
 };
 
+// TODO: Use better error types
+/// Wrap a WnfsBlockStore with additional functionality
 #[async_trait(?Send)]
-/// Additional functionality that we expect out of our BlockStores
 pub trait TombBlockStore: WnfsBlockStore {
     /// Get the root CID
     fn get_root(&self) -> Option<Cid>;

@@ -5,10 +5,9 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
 };
 use wnfs::libipld::Cid;
-
-use crate::types::{
-    blockstore::car::{carv2::index::indexable::Indexable, error::CARError, varint::*},
-    streamable::Streamable,
+use crate::traits::streamable::Streamable;
+use crate::blockstore::{
+    car::{v2::index::indexable::Indexable, error::CARError, varint::*},
 };
 
 /// Buckets contain a list of values

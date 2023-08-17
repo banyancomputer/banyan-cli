@@ -9,34 +9,32 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
-    types::{
         blockstore::{
             car::{
-                carv1::block::Block,
-                carv2::{index::indexable::Indexable, CAR},
+                Streamable,
+                v1::block::Block,
+                v2::{index::indexable::Indexable, CarV2},
             },
-            tombblockstore::TombBlockStore,
+            TombBlockStore,
         },
-        streamable::Streamable,
-    },
-    utils::test::{get_read, get_read_write, get_write},
+    utils::io::{get_read, get_read_write, get_write},
 };
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
 };
 
-/// CARv2 BlockStore implementation using File IO
+/// CarV2v2 BlockStore implementation using File IO
 #[derive(Debug, PartialEq, Clone)]
 pub struct BlockStore {
-    /// CAR file path
+    /// CarV2 file path
     pub path: PathBuf,
-    /// CARv2
-    pub car: CAR,
+    /// CarV2v2
+    pub car: CarV2,
 }
 
 impl BlockStore {
-    /// Create a new CARv2 BlockStore from a file
+    /// Create a new CarV2v2 BlockStore from a file
     pub fn new(path: &Path) -> Result<Self> {
         // If the path is a directory
         if path.is_dir() {
@@ -47,15 +45,15 @@ impl BlockStore {
                 File::create(path)?;
             }
 
-            // If the file is already a valid CARv2
+            // If the file is already a valid CarV2v2
             if let Ok(mut file) = File::open(path) &&
-            let Ok(car) = CAR::read_bytes(&mut file) {
+            let Ok(car) = CarV2::read_bytes(&mut file) {
                 Ok(Self {
                     path: path.to_path_buf(),
                     car,
                 })
             }
-            // If we need to create the CARv2 file from scratch
+            // If we need to create the CarV2v2 file from scratch
             else {
                 // Grab read and write
                 let mut rw = get_read_write(path)?;
@@ -63,7 +61,7 @@ impl BlockStore {
                 // Create new 
                 let store = BlockStore {
                     path: path.to_path_buf(),
-                    car: CAR::new(&mut rw)?
+                    car: CarV2::new(&mut rw)?
                 };
                 // Return Ok
                 Ok(store)
@@ -71,7 +69,7 @@ impl BlockStore {
         }
     }
 
-    /// Save the CAR BlockStore to disk
+    /// Save the CarV2 BlockStore to disk
     pub fn to_disk(&self) -> Result<()> {
         self.car.write_bytes(&mut get_read_write(&self.path)?)
     }
@@ -96,7 +94,7 @@ impl WnfsBlockStore for BlockStore {
             // Return OK
             Ok(block.cid)
         }
-        // If this needs to be appended to the CARv1
+        // If this needs to be appended to the CarV2v1
         else {
             // Open the file in append mode
             let mut file = get_write(&self.path)?;
@@ -155,7 +153,7 @@ impl Serialize for BlockStore {
             // Serialize the Path
             self.path.serialize(serializer)
         } else {
-            // Create a new CAR Error
+            // Create a new CarV2 Error
             Err(SerError::custom(CARIOError::SingleError(FailToSave)))
         }
     }
@@ -173,7 +171,7 @@ impl<'de> Deserialize<'de> for BlockStore {
             // Return loaded object
             Ok(new_store)
         } else {
-            // Create a new CAR Error
+            // Create a new CarV2 Error
             Err(DeError::custom(CARIOError::SingleError(FailToLoad(path))))
         }
     }
@@ -185,7 +183,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
+    use tomb_common::{blockstore::TombBlockStore, utils::tests::car_test_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
         libipld::{Cid, IpldCodec},
@@ -194,7 +192,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn get_block() -> Result<()> {
-        let path = car_setup(2, "indexless", "carv2blockstore_get_block")?;
+        let path = car_test_setup(2, "indexless", "carv2blockstore_get_block")?;
         let store = BlockStore::new(&path)?;
         let cid = Cid::from_str("bafy2bzaced4ueelaegfs5fqu4tzsh6ywbbpfk3cxppupmxfdhbpbhzawfw5oy")?;
         let _ = store.get_block(&cid).await?.to_vec();
@@ -204,7 +202,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn put_block() -> Result<()> {
-        let path = car_setup(2, "indexless", "carv2blockstore_put_block")?;
+        let path = car_test_setup(2, "indexless", "carv2blockstore_put_block")?;
         let store = BlockStore::new(&path)?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;

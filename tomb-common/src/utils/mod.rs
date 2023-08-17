@@ -3,4 +3,6 @@ pub mod error;
 /// Utils for serializing structs
 pub mod serialize;
 /// Utils for testing
-pub mod test;
+pub mod tests;
+/// Utils for file io
+pub mod io;

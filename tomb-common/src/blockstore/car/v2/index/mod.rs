@@ -13,13 +13,13 @@ use std::{
 use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
-use crate::types::{
-    blockstore::car::{
-        carv1::block::Block,
+use crate::traits::streamable::Streamable;
+use crate::blockstore::{
+    car::{
+        v1::block::Block,
         error::CARError,
         varint::{encode_varint_u128, read_varint_u128},
     },
-    streamable::Streamable,
 };
 use indexsorted::Bucket;
 
@@ -132,9 +132,9 @@ impl Index<Bucket> {
     }
 }
 
+#[cfg(test)]
 mod test {
     use super::{Bucket, Index, INDEX_SORTED_CODEC};
-    use crate::streamable_tests;
     use std::{collections::HashMap, str::FromStr};
     use wnfs::libipld::Cid;
 
@@ -159,7 +159,7 @@ mod test {
         }
     }
 
-    streamable_tests! {
+    crate::utils::tests::streamable_tests! {
         Bucket:
         indexsorted: index_sorted_example(),
 

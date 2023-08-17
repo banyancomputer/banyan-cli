@@ -9,7 +9,11 @@
 // #![deny(unused_crate_dependencies)]
 /// Banyan types and client
 pub mod banyan;
-/// Types
-pub mod types;
+/// Common Traits
+mod traits;
+/// BlockStore implementations
+pub mod blockstore;
+/// Our encyption key types and helpers
+pub mod keys;
 /// Utilities
 pub mod utils;

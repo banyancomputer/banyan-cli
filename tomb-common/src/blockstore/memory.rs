@@ -3,20 +3,19 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cell::RefCell};
 use wnfs::{
-    common::{BlockStore as WnfsBlockStore, MemoryBlockStore},
+    common::MemoryBlockStore as WnfsMemoryBlockStore,
     libipld::{Cid, IpldCodec},
 };
-
-use super::tombblockstore::TombBlockStore;
+use crate::blockstore::{TombBlockStore, WnfsBlockStore};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 /// Memory implementation of a TombBlockStore
-pub struct TombMemoryBlockStore {
+pub struct MemoryBlockStore {
     root: RefCell<Option<Cid>>,
-    store: MemoryBlockStore,
+    store: WnfsMemoryBlockStore,
 }
 
-impl TombMemoryBlockStore {
+impl MemoryBlockStore {
     /// Creates a new in-memory block store.
     pub fn new() -> Self {
         Self::default()
@@ -24,7 +23,7 @@ impl TombMemoryBlockStore {
 }
 
 #[async_trait(?Send)]
-impl WnfsBlockStore for TombMemoryBlockStore {
+impl WnfsBlockStore for MemoryBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         self.store.get_block(cid).await
@@ -37,7 +36,7 @@ impl WnfsBlockStore for TombMemoryBlockStore {
 }
 
 #[async_trait(?Send)]
-impl TombBlockStore for TombMemoryBlockStore {
+impl TombBlockStore for MemoryBlockStore {
     fn get_root(&self) -> Option<Cid> {
         *self.root.borrow()
     }

@@ -1,18 +1,21 @@
-/// CAR readers and writers
+/// Use the WnfsBlockStore and BlockStore traits to define a BlockStore
+/// Makes it so that downstream crates don't need to know about the underlying traits
+pub use crate::traits::blockstore::TombBlockStore;
+pub use wnfs::common::blockstore::BlockStore as WnfsBlockStore;
+
+/// CarV1/CarV2 Definitions and BlcockStore implementations
 pub mod car;
-/// Disk based BlockStore
-pub mod diskblockstore;
-/// Network based BlockStore
-pub mod networkblockstore;
-/// Tomb BlockStore trait
-pub mod tombblockstore;
-/// Memory implementation of Tomb BlockStore trait
-pub mod tombmemoryblockstore;
+/// Disk based BlockStore implementation
+pub mod disk;
+/// Network based BlockStore implementation
+pub mod network;
+/// Memory based BlockStore implementation 
+pub mod memory;
 
 #[cfg(test)]
 mod test {
-    use super::diskblockstore::DiskBlockStore;
-    use crate::types::blockstore::tombmemoryblockstore::TombMemoryBlockStore;
+    use super::disk::DiskBlockStore;
+    use crate::blockstore::memory::MemoryBlockStore;
     use anyhow::Result;
     use std::{fs::create_dir_all, path::PathBuf};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
@@ -29,7 +32,7 @@ mod test {
 
     #[tokio::test]
     async fn rootedmemoryblockstore() -> Result<()> {
-        let store = &TombMemoryBlockStore::new();
+        let store = &MemoryBlockStore::new();
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
         bs_serialization_test(store).await

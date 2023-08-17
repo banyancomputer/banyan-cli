@@ -1,15 +1,15 @@
 /// Fixture
 pub mod fixture;
-/// CARv2 Header
+/// CarV2 Header
 pub(crate) mod header;
-/// CARv2 Index
+/// CarV2 Index
 pub mod index;
 
 // Code
 use self::{header::Header, index::indexable::Indexable};
-use crate::types::{
-    blockstore::car::carv1::{block::Block, CAR as CARv1},
-    streamable::Streamable,
+use crate::traits::streamable::Streamable;
+use crate::{
+    blockstore::car::v1::{block::Block, CarV1},
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -19,25 +19,25 @@ use std::{
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
-// | 11-byte fixed pragma | 40-byte header | optional padding | CARv1 data payload | optional padding | optional index payload |
+// | 11-byte fixed pragma | 40-byte header | optional padding | CarV1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
 pub(crate) const PH_SIZE: u64 = 51;
 
-// This is the fixed file signature associated with the CARv2 file format
+// This is the fixed file signature associated with the CarV2 file format
 pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
     0x0a, 0xa1, 0x67, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x02,
 ];
 
-/// Reading / writing a CARv2 from a Byte Stream
+/// Reading / writing a CarV2 from a Byte Stream
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct CAR {
+pub struct CarV2 {
     pub(crate) header: RefCell<Header>,
-    /// The CARv1 internal to the CARv2
-    pub car: CARv1, // Note that the index is actually stored internally to the CARv1 struct
+    /// The CarV1 internal to the CarV2
+    pub car: CarV1, // Note that the index is actually stored internally to the CarV1 struct
 }
 
-impl CAR {
-    /// Load in the CARv2
+impl CarV2 {
+    /// Load in the CarV2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
@@ -47,8 +47,8 @@ impl CAR {
         assert_eq!(r.stream_position()?, PH_SIZE);
         // Seek to the data offset
         r.seek(SeekFrom::Start(header.data_offset))?;
-        // Load in the CARv1
-        let car = CARv1::read_bytes(
+        // Load in the CarV1
+        let car = CarV1::read_bytes(
             if header.index_offset == 0 {
                 None
             } else {
@@ -65,14 +65,14 @@ impl CAR {
         })
     }
 
-    /// Write the CARv2 out to a writer, reading in the content required to write as we go
+    /// Write the CarV2 out to a writer, reading in the content required to write as we go
     pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<()> {
-        // Determine part where the CARv1 will go
+        // Determine part where the CarV1 will go
         let data_offset = self.header.borrow().data_offset;
         // Skip to it
         rw.seek(SeekFrom::Start(data_offset))?;
 
-        // Write the CARv1
+        // Write the CarV1
         self.car.write_bytes(&mut rw)?;
         // Update our data size in the Header
         self.update_header(&mut rw)?;
@@ -91,7 +91,7 @@ impl CAR {
         Ok(())
     }
 
-    /// Ensure the validity of the CARv2 PRAGMA in a given stream
+    /// Ensure the validity of the CarV2 PRAGMA in a given stream
     pub(crate) fn verify_pragma<R: Read + Seek>(mut r: R) -> Result<()> {
         // Move to the start of the file
         r.seek(SeekFrom::Start(0))?;
@@ -104,7 +104,7 @@ impl CAR {
         Ok(())
     }
 
-    /// Get a Block directly from the CAR
+    /// Get a Block directly from the CarV2
     pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
         // If there is a V2Index
         if let Some(block_offset) = self.car.index.borrow().get_offset(cid) {
@@ -117,7 +117,7 @@ impl CAR {
         }
     }
 
-    /// Set a Block directly in the CAR
+    /// Set a Block directly in the CarV2
     pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
         // Grab the header
         let header = *self.header.borrow();
@@ -142,13 +142,13 @@ impl CAR {
         Ok(())
     }
 
-    /// Create a new CARv2 struct by writing into a stream, then deserializing it
+    /// Create a new CarV2 struct by writing into a stream, then deserializing it
     pub fn new<RW: Read + Write + Seek>(mut rw: RW) -> Result<Self> {
-        // Move to CARv1 no padding
+        // Move to CarV1 no padding
         rw.seek(SeekFrom::Start(PH_SIZE))?;
-        // Construct a CARv1
-        let car = CARv1::default(2);
-        // Write CARv1 Header
+        // Construct a CarV1
+        let car = CarV1::default(2);
+        // Write CarV1 Header
         car.header.write_bytes(&mut rw)?;
         // Compute the data size
         let data_size = rw.stream_position()? - PH_SIZE;
@@ -190,12 +190,12 @@ impl CAR {
         Ok(())
     }
 
-    /// Set the singular root of the CAR
+    /// Set the singular root of the CarV2
     pub fn set_root(&self, root: &Cid) {
         self.car.set_root(root);
     }
 
-    /// Get the singular root of the CAR
+    /// Get the singular root of the CarV2
     pub fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
@@ -214,17 +214,18 @@ mod test {
     use wnfs::libipld::{Cid, IpldCodec};
 
     use crate::{
-        types::blockstore::car::{carv1::block::Block, carv2::CAR},
-        utils::test::{car_setup, get_read_write},
+        blockstore::car::{v1::block::Block, v2::CarV2},
+        utils::tests::car_test_setup,
+        utils::io::get_read_write,
     };
 
     #[test]
     #[serial]
     fn from_disk_broken_index() -> Result<()> {
-        let car_path = car_setup(2, "basic", "from_disk_basic")?;
+        let car_path = car_test_setup(2, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
         // Read the v2 header
-        let carv2 = CAR::read_bytes(&mut file)?;
+        let carv2 = CarV2::read_bytes(&mut file)?;
 
         // Assert version is correct
         assert_eq!(&carv2.car.header.version, &1);
@@ -275,13 +276,13 @@ mod test {
     #[test]
     #[serial]
     fn put_get_block() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "put_get_block")?;
+        let car_path = &car_test_setup(2, "indexless", "put_get_block")?;
 
         // Define reader and writer
         let mut car_file = File::open(car_path)?;
 
-        // Read original CARv2
-        let original = CAR::read_bytes(&mut car_file)?;
+        // Read original CarV2
+        let original = CarV2::read_bytes(&mut car_file)?;
         let index = original.car.index.borrow().clone();
         let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
@@ -316,17 +317,17 @@ mod test {
     #[test]
     #[serial]
     fn to_from_disk_no_offset() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "to_from_disk_no_offset_original")?;
+        let car_path = &car_test_setup(2, "indexless", "to_from_disk_no_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
+        let original = CarV2::read_bytes(&mut original_rw)?;
         // Write to updated file
         original.write_bytes(&mut original_rw)?;
 
         // Reconstruct
         original_rw.seek(SeekFrom::Start(0))?;
-        let reconstructed = CAR::read_bytes(&mut original_rw)?;
+        let reconstructed = CarV2::read_bytes(&mut original_rw)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);
@@ -340,11 +341,11 @@ mod test {
     #[test]
     #[serial]
     fn to_from_disk_with_data() -> Result<()> {
-        let car_path = &car_setup(2, "indexless", "to_from_disk_with_data_original")?;
+        let car_path = &car_test_setup(2, "indexless", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the car
-        let original = CAR::read_bytes(&mut original_rw)?;
+        let original = CarV2::read_bytes(&mut original_rw)?;
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
@@ -357,7 +358,7 @@ mod test {
 
         // Reconstruct
         let updated_rw = get_read_write(car_path)?;
-        let reconstructed = CAR::read_bytes(&updated_rw)?;
+        let reconstructed = CarV2::read_bytes(&updated_rw)?;
 
         // Assert equality
         assert_eq!(original.header, reconstructed.header);

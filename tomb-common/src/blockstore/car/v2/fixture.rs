@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod test {
-    use crate::types::blockstore::car::carv2::CAR;
-    use crate::types::blockstore::car::{
-        carv1::header::Header,
-        carv2::{header::HEADER_SIZE, PH_SIZE},
+    use crate::blockstore::car::v2::CarV2;
+    use crate::blockstore::car::{
+        v1::header::Header,
+        v2::{header::HEADER_SIZE, PH_SIZE},
     };
     use anyhow::Result;
     use base58::ToBase58;
@@ -597,7 +597,7 @@ mod test {
     fn read_data() -> Result<()> {
         let car_data = build_full_car();
         let mut data = Cursor::new(car_data.clone());
-        let car = CAR::read_bytes(&mut data)?;
+        let car = CarV2::read_bytes(&mut data)?;
         // Assert that reading it didnt modify the data
         assert_eq!(data.clone().into_inner(), car_data);
 
@@ -621,10 +621,10 @@ mod test {
     fn read_write_data() -> Result<()> {
         let car_data = build_full_car();
         let mut data = Cursor::new(car_data);
-        let car = CAR::read_bytes(&mut data)?;
+        let car = CarV2::read_bytes(&mut data)?;
         car.write_bytes(&mut data)?;
         data.seek(SeekFrom::Start(0))?;
-        let car2 = CAR::read_bytes(&mut data)?;
+        let car2 = CarV2::read_bytes(&mut data)?;
 
         assert_eq!(car.header, car2.header);
         assert_eq!(car.car.header, car2.car.header);

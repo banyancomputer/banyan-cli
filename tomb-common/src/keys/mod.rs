@@ -7,7 +7,7 @@ pub mod mapper;
 
 #[cfg(test)]
 mod test {
-    use crate::types::keys::manager::Manager;
+    use crate::keys::manager::Manager;
     use anyhow::Result;
     use rand::Rng;
     use serial_test::serial;

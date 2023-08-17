@@ -1,9 +1,9 @@
-use crate::types::{
-    blockstore::car::{
+use crate::traits::streamable::Streamable;
+use crate::blockstore::{
+    car::{
         error::CARError,
         varint::{encode_varint_u64, read_varint_u64},
     },
-    streamable::Streamable,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -112,7 +112,7 @@ impl Streamable for Header {
 
 #[cfg(test)]
 mod test {
-    use crate::{streamable_tests, types::streamable::Streamable};
+    use super::*;
 
     use super::Header;
     use anyhow::Result;
@@ -163,7 +163,7 @@ mod test {
         Ok(())
     }
 
-    streamable_tests! {
+    crate::utils::tests::streamable_tests! {
         Header:
         v1header: {
             let header = Header::default(1);
