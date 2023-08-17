@@ -46,7 +46,10 @@ pub async fn pipeline(
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
 
     let mut global = GlobalConfig::from_disk().await?;
+    println!("obtained global :3");
+
     let wrapping_key = global.load_key().await?;
+    println!("obtained key :3");
 
     // If the user has done initialization for this directory
     if let Some(mut config) = global.get_bucket(origin) {

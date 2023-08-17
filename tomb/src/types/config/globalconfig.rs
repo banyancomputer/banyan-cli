@@ -159,8 +159,10 @@ impl GlobalConfig {
     /// Load the WrappingKey from its predetermined location
     async fn wrapping_key_from_disk(path: &Path) -> Result<EcEncryptionKey> {
         let mut pem_bytes = Vec::new();
+        println!("opening key!");
         let mut file = File::open(path)?;
         file.read_to_end(&mut pem_bytes)?;
+        println!("read key!");
         // Return
         Ok(EcEncryptionKey::import(&pem_bytes)
             .await
