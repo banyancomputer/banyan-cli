@@ -131,7 +131,7 @@ impl GlobalConfig {
 
     async fn default() -> Result<Self> {
         // Path of the wrapping_key file
-        let wrapping_key_path = xdg_config_home().join("wrapping_key.pem");
+        let wrapping_key_path = xdg_config_home().join("wrapping_key.pem").canonicalize()?;
         // Load if it already exists
         let wrapping_key = if wrapping_key_path.exists() {
             Self::wrapping_key_from_disk(&wrapping_key_path).await?

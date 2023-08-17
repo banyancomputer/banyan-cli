@@ -53,6 +53,7 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(mut config) = global.get_bucket(origin) {
+        println!("obtained config :3");
         // Create the root directory in which all Nodes will be stored
         let mut root_dir = Rc::new(PrivateDirectory::new(
             Namefilter::default(),
@@ -75,6 +76,7 @@ pub async fn pipeline(
             new_manager_cid,
         )) = config.get_all(&wrapping_key).await
         {
+            println!("obtained get_all from config :3");
             // Update structs
             metadata_forest = new_metadata_forest;
             content_forest = new_content_forest;
@@ -86,7 +88,9 @@ pub async fn pipeline(
         }
 
         // Create a new delta for this packing operation
+        println!("adding delta :3");
         config.content.add_delta()?;
+        println!("added delta :3");
         // Insert the wrapping key if it is not already there
         manager.insert(&wrapping_key.public_key().expect("failed to create public key")).await?;
         // Put the keys in the BlockStores before any other data
@@ -97,6 +101,7 @@ pub async fn pipeline(
             // update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
         };
 
+        println!("processing plans");
         // Process all of the PackPipelinePlans
         process_plans(
             &config.metadata,
@@ -108,6 +113,7 @@ pub async fn pipeline(
             progress_bar,
         )
         .await?;
+        println!("processed plans :3");
 
         config
             .set_all(
@@ -119,8 +125,11 @@ pub async fn pipeline(
             )
             .await?;
 
+        println!("updating config");
         global.update_config(&config)?;
+        println!("updated config :3; saving");
         global.to_disk()?;
+        println!("saved to disk :3");
         Ok(())
     } else {
         Err(PipelineError::Uninitialized)
