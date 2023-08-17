@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use std::{borrow::Cow, io::Cursor};
-use tomb_common::blockstore::{car::carv2::CAR as CarV2, tombblockstore::TombBlockStore};
+use tomb_common::blockstore::{car::v2::CarV2, TombBlockStore};
 use wnfs::{
     common::blockstore::BlockStore as WnfsBlockStore,
     libipld::{Cid, IpldCodec},

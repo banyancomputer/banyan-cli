@@ -9,7 +9,7 @@ pub mod index;
 use self::{header::Header, index::indexable::Indexable};
 use crate::traits::streamable::Streamable;
 use crate::{
-    blockstore::car::v1::{block::Block, CarV1},
+    car::v1::{block::Block, CarV1},
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -214,7 +214,7 @@ mod test {
     use wnfs::libipld::{Cid, IpldCodec};
 
     use crate::{
-        blockstore::car::{v1::block::Block, v2::CarV2},
+        car::{v1::block::Block, v2::CarV2},
         utils::tests::car_test_setup,
         utils::io::get_read_write,
     };

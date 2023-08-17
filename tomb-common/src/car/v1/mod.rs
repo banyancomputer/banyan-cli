@@ -16,7 +16,7 @@ use std::{
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
 use crate::traits::streamable::Streamable;
-use crate::blockstore::car::v2::index::INDEX_SORTED_CODEC;
+use crate::car::v2::index::INDEX_SORTED_CODEC;
 
 use self::{block::Block, header::Header};
 use super::v2::index::{indexable::Indexable, indexsorted::Bucket, Index};
@@ -199,7 +199,7 @@ impl CarV1 {
 #[cfg(test)]
 mod test {
     use crate::{
-        blockstore::car::v1::{block::Block, CarV1},
+        car::v1::{block::Block, CarV1},
         utils::tests::car_test_setup,
         utils::io::get_read_write
     };

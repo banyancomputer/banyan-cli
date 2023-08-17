@@ -10,9 +10,10 @@ use std::{
     fs::{self, create_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_common::blockstore::{
-    car::v2::index::indexable::Indexable, TombBlockStore,
+use tomb_common::{
+    car::v2::index::indexable::Indexable,
 };
+use tomb_common::blockstore::TombBlockStore;
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},

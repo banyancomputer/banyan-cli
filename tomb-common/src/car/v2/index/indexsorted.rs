@@ -6,7 +6,7 @@ use std::{
 };
 use wnfs::libipld::Cid;
 use crate::traits::streamable::Streamable;
-use crate::blockstore::{
+use crate::{
     car::{v2::index::indexable::Indexable, error::CARError, varint::*},
 };
 

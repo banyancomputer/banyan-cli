@@ -14,7 +14,7 @@ use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
 use crate::traits::streamable::Streamable;
-use crate::blockstore::{
+use crate::{
     car::{
         v1::block::Block,
         error::CARError,

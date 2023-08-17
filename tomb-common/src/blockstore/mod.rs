@@ -3,8 +3,6 @@
 pub use crate::traits::blockstore::TombBlockStore;
 pub use wnfs::common::blockstore::BlockStore as WnfsBlockStore;
 
-/// CarV1/CarV2 Definitions and BlcockStore implementations
-pub mod car;
 /// Disk based BlockStore implementation
 pub mod disk;
 /// Network based BlockStore implementation

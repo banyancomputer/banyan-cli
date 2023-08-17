@@ -7,13 +7,17 @@
 #![feature(duration_constants)]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
+
 /// Banyan types and client
 pub mod banyan;
-/// Common Traits
-mod traits;
+/// Car types and implementations
+pub mod car;
 /// BlockStore implementations
 pub mod blockstore;
 /// Our encyption key types and helpers
 pub mod keys;
 /// Utilities
 pub mod utils;
+
+/// Common Traits
+mod traits;

@@ -1,5 +1,5 @@
 use crate::traits::streamable::Streamable;
-use crate::blockstore::{
+use crate::{
     car::varint::{encode_varint_u128, read_varint_u128},
 };
 use anyhow::Result;

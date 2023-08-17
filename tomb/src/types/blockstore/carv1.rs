@@ -8,8 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
+    car::v1::{block::Block, CarV1},
     blockstore::{
-        car::v1::{block::Block, CarV1},
         TombBlockStore,
     },
     utils::io::{get_read, get_read_write, get_write},

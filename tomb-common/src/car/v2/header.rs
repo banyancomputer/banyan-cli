@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
 use crate::traits::streamable::Streamable;
 use crate::{
-    blockstore::car::varint::{read_leu128, read_leu64},
+    car::varint::{read_leu128, read_leu64},
 };
 
 pub const HEADER_SIZE: usize = 40;
@@ -76,9 +76,7 @@ impl<'de> Deserialize<'de> for Header {
 mod test {
     use super::*;
     use crate::{
-        blockstore::{
-            car::v2::{PRAGMA, PRAGMA_SIZE},
-        },
+        car::v2::{PRAGMA, PRAGMA_SIZE},
         utils::tests::car_test_setup,
     };
 
