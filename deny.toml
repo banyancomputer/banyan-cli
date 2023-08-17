@@ -75,7 +75,7 @@ exceptions = [
 ]
 
 [bans]
-multiple-versions = "deny"
+multiple-versions = "allow"
 wildcards = "deny"
 
 # Crates/versions that are always allowed regardless of which checks they trigger
@@ -92,114 +92,7 @@ deny = [
 
 # Certain crates/versions that will be skipped when doing duplicate detection.
 # They just couldn't be resolved ourselves.
-skip = [
-    # Everything below this comment was added for expediency in getting CI working again
-    { name = "hashbrown", version = "0.12.3"  },   # from rindexmap
-    { name = "hashbrown", version = "0.14.0"  },   # from dashmap
-
-    { name = "autocfg", version = "0.1.8"  },   # from rand v0.6.3
-    { name = "autocfg", version = "1.1.0"  },   # from many dependencies
-
-    { name = "base64", version = "0.13.0" },    # from skip_ratchet v0.1.6
-    { name = "base64", version = "0.21.2" },    # from reqwest v0.11.18
-
-    { name = "bitflags", version = "1.2.1" },   # from several dependencies
-    { name = "bitflags", version = "2.3.3" },   # from rustix
-
-    { name = "cid", version = "0.8.6"  },       # from serde_ipld_dagcbor v0.3.0
-    { name = "cid", version = "0.10.1" },       # from libipld-core v0.16.0
-
-    { name = "clap", version = "3.2.25" },      # from criterion v0.4.0
-    { name = "clap", version = "4.3.2"  },      # from many dependencies
-
-    { name = "clap_lex", version = "0.2.4" },   # from clap v3.2.25
-    { name = "clap_lex", version = "0.5.0" },   # from clap_builder v4.3.1
-
-    { name = "constant_time_eq", version = "0.2.6" }, # from blake2(b/s)_simd v1.0.1
-    { name = "constant_time_eq", version = "0.3.0" }, # from blake3 v1.4.1
-
-    { name = "fastrand", version = "1.9.0" }, # from several dependencies
-    { name = "fastrand", version = "2.0.0" }, # from tempfile
-
-    { name = "hermit-abi", version = "0.1.19" },    # from atty v0.2.14
-    { name = "hermit-abi", version = "0.3.1"  },    # from several dependencies
-
-    { name = "linux-raw-sys", version = "0.3.8" },      # from rustix
-    { name = "linux-raw-sys", version = "0.4.3" },      # from rustix
-
-    { name = "memoffset", version = "0.6.5" },   # from nix v0.21.2
-    { name = "memoffset", version = "0.7.1" },   # from nix v0.26.2
-
-    { name = "multihash", version = "0.16.3" },     # from cid v0.8.6
-    { name = "multihash", version = "0.18.1" },     # from many dependencies
-
-    { name = "nix", version = "0.21.2" },       # from fclones v0.30.0
-    { name = "nix", version = "0.26.2" },       # from file-owner v0.1.1
-
-    { name = "parking_lot", version = "0.11.2" },   # from sled v0.34.7
-    { name = "parking_lot", version = "0.12.1" },   # from several dependencies
-
-    { name = "parking_lot_core", version = "0.8.6" },   # from parking_lot v0.11.2
-    { name = "parking_lot_core", version = "0.9.8" },   # from several dependencies
-
-    { name = "rand", version = "0.6.3" },   # from skip_ratchet v0.1.6
-    { name = "rand", version = "0.8.5" },   # from several dependencies
-
-    { name = "rand_chacha", version = "0.1.1" },    # from rand v0.6.3
-    { name = "rand_chacha", version = "0.3.1" },    # from rand v0.8.5
-
-    { name = "rand_core", version = "0.3.1" },    # from many dependencies
-    { name = "rand_core", version = "0.4.2" },    # from several dependencies
-    { name = "rand_core", version = "0.6.4" },    # from many dependencies
-
-    { name = "redox_syscall", version = "0.2.16" }, # from several dependencies
-    { name = "redox_syscall", version = "0.3.5"  }, # from several dependencies
-
-    { name = "rustix", version = "0.37.12" },     # from several dependencies
-    { name = "rustix", version = "0.38.3" },      # from is-terminal
-
-    { name = "syn", version = "1.0.109" }, # from several dependencies
-    { name = "syn", version = "2.0.18"  }, # from many dependencies
-
-    { name = "wasi", version = "0.10.0+wasi-snapshot-preview1" },   # from time v0.1.45
-    { name = "wasi", version = "0.11.0+wasi-snapshot-preview1" },   # from several dependencies
-
-    { name = "windows-sys", version = "0.42.0" },   # from schannel v0.1.21
-    { name = "windows-sys", version = "0.45.0" },   # from console v0.15.7
-    { name = "windows-sys", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows-targets", version = "0.42.2" },   # from windows-sys v0.45.0
-    { name = "windows-targets", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_aarch64_gnullvm", version = "0.42.2" },   # from several dependencies
-    { name = "windows_aarch64_gnullvm", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_aarch64_msvc", version = "0.42.2" },   # from several dependencies
-    { name = "windows_aarch64_msvc", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_i686_gnu", version = "0.42.0" },   # from several dependencies
-    { name = "windows_i686_gnu", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_i686_gnu", version = "0.42.0" },   # from several dependencies
-    { name = "windows_i686_gnu", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_i686_msvc", version = "0.42.0" },   # from several dependencies
-    { name = "windows_i686_msvc", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_x86_64_gnu", version = "0.42.0" },   # from several dependencies
-    { name = "windows_x86_64_gnu", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_x86_64_gnullvm", version = "0.42.0" },   # from several dependencies
-    { name = "windows_x86_64_gnullvm", version = "0.48.0" },   # from several dependencies
-
-    { name = "windows_x86_64_msvc", version = "0.42.0" },   # from several dependencies
-    { name = "windows_x86_64_msvc", version = "0.48.0" },   # from several dependencies
-
-    { name = "wnfs", version = "0.1.20"            },   # mixing our github fork with regular deps
-    { name = "wnfs-common", version = "0.1.20"     },   # mixing our github fork with regular deps
-    { name = "wnfs-hamt", version = "0.1.20"       },   # mixing our github fork with regular deps
-    { name = "wnfs-namefilter", version = "0.1.20" },   # mixing our github fork with regular deps
-]
+skip = []
 
 [sources]
 # We do not allow registries other than the official crates one which is known
