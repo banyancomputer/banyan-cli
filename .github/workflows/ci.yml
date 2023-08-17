@@ -48,9 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-        env:
-            RUST_BACKTRACE: 1
-      - run: cargo test --all-features
+      - run: RUST_BACKTRACE=1 cargo test --all-features
 
   docs:
     name: docs tests
@@ -58,6 +56,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-        env:
-          RUST_BACKTRACE: 1
-      - run: cargo test --all-features --doc
+      - run: RUST_BACKTRACE=1 cargo test --all-features --doc
