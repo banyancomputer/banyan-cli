@@ -97,8 +97,12 @@ mod test {
             .expect("origin has no parent")
             .join(format!("{}_unpacked", test_name));
         create_dir_all(unpacked_dir)?;
+
+        println!("starting unpacking");
+
         // Run the unpacking pipeline
         unpack::pipeline(origin, unpacked_dir).await?;
+        println!("finished unpacking");
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
         // Teardown
