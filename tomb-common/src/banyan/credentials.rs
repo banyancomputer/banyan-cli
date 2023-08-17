@@ -2,8 +2,12 @@ use std::fmt::Debug;
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
+#[derive(Clone)]
+/// Credentials in order to sign and verify messages for a Banyan account
 pub struct Credentials {
+    /// The unique account id (used as a JWT subject)
     pub account_id: Uuid,
+    /// The signing key (used to sign JWTs)
     pub signing_key: EcSignatureKey,
 }
 

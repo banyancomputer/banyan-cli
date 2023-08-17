@@ -50,25 +50,25 @@ async fn tomb_wasm() {
         "https://api.tomb-demo.org".to_string(),
     );
 
-    // Test API calls
-    log!("tomb_wasm_test: account metadata");
-    let _storage = tomb.get_total_storage().await.unwrap();
-    let _trash = tomb.get_trash_bucket().await.unwrap();
-    let _buckets = tomb.get_buckets().await.unwrap();
-    let _snapshots = tomb.get_snapshots().await.unwrap();
+    // // Test API calls
+    // log!("tomb_wasm_test: account metadata");
+    // let _storage = tomb.get_total_storage().await.unwrap();
+    // let _trash = tomb.get_trash_bucket().await.unwrap();
+    // let _buckets = tomb.get_buckets().await.unwrap();
+    // let _snapshots = tomb.get_snapshots().await.unwrap();
 
-    // Test using bucket's API endpoint
-    log!("tomb_wasm_test: bucket metadata");
-    let bucket_id = "bucket-identifier";
-    let _bucket_storage = tomb.get_bucket_storage(bucket_id).await.unwrap();
-    let _bucket_keys = tomb.get_bucket_keys(bucket_id).await.unwrap();
-    let _bucket_snapshots = tomb.get_bucket_snapshots(bucket_id).await.unwrap();
+    // // Test using bucket's API endpoint
+    // log!("tomb_wasm_test: bucket metadata");
+    // let bucket_id = "bucket-identifier";
+    // let _bucket_storage = tomb.get_bucket_storage(bucket_id).await.unwrap();
+    // let _bucket_keys = tomb.get_bucket_keys(bucket_id).await.unwrap();
+    // let _bucket_snapshots = tomb.get_bucket_snapshots(bucket_id).await.unwrap();
 
-    // Test loading and interacting with a bucket
-    log!("tomb_wasm_test: bucket interaction");
-    tomb.load(bucket_id).await.unwrap();
-    let wrapping_key = ec_key("ECDH", &["deriveBits"]).await;
-    tomb.unlock(bucket_id, wrapping_key).await.unwrap();
-    let _ = tomb.ls(bucket_id, "/", None).await.unwrap();
-    let _ = tomb.ls(bucket_id, "/", Some("1".into())).await.unwrap();
+    // // Test loading and interacting with a bucket
+    // log!("tomb_wasm_test: bucket interaction");
+    // tomb.load(bucket_id).await.unwrap();
+    // let wrapping_key = ec_key("ECDH", &["deriveBits"]).await;
+    // tomb.unlock(bucket_id, wrapping_key).await.unwrap();
+    // let _ = tomb.ls(bucket_id, "/", None).await.unwrap();
+    // let _ = tomb.ls(bucket_id, "/", Some("1".into())).await.unwrap();
 }

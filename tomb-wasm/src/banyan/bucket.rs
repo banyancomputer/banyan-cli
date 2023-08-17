@@ -2,7 +2,7 @@ use chrono::Utc;
 use js_sys::{Object, Reflect};
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
-use tomb_common::types::keys::manager::Manager; // , utils::serialize::load_all};
+use tomb_common::keys::manager::Manager; // , utils::serialize::load_all};
 use tomb_crypt::prelude::*;
 use wasm_bindgen::JsValue;
 use wnfs::{
@@ -11,8 +11,9 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
+use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
 use crate::{
-    banyan::snapshot::Snapshot, blockstore::CarV2BlockStore as BlockStore, error::TombWasmError,
+    banyan::snapshot::Snapshot, error::TombWasmError,
     value,
 };
 

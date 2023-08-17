@@ -1,7 +1,7 @@
 use js_sys::{Object, Reflect};
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
-use tomb_common::types::keys::manager::Manager; // , utils::serialize::load_all};
+use tomb_common::keys::manager::Manager; // , utils::serialize::load_all};
 use tomb_crypt::prelude::*;
 use wasm_bindgen::JsValue;
 use wnfs::{
@@ -9,8 +9,8 @@ use wnfs::{
     libipld::Ipld,
     private::{PrivateDirectory, PrivateForest},
 };
-
-use crate::{blockstore::CarV2BlockStore as BlockStore, error::TombWasmError, value};
+use tomb_common::blockstore::{carv2_memory::CarV2MemoryBlockStore as BlockStore};
+use crate::{error::TombWasmError, value};
 
 pub struct SnapshotEntry<'a>(pub(crate) &'a WnfsMetadata);
 

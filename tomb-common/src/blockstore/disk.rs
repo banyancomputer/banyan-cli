@@ -5,10 +5,8 @@ use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
-use wnfs::{
-    common::BlockStore,
-    libipld::{Cid, IpldCodec},
-};
+use wnfs::libipld::{Cid, IpldCodec};
+use crate::blockstore::BlockStore;
 
 /// A disk-based blockstore that you can mutate.
 #[derive(Debug, Serialize, Deserialize)]

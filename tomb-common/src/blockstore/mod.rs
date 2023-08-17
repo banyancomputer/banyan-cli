@@ -1,12 +1,14 @@
 /// Use the WnfsBlockStore and BlockStore traits to define a BlockStore
 /// Makes it so that downstream crates don't need to know about the underlying traits
 pub use crate::traits::blockstore::TombBlockStore;
-pub use wnfs::common::blockstore::BlockStore as WnfsBlockStore;
+pub use wnfs::common::blockstore::BlockStore;
 
 /// Disk based BlockStore implementation
 pub mod disk;
 /// Memory based BlockStore implementation
 pub mod memory;
+/// Memory based CarV2 formatted BlockStore implementation
+pub mod carv2_memory;
 /// Network based BlockStore implementation
 pub mod network;
 

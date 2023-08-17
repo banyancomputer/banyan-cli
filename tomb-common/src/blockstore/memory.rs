@@ -1,4 +1,4 @@
-use crate::blockstore::{TombBlockStore, WnfsBlockStore};
+use crate::blockstore::{TombBlockStore, BlockStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ impl MemoryBlockStore {
 }
 
 #[async_trait(?Send)]
-impl WnfsBlockStore for MemoryBlockStore {
+impl BlockStore for MemoryBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         self.store.get_block(cid).await

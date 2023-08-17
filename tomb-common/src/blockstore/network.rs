@@ -8,10 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{borrow::Cow, str::from_utf8}; // , time::Duration};
 use thiserror::Error;
-use wnfs::{
-    common::BlockStore as WnfsBlockStore,
-    libipld::{Cid, IpldCodec},
-};
+use wnfs::libipld::{Cid, IpldCodec};
+use crate::blockstore::BlockStore;
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]
@@ -51,7 +49,7 @@ impl NetworkBlockStore {
 }
 
 #[async_trait(?Send)]
-impl WnfsBlockStore for NetworkBlockStore {
+impl BlockStore for NetworkBlockStore {
     /// Stores an array of bytes in the block store.
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // Try to build the CID from the bytes and codec

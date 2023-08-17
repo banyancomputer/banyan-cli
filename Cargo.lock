@@ -4222,6 +4222,7 @@ dependencies = [
  "tokio-util",
  "tomb-common",
  "tomb-crypt",
+ "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

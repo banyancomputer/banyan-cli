@@ -59,6 +59,22 @@ base64 = "0.21.2"
 thiserror = "1.0.43"
 pem = "2.0.1"
 tomb-crypt = { workspace = true }
+uuid = "1.4.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.36"
+web-sys = { version = "0.3.64", features = [
+    "console",
+    "Headers",
+    "Request",
+    "Window",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "ReadableStream",
+    "Window",
+    "Crypto",
+    "CryptoKey",
+    "EcKeyGenParams",
+    "SubtleCrypto",
+]}
