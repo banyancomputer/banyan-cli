@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::banyan::api::ApiRequest;
-use crate::banyan::models::bucket::BucketType;
+use crate::banyan::models::bucket::{BucketType, StorageClass};
 
 #[derive(Debug, Serialize)]
 pub struct ReadBucket {
@@ -20,6 +20,7 @@ pub struct ReadBucketResponse {
     pub id: Uuid,
     pub name: String,
     pub r#type: BucketType,
+    pub storage_class: StorageClass
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "banyan-api")]
-use crate::banyan::{api::auth::who_am_i::read::*, client::Client, error::ClientError};
+use crate::banyan::{api::{auth::who_am_i::read::*, buckets::usage::{GetTotalUsage, GetUsageLimit}}, client::Client, error::ClientError};
 
 #[cfg(feature = "banyan-api")]
 #[cfg(test)]
@@ -62,6 +62,18 @@ impl Account {
             id: response.account_id,
         })
     }
+
+    /// Get the total usage for the account associated with the current credentials in the Client
+    pub async fn usage(client: &mut Client) -> Result<usize, ClientError> {
+        let response = client.call(GetTotalUsage).await?;
+        Ok(response.size as usize)
+    }
+
+    /// Get the usage limit for the account associated with the current credentials in the Client
+    pub async fn usage_limit(client: &mut Client) -> Result<usize, ClientError> {
+        let response = client.call(GetUsageLimit).await?;
+        Ok(response.size as usize)
+    }
 }
 
 // TODO: wasm tests
@@ -95,5 +107,22 @@ pub mod test {
     async fn who_am_i_unauthenticated() {
         let mut client = Client::new("http://localhost:3001").unwrap();
         let _ = Account::who_am_i(&mut client).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn usage() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let usage = Account::usage(&mut client).await?;
+        assert_eq!(usage, 0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn usage_limit() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let usage_limit = Account::usage_limit(&mut client).await?;
+        // 5 TiB
+        assert_eq!(usage_limit, 5 * 1024 * 1024 * 1024 * 1024);
+        Ok(())
     }
 }

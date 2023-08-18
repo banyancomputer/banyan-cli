@@ -16,7 +16,6 @@ pub struct DeleteBucket {
 pub struct DeleteBucketResponse {
     pub id: Uuid,
     pub name: String,
-    pub r#type: String,
 }
 
 impl ApiRequest for DeleteBucket {

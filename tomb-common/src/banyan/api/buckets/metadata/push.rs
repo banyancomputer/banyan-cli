@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::banyan::api::ApiRequest;
-use crate::banyan::models::bucket_metadata::BucketMetadataState;
+use crate::banyan::models::metadata::MetadataState;
 
 #[derive(Debug, Serialize)]
-pub struct PushBucketMetadata<S>
+pub struct PushMetadata<S>
 where
     reqwest::Body: From<S>,
 {
@@ -23,33 +23,33 @@ where
 }
 
 #[derive(Debug, Serialize)]
-pub struct PushBucketMetadataData {
+pub struct PushMetadataData {
     pub data_size: usize,
     pub metadata_cid: String,
     pub root_cid: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PushBucketMetadataResponse {
+pub struct PushMetadataResponse {
     pub id: Uuid,
-    pub state: BucketMetadataState,
+    pub state: MetadataState,
     pub storage_host: String,
     pub storage_authorization: String,
 }
 
-impl<S> ApiRequest for PushBucketMetadata<S>
+impl<S> ApiRequest for PushMetadata<S>
 where
     reqwest::Body: From<S>,
 {
-    type ResponseType = PushBucketMetadataResponse;
-    type ErrorType = PushBucketMetadataError;
+    type ResponseType = PushMetadataResponse;
+    type ErrorType = PushMetadataError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let path = format!("/api/v1/buckets/{}/metadata", self.bucket_id);
         let full_url = base_url.join(&path).unwrap();
 
         // Create our form data
-        let pbm_req = PushBucketMetadataData {
+        let pbm_req = PushMetadataData {
             data_size: self.data_size,
             metadata_cid: self.metadata_cid,
             root_cid: self.root_cid,
@@ -80,14 +80,14 @@ where
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
-pub struct PushBucketMetadataError {
+pub struct PushMetadataError {
     #[serde(rename = "error")]
-    kind: PushBucketMetadataErrorKind,
+    kind: PushMetadataErrorKind,
 }
 
-impl Display for PushBucketMetadataError {
+impl Display for PushMetadataError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use PushBucketMetadataErrorKind::*;
+        use PushMetadataErrorKind::*;
 
         let msg = match &self.kind {
             Unknown => "an unknown error occurred creating the bucket",
@@ -97,11 +97,11 @@ impl Display for PushBucketMetadataError {
     }
 }
 
-impl Error for PushBucketMetadataError {}
+impl Error for PushMetadataError {}
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum PushBucketMetadataErrorKind {
+enum PushMetadataErrorKind {
     Unknown,
 }

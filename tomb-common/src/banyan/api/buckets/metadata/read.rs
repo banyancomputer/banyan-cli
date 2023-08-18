@@ -6,36 +6,36 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::banyan::api::ApiRequest;
-use crate::banyan::models::bucket_metadata::BucketMetadataState;
+use crate::banyan::models::metadata::MetadataState;
 
 #[derive(Debug, Serialize)]
-pub struct ReadBucketMetadata {
+pub struct ReadMetadata {
     pub bucket_id: Uuid,
     pub id: Uuid,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ReadAllBucketMetadata {
+pub struct ReadAllMetadata {
     pub bucket_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ReadBucketMetadataResponse {
+pub struct ReadMetadataResponse {
     pub id: Uuid,
     pub root_cid: String,
     pub metadata_cid: String,
     pub data_size: i64,
-    pub state: BucketMetadataState,
+    pub state: MetadataState,
     pub created_at: i64,
     pub updated_at: i64,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ReadAllBucketMetadataResponse(pub(crate) Vec<ReadBucketMetadataResponse>);
+pub struct ReadAllMetadataResponse(pub(crate) Vec<ReadMetadataResponse>);
 
-impl ApiRequest for ReadBucketMetadata {
-    type ResponseType = ReadBucketMetadataResponse;
-    type ErrorType = ReadBucketMetadataError;
+impl ApiRequest for ReadMetadata {
+    type ResponseType = ReadMetadataResponse;
+    type ErrorType = ReadMetadataError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let path = format!("/api/v1/buckets/{}/metadata/{}", self.bucket_id, self.id);
@@ -48,9 +48,9 @@ impl ApiRequest for ReadBucketMetadata {
     }
 }
 
-impl ApiRequest for ReadAllBucketMetadata {
-    type ResponseType = ReadAllBucketMetadataResponse;
-    type ErrorType = ReadBucketMetadataError;
+impl ApiRequest for ReadAllMetadata {
+    type ResponseType = ReadAllMetadataResponse;
+    type ErrorType = ReadMetadataError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let path = format!("/api/v1/buckets/{}/metadata", self.bucket_id);
@@ -65,14 +65,14 @@ impl ApiRequest for ReadAllBucketMetadata {
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
-pub struct ReadBucketMetadataError {
+pub struct ReadMetadataError {
     #[serde(rename = "error")]
-    kind: ReadBucketMetadataErrorKind,
+    kind: ReadMetadataErrorKind,
 }
 
-impl Display for ReadBucketMetadataError {
+impl Display for ReadMetadataError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use ReadBucketMetadataErrorKind::*;
+        use ReadMetadataErrorKind::*;
 
         let msg = match &self.kind {
             Unknown => "an unknown error occurred creating the bucket",
@@ -82,11 +82,11 @@ impl Display for ReadBucketMetadataError {
     }
 }
 
-impl Error for ReadBucketMetadataError {}
+impl Error for ReadMetadataError {}
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum ReadBucketMetadataErrorKind {
+enum ReadMetadataErrorKind {
     Unknown,
 }

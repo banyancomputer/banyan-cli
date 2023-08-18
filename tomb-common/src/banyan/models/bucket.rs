@@ -3,11 +3,13 @@ use uuid::Uuid;
 
 #[cfg(feature = "banyan-api")]
 use crate::banyan::{
-    api::buckets::{create::*, delete::*, read::*},
+    api::buckets::{create::*, delete::*, read::*, usage::GetBucketUsage, snapshots::read::ReadAllSnapshots},
     client::Client,
     error::ClientError,
     models::bucket_key::BucketKey,
 };
+
+use super::snapshot::Snapshot;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Copy, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -19,6 +21,18 @@ pub enum BucketType {
     Interactive,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+/// Possible storage classes for Bucket
+pub enum StorageClass {
+    /// Hot storage
+    Hot,
+    /// Warm storage
+    Warm,
+    /// Cold storage
+    Cold,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 /// Bucket Definition
 pub struct Bucket {
@@ -28,6 +42,8 @@ pub struct Bucket {
     pub name: String,
     /// The type of the bucket
     pub r#type: BucketType,
+    /// The storage class of the bucket
+    pub storage_class: StorageClass,
 }
 
 #[cfg(feature = "banyan-api")]
@@ -37,6 +53,7 @@ impl Bucket {
         name: String,
         initial_bucket_key_pem: String,
         r#type: BucketType,
+        storage_class: StorageClass,
         client: &mut Client,
     ) -> Result<(Self, BucketKey), ClientError> {
         let response: CreateBucketResponse = client
@@ -44,6 +61,7 @@ impl Bucket {
                 name,
                 r#type,
                 initial_bucket_key_pem: initial_bucket_key_pem.clone(),
+                storage_class,
             })
             .await?;
         Ok((
@@ -51,6 +69,7 @@ impl Bucket {
                 id: response.id,
                 name: response.name,
                 r#type: response.r#type,
+                storage_class: response.storage_class,
             },
             BucketKey {
                 id: response.initial_bucket_key.id,
@@ -71,6 +90,7 @@ impl Bucket {
                 id: bucket.id,
                 name: bucket.name,
                 r#type: bucket.r#type,
+                storage_class: bucket.storage_class,
             });
         }
         Ok(buckets)
@@ -83,7 +103,29 @@ impl Bucket {
             id: response.id,
             name: response.name,
             r#type: response.r#type,
+            storage_class: response.storage_class,
         })
+    }
+
+    /// Get the snapshots for the bucket
+    pub async fn list_snapshots(&self, client: &mut Client) -> Result<Vec<Snapshot>, ClientError> {
+        let response = client.call(ReadAllSnapshots { bucket_id: self.id }).await?;
+        Ok(response
+            .0
+            .into_iter()
+            .map(|response| Snapshot {
+                id: response.id,
+                bucket_id: self.id,
+                metadata_id: response.metadata_id,
+                created_at: response.created_at,
+            })
+            .collect())
+    }
+
+    /// Get the usage for the bucket
+    pub async fn usage(&self, client: &mut Client) -> Result<usize, ClientError> {
+        let response = client.call(GetBucketUsage { id: self.id }).await?;
+        Ok(response.size as usize)
     }
 
     /// Delete a bucket
@@ -105,14 +147,17 @@ pub mod test {
     use super::*;
     use crate::banyan::models::account::generate_bucket_key;
     use crate::banyan::models::account::test::authenticated_client;
+    use crate::banyan::models::metadata::test::push_metadata_and_snapshot;
 
     pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ClientError> {
         let (_, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
+        let bucket_class = StorageClass::Hot;
         let (bucket, bucket_key) = Bucket::create(
             "test-interactive-bucket".to_string(),
             pem.clone(),
             bucket_type,
+            bucket_class,
             client,
         )
         .await?;
@@ -131,11 +176,17 @@ pub mod test {
         assert_eq!(read_bucket.name, bucket.name);
         assert_eq!(read_bucket.r#type, bucket.r#type);
         assert_eq!(read_bucket.id, bucket.id);
+        assert_eq!(read_bucket.storage_class, bucket.storage_class);
         Ok(())
     }
-
-    // Rewrite the tests below but with the new pattern i just wrote
-
+    #[tokio::test]
+    async fn create_usage() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let usage = bucket.usage(&mut client).await?;
+        assert_eq!(usage, 0);
+        Ok(())
+    }
     #[tokio::test]
     async fn create_read_all() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
@@ -145,9 +196,30 @@ pub mod test {
         assert_eq!(buckets[0].name, bucket.name);
         assert_eq!(buckets[0].r#type, bucket.r#type);
         assert_eq!(buckets[0].id, bucket.id);
+        assert_eq!(buckets[0].storage_class, bucket.storage_class);
         Ok(())
     }
 
+    #[tokio::test]
+    async fn create_list_no_snapshots() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let snapshots = bucket.list_snapshots(&mut client).await?;
+        assert_eq!(snapshots.len(), 0);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn create_list_snapshots() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let (metadata, _storage_ticket, _snapshot) =
+            push_metadata_and_snapshot(bucket.id, &mut client).await?;
+        let snapshots = bucket.list_snapshots(&mut client).await?;
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].bucket_id, bucket.id);
+        assert_eq!(snapshots[0].metadata_id, metadata.id);
+        Ok(())
+    }
     #[tokio::test]
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;

@@ -5,25 +5,29 @@ use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::banyan::api::StreamableApiRequest;
+use crate::banyan::api::ApiRequest;
 
 #[derive(Debug, Serialize)]
-pub struct PullMetadata {
-    pub id: Uuid,
+pub struct ReadAllSnapshots {
     pub bucket_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PullMetadataResponse(pub(crate) Vec<u8>);
+pub struct ReadSnapshotResponse {
+    pub id: Uuid,
+    pub metadata_id: Uuid,
+    pub created_at: i64,
+}
 
-impl StreamableApiRequest for PullMetadata {
-    type ErrorType = PullMetadataError;
+#[derive(Debug, Deserialize)]
+pub struct ReadAllSnapshotResponse(pub(crate) Vec<ReadSnapshotResponse>);
+
+impl ApiRequest for ReadAllSnapshots {
+    type ResponseType = ReadAllSnapshotResponse;
+    type ErrorType = ReadSnapshotError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
-        let path = format!(
-            "/api/v1/buckets/{}/metadata/{}/pull",
-            self.bucket_id, self.id
-        );
+        let path = format!("/api/v1/buckets/{}/snapshots", self.bucket_id);
         let full_url = base_url.join(&path).unwrap();
         client.get(full_url)
     }
@@ -35,14 +39,14 @@ impl StreamableApiRequest for PullMetadata {
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
-pub struct PullMetadataError {
+pub struct ReadSnapshotError {
     #[serde(rename = "error")]
-    kind: PullMetadataErrorKind,
+    kind: ReadSnapshotErrorKind,
 }
 
-impl Display for PullMetadataError {
+impl Display for ReadSnapshotError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use PullMetadataErrorKind::*;
+        use ReadSnapshotErrorKind::*;
 
         let msg = match &self.kind {
             Unknown => "an unknown error occurred creating the bucket",
@@ -52,11 +56,11 @@ impl Display for PullMetadataError {
     }
 }
 
-impl Error for PullMetadataError {}
+impl Error for ReadSnapshotError {}
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum PullMetadataErrorKind {
+enum ReadSnapshotErrorKind {
     Unknown,
 }

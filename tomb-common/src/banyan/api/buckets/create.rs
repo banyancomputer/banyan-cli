@@ -7,12 +7,13 @@ use uuid::Uuid;
 
 use crate::banyan::api::buckets::keys::create::CreateBucketKeyResponse;
 use crate::banyan::api::ApiRequest;
-use crate::banyan::models::bucket::BucketType;
+use crate::banyan::models::bucket::{BucketType, StorageClass};
 
 #[derive(Debug, Serialize)]
 pub struct CreateBucket {
     pub name: String,
     pub r#type: BucketType,
+    pub storage_class: StorageClass,
     pub initial_bucket_key_pem: String,
 }
 
@@ -21,6 +22,7 @@ pub struct CreateBucketResponse {
     pub id: Uuid,
     pub name: String,
     pub r#type: BucketType,
+    pub storage_class: StorageClass,
     pub initial_bucket_key: CreateBucketKeyResponse,
 }
 
