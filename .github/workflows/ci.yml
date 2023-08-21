@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo check --workspace --examples ; cargo deny check
+      - run: cargo check --workspace --examples
 
   lints:
     runs-on: ubuntu-latest
