@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 cargo test --all-features
+      - run: RUST_BACKTRACE=1 && cargo test --all-features
 
   wasm:
     name: wasm tests 
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cd tomb-wasm | curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh | RUST_BACKTRACE=1 wasm-pack test --headless --firefox | cd ..
+      - run: RUST_BACKTRACE=1 && cd tomb-wasm && cargo install wasm-pack && wasm-pack test --headless --firefox ; cd ..
 
   docs:
     name: docs tests
@@ -64,4 +64,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 cargo test --all-features --doc
+      - run: RUST_BACKTRACE=1 && cargo test --all-features --doc
