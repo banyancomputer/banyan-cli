@@ -85,26 +85,20 @@ mod test {
     #[serial]
     async fn unpack() -> Result<()> {
         let test_name = "unpack";
-        println!("doing test setup");
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
-        println!("finished test setup; doing init");
         // Initialize
         configure::init(origin).await?;
-        println!("finished init; doing pack");
         // Pack locally
         pack::pipeline(origin, true).await?;
-        println!("finished pack; doing unpack setup");
         // Create a new dir to unpack in
         let unpacked_dir = &origin
             .parent()
             .expect("origin has no parent")
             .join(format!("{}_unpacked", test_name));
         create_dir_all(unpacked_dir)?;
-        println!("starting unpacking");
         // Run the unpacking pipeline
         unpack::pipeline(origin, unpacked_dir).await?;
-        println!("finished unpacking");
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
         // Teardown

@@ -28,13 +28,9 @@ pub async fn process_node(
             // Obtain a list of this Node's children
             let node_names: Vec<&String> = dir.get_entries().collect();
 
-            println!("node names: {:?}", node_names);
-
             // For each of those children
             for node_name in node_names {
-                println!("trying to find the node by name {}", node_name);
                 // Fetch the Node with the given name
-
                 if let Ok(Some(node)) = dir
                     .lookup_node(node_name, true, metadata_forest, metadata)
                     .await

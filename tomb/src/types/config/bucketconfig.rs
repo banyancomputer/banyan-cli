@@ -101,7 +101,7 @@ impl BucketConfig {
         &self,
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
-        root_dir: &mut Rc<PrivateDirectory>,
+        root_dir: &Rc<PrivateDirectory>,
         manager: &mut Manager,
         manager_cid: &Cid,
     ) -> Result<()> {
@@ -200,7 +200,7 @@ mod test {
             .set_all(
                 &mut metadata_forest,
                 &mut content_forest,
-                &mut root_dir,
+                &root_dir,
                 &mut manager,
                 &manager_cid,
             )

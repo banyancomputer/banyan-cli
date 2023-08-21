@@ -44,7 +44,6 @@ pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
     let mut compressed: Vec<u8> = vec![];
     // Compress the chunk before feeding it to WNFS
     compress_bytes(reader, &mut compressed)?;
-    println!("compressed file! :3");
     // Return compressed bytes
     Ok(compressed)
 }
