@@ -142,8 +142,8 @@ pub async fn store_dirs_update_keys<M: TombBlockStore, C: TombBlockStore>(
 pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
     metadata: &M,
     content: &C,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &Rc<PrivateForest>,
+    content_forest: &Rc<PrivateForest>,
 ) -> Result<(Cid, Cid)> {
     // Store the metadata PrivateForest in both the content and the metadata BlockStores
     let metadata_forest_cid1 = store_forest(metadata_forest, metadata, metadata).await?;
