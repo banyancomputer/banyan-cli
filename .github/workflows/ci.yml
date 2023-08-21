@@ -42,18 +42,16 @@ jobs:
           command: clippy
           args: --workspace --all-targets --all-features --tests -- -D warnings
 
-  tests:
-    name: project tests
+  project:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 cargo test --all-features
-
-  docs:
-    name: docs tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 cargo test --all-features --doc
+      - name: native tests
+        run: RUST_BACKTRACE=1 cargo test --all-features
+      - name: wasm tests
+        working-directory: ./tomb-wasm
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: RUST_BACKTRACE=1 wasm-pack test --headless --firefox
+      - name: doc tests
+        run: RUST_BACKTRACE=1 cargo test --all-features --doc

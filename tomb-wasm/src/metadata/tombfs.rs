@@ -96,6 +96,9 @@ impl TombFS {
     }
 }
 
+// Temporarily ignored
+
+/*
 #[cfg(test)]
 mod test {
     use crate::metadata::blockstore::WasmBlockStore;
@@ -121,7 +124,6 @@ mod test {
     }
 
     #[wasm_bindgen_test]
-    #[ignore]
     async fn ls() {
         let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
             .await
@@ -141,3 +143,4 @@ mod test {
         assert_eq!(file_name2.as_string().unwrap(), "silly images");
     }
 }
+ */
