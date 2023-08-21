@@ -43,14 +43,25 @@ jobs:
           args: --workspace --all-targets --all-features --tests -- -D warnings
 
   project:
+    name: native tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - name: native tests
-        run: RUST_BACKTRACE=1 cargo test --all-features
-      - name: wasm tests
-        working-directory: ./tomb-wasm
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh | RUST_BACKTRACE=1 wasm-pack test --headless --firefox
-      - name: doc tests
-        run: RUST_BACKTRACE=1 cargo test --all-features --doc
+      - run: RUST_BACKTRACE=1 cargo test --all-features
+
+  wasm:
+    name: wasm tests 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cd tomb-wasm | curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh | RUST_BACKTRACE=1 wasm-pack test --headless --firefox | cd ..
+
+  docs:
+    name: docs tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUST_BACKTRACE=1 cargo test --all-features --doc
