@@ -79,6 +79,7 @@ pub mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn who_am_i() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let subject = client.subject().unwrap();
@@ -90,6 +91,7 @@ pub mod test {
 
     #[tokio::test]
     #[should_panic]
+    #[ignore]
     async fn who_am_i_unauthenticated() {
         let mut client = Client::new("http://localhost:3001").unwrap();
         let _ = Account::who_am_i(&mut client).await.unwrap();

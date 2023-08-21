@@ -149,6 +149,7 @@ mod test {
     use futures_util::stream::StreamExt;
 
     #[tokio::test]
+    #[ignore]
     async fn push_read_pull() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;

@@ -81,6 +81,7 @@ mod test {
     use crate::banyan::models::account::test::authenticated_client;
 
     #[tokio::test]
+    #[ignore]
     async fn create() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
@@ -90,6 +91,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn create_read() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
@@ -102,7 +104,8 @@ mod test {
     }
 
     #[tokio::test]
-    async fn creat_read_all() -> Result<(), ClientError> {
+    #[ignore]
+    async fn create_read_all() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
         let create = DeviceApiKey::create(pem, &mut client).await?;
@@ -115,6 +118,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;

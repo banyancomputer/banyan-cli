@@ -101,6 +101,7 @@ mod test {
     use crate::banyan::models::bucket::test::create_bucket;
 
     #[tokio::test]
+    #[ignore]
     async fn create() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_bucket_key().await;
@@ -113,6 +114,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn create_read() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_bucket_key().await;
@@ -127,6 +129,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn create_read_all() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_bucket_key().await;
@@ -142,6 +145,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_bucket_key().await;
@@ -155,6 +159,7 @@ mod test {
 
     #[tokio::test]
     #[should_panic]
+    #[ignore]
     async fn create_delete_by_id_for_extant_bucket() {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
@@ -166,6 +171,7 @@ mod test {
 
     #[tokio::test]
     #[should_panic]
+    #[ignore]
     async fn create_delete_by_id_for_non_extant_bucket() {
         let mut client = authenticated_client().await;
         let fake_bucket_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
