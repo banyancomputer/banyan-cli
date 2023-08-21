@@ -108,7 +108,7 @@ mod test {
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem.clone(), &mut client).await?;
         assert_eq!(bucket_key.bucket_id, bucket.id);
-        assert_eq!(bucket_key.approved, false);
+        assert!(!bucket_key.approved);
         assert_eq!(bucket_key.pem, pem);
         Ok(())
     }

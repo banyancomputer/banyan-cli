@@ -118,9 +118,9 @@ pub mod test {
         .await?;
         assert_eq!(bucket.name, "test-interactive-bucket");
         assert_eq!(bucket.r#type, bucket_type.clone());
-        assert_eq!(bucket_key.approved, true);
+        assert!(bucket_key.approved);
         assert_eq!(bucket_key.pem, pem);
-        assert_eq!(bucket_key.approved, true);
+        assert!(bucket_key.approved);
         Ok((bucket, bucket_key))
     }
     #[tokio::test]
@@ -155,7 +155,7 @@ pub mod test {
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let original_bucket_id = bucket.id.clone();
+        let original_bucket_id = bucket.id;
         let bucket_id = bucket.delete(&mut client).await?;
         assert_eq!(bucket_id, original_bucket_id.to_string());
         Ok(())

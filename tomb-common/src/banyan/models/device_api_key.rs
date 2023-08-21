@@ -110,7 +110,7 @@ mod test {
         let (_, pem) = generate_api_key().await;
         let create = DeviceApiKey::create(pem, &mut client).await?;
         let read_all = DeviceApiKey::read_all(&mut client).await?;
-        assert!(read_all.len() > 0);
+        assert!(!read_all.is_empty());
         assert_eq!(create.id, read_all[1].id);
         assert_eq!(create.pem, read_all[1].pem);
         assert_eq!(create.fingerprint, read_all[1].fingerprint);
