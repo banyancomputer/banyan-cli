@@ -7,40 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --examples
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo check --workspace --examples ; cargo deny check
 
   lints:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt, clippy
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-targets --all-features --tests -- -D warnings
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo fmt --all -- --check ; cargo clippy --workspace --all-targets --all-features --tests -- -D warnings
 
   project:
     name: native tests
