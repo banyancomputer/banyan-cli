@@ -210,8 +210,10 @@ pub mod test {
     }
     #[tokio::test]
     async fn create_read() -> Result<(), ClientError> {
+        println!("Authenticated client");
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
+        println!("Bucket: {:?}", bucket);
         let read_bucket = Bucket::read(&mut client, bucket.id).await?;
         assert_eq!(read_bucket.name, bucket.name);
         assert_eq!(read_bucket.r#type, bucket.r#type);

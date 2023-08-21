@@ -206,7 +206,7 @@ pub mod test {
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.metadata_cid, "metadata_cid");
         assert_eq!(metadata.data_size, 100);
-        assert_eq!(metadata.state, MetadataState::Pending);
+        assert_eq!(metadata.state, MetadataState::Current);
 
         let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
         assert_eq!(metadata, read_metadata);
@@ -229,7 +229,7 @@ pub mod test {
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.metadata_cid, "metadata_cid");
         assert_eq!(metadata.data_size, 100);
-        assert_eq!(metadata.state, MetadataState::Pending);
+        assert_eq!(metadata.state, MetadataState::Current);
 
         let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
         assert_eq!(metadata, read_metadata);
