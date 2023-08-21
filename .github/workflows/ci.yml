@@ -51,7 +51,6 @@ jobs:
         run: RUST_BACKTRACE=1 cargo test --all-features
       - name: wasm tests
         working-directory: ./tomb-wasm
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-        run: RUST_BACKTRACE=1 wasm-pack test --headless --firefox
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh | RUST_BACKTRACE=1 wasm-pack test --headless --firefox
       - name: doc tests
         run: RUST_BACKTRACE=1 cargo test --all-features --doc
