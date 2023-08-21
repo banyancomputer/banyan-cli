@@ -35,8 +35,10 @@ async fn load_forest(cid: &Cid, store: &impl TombBlockStore) -> Result<Rc<Privat
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
-    let forest: Rc<PrivateForest> =
-        Rc::new(ipld_serde::from_ipld::<PrivateForest>(forest_ipld).expect("failed to convert IPLD to PrivateForest"));
+    let forest: Rc<PrivateForest> = Rc::new(
+        ipld_serde::from_ipld::<PrivateForest>(forest_ipld)
+            .expect("failed to convert IPLD to PrivateForest"),
+    );
     // Return
     Ok(forest)
 }

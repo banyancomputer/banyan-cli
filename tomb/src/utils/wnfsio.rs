@@ -76,7 +76,10 @@ pub async fn file_to_disk(
         Ok(())
     } else {
         Err(PipelineError::FileNotFound(
-            file_path.to_str().expect("failed to get file path string").to_string(),
+            file_path
+                .to_str()
+                .expect("failed to get file path string")
+                .to_string(),
         ))
     }
 }

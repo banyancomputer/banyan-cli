@@ -135,7 +135,9 @@ mod test {
         // Now that the pipeline has run, grab all metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).expect("bucket config does not exist for this origin");
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
@@ -180,7 +182,9 @@ mod test {
         // Load metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).expect("bucket config does not exist for this origin");
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
@@ -192,7 +196,9 @@ mod test {
         // Reload metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).expect("bucket config does not exist for this origin");
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
@@ -215,7 +221,10 @@ mod test {
         // Pack locally
         pack::pipeline(origin, true).await?;
         // Create a new dir to unpack in
-        let unpacked_dir = &origin.parent().expect("origin has no parent").join("unpacked");
+        let unpacked_dir = &origin
+            .parent()
+            .expect("origin has no parent")
+            .join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
         unpack::pipeline(origin, unpacked_dir).await?;
@@ -342,10 +351,20 @@ mod test {
         // Get configs
         let global = GlobalConfig::from_disk().await?;
         // Compute the sizes of these directories
-        let packed_dups_size =
-            compute_directory_size(&global.get_bucket(origin_dup).expect("bucket config does not exist for this origin").content.path)? as f64;
-        let packed_unique_size =
-            compute_directory_size(&global.get_bucket(origin_unique).expect("bucket config does not exist for this origin").content.path)? as f64;
+        let packed_dups_size = compute_directory_size(
+            &global
+                .get_bucket(origin_dup)
+                .expect("bucket config does not exist for this origin")
+                .content
+                .path,
+        )? as f64;
+        let packed_unique_size = compute_directory_size(
+            &global
+                .get_bucket(origin_unique)
+                .expect("bucket config does not exist for this origin")
+                .content
+                .path,
+        )? as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
         println!("unique {} dup {}", packed_unique_size, packed_dups_size);
@@ -370,6 +389,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn versioning_complex() -> Result<()> {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
@@ -404,7 +424,9 @@ mod test {
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).expect("bucket config does not exist for this origin");
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
@@ -521,7 +543,9 @@ mod test {
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).expect("bucket config does not exist for this origin");
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 

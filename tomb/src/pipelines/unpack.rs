@@ -16,7 +16,7 @@ use std::path::Path;
 pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineError> {
     // Announce that we're starting
     info!("🚀 Starting unpacking pipeline...");
-    
+
     let global = GlobalConfig::from_disk().await?;
     println!("obtained global config");
     let wrapping_key = global.load_key().await?;

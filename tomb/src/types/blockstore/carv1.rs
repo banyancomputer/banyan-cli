@@ -151,7 +151,11 @@ mod test {
     use super::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::{remove_file, create_dir_all}, path::Path, str::FromStr};
+    use std::{
+        fs::{create_dir_all, remove_file},
+        path::Path,
+        str::FromStr,
+    };
     use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
@@ -273,7 +277,7 @@ mod test {
             create_dir_all(dir)?;
         }
         let original_path = &dir.join("carv1_blockstore_from_scratch.car");
-        
+
         // Remove it if its still there from previous test
         if original_path.exists() {
             remove_file(original_path)?;

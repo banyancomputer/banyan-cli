@@ -70,7 +70,11 @@ impl GlobalConfig {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
-            let index = self.buckets.iter().position(|b| *b == bucket).expect("cannot find index in buckets");
+            let index = self
+                .buckets
+                .iter()
+                .position(|b| *b == bucket)
+                .expect("cannot find index in buckets");
             // Remove bucket config from global config
             self.buckets.remove(index);
         }
@@ -241,7 +245,9 @@ mod test {
         // Serialize to disk
         original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
-        let reconstructed_bucket = reconstructed.get_bucket(origin).expect("bucket config does not exist for this origin");
+        let reconstructed_bucket = reconstructed
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
 
         // Assert equality
         assert_eq!(original_bucket.metadata, reconstructed_bucket.metadata);

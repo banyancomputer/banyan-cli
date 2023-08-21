@@ -56,7 +56,9 @@ impl Serialize for Header {
     where
         S: serde::Serializer,
     {
-        self.to_bytes().expect("failed to represent header as bytes").serialize(serializer)
+        self.to_bytes()
+            .expect("failed to represent header as bytes")
+            .serialize(serializer)
     }
 }
 

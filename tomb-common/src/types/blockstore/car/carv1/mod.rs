@@ -177,7 +177,9 @@ impl CAR {
     pub(crate) fn default(version: u64) -> Self {
         let header = Header::default(version);
         let mut buf = Cursor::new(<Vec<u8>>::new());
-        header.write_bytes(&mut buf).expect("failed to write header as bytes");
+        header
+            .write_bytes(&mut buf)
+            .expect("failed to write header as bytes");
 
         // Header length
         let hlen = buf.stream_len().expect("cant get stream len in header");

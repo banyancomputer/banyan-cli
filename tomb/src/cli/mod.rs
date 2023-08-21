@@ -138,7 +138,10 @@ mod test {
         // Initialization worked
         run(cmd_init(origin)).await?;
         // Assert the bucket exists now
-        assert!(GlobalConfig::from_disk().await?.get_bucket(origin).is_some());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
         // Teardown test
         test_teardown(test_name).await
     }
@@ -218,7 +221,10 @@ mod test {
         // Run pack and assert success
         run(cmd_pack(origin)).await?;
         // Create unpacked dir
-        let unpacked = &origin.parent().expect("origin has no parent").join("unpacked");
+        let unpacked = &origin
+            .parent()
+            .expect("origin has no parent")
+            .join("unpacked");
         create_dir(unpacked).ok();
         // Run unpack and assert success
         run(cmd_unpack(origin, unpacked)).await?;

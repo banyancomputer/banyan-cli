@@ -22,7 +22,8 @@ fn report_repository_version() {
         .output()
         .expect("failed to get git description");
 
-    let long_version = String::from_utf8(git_describe.stdout).expect("failed to represent bytes as string");
+    let long_version =
+        String::from_utf8(git_describe.stdout).expect("failed to represent bytes as string");
     println!("cargo:rustc-env=REPO_VERSION={}", long_version);
 }
 
