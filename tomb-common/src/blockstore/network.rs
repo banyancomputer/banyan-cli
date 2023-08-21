@@ -1,3 +1,4 @@
+use crate::blockstore::BlockStore;
 use anyhow::Result;
 use async_trait::async_trait;
 use reqwest::{
@@ -9,7 +10,6 @@ use serde_json::Value;
 use std::{borrow::Cow, str::from_utf8}; // , time::Duration};
 use thiserror::Error;
 use wnfs::libipld::{Cid, IpldCodec};
-use crate::blockstore::BlockStore;
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default, Clone)]

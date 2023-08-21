@@ -23,7 +23,10 @@ impl ApiRequest for RestoreSnapshot {
     type ErrorType = RestoreSnapshotError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
-        let path = format!("/api/v1/buckets/{}/snapshots/{}/restore", self.bucket_id, self.snapshot_id);
+        let path = format!(
+            "/api/v1/buckets/{}/snapshots/{}/restore",
+            self.bucket_id, self.snapshot_id
+        );
         let full_url = base_url.join(&path).unwrap();
         client.put(full_url)
     }

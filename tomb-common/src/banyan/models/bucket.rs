@@ -1,3 +1,5 @@
+use std::{fmt::Display, str::FromStr};
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -20,6 +22,24 @@ pub enum BucketType {
     /// A bucket for storing interactive data (Hot)
     Interactive,
 }
+impl Display for BucketType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BucketType::Backup => write!(f, "backup"),
+            BucketType::Interactive => write!(f, "interactive"),
+        }
+    }
+}
+impl FromStr for BucketType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "backup" => Ok(BucketType::Backup),
+            "interactive" => Ok(BucketType::Interactive),
+            _ => Err("Invalid bucket type".to_string()),
+        }
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -31,6 +51,26 @@ pub enum StorageClass {
     Warm,
     /// Cold storage
     Cold,
+}
+impl Display for StorageClass {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StorageClass::Hot => write!(f, "hot"),
+            StorageClass::Warm => write!(f, "warm"),
+            StorageClass::Cold => write!(f, "cold"),
+        }
+    }
+}
+impl FromStr for StorageClass {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "hot" => Ok(StorageClass::Hot),
+            "warm" => Ok(StorageClass::Warm),
+            "cold" => Ok(StorageClass::Cold),
+            _ => Err("Invalid storage class".to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

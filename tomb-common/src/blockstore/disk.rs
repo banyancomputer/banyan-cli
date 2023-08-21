@@ -1,3 +1,4 @@
+use crate::blockstore::BlockStore;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -6,7 +7,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use wnfs::libipld::{Cid, IpldCodec};
-use crate::blockstore::BlockStore;
 
 /// A disk-based blockstore that you can mutate.
 #[derive(Debug, Serialize, Deserialize)]

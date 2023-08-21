@@ -1,14 +1,19 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[cfg(feature = "banyan-api")]
 use {
     crate::banyan::{
-        api::buckets::{snapshots::create::*, metadata::{pull::*, push::*, read::*}},
+        api::buckets::{
+            metadata::{pull::*, push::*, read::*},
+            snapshots::create::*,
+        },
         client::Client,
         error::ClientError,
-        models::storage_ticket::StorageTicket,
         models::snapshot::Snapshot,
+        models::storage_ticket::StorageTicket,
     },
     bytes::Bytes,
     futures_core::stream::Stream,
@@ -30,6 +35,18 @@ pub enum MetadataState {
     Outdated,
     /// The metadata is deleted
     Deleted,
+}
+impl Display for MetadataState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MetadataState::Uploading => write!(f, "uploading"),
+            MetadataState::UploadFailed => write!(f, "upload_failed"),
+            MetadataState::Pending => write!(f, "pending"),
+            MetadataState::Current => write!(f, "current"),
+            MetadataState::Outdated => write!(f, "outdated"),
+            MetadataState::Deleted => write!(f, "deleted"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -103,11 +120,7 @@ impl Metadata {
     }
 
     /// Read the a specific metadata of a bucket
-    pub async fn read(
-        bucket_id: Uuid,
-        id: Uuid,
-        client: &mut Client,
-    ) -> Result<Self, ClientError> {
+    pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
         let response = client.call(ReadMetadata { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
@@ -120,10 +133,7 @@ impl Metadata {
     }
 
     /// Read all the metadata for a bucket
-    pub async fn read_all(
-        bucket_id: Uuid,
-        client: &mut Client,
-    ) -> Result<Vec<Self>, ClientError> {
+    pub async fn read_all(bucket_id: Uuid, client: &mut Client) -> Result<Vec<Self>, ClientError> {
         let response = client.call(ReadAllMetadata { bucket_id }).await?;
         Ok(response
             .0
@@ -140,10 +150,7 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(
-        &self,
-        client: &mut Client,
-    ) -> Result<Snapshot, ClientError> {
+    pub async fn snapshot(&self, client: &mut Client) -> Result<Snapshot, ClientError> {
         let response = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
@@ -201,8 +208,7 @@ pub mod test {
         assert_eq!(metadata.data_size, 100);
         assert_eq!(metadata.state, MetadataState::Pending);
 
-        let read_metadata =
-            Metadata::read(bucket.id, metadata.id, &mut client).await?;
+        let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
         assert_eq!(metadata, read_metadata);
 
         let mut stream = read_metadata.pull(&mut client).await?;
@@ -225,8 +231,7 @@ pub mod test {
         assert_eq!(metadata.data_size, 100);
         assert_eq!(metadata.state, MetadataState::Pending);
 
-        let read_metadata =
-            Metadata::read(bucket.id, metadata.id, &mut client).await?;
+        let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
         assert_eq!(metadata, read_metadata);
 
         let mut stream = read_metadata.pull(&mut client).await?;

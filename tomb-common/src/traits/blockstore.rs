@@ -1,8 +1,12 @@
+use crate::{keys::manager::Manager, utils::serialize::load_all};
 use anyhow::Result;
 use async_trait::async_trait;
+use std::rc::Rc;
+use tomb_crypt::prelude::*;
 use wnfs::{
     common::blockstore::BlockStore,
     libipld::{Cid, IpldCodec},
+    private::{PrivateDirectory, PrivateForest},
 };
 
 // TODO: Use better error types
@@ -15,6 +19,20 @@ pub trait TombBlockStore: BlockStore {
     fn set_root(&self, root: &Cid);
     /// Update the bytes of a block in-place
     async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid>;
+
+    /// Unlock a TombFs over a BlockStore
+    async fn unlock(
+        &self,
+        key: &EcEncryptionKey,
+    ) -> Result<(
+        Rc<PrivateForest>,
+        Rc<PrivateForest>,
+        Rc<PrivateDirectory>,
+        Manager,
+        Cid,
+    )> {
+        let components = load_all(key, self).await?;
+        let (metadata_forest, content_forest, dir, manager, root) = components;
+        Ok((metadata_forest, content_forest, dir, manager, root))
+    }
 }
-
-

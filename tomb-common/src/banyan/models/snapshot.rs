@@ -3,10 +3,8 @@ use uuid::Uuid;
 
 #[cfg(feature = "api")]
 use crate::banyan::{
-    api::buckets::snapshots::restore::*,
+    api::buckets::snapshots::restore::*, client::Client, error::ClientError,
     models::metadata::Metadata,
-    client::Client,
-    error::ClientError,
 };
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -30,7 +28,7 @@ impl Snapshot {
             bucket_id: self.bucket_id,
             snapshot_id: self.id,
         };
-        let response  = client.call(request).await?;
+        let response = client.call(request).await?;
         Ok(response.metadata_id)
     }
     /// Get the metadata for this snapshot
@@ -56,11 +54,12 @@ mod test {
         let snapshot = metadata.snapshot(&mut client).await.unwrap();
         let restored_metadata_id = snapshot.restore(&mut client).await.unwrap();
         assert_eq!(restored_metadata_id, metadata.id);
-        let restored_metadata = Metadata::read(bucket.id, restored_metadata_id, &mut client).await.unwrap();
+        let restored_metadata = Metadata::read(bucket.id, restored_metadata_id, &mut client)
+            .await
+            .unwrap();
         assert_eq!(restored_metadata.id, metadata.id);
         assert_eq!(metadata.bucket_id, restored_metadata.bucket_id);
         assert_eq!(restored_metadata.state, MetadataState::Current);
         Ok(())
     }
-
 }

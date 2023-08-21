@@ -3,12 +3,12 @@
 pub use crate::traits::blockstore::TombBlockStore;
 pub use wnfs::common::blockstore::BlockStore;
 
+/// Memory based CarV2 formatted BlockStore implementation
+pub mod carv2_memory;
 /// Disk based BlockStore implementation
 pub mod disk;
 /// Memory based BlockStore implementation
 pub mod memory;
-/// Memory based CarV2 formatted BlockStore implementation
-pub mod carv2_memory;
 /// Network based BlockStore implementation
 pub mod network;
 

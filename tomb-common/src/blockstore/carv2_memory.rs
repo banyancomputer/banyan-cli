@@ -1,10 +1,9 @@
-use async_trait::async_trait;
-use anyhow::Result;
-use std::{borrow::Cow, io::Cursor};
-use crate::blockstore::{TombBlockStore, BlockStore};
+use crate::blockstore::{BlockStore, TombBlockStore};
 use crate::car::v2::CarV2;
+use anyhow::Result;
+use async_trait::async_trait;
+use std::{borrow::Cow, io::Cursor};
 use wnfs::libipld::{Cid, IpldCodec};
-
 
 #[derive(Debug)]
 /// CarV2 formatted memory blockstore
@@ -49,12 +48,7 @@ impl TombBlockStore for CarV2MemoryBlockStore {
         panic!("not implemented")
     }
 
-    async fn update_block(
-        &self,
-        _: &Cid,
-        _: Vec<u8>,
-        _: IpldCodec,
-    ) -> Result<Cid, anyhow::Error> {
+    async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid, anyhow::Error> {
         panic!("not implemented")
     }
 }

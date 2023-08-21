@@ -4,11 +4,9 @@ use serde::{Deserialize, Serialize};
 use crate::banyan::{api::{auth::who_am_i::read::*, buckets::usage::{GetTotalUsage, GetUsageLimit}}, client::Client, error::ClientError};
 
 #[cfg(feature = "banyan-api")]
-#[cfg(test)]
 use {crate::banyan::api::auth::fake_account::create::*, tomb_crypt::prelude::*};
 
 #[cfg(feature = "banyan-api")]
-#[cfg(test)]
 pub async fn generate_api_key() -> (EcSignatureKey, String) {
     let api_key = EcSignatureKey::generate().await.unwrap();
     let public_api_key = api_key.public_key().unwrap();
@@ -17,7 +15,6 @@ pub async fn generate_api_key() -> (EcSignatureKey, String) {
 }
 
 #[cfg(feature = "banyan-api")]
-#[cfg(test)]
 pub async fn generate_bucket_key() -> (EcEncryptionKey, String) {
     let bucket_key = EcEncryptionKey::generate().await.unwrap();
     let public_bucket_key = bucket_key.public_key().unwrap();
@@ -35,9 +32,8 @@ pub struct Account {
 
 #[cfg(feature = "banyan-api")]
 impl Account {
-    #[cfg(test)]
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
-    pub async fn create_fake(_client: &mut Client) -> Result<Self, ClientError> {
+    pub async fn create_fake(_client: &mut Client) -> Result<(Self, EcSignatureKey), ClientError> {
         use crate::banyan::credentials::Credentials;
         // Create a local key pair for signing
         let (api_key, device_api_key_pem) = generate_api_key().await;
@@ -51,7 +47,7 @@ impl Account {
             signing_key: api_key.clone(),
         });
         // Return the account
-        Ok(Self { id: response.id })
+        Ok((Self { id: response.id }, api_key))
     }
 
     /// Get the account associated with the current credentials in the Client
@@ -64,15 +60,15 @@ impl Account {
     }
 
     /// Get the total usage for the account associated with the current credentials in the Client
-    pub async fn usage(client: &mut Client) -> Result<usize, ClientError> {
+    pub async fn usage(client: &mut Client) -> Result<u64, ClientError> {
         let response = client.call(GetTotalUsage).await?;
-        Ok(response.size as usize)
+        Ok(response.size as u64)
     }
 
     /// Get the usage limit for the account associated with the current credentials in the Client
-    pub async fn usage_limit(client: &mut Client) -> Result<usize, ClientError> {
+    pub async fn usage_limit(client: &mut Client) -> Result<u64, ClientError> {
         let response = client.call(GetUsageLimit).await?;
-        Ok(response.size as usize)
+        Ok(response.size as u64)
     }
 }
 

@@ -20,7 +20,7 @@ pub struct ReadBucketResponse {
     pub id: Uuid,
     pub name: String,
     pub r#type: BucketType,
-    pub storage_class: StorageClass
+    pub storage_class: StorageClass,
 }
 
 #[derive(Debug, Deserialize)]

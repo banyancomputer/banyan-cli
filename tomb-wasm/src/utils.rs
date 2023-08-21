@@ -1,4 +1,4 @@
-use js_sys::{Array, Error, Uint8Array};
+use js_sys::{Array, Error};
 use wasm_bindgen::prelude::*;
 
 pub type JsResult<T> = Result<T, js_sys::Error>;
@@ -14,6 +14,15 @@ macro_rules! value {
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
+}
+
+pub fn js_array(values: &[&str]) -> JsValue {
+    return JsValue::from(
+        values
+            .iter()
+            .map(|x| JsValue::from_str(x))
+            .collect::<Array>(),
+    );
 }
 
 pub(crate) fn map_to_rust_vec<T, F: FnMut(JsValue) -> JsResult<T>>(

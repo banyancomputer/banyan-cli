@@ -15,7 +15,7 @@ use tomb_crypt::prelude::*;
 /// The audience for the API token
 const AUDIENCE: &str = "banyan-platform";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Client for interacting with our API
 pub struct Client {
     /// Base URL

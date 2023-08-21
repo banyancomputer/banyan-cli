@@ -75,6 +75,7 @@ web-sys = { version = "0.3.64", features = [
     "Window",
     "Crypto",
     "CryptoKey",
+    "CryptoKeyPair",
     "EcKeyGenParams",
     "SubtleCrypto",
 ]}
