@@ -1,15 +1,16 @@
 use crate::fetch::http::get_data;
-use tomb_crypt::prelude::{EcEncryptionKey, WrappingPrivateKey};
+use tomb_crypt::prelude::*;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
 #[allow(missing_debug_implementations)]
 #[wasm_bindgen]
-pub struct PrivateKey(pub(crate) EcEncryptionKey);
+pub struct MyPrivateKey(pub(crate) EcEncryptionKey);
 
 #[wasm_bindgen]
-impl PrivateKey {
+impl MyPrivateKey {
     #[wasm_bindgen]
-    pub async fn new(url: String) -> Result<PrivateKey, JsValue> {
+    pub async fn new(url: String) -> Result<MyPrivateKey, JsValue> {
+        use tomb_crypt::prelude::*;
         let data = get_data(url).await.unwrap();
         let key = EcEncryptionKey::import(&data).await.unwrap();
         Ok(Self(key))
@@ -18,12 +19,12 @@ impl PrivateKey {
 
 #[cfg(test)]
 mod test {
-    use crate::metadata::crypto::PrivateKey;
+    use crate::metadata::crypto::MyPrivateKey;
     use wasm_bindgen_test::wasm_bindgen_test;
 
     #[wasm_bindgen_test]
     async fn load_key() {
         let url = "https://gist.githubusercontent.com/organizedgrime/f292f28a6ea39cea5fd1b844c51da4fb/raw/wrapping_key.pem".to_string();
-        assert!(PrivateKey::new(url).await.is_ok());
+        assert!(MyPrivateKey::new(url).await.is_ok());
     }
 }

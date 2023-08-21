@@ -1,7 +1,7 @@
 use anyhow::Result;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
-use tomb_crypt::prelude::EcEncryptionKey;
+use tomb_crypt::prelude::*;
 use wnfs::{
     common::{dagcbor, AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
@@ -378,7 +378,6 @@ mod test {
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;
-    use tomb_crypt::prelude::WrappingPrivateKey;
 
     #[tokio::test]
     #[serial]

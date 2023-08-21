@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::{
-    metadata::{blockstore::WasmBlockStore, crypto::PrivateKey, error::WasmError, JsMetadata},
+    metadata::{blockstore::WasmBlockStore, crypto::MyPrivateKey, error::WasmError, JsMetadata},
     value,
 };
 use js_sys::{Array, Object, Reflect};
@@ -24,7 +24,7 @@ struct TombFS {
 impl TombFS {
     #[wasm_bindgen]
     pub async fn new(
-        wrapping_key: PrivateKey,
+        wrapping_key: MyPrivateKey,
         metadata: WasmBlockStore,
     ) -> Result<TombFS, JsValue> {
         // If we can successfully deserialize from key and metadata
@@ -102,7 +102,7 @@ impl TombFS {
 #[cfg(test)]
 mod test {
     use crate::metadata::blockstore::WasmBlockStore;
-    use crate::metadata::crypto::PrivateKey;
+    use crate::metadata::crypto::MyPrivateKey;
     use crate::metadata::tombfs::TombFS;
     use crate::value;
     use js_sys::{Array, Reflect};
@@ -115,7 +115,7 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn load_tombfs() {
-        let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
+        let wrapping_key = MyPrivateKey::new(WRAPPINNG_KEY_URL.to_string())
             .await
             .unwrap();
         let metadata = WasmBlockStore::new(METADATA_URL.to_string()).await.unwrap();
@@ -125,7 +125,7 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn ls() {
-        let wrapping_key = PrivateKey::new(WRAPPINNG_KEY_URL.to_string())
+        let wrapping_key = MyPrivateKey::new(WRAPPINNG_KEY_URL.to_string())
             .await
             .unwrap();
         let metadata = WasmBlockStore::new(METADATA_URL.to_string()).await.unwrap();

@@ -10,7 +10,7 @@ use tomb_common::{
     types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
     utils::serialize::*,
 };
-use tomb_crypt::prelude::EcEncryptionKey;
+use tomb_crypt::prelude::*;
 use wnfs::{
     libipld::Cid,
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
@@ -140,7 +140,7 @@ mod test {
     use rand::thread_rng;
     use serial_test::serial;
     use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
-    use tomb_crypt::prelude::WrappingPrivateKey;
+    use tomb_crypt::prelude::*;
     use wnfs::{
         namefilter::Namefilter,
         private::{PrivateDirectory, PrivateForest},
