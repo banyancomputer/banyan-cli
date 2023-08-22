@@ -119,7 +119,7 @@ impl Mapper {
             let encrypted_key = if encrypted_key.len() == 242 {
                 encrypted_key
             } else {
-                String::from_utf8(vec![b' '; 242]).unwrap()
+                String::from_utf8(vec![b' '; 242]).expect("failed to convert bytes to string")
             };
             // Insert the fingerprint
             sub_map.insert("public_key".to_string(), Ipld::Bytes(public_key));
@@ -173,7 +173,7 @@ impl<'de> Deserialize<'de> for Mapper {
         D: serde::Deserializer<'de>,
     {
         let ipld = Ipld::deserialize(deserializer)?;
-        Ok(Self::from_ipld(ipld).unwrap())
+        Ok(Self::from_ipld(ipld).expect("failed to convert IPLD to Mapper"))
     }
 }
 

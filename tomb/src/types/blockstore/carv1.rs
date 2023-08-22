@@ -151,7 +151,11 @@ mod test {
     use super::BlockStore;
     use anyhow::Result;
     use serial_test::serial;
-    use std::{fs::remove_file, path::Path, str::FromStr};
+    use std::{
+        fs::{create_dir_all, remove_file},
+        path::Path,
+        str::FromStr,
+    };
     use tomb_common::{types::blockstore::tombblockstore::TombBlockStore, utils::test::car_setup};
     use wnfs::{
         common::BlockStore as WnfsBlockStore,
@@ -195,7 +199,7 @@ mod test {
             .put_block(kitty_bytes.clone(), IpldCodec::DagCbor)
             .await?;
         store.set_root(&kitty_cid);
-        assert_eq!(kitty_cid, store.get_root().unwrap());
+        assert_eq!(kitty_cid, store.get_root().expect("no root in CAR"));
         assert_eq!(kitty_bytes, store.get_block(&kitty_cid).await?.to_vec());
         Ok(())
     }
@@ -259,7 +263,7 @@ mod test {
                 .borrow()
                 .clone()
                 .last()
-                .unwrap()
+                .expect("there is no root in this CAR")
         );
 
         Ok(())
@@ -268,9 +272,12 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn from_scratch() -> Result<()> {
-        let original_path = &Path::new("test")
-            .join("car")
-            .join("carv1_blockstore_from_scratch.car");
+        let dir = &Path::new("test").join("car");
+        if !dir.exists() {
+            create_dir_all(dir)?;
+        }
+        let original_path = &dir.join("carv1_blockstore_from_scratch.car");
+
         // Remove it if its still there from previous test
         if original_path.exists() {
             remove_file(original_path)?;

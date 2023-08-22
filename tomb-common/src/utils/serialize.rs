@@ -35,8 +35,10 @@ async fn load_forest(cid: &Cid, store: &impl TombBlockStore) -> Result<Rc<Privat
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
-    let forest: Rc<PrivateForest> =
-        Rc::new(ipld_serde::from_ipld::<PrivateForest>(forest_ipld).unwrap());
+    let forest: Rc<PrivateForest> = Rc::new(
+        ipld_serde::from_ipld::<PrivateForest>(forest_ipld)
+            .expect("failed to convert IPLD to PrivateForest"),
+    );
     // Return
     Ok(forest)
 }
@@ -122,7 +124,7 @@ pub async fn store_dirs_update_keys<M: TombBlockStore, C: TombBlockStore>(
     // Update the temporal key in the key manager
     manager.update_current_key(&temporal_key1).await?;
     // If we've yet to initialize our originals
-    let original_ref_cid = if metadata.get_root().unwrap() == Cid::default() {
+    let original_ref_cid = if metadata.get_root().expect("failed to get root") == Cid::default() {
         // Set the original key
         manager.set_original_key(&temporal_key1).await?;
         // Return
@@ -140,8 +142,8 @@ pub async fn store_dirs_update_keys<M: TombBlockStore, C: TombBlockStore>(
 pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
     metadata: &M,
     content: &C,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &Rc<PrivateForest>,
+    content_forest: &Rc<PrivateForest>,
 ) -> Result<(Cid, Cid)> {
     // Store the metadata PrivateForest in both the content and the metadata BlockStores
     let metadata_forest_cid1 = store_forest(metadata_forest, metadata, metadata).await?;

@@ -37,15 +37,22 @@ impl SpiderMetadata {
     /// * `entry` - The individual file / directory being processed
     pub fn new(path_root: &Path, entry: DirEntry<((), ())>) -> Self {
         // Determine the location of the entry by stripping the root path from it
-        let original_location = entry.path().strip_prefix(path_root).unwrap().to_path_buf();
+        let original_location = entry
+            .path()
+            .strip_prefix(path_root)
+            .expect("failed to strip prefix")
+            .to_path_buf();
         // Don't try to canonicalize if this is a symlink
         let canonicalized_path: PathBuf = if entry.path_is_symlink() {
             entry.path()
         } else {
-            entry.path().canonicalize().unwrap()
+            entry
+                .path()
+                .canonicalize()
+                .expect("failed to canonicalize path")
         };
         // Grab the metadata of the entry
-        let original_metadata = entry.metadata().unwrap();
+        let original_metadata = entry.metadata().expect("failed to get entry metadata");
         // Return the SpiderMetadata
         SpiderMetadata {
             original_location,

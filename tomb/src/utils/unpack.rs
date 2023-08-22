@@ -6,6 +6,8 @@ use wnfs::{
     private::{PrivateForest, PrivateNode},
 };
 
+use crate::pipelines::error::PipelineError;
+
 use super::wnfsio::file_to_disk;
 
 #[async_recursion(?Send)]
@@ -24,19 +26,14 @@ pub async fn process_node(
             // Create the directory we are in
             std::fs::create_dir_all(unpacked.join(built_path))?;
             // Obtain a list of this Node's children
-            let node_names: Vec<String> = dir
-                .ls(&Vec::new(), true, metadata_forest, metadata)
-                .await?
-                .into_iter()
-                .map(|(l, _)| l)
-                .collect();
+            let node_names: Vec<&String> = dir.get_entries().collect();
 
             // For each of those children
             for node_name in node_names {
                 // Fetch the Node with the given name
-                if let Some(node) = dir
-                    .get_node(&[node_name.clone()], true, metadata_forest, metadata)
-                    .await?
+                if let Ok(Some(node)) = dir
+                    .lookup_node(node_name, true, metadata_forest, metadata)
+                    .await
                 {
                     // Recurse with newly found node and await
                     process_node(
@@ -49,6 +46,8 @@ pub async fn process_node(
                         &built_path.join(node_name),
                     )
                     .await?;
+                } else {
+                    return Err(PipelineError::FileNotFound(node_name.to_string()).into());
                 }
             }
         }

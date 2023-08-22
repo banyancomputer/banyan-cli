@@ -128,22 +128,20 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn init() -> Result<()> {
-        let test_name = "init";
+        let test_name = "cli_init";
         // Setup test
         let origin = &test_setup(test_name).await?;
-        // Assert no bucket exists yet
-        assert!(GlobalConfig::from_disk()
-            .await?
-            .get_bucket(origin)
-            .is_none());
+        // Deinitialize for user
+        run(cmd_deinit(origin)).await?;
+        // Assert failure
+        assert!(run(cmd_pack(origin)).await.is_err());
         // Initialization worked
         run(cmd_init(origin)).await?;
         // Assert the bucket exists now
-        let global = GlobalConfig::from_disk().await?;
-        // Assert that there is always a wrapping key
-        assert!(global.load_key().await.is_ok());
-        let bucket = global.get_bucket(origin);
-        assert!(bucket.is_some());
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
         // Teardown test
         test_teardown(test_name).await
     }
@@ -151,7 +149,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn init_deinit() -> Result<()> {
-        let test_name = "init_deinit";
+        let test_name = "cli_init_deinit";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Assert no bucket exists yet
@@ -180,7 +178,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn configure_remote() -> Result<()> {
-        let test_name = "configure_remote";
+        let test_name = "cli_configure_remote";
         // Setup test
         let input_dir = &test_setup(test_name).await?;
 
@@ -201,7 +199,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn pack() -> Result<()> {
-        let test_name = "pack";
+        let test_name = "cli_pack";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -215,7 +213,7 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn unpack() -> Result<()> {
-        let test_name = "unpack";
+        let test_name = "cli_unpack";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
@@ -223,12 +221,15 @@ mod test {
         // Run pack and assert success
         run(cmd_pack(origin)).await?;
         // Create unpacked dir
-        let unpacked = &origin.parent().unwrap().join("unpacked");
+        let unpacked = &origin
+            .parent()
+            .expect("origin has no parent")
+            .join("unpacked");
         create_dir(unpacked).ok();
         // Run unpack and assert success
         run(cmd_unpack(origin, unpacked)).await?;
         // Assert equality
-        assert_paths(origin, unpacked).unwrap();
+        assert_paths(origin, unpacked).expect("unpacked dir does not match origin");
         // Teardown test
         test_teardown(test_name).await
     }

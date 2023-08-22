@@ -45,12 +45,17 @@ impl GlobalConfig {
     /// Initialize from a reader
     #[async_recursion(?Send)]
     pub async fn from_disk() -> Result<Self> {
+        println!("doing the from-disk Global config!");
         if let Ok(file) = Self::get_read() &&
            let Ok(config) = serde_json::from_reader(file) {
+            println!("found an existing config, returning it");
                 Ok(config)
         } else {
+            println!("creating a default to serialize");
             Self::default().await?.to_disk()?;
-            Self::from_disk().await
+            let r = Self::from_disk().await;
+            println!("successfully started from scratch");
+            r
         }
     }
 
@@ -65,7 +70,11 @@ impl GlobalConfig {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
-            let index = self.buckets.iter().position(|b| *b == bucket).unwrap();
+            let index = self
+                .buckets
+                .iter()
+                .position(|b| *b == bucket)
+                .expect("cannot find index in buckets");
             // Remove bucket config from global config
             self.buckets.remove(index);
         }
@@ -79,7 +88,10 @@ impl GlobalConfig {
             bucket.remove_data()?;
         }
         // Remove global
-        remove_file(Self::get_path()).ok();
+        let path = Self::get_path();
+        if path.exists() {
+            remove_file(path)?;
+        }
         // Ok
         Ok(())
     }
@@ -91,7 +103,7 @@ impl GlobalConfig {
             .buckets
             .iter()
             .position(|b| b.origin == bucket.origin)
-            .unwrap();
+            .expect("cannot find index in buckets");
         // Update bucket at index
         self.buckets[index] = bucket.clone();
         // Ok
@@ -151,8 +163,10 @@ impl GlobalConfig {
     /// Load the WrappingKey from its predetermined location
     async fn wrapping_key_from_disk(path: &Path) -> Result<EcEncryptionKey> {
         let mut pem_bytes = Vec::new();
+        println!("opening key!");
         let mut file = File::open(path)?;
         file.read_to_end(&mut pem_bytes)?;
+        println!("read key!");
         // Return
         Ok(EcEncryptionKey::import(&pem_bytes)
             .await
@@ -231,7 +245,9 @@ mod test {
         // Serialize to disk
         original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
-        let reconstructed_bucket = reconstructed.get_bucket(origin).unwrap();
+        let reconstructed_bucket = reconstructed
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
 
         // Assert equality
         assert_eq!(original_bucket.metadata, reconstructed_bucket.metadata);

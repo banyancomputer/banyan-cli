@@ -220,7 +220,9 @@ mod test {
         let original_path = &Path::new("test")
             .join("car")
             .join("carv2_carv2blockstore_from_scratch.car");
-        remove_file(original_path).ok();
+        if original_path.exists() {
+            remove_file(original_path)?;
+        }
 
         // Open
         let original = BlockStore::new(original_path)?;
@@ -238,7 +240,7 @@ mod test {
         let reconstructed = BlockStore::new(original_path)?;
 
         // Ensure content is still there
-        assert_eq!(kitty_cid, original.get_root().unwrap());
+        assert_eq!(kitty_cid, original.get_root().expect("no root in CAR"));
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
 
         // Assert equality

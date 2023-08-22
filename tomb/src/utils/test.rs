@@ -24,7 +24,9 @@ pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Res
     // Base of the test directory
     let root_path = PathBuf::from("test").join(test_name);
     // Remove anything that might already be there
-    remove_dir_all(&root_path).ok();
+    if root_path.exists() {
+        remove_dir_all(&root_path)?;
+    }
     // Create and empty the dir
     ensure_path_exists_and_is_empty_dir(&root_path, true)?;
     // Input and path
@@ -32,7 +34,7 @@ pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Res
     // Generate file structure
     structure.generate(&input_path)?;
     // Deinitialize existing data / metadata
-    configure::deinit(&input_path).await.ok();
+    configure::deinit(&input_path).await?;
     // Return all paths
     Ok(input_path)
 }
@@ -57,7 +59,10 @@ pub fn compute_directory_size(path: &Path) -> Result<usize> {
     // Interpret the output as a string
     let output_str = String::from_utf8(output.stdout)?;
     // Grab all text before the tab
-    let size_str = output_str.split('\t').next().unwrap();
+    let size_str = output_str
+        .split('\t')
+        .next()
+        .expect("failed to extract size from output");
     // Parse that text as a number
     let size = size_str.parse::<usize>()?;
     // Ok status with size

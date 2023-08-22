@@ -44,7 +44,7 @@ impl BlockStore for DiskBlockStore {
         // If the parent directory doesn't already exist
         if !self.path.exists() {
             // Create the directories required to store the blocks
-            std::fs::create_dir_all(&self.path).unwrap();
+            std::fs::create_dir_all(&self.path).expect("failed to create all dirs");
         }
 
         // Try to build the CID from the bytes and codec

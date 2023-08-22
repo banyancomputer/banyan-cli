@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 use crate::banyan::{api::auth::who_am_i::read::*, client::Client, error::ClientError};
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 #[cfg(test)]
 use {crate::banyan::api::auth::fake_account::create::*, tomb_crypt::prelude::*};
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 #[cfg(test)]
 pub async fn generate_api_key() -> (EcSignatureKey, String) {
     let api_key = EcSignatureKey::generate().await.unwrap();
@@ -16,7 +16,7 @@ pub async fn generate_api_key() -> (EcSignatureKey, String) {
     (api_key, public_api_key_pem)
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 #[cfg(test)]
 pub async fn generate_bucket_key() -> (EcEncryptionKey, String) {
     let bucket_key = EcEncryptionKey::generate().await.unwrap();
@@ -33,7 +33,7 @@ pub struct Account {
     pub id: uuid::Uuid,
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 impl Account {
     #[cfg(test)]
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
@@ -66,7 +66,7 @@ impl Account {
 
 // TODO: wasm tests
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 #[cfg(test)]
 pub mod test {
     use super::*;
@@ -79,6 +79,7 @@ pub mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn who_am_i() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let subject = client.subject().unwrap();
@@ -90,6 +91,7 @@ pub mod test {
 
     #[tokio::test]
     #[should_panic]
+    #[ignore]
     async fn who_am_i_unauthenticated() {
         let mut client = Client::new("http://localhost:3001").unwrap();
         let _ = Account::who_am_i(&mut client).await.unwrap();

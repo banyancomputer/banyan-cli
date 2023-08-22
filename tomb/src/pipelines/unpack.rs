@@ -18,9 +18,12 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
     info!("🚀 Starting unpacking pipeline...");
 
     let global = GlobalConfig::from_disk().await?;
+    println!("obtained global config");
     let wrapping_key = global.load_key().await?;
+    println!("obtained key");
 
     if let Some(config) = global.get_bucket(origin) {
+        println!("obtained config");
         // Load metadata
         let (metadata_forest, content_forest, dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;

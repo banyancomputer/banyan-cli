@@ -141,7 +141,8 @@ mod test {
     /// Generate example data for Bucket
     #[allow(dead_code)]
     fn index_sorted_example() -> Bucket {
-        let cid = Cid::from_str("bafyrcfajghwtmjky5lzbkwxyzjlim3yxi4pmebi").unwrap();
+        let cid = Cid::from_str("bafyrcfajghwtmjky5lzbkwxyzjlim3yxi4pmebi")
+            .expect("failed to represent CID");
         // Width represents
         let cid_width = cid.to_bytes().len() as u32;
         let mut map = HashMap::new();

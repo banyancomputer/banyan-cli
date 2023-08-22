@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 use crate::banyan::{
     api::buckets::{create::*, delete::*, read::*},
     client::Client,
@@ -30,7 +30,7 @@ pub struct Bucket {
     pub r#type: BucketType,
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 impl Bucket {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create(
@@ -100,7 +100,7 @@ impl Bucket {
 }
 
 #[cfg(test)]
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 pub mod test {
     use super::*;
     use crate::banyan::models::account::generate_bucket_key;
@@ -118,9 +118,9 @@ pub mod test {
         .await?;
         assert_eq!(bucket.name, "test-interactive-bucket");
         assert_eq!(bucket.r#type, bucket_type.clone());
-        assert_eq!(bucket_key.approved, true);
+        assert!(bucket_key.approved);
         assert_eq!(bucket_key.pem, pem);
-        assert_eq!(bucket_key.approved, true);
+        assert!(bucket_key.approved);
         Ok((bucket, bucket_key))
     }
     #[tokio::test]
@@ -152,7 +152,7 @@ pub mod test {
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let original_bucket_id = bucket.id.clone();
+        let original_bucket_id = bucket.id;
         let bucket_id = bucket.delete(&mut client).await?;
         assert_eq!(bucket_id, original_bucket_id.to_string());
         Ok(())

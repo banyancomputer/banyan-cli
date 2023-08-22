@@ -56,7 +56,9 @@ impl Serialize for Header {
     where
         S: serde::Serializer,
     {
-        self.to_bytes().unwrap().serialize(serializer)
+        self.to_bytes()
+            .expect("failed to represent header as bytes")
+            .serialize(serializer)
     }
 }
 
@@ -66,7 +68,7 @@ impl<'de> Deserialize<'de> for Header {
         D: serde::Deserializer<'de>,
     {
         let header_bytes = &mut Cursor::new(<Vec<u8>>::deserialize(deserializer)?);
-        let new_header = Self::read_bytes(header_bytes).unwrap();
+        let new_header = Self::read_bytes(header_bytes).expect("failed to read header as bytes");
         Ok(new_header)
     }
 }

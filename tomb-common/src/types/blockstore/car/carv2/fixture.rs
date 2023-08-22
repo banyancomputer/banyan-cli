@@ -392,11 +392,15 @@ mod test {
         let header = Header {
             version: 2,
             roots: RefCell::new(vec![
-                Cid::from_str(&binary_cid_to_base58_cid(&block_zero_cid)).unwrap(),
-                Cid::from_str(&binary_cid_to_base58_cid(&block_five_cid)).unwrap(),
+                Cid::from_str(&binary_cid_to_base58_cid(&block_zero_cid))
+                    .expect("failed to represent binary as CID"),
+                Cid::from_str(&binary_cid_to_base58_cid(&block_five_cid))
+                    .expect("failed to represent binary as CID"),
             ]),
         };
-        let header_bytes = header.to_ipld_bytes().unwrap();
+        let header_bytes = header
+            .to_ipld_bytes()
+            .expect("failed to convert header to IPLD");
         let header_length_bytes = dirty_varint(header_bytes.len());
 
         // CARv2 Header

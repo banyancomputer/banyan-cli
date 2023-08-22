@@ -1,7 +1,7 @@
 fn report_build_profile() {
     println!(
         "cargo:rustc-env=BUILD_PROFILE={}",
-        std::env::var("PROFILE").unwrap()
+        std::env::var("PROFILE").expect("failed to get PROFILE environment var")
     );
 }
 
@@ -20,9 +20,10 @@ fn report_repository_version() {
     let git_describe = std::process::Command::new("git")
         .args(["describe", "--always", "--dirty", "--long", "--tags"])
         .output()
-        .unwrap();
+        .expect("failed to get git description");
 
-    let long_version = String::from_utf8(git_describe.stdout).unwrap();
+    let long_version =
+        String::from_utf8(git_describe.stdout).expect("failed to represent bytes as string");
     println!("cargo:rustc-env=REPO_VERSION={}", long_version);
 }
 

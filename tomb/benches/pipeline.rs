@@ -7,7 +7,12 @@ use fake_file::{
 use fs_extra::dir;
 use lazy_static::lazy_static;
 use log::{error, info};
-use std::{env, fs, path::PathBuf, str::FromStr, time::Duration};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+    time::Duration,
+};
 use tokio::runtime::Runtime;
 use tomb::pipelines::{pack, unpack};
 
@@ -151,8 +156,7 @@ fn populate_input_dirs() {
     // Populate the input directory with the desired file structures, skipping any that already exist
     // Iterate through the list of desired paths
     // Keep an index into our list of desired structures
-    let mut i = 0;
-    for entry in desired_paths {
+    for (i, entry) in desired_paths.into_iter().enumerate() {
         // If the path does not exist, then we need to generate the desired files
         if !entry.exists() {
             // Get the desired structure
@@ -161,8 +165,6 @@ fn populate_input_dirs() {
             // Generate the desired files
             desired_structure.generate(&entry).unwrap();
         }
-        // Increment the index
-        i += 1;
     }
 }
 
@@ -238,7 +240,7 @@ fn cleanup_bench() {
 
 /// Make sure packed directory is empty for packing
 #[doc(hidden)]
-fn prep_pack(packed_path: &PathBuf) {
+fn prep_pack(packed_path: &Path) {
     // Ensure the packed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(packed_path, true)
         .map_err(|e| {
@@ -256,7 +258,7 @@ fn prep_pack(packed_path: &PathBuf) {
 
 /// Make sure the unpacked directory is empty for unpacking and that the manifest file exists
 #[doc(hidden)]
-fn prep_unpack(unpacked_path: &PathBuf) {
+fn prep_unpack(unpacked_path: &Path) {
     // Ensure the unpacked directory exists and is empty
     ensure_path_exists_and_is_empty_dir(unpacked_path, true)
         .map_err(|e| {
@@ -273,7 +275,7 @@ fn prep_unpack(unpacked_path: &PathBuf) {
 /// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `result_path` - Path to the results directory to use for the benchmark. This will change for each benchmark
 /// * `timestamp` - Timestamp to use for the benchmark
-fn pack_benchmark(c: &mut Criterion, input_path: &PathBuf, packed_path: &PathBuf) {
+fn pack_benchmark(c: &mut Criterion, input_path: &Path, packed_path: &Path) {
     // Get the filename of the input directory
     let input_name = input_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id

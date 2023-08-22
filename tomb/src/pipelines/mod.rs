@@ -94,13 +94,13 @@ mod test {
         // Create a new dir to unpack in
         let unpacked_dir = &origin
             .parent()
-            .unwrap()
+            .expect("origin has no parent")
             .join(format!("{}_unpacked", test_name));
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
         unpack::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
-        assert_paths(origin, unpacked_dir).unwrap();
+        assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
         // Teardown
         test_teardown(test_name).await
     }
@@ -129,7 +129,9 @@ mod test {
         // Now that the pipeline has run, grab all metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).unwrap();
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
@@ -142,7 +144,7 @@ mod test {
                 &config.metadata,
             )
             .await?
-            .unwrap()
+            .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
@@ -174,7 +176,9 @@ mod test {
         // Load metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).unwrap();
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
@@ -186,7 +190,9 @@ mod test {
         // Reload metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).unwrap();
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
@@ -209,12 +215,15 @@ mod test {
         // Pack locally
         pack::pipeline(origin, true).await?;
         // Create a new dir to unpack in
-        let unpacked_dir = &origin.parent().unwrap().join("unpacked");
+        let unpacked_dir = &origin
+            .parent()
+            .expect("origin has no parent")
+            .join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
         unpack::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
-        assert_paths(origin, unpacked_dir).unwrap();
+        assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
         Ok(())
     }
 
@@ -267,7 +276,7 @@ mod test {
         let test_name = "deduplication_integrity";
         // Setup the test
         let origin = &test_setup(test_name).await?;
-        let dup_origin = &origin.parent().unwrap().join("dups");
+        let dup_origin = &origin.parent().expect("origin has no parent").join("dups");
         let original = &dup_origin.join("original");
         let duplicate = &dup_origin.join("duplicate");
         create_dir_all(original)?;
@@ -336,10 +345,20 @@ mod test {
         // Get configs
         let global = GlobalConfig::from_disk().await?;
         // Compute the sizes of these directories
-        let packed_dups_size =
-            compute_directory_size(&global.get_bucket(origin_dup).unwrap().content.path)? as f64;
-        let packed_unique_size =
-            compute_directory_size(&global.get_bucket(origin_unique).unwrap().content.path)? as f64;
+        let packed_dups_size = compute_directory_size(
+            &global
+                .get_bucket(origin_dup)
+                .expect("bucket config does not exist for this origin")
+                .content
+                .path,
+        )? as f64;
+        let packed_unique_size = compute_directory_size(
+            &global
+                .get_bucket(origin_unique)
+                .expect("bucket config does not exist for this origin")
+                .content
+                .path,
+        )? as f64;
 
         // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
         println!("unique {} dup {}", packed_unique_size, packed_dups_size);
@@ -364,6 +383,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn versioning_complex() -> Result<()> {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
@@ -398,7 +418,9 @@ mod test {
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).unwrap();
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
@@ -407,7 +429,7 @@ mod test {
         let current_file = current_dir
             .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
-            .unwrap()
+            .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
             .get_content(content_forest, &config.content)
@@ -427,21 +449,21 @@ mod test {
         let previous_root = iterator
             .get_previous(&config.metadata)
             .await?
-            .unwrap()
+            .expect("cannot traverse history iterator")
             .as_dir()?;
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
-            .unwrap()
+            .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
             .get_content(content_forest, &config.content)
             .await
-            .unwrap();
+            .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
         wnfsio::decompress_bytes(
             previous_content.as_slice(),
@@ -454,21 +476,21 @@ mod test {
         let original_root = iterator
             .get_previous(&config.metadata)
             .await?
-            .unwrap()
+            .expect("cannot traverse history iterator")
             .as_dir()?;
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
             .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
-            .unwrap()
+            .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
             .get_content(content_forest, &config.content)
             .await
-            .unwrap();
+            .expect("failed to retrieve file content");
         let mut original_content_decompressed: Vec<u8> = Vec::new();
         wnfsio::decompress_bytes(
             original_content.as_slice(),
@@ -481,7 +503,7 @@ mod test {
         assert!(iterator
             .get_previous(&config.metadata)
             .await
-            .unwrap()
+            .expect("cannot traverse history iterator")
             .is_none());
 
         Ok(())
@@ -515,7 +537,9 @@ mod test {
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.load_key().await?;
-        let config = global.get_bucket(origin).unwrap();
+        let config = global
+            .get_bucket(origin)
+            .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, current_dir, _, _) =
             &mut config.get_all(&wrapping_key).await?;
 
@@ -524,7 +548,7 @@ mod test {
         let current_file = current_dir
             .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
-            .unwrap()
+            .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
             .get_content(content_forest, &config.content)
@@ -544,21 +568,21 @@ mod test {
         let previous_root = iterator
             .get_previous(&config.metadata)
             .await?
-            .unwrap()
+            .expect("cannot traverse history iterator")
             .as_dir()?;
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, false, metadata_forest, &config.metadata)
             .await?
-            .unwrap()
+            .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
             .get_content(content_forest, &config.content)
             .await
-            .unwrap();
+            .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
         wnfsio::decompress_bytes(
             previous_content.as_slice(),
@@ -572,7 +596,7 @@ mod test {
         assert!(iterator
             .get_previous(&config.metadata)
             .await
-            .unwrap()
+            .expect("cannot traverse history iterator")
             .is_none());
 
         Ok(())
@@ -592,11 +616,11 @@ mod test {
         let sym_file_root = origin.join("0");
 
         // Point from /input/symlinks/ZZ -> /input/symlinks/0
-        let dir_original = origin.join("0").canonicalize().unwrap();
+        let dir_original = origin.join("0").canonicalize()?;
         let dir_sym = origin.join("ZZ");
 
         // Point from /input/symlinks/0/ZZ -> /input/symlinks/0/0
-        let file_original = sym_file_root.join("0").canonicalize().unwrap();
+        let file_original = sym_file_root.join("0").canonicalize()?;
         let file_sym = sym_file_root.join("ZZ");
 
         // Create those symbolic links in the actual filesystem

@@ -39,7 +39,12 @@ pub struct BucketConfig {
 impl BucketConfig {
     /// Given a directory, initialize a configuration for it
     pub fn new(origin: &Path) -> Result<Self> {
-        let bucket_name = origin.file_name().unwrap().to_str().unwrap().to_string();
+        let bucket_name = origin
+            .file_name()
+            .expect("no file name")
+            .to_str()
+            .expect("no file name str")
+            .to_string();
         // Generate a name for the generated directory
         let generated_name: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
@@ -96,7 +101,7 @@ impl BucketConfig {
         &self,
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
-        root_dir: &mut Rc<PrivateDirectory>,
+        root_dir: &Rc<PrivateDirectory>,
         manager: &mut Manager,
         manager_cid: &Cid,
     ) -> Result<()> {
@@ -195,7 +200,7 @@ mod test {
             .set_all(
                 &mut metadata_forest,
                 &mut content_forest,
-                &mut root_dir,
+                &root_dir,
                 &mut manager,
                 &manager_cid,
             )

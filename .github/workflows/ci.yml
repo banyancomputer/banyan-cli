@@ -7,72 +7,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --examples
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo check --workspace --examples
 
   lints:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: rustup component add rustfmt clippy && cargo fmt --all -- --check ; cargo clippy --workspace --all-targets --all-features --tests -- -D warnings
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt, clippy
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-targets --all-features --tests -- -D warnings
-
-  tests:
+  cli:
+    name: cli tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUST_BACKTRACE=1 && cd tomb && cargo test; cd ..
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
+  common:
+    name: common tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUST_BACKTRACE=1 && cd tomb-common && cargo test; cd ..     
 
-      - uses: actions-rs/cargo@v1
-        name: Run all workspace tests
-        with:
-          command: test
-          args: --workspace --lib --bins --tests --benches
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+  wasm:
+    name: wasm tests 
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUST_BACKTRACE=1 && cd tomb-wasm && cargo install wasm-pack && wasm-pack test --headless --firefox ; cd ..
 
-      - uses: actions-rs/cargo@v1
-        name: Run all doc tests
-        with:
-          command: test
-          args: --workspace --doc
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-
-      - uses: actions-rs/grcov@v0.1
-        id: coverage
+  docs:
+    name: docs tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUST_BACKTRACE=1 && cargo test --all-features --doc

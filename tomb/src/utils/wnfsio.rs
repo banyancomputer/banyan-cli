@@ -35,6 +35,7 @@ where
 
 /// Compress the contents of a file at a given path
 pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
+    println!("compressing file! {}", path.display());
     // Open the original file (just the first one!)
     let file = File::open(path)?;
     // Create a reader for the original file
@@ -74,7 +75,10 @@ pub async fn file_to_disk(
         Ok(())
     } else {
         Err(PipelineError::FileNotFound(
-            file_path.to_str().unwrap().to_string(),
+            file_path
+                .to_str()
+                .expect("failed to get file path string")
+                .to_string(),
         ))
     }
 }

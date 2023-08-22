@@ -45,5 +45,4 @@ crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [features]
-default = ["api"]
-api = []
+banyan-api = []
