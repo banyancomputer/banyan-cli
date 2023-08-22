@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 use crate::banyan::{
     api::buckets::{create::*, delete::*, read::*},
     client::Client,
@@ -30,7 +30,7 @@ pub struct Bucket {
     pub r#type: BucketType,
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 impl Bucket {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create(
@@ -100,7 +100,7 @@ impl Bucket {
 }
 
 #[cfg(test)]
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 pub mod test {
     use super::*;
     use crate::banyan::models::account::generate_bucket_key;

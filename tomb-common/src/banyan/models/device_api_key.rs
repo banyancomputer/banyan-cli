@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 use crate::banyan::{
     api::auth::device_api_key::{create::*, delete::*, read::*},
     client::Client,
@@ -19,7 +19,7 @@ pub struct DeviceApiKey {
     pub pem: String,
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 impl DeviceApiKey {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create(pem: String, client: &mut Client) -> Result<Self, ClientError> {
@@ -74,7 +74,7 @@ impl DeviceApiKey {
 // TODO: wasm tests
 
 #[cfg(test)]
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 mod test {
     use super::*;
     use crate::banyan::models::account::generate_api_key;

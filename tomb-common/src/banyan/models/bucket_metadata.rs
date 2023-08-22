@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 use {
     crate::banyan::{
         api::buckets::metadata::{pull::*, push::*, read::*},
@@ -47,7 +47,7 @@ pub struct BucketMetadata {
     pub state: BucketMetadataState,
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 impl BucketMetadata {
     // TODO: This should probably take a generic trait related to Tomb in order to extract these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
@@ -140,7 +140,7 @@ impl BucketMetadata {
     // TODO: Delete
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 #[cfg(test)]
 mod test {
     use super::*;

@@ -9,7 +9,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-tomb-common = { path = "../tomb-common", version = "1.1.0" }
+tomb-common = { path = "../tomb-common", version = "1.1.0", features = ["banyan-api"] }
 serde_json = { workspace = true }
 wnfs.workspace = true
 anyhow.workspace = true

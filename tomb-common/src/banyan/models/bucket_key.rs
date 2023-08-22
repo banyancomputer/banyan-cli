@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 use crate::banyan::{
     api::buckets::keys::{create::*, delete::*, read::*},
     client::Client,
@@ -21,7 +21,7 @@ pub struct BucketKey {
     pub approved: bool,
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 impl BucketKey {
     /// Create a new bucket key
     pub async fn create(
@@ -92,7 +92,7 @@ impl BucketKey {
     }
 }
 
-#[cfg(feature = "api")]
+#[cfg(feature = "banyan-api")]
 #[cfg(test)]
 mod test {
     use super::*;

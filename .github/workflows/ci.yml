@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cargo test --no-default-features
+      - run: RUST_BACKTRACE=1 && cargo test 
 
   wasm:
     name: wasm tests 
