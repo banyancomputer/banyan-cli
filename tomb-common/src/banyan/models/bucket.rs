@@ -124,7 +124,6 @@ pub mod test {
         Ok((bucket, bucket_key))
     }
     #[tokio::test]
-    #[ignore]
     async fn create_read() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
@@ -138,7 +137,6 @@ pub mod test {
     // Rewrite the tests below but with the new pattern i just wrote
 
     #[tokio::test]
-    #[ignore]
     async fn create_read_all() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
@@ -151,7 +149,6 @@ pub mod test {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
@@ -163,7 +160,6 @@ pub mod test {
 
     #[tokio::test]
     #[should_panic]
-    #[ignore]
     async fn delete_by_id() {
         let mut client = authenticated_client().await;
         let fake_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
