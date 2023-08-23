@@ -36,7 +36,7 @@ categories = [
 
 [workspace.dependencies]
 # Dependencies
-clap = { version = "4.0.32", features = ["derive"] }
+clap = { version = "4.3.24", features = ["derive"] }
 anyhow = { version = "1", features = ["backtrace"] }
 tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
 jwalk = "0.8.1"
