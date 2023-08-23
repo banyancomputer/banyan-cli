@@ -268,7 +268,7 @@ mod test {
     async fn from_scratch() -> Result<()> {
         let dir = &Path::new("test").join("car");
         if !dir.exists() {
-            create_dir_all(dir)?;
+            std::fs::create_dir_all(dir)?;
         }
         let original_path = &dir.join("carv1_blockstore_from_scratch.car");
 

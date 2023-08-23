@@ -1,12 +1,8 @@
-use js_sys::{Object, Reflect};
-use wnfs::{common::Metadata as FsEntryMetadata, libipld::Ipld};
-use tomb_common::banyan::models::{
-    bucket::*,
-    bucket_key::*,
-    snapshot::*,
-};
 use crate::value;
+use js_sys::{Object, Reflect};
+use tomb_common::banyan_api::models::{bucket::*, bucket_key::*, snapshot::*};
 use wasm_bindgen::prelude::*;
+use wnfs::{common::Metadata as FsEntryMetadata, libipld::Ipld};
 
 /* Js Value bindings for our Rust structs */
 // #[wasm_bindgen]
@@ -33,7 +29,6 @@ use wasm_bindgen::prelude::*;
 //         wasm_storage_class.0
 //     }
 // }
-
 
 /// Wrapper around a Bucket
 #[wasm_bindgen]
@@ -78,25 +73,25 @@ pub struct WasmBucketEntry(pub(crate) FsEntryMetadata);
 impl TryFrom<WasmBucketEntry> for JsValue {
     type Error = js_sys::Error;
     fn try_from(fs_entry: WasmBucketEntry) -> Result<Self, Self::Error> {
-        let object  = Object::new();
+        let object = Object::new();
         if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("created") {
             Reflect::set(
-                &object ,
+                &object,
                 &value!("created"),
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
         if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("modified") {
             Reflect::set(
-                &object ,
+                &object,
                 &value!("modified"),
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
-        // TODO: Remove stubs, with standard object 
-        Reflect::set(&object , &value!("size"), &value!(1024))?;
-        Reflect::set(&object , &value!("cid"), &value!("Qmabcde"))?;
-        Ok(value!(object ))
+        // TODO: Remove stubs, with standard object
+        Reflect::set(&object, &value!("size"), &value!(1024))?;
+        Reflect::set(&object, &value!("cid"), &value!("Qmabcde"))?;
+        Ok(value!(object))
     }
 }
 

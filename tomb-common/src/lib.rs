@@ -8,8 +8,9 @@
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
 
+#[cfg(feature = "banyan-api")]
 /// Banyan types and client
-pub mod banyan;
+pub mod banyan_api;
 /// BlockStore implementations
 pub mod blockstore;
 /// Car types and implementations

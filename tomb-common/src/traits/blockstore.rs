@@ -1,4 +1,7 @@
-use crate::{keys::manager::Manager, utils::serialize::{load_all, init_all}};
+use crate::{
+    keys::manager::Manager,
+    utils::serialize::{init_all, load_all},
+};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::rc::Rc;

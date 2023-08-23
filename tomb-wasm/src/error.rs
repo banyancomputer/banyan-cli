@@ -21,7 +21,7 @@ impl Display for TombWasmError {
         use TombWasmErrorKind::*;
 
         match &self.kind {
-            UnknownError => write!(f, "an unknown error occurred")
+            UnknownError => write!(f, "an unknown error occurred"),
         }
     }
 }
@@ -37,5 +37,5 @@ impl std::error::Error for TombWasmError {}
 #[derive(Debug)]
 #[non_exhaustive]
 enum TombWasmErrorKind {
-    UnknownError
+    UnknownError,
 }

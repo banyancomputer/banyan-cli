@@ -6,10 +6,11 @@ use tomb_crypt::prelude::*;
 use wnfs::{
     common::{dagcbor, AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
+    namefilter::Namefilter,
     private::{
         PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory, PrivateRef,
         TemporalKey,
-    }, namefilter::Namefilter,
+    },
 };
 
 use crate::traits::blockstore::TombBlockStore;
@@ -160,7 +161,7 @@ pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
 /// Initialize an empty TombBlockStore with a new copy of metadata
 pub async fn init_all<TBS: TombBlockStore>(
     store: &TBS,
-    wrapping_key: &EcEncryptionKey
+    wrapping_key: &EcEncryptionKey,
 ) -> Result<(
     Rc<PrivateForest>,
     Rc<PrivateForest>,
@@ -181,7 +182,9 @@ pub async fn init_all<TBS: TombBlockStore>(
     let mut manager = Manager::default();
     // Insert the wrapping key
     // Note: this is a workaround to get this to compile in wasm
-    manager.insert(&wrapping_key.public_key().expect("public key not available")).await?;
+    manager
+        .insert(&wrapping_key.public_key().expect("public key not available"))
+        .await?;
     // Store the key manager
     let manager_cid = store_manager(&manager, store, store).await?;
     // Store everything
@@ -193,7 +196,8 @@ pub async fn init_all<TBS: TombBlockStore>(
         &root_dir.clone(),
         &mut manager,
         &manager_cid,
-    ).await?;
+    )
+    .await?;
     // Return
     Ok((
         metadata_forest,
