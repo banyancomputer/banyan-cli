@@ -193,20 +193,29 @@ pub mod test {
         let (_, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
+        let bucket_name = format!("{}", rand::random::<u64>());
         let (bucket, bucket_key) = Bucket::create(
-            "test-interactive-bucket".to_string(),
+            bucket_name.clone(),
             pem.clone(),
             bucket_type,
             bucket_class,
             client,
         )
         .await?;
-        assert_eq!(bucket.name, "test-interactive-bucket");
+        assert_eq!(bucket.name, bucket_name.clone());
         assert_eq!(bucket.r#type, bucket_type.clone());
         assert!(bucket_key.approved);
         assert_eq!(bucket_key.pem, pem);
         assert!(bucket_key.approved);
         Ok((bucket, bucket_key))
+    }
+    pub fn fake_bucket() -> Bucket {
+        Bucket {
+            id: Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap(),
+            name: "fake-bucket".to_string(),
+            r#type: BucketType::Interactive,
+            storage_class: StorageClass::Hot,
+        }
     }
     #[tokio::test]
     async fn create_read() -> Result<(), ClientError> {
@@ -219,6 +228,17 @@ pub mod test {
         assert_eq!(read_bucket.r#type, bucket.r#type);
         assert_eq!(read_bucket.id, bucket.id);
         assert_eq!(read_bucket.storage_class, bucket.storage_class);
+        Ok(())
+    }
+    #[tokio::test]
+    async fn create_read_unauthorized() -> Result<(), ClientError> {
+        let mut good_client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut good_client).await?;
+        let mut bad_client = authenticated_client().await;
+        let read_bucket = Bucket::read(&mut bad_client, bucket.id).await;
+        assert!(read_bucket.is_err());
+        let read_bucket = Bucket::read(&mut bad_client, fake_bucket().id).await;
+        assert!(read_bucket.is_err());
         Ok(())
     }
     #[tokio::test]
@@ -241,7 +261,6 @@ pub mod test {
         assert_eq!(buckets[0].storage_class, bucket.storage_class);
         Ok(())
     }
-
     #[tokio::test]
     async fn create_list_no_snapshots() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
@@ -271,7 +290,15 @@ pub mod test {
         assert_eq!(bucket_id, original_bucket_id.to_string());
         Ok(())
     }
-
+    #[tokio::test]
+    async fn create_delete_unauthorized() -> Result<(), ClientError> {
+        let mut good_client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut good_client).await?;
+        let mut bad_client = authenticated_client().await;
+        let bucket_id = bucket.delete(&mut bad_client).await;
+        assert!(bucket_id.is_err());
+        Ok(())
+    }
     #[tokio::test]
     #[should_panic]
     async fn delete_by_id() {

@@ -4,8 +4,7 @@ use gloo::{
     utils::window,
     console::log
 };
-use js_sys::Reflect;
-use wasm_bindgen::prelude::*;
+use js_sys::{Reflect, Array};
 use wasm_bindgen_test::*;
 use web_sys::CryptoKey;
 
@@ -18,6 +17,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 use tomb_common::banyan::models::account::Account;
 use tomb_common::banyan::client::Client;
+use web_sys::CryptoKeyPair;
 
 const FIVE_TIB: u64  = 5_497_558_138_880;
 
@@ -41,7 +41,7 @@ async fn create_bucket() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
-    let web_public_encryption_key = web_encryption_key_pair.1; 
+    let web_public_encryption_key = CryptoKey::from(Reflect::get(&web_encryption_key_pair, &"publicKey".into()).unwrap());
     // Note: this might lint as an error, but it's not
     let bucket = client.create_bucket(
         "test-bucket".to_string(),
@@ -56,13 +56,12 @@ async fn create_bucket() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-// This isn't implemented yet
 #[should_panic]
 async fn create_mount_bucket() -> JsResult<()> {
     log!("tomb_wasm_test: create_mount_bucket()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
-    let web_public_encryption_key = web_encryption_key_pair.1; 
+    let web_public_encryption_key = CryptoKey::from(Reflect::get(&web_encryption_key_pair, &"publicKey".into()).unwrap()); 
     // Note: this might lint as an error, but it's not
     let bucket = client.create_bucket(
         "test-bucket".to_string(),
@@ -76,13 +75,19 @@ async fn create_mount_bucket() -> JsResult<()> {
 
     let mount = client.mount(
         bucket.id().to_string(),
+        web_encryption_key_pair
     ).await?;
+    assert_eq!(mount.is_locked(), false);
+    let ls: Array = mount.ls("/".to_string()).await?;
+    println!("ls: {:?}", ls);
+    assert_eq!(ls.length(), 0);
     Ok(())
 }
 
 #[wasm_bindgen_test]
 async fn get_usage() -> JsResult<()> {
     log!("tomb_wasm_test: get_usage()");
+    let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
     let mut client = authenticated_client().await?;
     let usage = client.get_usage().await?;
     assert_eq!(usage, 0);
@@ -91,21 +96,12 @@ async fn get_usage() -> JsResult<()> {
     Ok(())
 }
 
-async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> (CryptoKey, CryptoKey) {
+async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     let subtle = window().crypto().unwrap().subtle();
     let params = web_sys::EcKeyGenParams::new(key_type, "P-256");
     let usages = js_array(uses);
-    let future = subtle
+    let promise = subtle
         .generate_key_with_object(&params, true, &usages).unwrap();
-    let key_pair = wasm_bindgen_futures::JsFuture::from(future).await.unwrap();
-    // Note: i know this is cursed -- this was the only way i could get it to work
-    let private_key = Reflect::get(&key_pair, &tomb_wasm::value!("privateKey"))
-        .unwrap()
-        .dyn_into::<web_sys::CryptoKey>()
-        .unwrap();
-    let public_key = Reflect::get(&key_pair, &tomb_wasm::value!("publicKey"))
-        .unwrap()
-        .dyn_into::<web_sys::CryptoKey>()
-        .unwrap();
-    (private_key, public_key)
+    let key_pair = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
+    CryptoKeyPair::from(key_pair)
 }

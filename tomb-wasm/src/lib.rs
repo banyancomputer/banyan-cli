@@ -187,23 +187,24 @@ impl TombWasm {
     /// # Arguments
     /// * bucket_id - The id of the bucket to mount
     #[wasm_bindgen(js_name = load)]
-    pub async fn mount(&mut self, bucket_id: String) -> JsResult<WasmMount> {
+    #[cfg(target_arch = "wasm32")]
+    pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> JsResult<WasmMount> {
         log!("tomb-wasm: mount / {}", &bucket_id);
         // Parse the bucket id
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+        // Load the EcEncryptionKey
+        let key = EcEncryptionKey::from(key);
         // Load the bucket
         let bucket: WasmBucket = Bucket::read(self.client(), bucket_id)
             .await
             .map_err(|_| TombWasmError::unknown_error())?.into();
         // Get the bucket id
-        // Load the bucket
+        // Try to pull the mount. Otherwise create it and push an initial piece of metadata
         let mount = match WasmMount::pull(bucket.clone(), self.client()).await {
-            Ok(mount) => mount,
+            Ok(mount) => mount.unlock(&key).await?,
             Err(_) => {
-                // Create the mount
-                let mut mount = WasmMount::new(bucket.clone(), self.client()).await?;
-                // Push the mount
-                mount.sync().await?;
+                // Create the mount and push an initial piece of metadata
+                let mut mount = WasmMount::new(bucket.clone(), &key, self.client()).await?;
                 // Ok
                 mount
             }

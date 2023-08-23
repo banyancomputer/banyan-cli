@@ -19,6 +19,11 @@ pub struct ReadAllMetadata {
     pub bucket_id: Uuid,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ReadCurrentMetadata {
+    pub bucket_id: Uuid,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ReadMetadataResponse {
     pub id: Uuid,
@@ -54,6 +59,21 @@ impl ApiRequest for ReadAllMetadata {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let path = format!("/api/v1/buckets/{}/metadata", self.bucket_id);
+        let full_url = base_url.join(&path).unwrap();
+        client.get(full_url)
+    }
+
+    fn requires_authentication(&self) -> bool {
+        true
+    }
+}
+
+impl ApiRequest for ReadCurrentMetadata {
+    type ResponseType = ReadMetadataResponse;
+    type ErrorType = ReadMetadataError;
+
+    fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
+        let path = format!("/api/v1/buckets/{}/metadata/current", self.bucket_id);
         let full_url = base_url.join(&path).unwrap();
         client.get(full_url)
     }

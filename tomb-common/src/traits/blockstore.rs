@@ -1,4 +1,4 @@
-use crate::{keys::manager::Manager, utils::serialize::load_all};
+use crate::{keys::manager::Manager, utils::serialize::{load_all, init_all}};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::rc::Rc;
@@ -19,6 +19,22 @@ pub trait TombBlockStore: BlockStore {
     fn set_root(&self, root: &Cid);
     /// Update the bytes of a block in-place
     async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid>;
+
+    /// Initialize a TombFs over a BlockStore
+    async fn init(
+        &self,
+        key: &EcEncryptionKey,
+    ) -> Result<(
+        Rc<PrivateForest>,
+        Rc<PrivateForest>,
+        Rc<PrivateDirectory>,
+        Manager,
+        Cid,
+    )> {
+        let components = init_all(self, key).await?;
+        let (metadata_forest, content_forest, dir, manager, root) = components;
+        Ok((metadata_forest, content_forest, dir, manager, root))
+    }
 
     /// Unlock a TombFs over a BlockStore
     async fn unlock(

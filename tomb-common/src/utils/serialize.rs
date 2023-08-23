@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::Utc;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
 use tomb_crypt::prelude::*;
@@ -8,7 +9,7 @@ use wnfs::{
     private::{
         PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory, PrivateRef,
         TemporalKey,
-    },
+    }, namefilter::Namefilter,
 };
 
 use crate::traits::blockstore::TombBlockStore;
@@ -154,6 +155,53 @@ pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
     assert_eq!(content_forest_cid1, content_forest_cid2);
     // Ok
     Ok((metadata_forest_cid1, content_forest_cid1))
+}
+
+/// Initialize an empty TombBlockStore with a new copy of metadata
+pub async fn init_all<TBS: TombBlockStore>(
+    store: &TBS,
+    wrapping_key: &EcEncryptionKey
+) -> Result<(
+    Rc<PrivateForest>,
+    Rc<PrivateForest>,
+    Rc<PrivateDirectory>,
+    Manager,
+    Cid,
+)> {
+    // Create a new PrivateForest
+    let metadata_forest = Rc::new(PrivateForest::new());
+    let content_forest = Rc::new(PrivateForest::new());
+    // Create a new PrivateDirectory
+    let root_dir = Rc::new(PrivateDirectory::new(
+        Namefilter::default(),
+        Utc::now(),
+        &mut thread_rng(),
+    ));
+    // Create a new Key Manager
+    let mut manager = Manager::default();
+    // Insert the wrapping key
+    // Note: this is a workaround to get this to compile in wasm
+    manager.insert(&wrapping_key.public_key().expect("public key not available")).await?;
+    // Store the key manager
+    let manager_cid = store_manager(&manager, store, store).await?;
+    // Store everything
+    store_all(
+        store,
+        store,
+        &mut metadata_forest.clone(),
+        &mut content_forest.clone(),
+        &root_dir.clone(),
+        &mut manager,
+        &manager_cid,
+    ).await?;
+    // Return
+    Ok((
+        metadata_forest,
+        content_forest,
+        root_dir,
+        manager,
+        manager_cid,
+    ))
 }
 
 /// Store all relevant metadata in both BlockStores

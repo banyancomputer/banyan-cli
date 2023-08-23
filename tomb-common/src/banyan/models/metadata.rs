@@ -149,6 +149,19 @@ impl Metadata {
             .collect())
     }
 
+    /// Read the current metadata for a bucket
+    pub async fn read_current(bucket_id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
+        let response = client.call(ReadCurrentMetadata { bucket_id }).await?;
+        Ok(Self {
+            id: response.id,
+            bucket_id,
+            root_cid: response.root_cid,
+            metadata_cid: response.metadata_cid,
+            data_size: response.data_size as usize,
+            state: response.state,
+        })
+    }
+
     /// Snapshot the current metadata
     pub async fn snapshot(&self, client: &mut Client) -> Result<Snapshot, ClientError> {
         let response = client
@@ -211,12 +224,38 @@ pub mod test {
         let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
         assert_eq!(metadata, read_metadata);
 
+        let current_metadata = Metadata::read_current(bucket.id, &mut client).await?;
+        assert_eq!(metadata, current_metadata);
+
         let mut stream = read_metadata.pull(&mut client).await?;
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
         assert_eq!(data, "metadata_stream".as_bytes());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn push_read_unauthorized() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let (metadata, _storage_ticket) = push_metadata(bucket.id, &mut client).await?;
+        assert_eq!(metadata.bucket_id, bucket.id);
+
+        let mut bad_client = authenticated_client().await;
+        let read_metadata = Metadata::read(bucket.id, metadata.id, &mut bad_client).await;
+        assert!(read_metadata.is_err());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn push_read_wrong_bucket() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let (other_bucket, _) = create_bucket(&mut client).await?;
+        let (_metadata, _storage_ticket) = push_metadata(bucket.id, &mut client).await?;
+        let (other_metadata, _storage_ticket) = push_metadata(other_bucket.id, &mut client).await?;
+        let read_metadata = Metadata::read(bucket.id, other_metadata.id, &mut client).await;
+        assert!(read_metadata.is_err());
         Ok(())
     }
 
