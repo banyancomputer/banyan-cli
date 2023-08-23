@@ -1,43 +1,114 @@
 //! Test suite for the Web and headless browsers.
 
-#![cfg(target_arch = "wasm32")]
-
-extern crate wasm_bindgen_test;
-// use wasm_bindgen::JsValue;
-use wasm_bindgen_test::wasm_bindgen_test_configure;
+use gloo::{console::log, utils::window};
+use js_sys::{Array, Reflect};
 use wasm_bindgen_test::*;
+use web_sys::CryptoKey;
 
+use tomb_wasm::utils::*;
+use tomb_wasm::TombWasm;
 extern crate tomb_wasm;
-// use tomb_wasm::Tomb;
+extern crate wasm_bindgen_test;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-#[wasm_bindgen_test]
-fn pass() {
-    assert_eq!(1 + 1, 2);
+use tomb_common::banyan_api::client::Client;
+use tomb_common::banyan_api::models::account::Account;
+use web_sys::CryptoKeyPair;
+
+const FIVE_TIB: u64 = 5_497_558_138_880;
+
+pub async fn authenticated_client() -> JsResult<TombWasm> {
+    let mut client = Client::new("http://localhost:3001").expect("client creation failed");
+    let (account, _signing_key) = Account::create_fake(&mut client)
+        .await
+        .expect("fake account creation failed");
+    assert_eq!(account.id.to_string(), client.subject().unwrap());
+    let who_am_i = Account::who_am_i(&mut client)
+        .await
+        .expect("who_am_i failed");
+    assert_eq!(account.id.to_string(), who_am_i.id.to_string());
+    Ok(TombWasm::from(client))
 }
 
-// #[cfg(test)]
-// pub async fn helper_method_example() -> Tomb {
-//     // TODO: Add real endpoint and token
-//     let tomb = Tomb::new(
-//         "http://test.tomb.local".to_string(),
-//         "long-secure-token-here".to_string(),
-//     )
-//     .await
-//     .unwrap();
-//     tomb
-// }
+#[wasm_bindgen_test]
+async fn authenticate_client() -> JsResult<()> {
+    let _client = authenticated_client().await?;
+    Ok(())
+}
 
-// #[wasm_bindgen_test]
-// pub async fn test_tomb() {
-//     // calling a setup function.
-//     let mut tomb = helper_method_example().await;
-//     let _buckets = tomb.buckets().unwrap();
-//     let pkcs8_string: &str = "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";
-//     let js_value_pkcs8_string: JsValue = wasm_bindgen::JsValue::from_str(pkcs8_string);
-//     tomb.load_bucket("bucket_name".to_string(), js_value_pkcs8_string)
-//         .await
-//         .unwrap();
-//     // TODO: More in depth assertions
-// }
+#[wasm_bindgen_test]
+async fn create_bucket() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_public_encryption_key =
+        CryptoKey::from(Reflect::get(&web_encryption_key_pair, &"publicKey".into()).unwrap());
+    // Note: this might lint as an error, but it's not
+    let bucket = client
+        .create_bucket(
+            "test-bucket".to_string(),
+            "warm".to_string(),
+            "interactive".to_string(),
+            web_public_encryption_key,
+        )
+        .await?;
+    assert_eq!(bucket.name(), "test-bucket");
+    assert_eq!(bucket.storage_class(), "warm");
+    assert_eq!(bucket.bucket_type(), "interactive");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+#[should_panic]
+async fn create_mount_bucket() -> JsResult<()> {
+    log!("tomb_wasm_test: create_mount_bucket()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_public_encryption_key =
+        CryptoKey::from(Reflect::get(&web_encryption_key_pair, &"publicKey".into()).unwrap());
+    // Note: this might lint as an error, but it's not
+    let bucket = client
+        .create_bucket(
+            "test-bucket".to_string(),
+            "warm".to_string(),
+            "mount".to_string(),
+            web_public_encryption_key,
+        )
+        .await?;
+    assert_eq!(bucket.name(), "test-bucket");
+    assert_eq!(bucket.storage_class(), "warm");
+    assert_eq!(bucket.bucket_type(), "interactive");
+
+    let mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.is_locked(), false);
+    let ls: Array = mount.ls("/".to_string()).await?;
+    println!("ls: {:?}", ls);
+    assert_eq!(ls.length(), 0);
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn get_usage() -> JsResult<()> {
+    log!("tomb_wasm_test: get_usage()");
+    let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let mut client = authenticated_client().await?;
+    let usage = client.get_usage().await?;
+    assert_eq!(usage, 0);
+    let usage_limit = client.get_usage_limit().await?;
+    assert_eq!(usage_limit, FIVE_TIB);
+    Ok(())
+}
+
+async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
+    let subtle = window().crypto().unwrap().subtle();
+    let params = web_sys::EcKeyGenParams::new(key_type, "P-256");
+    let usages = js_array(uses);
+    let promise = subtle
+        .generate_key_with_object(&params, true, &usages)
+        .unwrap();
+    let key_pair = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
+    CryptoKeyPair::from(key_pair)
+}

@@ -10,9 +10,8 @@ use std::{
     fs::{self, create_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_common::types::blockstore::{
-    car::carv2::index::indexable::Indexable, tombblockstore::TombBlockStore,
-};
+use tomb_common::blockstore::TombBlockStore;
+use tomb_common::car::v2::index::indexable::Indexable;
 use wnfs::{
     common::{BlockStore as WnfsBlockStore, BlockStoreError},
     libipld::{Cid, IpldCodec},
@@ -146,7 +145,7 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
-    use tomb_common::serial_tests;
+    use tomb_common::serialization_tests;
     use wnfs::{common::BlockStore as WnfsBlockStore, libipld::IpldCodec};
 
     #[tokio::test]
@@ -243,7 +242,7 @@ mod test {
         Ok(store)
     }
 
-    serial_tests! {
+    serialization_tests! {
         BlockStore:
         multifileblockstore: &example().expect("failed to create blockstore example"),
     }

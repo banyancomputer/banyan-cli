@@ -6,10 +6,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tomb_common::{
-    types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
-    utils::serialize::*,
-};
+use tomb_common::{blockstore::TombBlockStore, keys::manager::Manager, utils::serialize::*};
 use tomb_crypt::prelude::*;
 use wnfs::{
     libipld::Cid,
@@ -139,7 +136,7 @@ mod test {
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
-    use tomb_common::{types::keys::manager::Manager, utils::serialize::*};
+    use tomb_common::{keys::manager::Manager, utils::serialize::*};
     use tomb_crypt::prelude::*;
     use wnfs::{
         namefilter::Namefilter,

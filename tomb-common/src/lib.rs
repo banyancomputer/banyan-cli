@@ -7,9 +7,18 @@
 #![feature(duration_constants)]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
+
+#[cfg(feature = "banyan-api")]
 /// Banyan types and client
-pub mod banyan;
-/// Types
-pub mod types;
+pub mod banyan_api;
+/// BlockStore implementations
+pub mod blockstore;
+/// Car types and implementations
+pub mod car;
+/// Our encyption key types and helpers
+pub mod keys;
 /// Utilities
 pub mod utils;
+
+/// Common Traits
+mod traits;

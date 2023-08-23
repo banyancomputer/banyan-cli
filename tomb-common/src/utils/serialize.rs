@@ -1,20 +1,20 @@
 use anyhow::Result;
+use chrono::Utc;
 use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{dagcbor, AsyncSerialize, BlockStore as WnfsBlockStore, HashOutput},
     libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
+    namefilter::Namefilter,
     private::{
         PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory, PrivateRef,
         TemporalKey,
     },
 };
 
-use crate::{
-    types::{blockstore::tombblockstore::TombBlockStore, keys::manager::Manager},
-    utils::error::SerialError,
-};
+use crate::traits::blockstore::TombBlockStore;
+use crate::{keys::manager::Manager, utils::error::SerialError};
 
 /// Store a given PrivateForest in a given Store
 async fn store_forest(
@@ -156,6 +156,56 @@ pub async fn store_forests<M: TombBlockStore, C: TombBlockStore>(
     assert_eq!(content_forest_cid1, content_forest_cid2);
     // Ok
     Ok((metadata_forest_cid1, content_forest_cid1))
+}
+
+/// Initialize an empty TombBlockStore with a new copy of metadata
+pub async fn init_all<TBS: TombBlockStore>(
+    store: &TBS,
+    wrapping_key: &EcEncryptionKey,
+) -> Result<(
+    Rc<PrivateForest>,
+    Rc<PrivateForest>,
+    Rc<PrivateDirectory>,
+    Manager,
+    Cid,
+)> {
+    // Create a new PrivateForest
+    let metadata_forest = Rc::new(PrivateForest::new());
+    let content_forest = Rc::new(PrivateForest::new());
+    // Create a new PrivateDirectory
+    let root_dir = Rc::new(PrivateDirectory::new(
+        Namefilter::default(),
+        Utc::now(),
+        &mut thread_rng(),
+    ));
+    // Create a new Key Manager
+    let mut manager = Manager::default();
+    // Insert the wrapping key
+    // Note: this is a workaround to get this to compile in wasm
+    manager
+        .insert(&wrapping_key.public_key().expect("public key not available"))
+        .await?;
+    // Store the key manager
+    let manager_cid = store_manager(&manager, store, store).await?;
+    // Store everything
+    store_all(
+        store,
+        store,
+        &mut metadata_forest.clone(),
+        &mut content_forest.clone(),
+        &root_dir.clone(),
+        &mut manager,
+        &manager_cid,
+    )
+    .await?;
+    // Return
+    Ok((
+        metadata_forest,
+        content_forest,
+        root_dir,
+        manager,
+        manager_cid,
+    ))
 }
 
 /// Store all relevant metadata in both BlockStores
@@ -374,7 +424,7 @@ pub async fn update_manager(
 
 #[cfg(test)]
 mod test {
-    use crate::utils::{serialize::*, test::*};
+    use crate::utils::{serialize::*, tests::*};
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;
@@ -384,7 +434,7 @@ mod test {
     async fn forest() -> Result<()> {
         let test_name = "forest";
         // Start er up!
-        let (metadata, _, metadata_forest, _, _) = &mut setup_memory(test_name).await?;
+        let (metadata, _, metadata_forest, _, _) = &mut setup_memory_test(test_name).await?;
 
         // Store and load
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
@@ -400,7 +450,7 @@ mod test {
         );
 
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
@@ -408,7 +458,7 @@ mod test {
     async fn dir_object() -> Result<()> {
         let test_name = "dir_object";
         // Start er up!
-        let (metadata, _, metadata_forest, _, dir) = &mut setup_memory(test_name).await?;
+        let (metadata, _, metadata_forest, _, dir) = &mut setup_memory_test(test_name).await?;
 
         let (private_ref_cid, temporal_key) = &store_dir(metadata, metadata_forest, dir).await?;
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
@@ -418,7 +468,7 @@ mod test {
         // Assert equality
         assert_eq!(dir, new_dir);
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
@@ -427,7 +477,7 @@ mod test {
         let test_name = "dir_content";
         // Start er up!
         let (metadata, content, original_metadata_forest, original_content_forest, original_dir) =
-            &mut setup_memory(test_name).await?;
+            &mut setup_memory_test(test_name).await?;
 
         // Grab the original file
         let original_file = original_dir
@@ -473,7 +523,7 @@ mod test {
         assert_eq!(original_content, new_content);
 
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
@@ -482,7 +532,7 @@ mod test {
         let test_name = "all";
         // Start er up!
         let (metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup_memory(test_name).await?;
+            &mut setup_memory_test(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -520,7 +570,7 @@ mod test {
         assert_eq!(dir, new_dir);
         assert_eq!(manager, new_manager);
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
@@ -530,7 +580,7 @@ mod test {
         let test_name = "all";
         // Start er up!
         let (metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup_memory(test_name).await?;
+            &mut setup_memory_test(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -568,7 +618,7 @@ mod test {
         assert_eq!(dir, new_dir);
         assert_eq!(manager, new_manager);
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
@@ -577,7 +627,7 @@ mod test {
         let test_name = "history";
         // Start er up!
         let (metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup_memory(test_name).await?;
+            &mut setup_memory_test(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -598,7 +648,7 @@ mod test {
         let _history = load_history(&wrapping_key, metadata).await?;
 
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
@@ -607,7 +657,7 @@ mod test {
         let test_name = "build_details";
         // Start er up!
         let (metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup_memory(test_name).await?;
+            &mut setup_memory_test(test_name).await?;
         let wrapping_key = EcEncryptionKey::generate().await?;
         let manager = &mut Manager::default();
         manager.insert(&wrapping_key.public_key()?).await?;
@@ -629,6 +679,6 @@ mod test {
         assert!(load_build_details(metadata).await.is_ok());
 
         // Teardown
-        teardown(test_name).await
+        teardown_test(test_name).await
     }
 }
