@@ -34,7 +34,7 @@ pub struct PushMetadataResponse {
     pub id: Uuid,
     pub state: MetadataState,
     pub storage_host: Option<String>,
-    pub storage_authorization: Option<String>
+    pub storage_authorization: Option<String>,
 }
 
 impl<S> ApiRequest for PushMetadata<S>
