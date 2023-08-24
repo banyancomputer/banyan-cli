@@ -72,10 +72,10 @@ impl Metadata {
         bucket_id: Uuid,
         root_cid: String,
         metadata_cid: String,
-        data_size: usize,
+        expected_data_size: usize,
         metadata_stream: S,
         client: &mut Client,
-    ) -> Result<(Self, StorageTicket), ClientError>
+    ) -> Result<(Self, Option<StorageTicket>), ClientError>
     where
         reqwest::Body: From<S>,
     {
@@ -84,24 +84,37 @@ impl Metadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
                 metadata_cid: metadata_cid.clone(),
-                data_size,
+                expected_data_size,
                 metadata_stream,
             })
             .await?;
-        Ok((
-            Self {
-                id: response.id,
-                bucket_id,
-                root_cid,
-                metadata_cid,
-                data_size,
-                state: response.state,
-            },
-            StorageTicket {
-                host: response.storage_host,
-                authorization: response.storage_authorization,
-            },
-        ))
+        match response.storage_host {
+            None => Ok((
+                Self {
+                    id: response.id,
+                    bucket_id,
+                    root_cid,
+                    metadata_cid,
+                    data_size: 0,
+                    state: response.state,
+                },
+                None,
+            )),
+            Some(_) => Ok((
+                Self {
+                    id: response.id,
+                    bucket_id,
+                    root_cid,
+                    metadata_cid,
+                    data_size: 0,
+                    state: response.state,
+                },
+                Some(StorageTicket {
+                    host: response.storage_host.unwrap(),
+                    authorization: response.storage_authorization.unwrap(),
+                }),
+            )),
+        }
     }
 
     /// Pull the metadata file for the bucket metadata
@@ -187,12 +200,12 @@ pub mod test {
     pub async fn push_metadata(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, StorageTicket), ClientError> {
+    ) -> Result<(Metadata, Option<StorageTicket>), ClientError> {
         let (metadata, storage_ticket) = Metadata::push(
             bucket_id,
             "root_cid".to_string(),
             "metadata_cid".to_string(),
-            100,
+            0,
             "metadata_stream".as_bytes(),
             client,
         )
@@ -202,7 +215,7 @@ pub mod test {
     pub async fn push_metadata_and_snapshot(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, StorageTicket, Snapshot), ClientError> {
+    ) -> Result<(Metadata, Option<StorageTicket>, Snapshot), ClientError> {
         let (metadata, storage_ticket) = push_metadata(bucket_id, client).await?;
         let snapshot = metadata.snapshot(client).await?;
         Ok((metadata, storage_ticket, snapshot))
@@ -215,14 +228,11 @@ pub mod test {
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.metadata_cid, "metadata_cid");
-        assert_eq!(metadata.data_size, 100);
+        assert_eq!(metadata.data_size, 0);
         assert_eq!(metadata.state, MetadataState::Current);
 
         let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
         assert_eq!(metadata, read_metadata);
-
-        let current_metadata = Metadata::read_current(bucket.id, &mut client).await?;
-        assert_eq!(metadata, current_metadata);
 
         let mut stream = read_metadata.pull(&mut client).await?;
         let mut data = Vec::new();
@@ -264,7 +274,7 @@ pub mod test {
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.metadata_cid, "metadata_cid");
-        assert_eq!(metadata.data_size, 100);
+        assert_eq!(metadata.data_size, 0);
         assert_eq!(metadata.state, MetadataState::Current);
 
         let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;

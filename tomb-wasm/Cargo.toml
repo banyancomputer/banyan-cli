@@ -14,6 +14,8 @@ default = ["console_error_panic_hook"]
 [profile.release]
 opt-level = "s" # Optimize for binary size
 
+[target_]
+
 [dependencies]
 # Workspace dependencies
 anyhow = { workspace = true }
