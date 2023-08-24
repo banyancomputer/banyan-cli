@@ -99,10 +99,7 @@ impl Metadata {
             state: response.state,
         };
         match response.storage_host {
-            None => Ok((
-                metadata,
-                None,
-            )),
+            None => Ok((metadata, None)),
             Some(_) => Ok((
                 metadata,
                 Some(StorageTicket {
