@@ -3,6 +3,8 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::banyan_api::requests::buckets::metadata;
+
 use {
     crate::banyan_api::{
         client::Client,
@@ -88,27 +90,21 @@ impl Metadata {
                 metadata_stream,
             })
             .await?;
+        let metadata = Self {
+            id: response.id,
+            bucket_id,
+            root_cid,
+            metadata_cid,
+            data_size: 0,
+            state: response.state,
+        };
         match response.storage_host {
             None => Ok((
-                Self {
-                    id: response.id,
-                    bucket_id,
-                    root_cid,
-                    metadata_cid,
-                    data_size: 0,
-                    state: response.state,
-                },
+                metadata,
                 None,
             )),
             Some(_) => Ok((
-                Self {
-                    id: response.id,
-                    bucket_id,
-                    root_cid,
-                    metadata_cid,
-                    data_size: 0,
-                    state: response.state,
-                },
+                metadata,
                 Some(StorageTicket {
                     host: response.storage_host.unwrap(),
                     authorization: response.storage_authorization.unwrap(),
