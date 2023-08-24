@@ -42,7 +42,7 @@ impl TombWasm {
     #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen(constructor)]
     /// Create a new TombWasm instance
-    pub fn new(web_signing_key: CryptoKey, account_id: String, api_endpoint: String) -> Self {
+    pub fn new(web_signing_key: CryptoKeyPair, account_id: String, api_endpoint: String) -> Self {
         set_panic_hook();
         log!("tomb-wasm: new()");
         let mut banyan_client = Client::new(&api_endpoint).unwrap();
