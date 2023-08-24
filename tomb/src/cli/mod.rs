@@ -5,7 +5,7 @@ pub mod command;
 /// Debug level
 pub mod verbosity;
 
-use crate::pipelines::{add, configure, pack, remove, unpack};
+use crate::pipelines::{add, banyan, configure, pack, remove, unpack};
 use anyhow::Result;
 use command::{Command, ConfigSubCommand};
 use std::env::current_dir;
@@ -74,6 +74,15 @@ pub async fn run(command: Command) -> Result<()> {
         },
         Command::Remove { origin, wnfs_path } => {
             remove::pipeline(&origin, &wnfs_path).await?;
+        },
+        Command::Banyan { subcommand } => {
+            match banyan::pipeline(subcommand).await {
+                Ok(_) => {},
+                Err(e) => {
+                    info!("error: {}", e);
+                    println!("error: {}", e);
+                },
+            }
         }
     }
 

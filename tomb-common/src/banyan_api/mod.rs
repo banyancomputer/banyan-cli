@@ -6,5 +6,5 @@ pub mod models;
 #[allow(missing_docs)]
 pub mod requests;
 
-mod error;
+pub mod error;
 mod utils;

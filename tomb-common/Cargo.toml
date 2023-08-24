@@ -30,6 +30,7 @@ uuid = { version = "1.4.1", features = ["serde"] }
 futures-core = "0.3.28"
 futures-util = "0.3.28"
 bytes = "1.4.0"
+tokio.workspace = true
 
 [dev-dependencies]
 fs_extra = { workspace = true }

@@ -79,6 +79,10 @@ pub enum Command {
     },
     /// We don't know yet
     Daemon,
+    Banyan {
+        #[clap(subcommand)]
+        subcommand: BanyanSubCommand,
+    },
 }
 
 /// Sub-commands associated with configuration
@@ -89,5 +93,49 @@ pub enum ConfigSubCommand {
         /// Server address
         #[arg(short, long, help = "full server address")]
         address: String,
+    },
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum BanyanSubCommand {
+    /// Authentication commands
+    Auth {
+        #[clap(subcommand)]
+        subcommand: AuthSubcommand,
+    },
+    /// Key management commands
+    Key {
+        #[clap(subcommand)]
+        subcommand: KeySubcommand,
+    },
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum AuthSubcommand {
+    /// Create an account
+    CreateAccount,
+    /// Ask the server who I am
+    WhoAmI,
+    /// Ask the server my usage
+    Usage,
+    /// Ask the server my usage limit
+    Limit,
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum KeySubcommand {
+    /// List the keys persisted by the remote endpoint
+    List,
+    /// Approve a key for use and sync that with the remote endpoint
+    Approve {
+        /// The fingerprint of the key
+        #[arg(short, long, help = "key fingerprint")]
+        fingerprint: String,
+    },
+    /// Reject or remove a key and sync that witht the remote endpoint
+    Reject {
+        /// The fingerprint of the key
+        #[arg(short, long, help = "key fingerprint")]
+        fingerprint: String,
     },
 }

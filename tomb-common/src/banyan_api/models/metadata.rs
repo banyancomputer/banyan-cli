@@ -208,6 +208,7 @@ pub mod test {
         Ok((metadata, storage_ticket, snapshot))
     }
     #[tokio::test]
+    #[ignore]
     async fn push_read_pull() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;

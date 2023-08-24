@@ -4,12 +4,15 @@ use super::{
 };
 use anyhow::Result;
 use bytes::Bytes;
+use chrono::naive::serde::ts_microseconds::deserialize;
 use futures_core::stream::Stream;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Url,
 };
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use tokio::runtime::Runtime;
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
@@ -215,5 +218,56 @@ impl Client {
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
             Err(ClientError::from(err))
         }
+    }
+}
+
+impl Serialize for Client {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let remote = self.remote.as_str().to_string();
+        
+        let key = if let Some(key) = self.signing_key.as_ref() {
+            // Create a runtime from which to run the aynchronous export code
+            let key_bytes = Runtime::new()
+                .expect("failed to create new runtime")
+                .block_on(async { key.export().await.expect("failed to export key") });
+
+            Some(key_bytes)
+        } else { None };
+
+        (remote, &self.claims, key, &self.bearer_token).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Client {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let (remote, claims, key, bearer_token) =
+            <(String, Option<ApiToken>, Option<Vec<u8>>, Option<String>)>::deserialize(deserializer)?;
+        // Create a new client
+        let mut client =
+            Self::new(&remote).expect("failed to create new client with endpoint in deserialize");
+        // Set the claims
+        client.claims = claims;
+
+        if let Some(key_bytes) = key {
+            // Create a runtime from which to run the aynchronous export code
+            let key = Runtime::new()
+                .expect("failed to create new runtime")
+                .block_on(async { EcSignatureKey::import(&key_bytes).await.expect("failed to import key") });
+            client.signing_key = Some(key);
+        }
+
+        // If there is a bearer token
+        if let Some(bearer_token) = bearer_token {
+            // Set it
+            client.with_bearer_token(bearer_token);
+        }
+
+        Ok(client)
     }
 }

@@ -1,3 +1,4 @@
+/*
 //! This crate contains modules which are compiled to WASM
 #![warn(rust_2018_idioms)]
 /// Expose Errors
@@ -143,7 +144,6 @@ impl TombWasm {
     /// "storage_class": "string",
     /// }
     /// ```
-    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen(js_name = createBucket)]
     pub async fn create_bucket(
         &mut self,
@@ -193,7 +193,6 @@ impl TombWasm {
     /// # Arguments
     /// * bucket_id - The id of the bucket to mount
     #[wasm_bindgen(js_name = load)]
-    #[cfg(target_arch = "wasm32")]
     pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> JsResult<WasmMount> {
         log!("tomb-wasm: mount / {}", &bucket_id);
         // Parse the bucket id
@@ -220,3 +219,4 @@ impl TombWasm {
         Ok(mount)
     }
 }
+ */

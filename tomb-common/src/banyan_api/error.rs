@@ -1,10 +1,18 @@
-use tomb_crypt::prelude::TombCryptError;
+use std::fmt::Display;
 
-#[derive(Debug)]
+use thiserror::Error;
+use tomb_crypt::prelude::TombCryptError;
+#[derive(Error, Debug)]
 #[non_exhaustive]
 pub struct ClientError {
     #[allow(dead_code)]
     kind: ClientErrorKind,
+}
+
+impl Display for ClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("{:?}", self.kind))
+    }
 }
 
 impl ClientError {

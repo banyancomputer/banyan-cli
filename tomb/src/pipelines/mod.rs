@@ -1,5 +1,7 @@
 /// This module contains the add pipeline function, which is the main entry point for inserting into existing WNFS filesystems.
 pub mod add;
+/// Interfacing with the banyan api
+pub mod banyan;
 /// This module contains configuration functions for the cli
 pub mod configure;
 /// Pipeline Errors

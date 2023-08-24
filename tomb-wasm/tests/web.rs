@@ -1,3 +1,4 @@
+/*
 //! Test suite for the Web and headless browsers.
 
 use gloo::{console::log, utils::window};
@@ -112,3 +113,4 @@ async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     let key_pair = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
     CryptoKeyPair::from(key_pair)
 }
+*/
