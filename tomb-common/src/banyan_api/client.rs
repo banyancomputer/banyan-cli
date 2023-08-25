@@ -2,7 +2,6 @@ use super::{
     error::ClientError,
     requests::{ApiRequest, StreamableApiRequest},
 };
-use anyhow::Result;
 use bytes::Bytes;
 use chrono::naive::serde::ts_microseconds::deserialize;
 use futures_core::stream::Stream;
@@ -58,7 +57,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn new(remote: &str) -> Result<Self> {
+    pub fn new(remote: &str) -> anyhow::Result<Self> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
@@ -219,55 +218,48 @@ impl Client {
             Err(ClientError::from(err))
         }
     }
-}
 
-impl Serialize for Client {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
+    pub async fn to_codable(&self) -> anyhow::Result<CodableClient> {
         let remote = self.remote.as_str().to_string();
-        
         let key = if let Some(key) = self.signing_key.as_ref() {
             // Create a runtime from which to run the aynchronous export code
-            let key_bytes = Runtime::new()
-                .expect("failed to create new runtime")
-                .block_on(async { key.export().await.expect("failed to export key") });
-
-            Some(key_bytes)
+            Some(key.export().await.expect("failed to export key"))
         } else { None };
-
-        (remote, &self.claims, key, &self.bearer_token).serialize(serializer)
+        // (remote, self.claims.clone(), key, self.bearer_token.clone())
+        Ok(CodableClient { remote, claims: self.claims.clone(), signing_key: key, bearer_token: self.bearer_token.clone() })
     }
-}
 
-impl<'de> Deserialize<'de> for Client {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let (remote, claims, key, bearer_token) =
-            <(String, Option<ApiToken>, Option<Vec<u8>>, Option<String>)>::deserialize(deserializer)?;
+    pub async fn from_codable(client: CodableClient) -> anyhow::Result<Self> {
         // Create a new client
-        let mut client =
-            Self::new(&remote).expect("failed to create new client with endpoint in deserialize");
+        let mut new_client =
+            Self::new(&client.remote).expect("failed to create new client with endpoint in deserialize");
         // Set the claims
-        client.claims = claims;
+        new_client.claims = client.claims;
 
-        if let Some(key_bytes) = key {
-            // Create a runtime from which to run the aynchronous export code
-            let key = Runtime::new()
-                .expect("failed to create new runtime")
-                .block_on(async { EcSignatureKey::import(&key_bytes).await.expect("failed to import key") });
-            client.signing_key = Some(key);
-        }
-
-        // If there is a bearer token
-        if let Some(bearer_token) = bearer_token {
+        // If there is a signing key
+        if let Some(key_bytes) = client.signing_key {
             // Set it
-            client.with_bearer_token(bearer_token);
+            new_client.signing_key = Some(EcSignatureKey::import(&key_bytes).await.expect("failed to import key"));
+        }
+        // If there is a bearer token
+        if let Some(bearer_token) = client.bearer_token {
+            // Set it
+            new_client.with_bearer_token(bearer_token);
         }
 
-        Ok(client)
+        Ok(new_client)
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct CodableClient {
+    /// Base URL
+    pub remote: String,
+    /// Bearer auth
+    pub claims: Option<ApiToken>,
+    /// Credentials for signing
+    pub signing_key: Option<Vec<u8>>,
+    /// The current bearer token
+    pub bearer_token: Option<String>,
+}
+

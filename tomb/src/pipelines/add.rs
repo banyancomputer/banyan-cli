@@ -64,7 +64,7 @@ pub async fn pipeline(
 
         // Update global
         global.update_config(&config)?;
-        global.to_disk()?;
+        global.to_disk().await?;
         // Ok
         Ok(())
     } else {

@@ -61,11 +61,13 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn configure_remote() -> Result<()> {
-        let address = "http://app.tomb.com.net.org:5423";
+        let address = "http://app.tomb.com.net.org:5423/";
+        configure::deinit_all().await?;
+        let _ = GlobalConfig::from_disk().await?;
         // Configure the remote endpoint
         configure::remote(address).await?;
         // Assert it was actually modified
-        assert_eq!(GlobalConfig::from_disk().await?.remote, address);
+        assert_eq!(GlobalConfig::from_disk().await?.client.unwrap().remote.as_str(), address);
         Ok(())
     }
 
