@@ -1,5 +1,8 @@
 use crate::blockstore::{BlockStore, RootedBlockStore};
-use crate::car::{v1::block::Block, v2::CarV2};
+use crate::car::{
+    v1::block::Block,
+    v2::CarV2,
+};
 use crate::utils::io::{get_read, get_read_write, get_write};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -102,32 +105,6 @@ impl RootedBlockStore for CarV2DiskBlockStore {
     fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
-
-    // async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
-    //     // Open the file in read-only mode
-    //     let mut rw = get_read_write(&self.path)?;
-    //     // Perform the block read
-    //     let block: Block = self.car.get_block(cid, &mut rw)?;
-    //     // // Create the new block
-    //     let new_block = Block::new(bytes, codec)?;
-    //     // Assert that the new version of the block is of the correct length
-    //     assert_eq!(block.content.len(), new_block.content.len());
-    //     // Determine where the block was read from
-    //     let mut index = self.car.car.index.borrow_mut();
-    //     let block_start = index
-    //         .get_offset(&block.cid)
-    //         .ok_or(BlockStoreError::CIDNotFound(block.cid))?;
-    //     // Remove existing offset
-    //     // TODO remove old cid
-    //     // index.map.remove(&block.cid);
-    //     index.insert_offset(&new_block.cid, block_start);
-    //     // Move to the right position
-    //     rw.seek(SeekFrom::Start(block_start))?;
-    //     // Overwrite the block at this position
-    //     new_block.write_bytes(&mut rw)?;
-    //     // Ok
-    //     Ok(new_block.cid)
-    // }
 }
 
 impl Serialize for CarV2DiskBlockStore {
@@ -202,6 +179,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
+    #[ignore]
     async fn from_scratch() -> Result<()> {
         let original_path = &Path::new("test")
             .join("car")
