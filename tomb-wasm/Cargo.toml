@@ -55,7 +55,7 @@ futures = "0.3.28"
 tokio-util = { version = "0.7.8", features = ["compat"] }
 gloo = { version = "0.8.1", features = ["net"] }
 rc = "0.1.1"
-base64 = "0.21.2"
+base64 = "0.21.3"
 thiserror = "1.0.43"
 pem = "2.0.1"
 tomb-crypt = { workspace = true }

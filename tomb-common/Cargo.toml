@@ -36,7 +36,7 @@ fs_extra = { workspace = true }
 tokio = { workspace = true }
 serial_test = "2.0.0"
 async-std = { version = "1.11", features = ["attributes"] }
-base64 = "0.21.2"
+base64 = "0.21.3"
 hex-literal = "0.4.1"
 lazy_static.workspace = true
 
