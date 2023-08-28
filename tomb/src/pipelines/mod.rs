@@ -67,7 +67,15 @@ mod test {
         // Configure the remote endpoint
         configure::remote(address).await?;
         // Assert it was actually modified
-        assert_eq!(GlobalConfig::from_disk().await?.client.unwrap().remote.as_str(), address);
+        assert_eq!(
+            GlobalConfig::from_disk()
+                .await?
+                .client
+                .unwrap()
+                .remote
+                .as_str(),
+            address
+        );
         Ok(())
     }
 

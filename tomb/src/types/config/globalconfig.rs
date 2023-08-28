@@ -40,7 +40,9 @@ impl GlobalConfig {
         // Get client
         let codable_client = if let Some(client) = &self.client {
             Some(client.to_codable().await?)
-        } else { None };
+        } else {
+            None
+        };
 
         Ok(CodableGlobalConfig {
             version: self.version.clone(),
@@ -53,7 +55,9 @@ impl GlobalConfig {
     async fn from_codable(global: CodableGlobalConfig) -> Result<Self> {
         let client = if let Some(client) = global.client {
             Some(Client::from_codable(client).await?)
-        } else { None };
+        } else {
+            None
+        };
 
         Ok(Self {
             version: global.version,
@@ -65,7 +69,9 @@ impl GlobalConfig {
 
     /// Write to disk
     pub async fn to_disk(&self) -> Result<()> {
-        serde_json::to_writer_pretty(Self::get_write()?, &self.to_codable().await?)?;
+        let codable = &self.to_codable().await?;
+        let writer = Self::get_write()?;
+        serde_json::to_writer_pretty(writer, codable)?;
         Ok(())
     }
 

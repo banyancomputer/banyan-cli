@@ -1,4 +1,7 @@
-use crate::{cli::command::BanyanSubCommand, types::config::globalconfig::GlobalConfig};
+use crate::{
+    cli::command::{AuthSubcommand, BanyanSubCommand},
+    types::config::globalconfig::GlobalConfig,
+};
 use anyhow::Result;
 use tomb_common::banyan_api::{
     client::{Client, Credentials},
@@ -19,7 +22,7 @@ pub async fn pipeline(command: BanyanSubCommand) -> Result<()> {
 
             if let Some(mut client) = global.client {
                 match subcommand {
-                    crate::cli::command::AuthSubcommand::CreateAccount => {
+                    AuthSubcommand::CreateAccount => {
                         // Create local keys
                         let api_key = EcSignatureKey::generate().await?;
                         let public_api_key = api_key.public_key()?;
@@ -34,28 +37,39 @@ pub async fn pipeline(command: BanyanSubCommand) -> Result<()> {
                             account_id: response.id,
                             signing_key: api_key.clone(),
                         });
-    
-                        println!("success!: {:?}", response);
-                        global.client = Some(client);
-                        global.to_disk().await?;
-                        // println!("saved global!: {:?}", global);
                     }
-                    crate::cli::command::AuthSubcommand::WhoAmI => {
-                        match Account::who_am_i(&mut client).await {
-                            Ok(account) => {
-                                info!("ACCOUNT: {:?}", account);
-                            }
-                            Err(err) => {
-                                return Err(anyhow::Error::new(err));
-                            }
+                    AuthSubcommand::WhoAmI => match Account::who_am_i(&mut client).await {
+                        Ok(account) => {
+                            println!("ACCOUNT: {:?}", account);
                         }
-                    }
-                    crate::cli::command::AuthSubcommand::Usage => {}
-                    crate::cli::command::AuthSubcommand::Limit => todo!(),
+                        Err(err) => {
+                            return Err(anyhow::Error::new(err));
+                        }
+                    },
+                    AuthSubcommand::Usage => match Account::usage(&mut client).await {
+                        Ok(val) => {
+                            println!("usage: {}", val);
+                        }
+                        Err(err) => {
+                            return Err(anyhow::Error::new(err));
+                        }
+                    },
+                    AuthSubcommand::Limit => match Account::usage_limit(&mut client).await {
+                        Ok(val) => {
+                            println!("usage limit: {}", val);
+                        }
+                        Err(err) => {
+                            return Err(anyhow::Error::new(err));
+                        }
+                    },
                 }
-            }
-            else {
-                println!("asdfjas;dlkfjasd no client! configure first asshole!");
+
+                // Update the client
+                global.client = Some(client);
+                // Save
+                global.to_disk().await?;
+            } else {
+                println!("asdfjas;dlkfjasd no client! configure first!");
             }
         }
         BanyanSubCommand::Key { subcommand } => {

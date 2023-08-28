@@ -1,7 +1,7 @@
 use crate::types::config::globalconfig::GlobalConfig;
 use anyhow::Result;
-use tomb_common::banyan_api::client::Client;
 use std::path::Path;
+use tomb_common::banyan_api::client::Client;
 
 /// Create a default config for this user
 pub async fn init(path: &Path) -> Result<()> {
