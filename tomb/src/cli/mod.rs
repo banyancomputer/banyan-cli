@@ -7,13 +7,25 @@ pub mod verbosity;
 
 use crate::pipelines::{add, banyan, configure, pack, remove, unpack};
 use anyhow::Result;
-use command::{Command, ConfigSubCommand};
+use command::Command;
 use std::env::current_dir;
 
 /// Based on the Command, run pipelines
 pub async fn run(command: Command) -> Result<()> {
     // Determine the command being executed
     match command {
+        Command::SetRemote { address } => {
+            configure::remote(&address).await?;
+        },
+        Command::Auth { subcommand } => {
+            println!("{}", banyan::auth(subcommand).await?);
+        },
+        Command::Bucket { subcommand } => {
+            match banyan::bucket(subcommand).await {
+                Ok(message) => println!("{}", message),
+                Err(error) => println!("{}", error),
+            }
+        }
         // Execute the packing command
         Command::Pack {
             origin,
@@ -58,33 +70,11 @@ pub async fn run(command: Command) -> Result<()> {
                 configure::deinit(&current_dir()?).await?;
             }
         },
-        Command::Login => unimplemented!("todo... a little script where you log in to the remote and enter your api key. just ends if you're authenticated. always does an auth check. little green checkmark :D."),
-        Command::Register { bucket_name: _ } =>
-            unimplemented!("todo... register a bucket on the remote. should create a database entry on the remote. let alex know we need one more api call for this."),
-        Command::Configure { subcommand } => {
-            match subcommand {
-                ConfigSubCommand::SetRemote { address } => {
-                    configure::remote(&address).await?;
-                }
-            }
-        },
-        Command::Daemon => unimplemented!("todo... omg fun... cronjob"),
         Command::Add { origin, input_file, wnfs_path } => {
             add::pipeline(&origin, &input_file, &wnfs_path).await?;
         },
         Command::Remove { origin, wnfs_path } => {
             remove::pipeline(&origin, &wnfs_path).await?;
-        },
-        Command::Banyan { subcommand } => {
-            match banyan::pipeline(subcommand).await {
-                Ok(output) => {
-                    println!("{}", output);
-                },
-                Err(e) => {
-                    info!("error: {}", e);
-                    println!("error: {}", e);
-                },
-            }
         }
     }
 
@@ -93,7 +83,7 @@ pub async fn run(command: Command) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use super::command::{Command, ConfigSubCommand};
+    use super::command::Command;
     use crate::{cli::run, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::Result;
     use dir_assert::assert_paths;
@@ -113,11 +103,7 @@ mod test {
     }
 
     fn cmd_configure_remote(address: &str) -> Command {
-        Command::Configure {
-            subcommand: ConfigSubCommand::SetRemote {
-                address: address.to_string(),
-            },
-        }
+        Command::SetRemote { address: address.to_string() }
     }
 
     // Run the Pack pipeline through the CLI

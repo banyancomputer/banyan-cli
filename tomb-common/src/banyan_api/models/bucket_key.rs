@@ -1,4 +1,7 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
+use tomb_crypt::prelude::{EcPublicEncryptionKey, PublicKey};
 use uuid::Uuid;
 
 use crate::banyan_api::{
@@ -18,6 +21,13 @@ pub struct BucketKey {
     pub pem: String,
     /// Whether or not the bucket key has been approved
     pub approved: bool,
+}
+
+impl Display for BucketKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let status = if self.approved { "approved" } else { "unapproved" };
+        f.write_fmt(format_args!("bucket_id: {}\nkey_id: {}\nstatus: {}", self.bucket_id, self.id, status))
+    }
 }
 
 impl BucketKey {

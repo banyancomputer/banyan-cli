@@ -6,10 +6,27 @@ use uuid::Uuid;
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
+    /// Set the remote endpoint where Buckets are synced to / from
+    SetRemote {
+        /// Server address
+        #[arg(short, long, help = "full server address")]
+        address: String,
+    },
+    /// Login, Register, etc.
+    Auth {
+        #[clap(subcommand)]
+        subcommand: AuthSubCommand,
+    },
+    /// Bucket management
+    Bucket {
+        #[clap(subcommand)]
+        subcommand: BucketSubCommand,
+    },
+
     /// Packing a filesystem on disk into an encrypted WNFS CAR file
     Pack {
-        /// Root of the directory tree to pack.
-        #[arg(short, long, help = "input directories and files")]
+        /// Bucket Root
+        #[arg(short, long, help = "bucket dir")]
         origin: Option<PathBuf>,
 
         // /// Maximum size for each chunk, defaults to 1GiB.
@@ -64,61 +81,14 @@ pub enum Command {
         /// Directory to deinit, or PWD if None
         dir: Option<PathBuf>,
     },
-    /// log in to tombolo remote, basically validates that your API keys or whatever are in place. must be run before registry or anything else.
-    Login,
-    /// tomb register <bucket_name> - Register a new bucket on the tombolo service for this data. then you can push to it. MUST be called before push.
-    Register {
-        /// Name of the bucket to create
-        #[arg(short, long, help = "bucket name")]
-        bucket_name: String,
-    },
-    /// tomb config <subcommand> - Configure Tombolo
-    Configure {
-        /// Configuration subcommand
-        #[clap(subcommand)]
-        subcommand: ConfigSubCommand,
-    },
-    /// We don't know yet
-    Daemon,
-    Banyan {
-        #[clap(subcommand)]
-        subcommand: BanyanSubCommand,
-    },
-}
-
-/// Sub-commands associated with configuration
-#[derive(Subcommand, Clone, Debug)]
-pub enum ConfigSubCommand {
-    /// Set the remote endpoint where buckets are synced to / from
-    SetRemote {
-        /// Server address
-        #[arg(short, long, help = "full server address")]
-        address: String,
-    },
 }
 
 #[derive(Subcommand, Clone, Debug)]
-pub enum BanyanSubCommand {
-    /// Authentication commands
-    Auth {
-        #[clap(subcommand)]
-        subcommand: AuthSubcommand,
-    },
-    Bucket {
-        #[clap(subcommand)]
-        subcommand: BucketSubcommand,
-    },
-    /// Key management commands
-    Key {
-        #[clap(subcommand)]
-        subcommand: KeySubcommand,
-    },
-}
-
-#[derive(Subcommand, Clone, Debug)]
-pub enum AuthSubcommand {
+pub enum AuthSubCommand {
     /// Create an account
-    CreateAccount,
+    Register,
+    /// Login to an existing account
+    Login,
     /// Ask the server who I am
     WhoAmI,
     /// Ask the server my usage
@@ -127,41 +97,75 @@ pub enum AuthSubcommand {
     Limit,
 }
 
-
 #[derive(Subcommand, Clone, Debug)]
-pub enum BucketSubcommand {
-    /// Create a Bucket
+pub enum BucketSubCommand {
+    /// Initialize a new Bucket locally
     Create {
+        /// Bucket Root
+        #[arg(short, long, help = "bucket root")]
+        origin: Option<PathBuf>,
+
+        /// Bucket Name
         #[arg(short, long, help = "bucket name")]
-        name: String
+        name: String,
     },
-    /// Ask the server who I am
-    Delete,
-    /// Ask the server my usage
-    Usage,
-    /// Ask the server my bucket list
-    Read {
-        /// Root of the directory tree to pack.
-        #[arg(short, long, help = "bucket Id")]
-        id: Option<Uuid>,
+    /// List all Buckets
+    List,
+    /// Modify an existing Bucket
+    Modify {
+        /// Bucket Root
+        #[arg(short, long, help = "bucket root")]
+        origin: Option<PathBuf>,
+
+        #[clap(subcommand)]
+        subcommand: ModifyBucketSubCommand
     }
 }
 
 
 #[derive(Subcommand, Clone, Debug)]
-pub enum KeySubcommand {
-    /// List the keys persisted by the remote endpoint
+pub enum ModifyBucketSubCommand {
+    // /// Sync metadata
+    // Sync,
+    /// Publish Bucket content
+    Push,
+    /// Pull
+    Pull,
+    /// Delete Bucket
+    Delete,
+    /// Bucket info
+    Info,
+    /// Bucket usage
+    Usage,
+    /// Bucket Key management
+    Keys {
+        #[clap(subcommand)]
+        subcommand: KeySubCommand,
+    }
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum KeySubCommand {
     List,
+    Create,
+    Modify {
+        /// Key Identifier
+        #[arg(short, long, help = "key identifier")]
+        id: Uuid,
+
+        /// Subcommand
+        #[clap(subcommand)]
+        subcommand: ModifyKeySubCommand,
+    }
+}
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum ModifyKeySubCommand {
+    Delete,
+    /// List the keys persisted by the remote endpoint
+    Info,
     /// Approve a key for use and sync that with the remote endpoint
-    Approve {
-        /// The fingerprint of the key
-        #[arg(short, long, help = "key fingerprint")]
-        fingerprint: String,
-    },
+    Approve,
     /// Reject or remove a key and sync that witht the remote endpoint
-    Reject {
-        /// The fingerprint of the key
-        #[arg(short, long, help = "key fingerprint")]
-        fingerprint: String,
-    },
+    Reject,
 }

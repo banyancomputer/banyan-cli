@@ -1,6 +1,7 @@
 use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
@@ -31,6 +32,8 @@ pub struct BucketConfig {
     pub metadata: carv2::BlockStore,
     /// BlockStore for storing metadata and file content
     pub content: multi::BlockStore,
+    /// Bucket Uuid, if this
+    pub id: Option<Uuid>
 }
 
 impl BucketConfig {
@@ -67,6 +70,7 @@ impl BucketConfig {
             generated,
             metadata,
             content,
+            id: None
         })
     }
 
