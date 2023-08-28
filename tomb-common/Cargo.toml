@@ -45,4 +45,7 @@ crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [features]
+default = ["native"]
+# Access to banyan api 
 banyan-api = []
+native = []

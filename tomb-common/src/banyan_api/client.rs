@@ -31,6 +31,17 @@ impl Debug for Credentials {
     }
 }
 
+impl Credentials {
+    /// Create a new set of credentials
+    pub fn new(account_id: String, signing_key: EcSignatureKey) -> Result<Self> {
+        let account_id = Uuid::parse_str(&account_id).expect("invalid account_id");
+        Ok(Self {
+            account_id,
+            signing_key,
+        })
+    }
+}
+
 /// The audience for the API token
 const AUDIENCE: &str = "banyan-platform";
 

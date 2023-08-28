@@ -3,8 +3,6 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::banyan_api::requests::buckets::metadata;
-
 use {
     crate::banyan_api::{
         client::Client,
