@@ -77,7 +77,9 @@ pub async fn run(command: Command) -> Result<()> {
         },
         Command::Banyan { subcommand } => {
             match banyan::pipeline(subcommand).await {
-                Ok(_) => {},
+                Ok(output) => {
+                    println!("{}", output);
+                },
                 Err(e) => {
                     info!("error: {}", e);
                     println!("error: {}", e);

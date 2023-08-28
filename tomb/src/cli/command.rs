@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{arg, Subcommand};
+use uuid::Uuid;
 
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
@@ -103,6 +104,10 @@ pub enum BanyanSubCommand {
         #[clap(subcommand)]
         subcommand: AuthSubcommand,
     },
+    Bucket {
+        #[clap(subcommand)]
+        subcommand: BucketSubcommand,
+    },
     /// Key management commands
     Key {
         #[clap(subcommand)]
@@ -121,6 +126,27 @@ pub enum AuthSubcommand {
     /// Ask the server my usage limit
     Limit,
 }
+
+
+#[derive(Subcommand, Clone, Debug)]
+pub enum BucketSubcommand {
+    /// Create a Bucket
+    Create {
+        #[arg(short, long, help = "bucket name")]
+        name: String
+    },
+    /// Ask the server who I am
+    Delete,
+    /// Ask the server my usage
+    Usage,
+    /// Ask the server my bucket list
+    Read {
+        /// Root of the directory tree to pack.
+        #[arg(short, long, help = "bucket Id")]
+        id: Option<Uuid>,
+    }
+}
+
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum KeySubcommand {

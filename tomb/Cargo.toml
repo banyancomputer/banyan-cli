@@ -29,6 +29,7 @@ env_logger = "0.10.0"
 async-trait = "0.1.71"
 hex = "0.4.3"
 tomb-crypt = { workspace = true }
+uuid = "1.4.1"
 
 [dev-dependencies]
 fs_extra.workspace = true
