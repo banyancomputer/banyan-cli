@@ -122,35 +122,35 @@ mod test {
         Ok(())
     }
 
-    // #[tokio::test]
-    // #[serial]
-    // async fn share_with_get_both() -> Result<()> {
-    //     // Key manager
-    //     let mut key_manager = ShareManager::default();
+    #[tokio::test]
+    #[serial]
+    async fn share_with_get_both() -> Result<()> {
+        // Key manager
+        let mut key_manager = ShareManager::default();
 
-    //     // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-    //     let wrapping_key = EcEncryptionKey::generate().await?;
-    //     // Public Key
-    //     let public_key = wrapping_key.public_key()?;
-    //     // Grab temporal keys
-    //     let original = random_private_ref();
-    //     let current = random_private_ref();
+        // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
+        let wrapping_key = EcEncryptionKey::generate().await?;
+        // Public Key
+        let public_key = wrapping_key.public_key()?;
+        // Grab temporal keys
+        let original = random_private_ref();
+        let current = random_private_ref();
 
-    //     // Set the both keys
-    //     key_manager.set_original_key(&original).await?;
-    //     key_manager.update_current_key(&current).await?;
+        // Set the both keys
+        key_manager.set_original_ref(&original).await?;
+        key_manager.set_current_ref(&current).await?;
 
-    //     // Insert public key post-hoc
-    //     key_manager.insert(&public_key).await?;
+        // Insert public key post-hoc
+        key_manager.share_with(&public_key).await?;
 
-    //     // Reconstruct the keys
-    //     let reconstructed_original = key_manager.retrieve_original(&wrapping_key).await?;
-    //     let reconstructed_current = key_manager.retrieve_current(&wrapping_key).await?;
+        // Reconstruct the keys
+        let reconstructed_original = key_manager.original_ref.ok_or(anyhow::anyhow!("No original ref"))?;
+        let reconstructed_current = key_manager.current_ref.ok_or(anyhow::anyhow!("No current ref"))?;
 
-    //     // Assert that the current and reconstructed keys are matching
-    //     assert_eq!(original, reconstructed_original);
-    //     assert_eq!(current, reconstructed_current);
+        // Assert that the current and reconstructed keys are matching
+        assert_eq!(original, reconstructed_original);
+        assert_eq!(current, reconstructed_current);
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 }
