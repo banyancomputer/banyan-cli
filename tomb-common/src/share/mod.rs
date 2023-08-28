@@ -14,11 +14,11 @@ mod test {
     use rand::Rng;
     use serial_test::serial;
     use tomb_crypt::prelude::*;
-    use wnfs::private::{AesKey, TemporalKey, PrivateRef};
+    use wnfs::private::{AesKey, PrivateRef, TemporalKey};
 
     fn random_private_ref() -> PrivateRef {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
-        PrivateRef { 
+        PrivateRef {
             saturated_name_hash: random_bytes,
             temporal_key: TemporalKey::from(AesKey::new(random_bytes)),
             content_cid: Default::default(),
@@ -44,7 +44,9 @@ mod test {
         // Set the original key
         key_manager.set_original_ref(&original).await?;
 
-        let reconstructed_original = key_manager.original_ref.ok_or(anyhow::anyhow!("No original ref"))?;
+        let reconstructed_original = key_manager
+            .original_ref
+            .ok_or(anyhow::anyhow!("No original ref"))?;
 
         // Assert that the original and reconstructed are matching
         assert_eq!(original, reconstructed_original);
@@ -70,7 +72,9 @@ mod test {
         // Set the current key
         key_manager.set_current_ref(&current).await?;
 
-        let reconstructed_current = key_manager.current_ref.ok_or(anyhow::anyhow!("No current ref"))?;
+        let reconstructed_current = key_manager
+            .current_ref
+            .ok_or(anyhow::anyhow!("No current ref"))?;
 
         // Assert that the current and reconstructed are matching
         assert_eq!(current, reconstructed_current);
@@ -94,7 +98,9 @@ mod test {
         // Insert public key post-hoc
         key_manager.share_with(&public_key).await?;
         // Reconstruct the key
-        let reconstructed_current = key_manager.current_ref.ok_or(anyhow::anyhow!("No current ref"))?;
+        let reconstructed_current = key_manager
+            .current_ref
+            .ok_or(anyhow::anyhow!("No current ref"))?;
         // Assert that the current and reconstructed keys are matching
         assert_eq!(current, reconstructed_current);
         Ok(())
@@ -116,7 +122,9 @@ mod test {
         // Insert public key post-hoc
         key_manager.share_with(&public_key).await?;
         // Reconstruct the key
-        let reconstructed_original = key_manager.original_ref.ok_or(anyhow::anyhow!("No original ref"))?;
+        let reconstructed_original = key_manager
+            .original_ref
+            .ok_or(anyhow::anyhow!("No original ref"))?;
         // Assert that the current and reconstructed keys are matching
         assert_eq!(original, reconstructed_original);
         Ok(())
@@ -144,8 +152,12 @@ mod test {
         key_manager.share_with(&public_key).await?;
 
         // Reconstruct the keys
-        let reconstructed_original = key_manager.original_ref.ok_or(anyhow::anyhow!("No original ref"))?;
-        let reconstructed_current = key_manager.current_ref.ok_or(anyhow::anyhow!("No current ref"))?;
+        let reconstructed_original = key_manager
+            .original_ref
+            .ok_or(anyhow::anyhow!("No original ref"))?;
+        let reconstructed_current = key_manager
+            .current_ref
+            .ok_or(anyhow::anyhow!("No current ref"))?;
 
         // Assert that the current and reconstructed keys are matching
         assert_eq!(original, reconstructed_original);
