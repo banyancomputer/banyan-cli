@@ -87,13 +87,13 @@ pub async fn setup_memory_test(
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data
-pub async fn setup_test<TBS: RootedBlockStore>(
+pub async fn setup_test<RBS: RootedBlockStore>(
     test_name: &str,
-    metadata: TBS,
-    content: TBS,
+    metadata: RBS,
+    content: RBS,
 ) -> Result<(
-    TBS,
-    TBS,
+    RBS,
+    RBS,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,
