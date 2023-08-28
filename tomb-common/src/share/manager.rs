@@ -81,7 +81,8 @@ impl<'de> Deserialize<'de> for ShareManager {
     where
         D: serde::Deserializer<'de>,
     {
-        let (current_map, original_map) = <(EncRefMapper, EncRefMapper)>::deserialize(deserializer)?;
+        let (current_map, original_map) =
+            <(EncRefMapper, EncRefMapper)>::deserialize(deserializer)?;
         Ok(Self {
             original_ref: None,
             current_ref: None,

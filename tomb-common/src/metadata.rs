@@ -4,14 +4,16 @@ use rand::thread_rng;
 use std::{collections::BTreeMap, rc::Rc};
 use tomb_crypt::prelude::*;
 use wnfs::{
-    libipld::{Ipld, Cid},
+    common::BlockStore,
+    libipld::{Cid, Ipld},
     namefilter::Namefilter,
-    private::{
-        PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory
-    }, common::BlockStore,
+    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 
-use crate::{blockstore::RootedBlockStore, share::manager::ShareManager, utils::serialize::*, utils::error::SerialError};
+use crate::{
+    blockstore::RootedBlockStore, share::manager::ShareManager, utils::error::SerialError,
+    utils::serialize::*,
+};
 
 const SHARE_MANAGER_LABEL: &str = "SHARE_MANAGER";
 const METADATA_FOREST_LABEL: &str = "METADATA_FOREST";
@@ -65,7 +67,11 @@ impl FsMetadata {
     }
 
     /// Save our metadata as blocks and Link them to the root of the blockstore
-    pub async fn save(&mut self, metadata_store: &impl RootedBlockStore, content_store: &impl RootedBlockStore) -> Result<()> {
+    pub async fn save(
+        &mut self,
+        metadata_store: &impl RootedBlockStore,
+        content_store: &impl RootedBlockStore,
+    ) -> Result<()> {
         // Store the root directory, get a new PrivateReference to the entry point of the Filesystem
         let root_dir_ref = store_dir(
             metadata_store,
@@ -73,28 +79,31 @@ impl FsMetadata {
             &mut self.metadata_forest,
             &mut self.content_forest,
             &self.root_dir,
-        ).await?;
+        )
+        .await?;
         // Update the private ref in the share manager
         self.share_manager.set_current_ref(&root_dir_ref).await?;
-        
+
         // Try getting the root, if none is set then its safe to set the original ref as well
         match metadata_store.get_root() {
-            None => {
-                self.share_manager.set_original_ref(&root_dir_ref).await?
-            },
+            None => self.share_manager.set_original_ref(&root_dir_ref).await?,
             Some(cid) => {
                 if cid == Cid::default() {
-                    self.share_manager.set_original_ref(&root_dir_ref).await? 
+                    self.share_manager.set_original_ref(&root_dir_ref).await?
                 }
             }
         }
-        
+
         // TODO: Can we get away with merging these somehow?
         // Put the forests in the store
-        let metadata_forest_cid = store_forest(&self.metadata_forest, metadata_store, metadata_store).await?;
-        let _metadata_forest_cid = store_forest(&self.metadata_forest, metadata_store, content_store).await?;
-        let content_forest_cid = store_forest(&self.content_forest, content_store, metadata_store).await?;
-        let _content_forest_cid = store_forest(&self.content_forest, content_store, content_store).await?;
+        let metadata_forest_cid =
+            store_forest(&self.metadata_forest, metadata_store, metadata_store).await?;
+        let _metadata_forest_cid =
+            store_forest(&self.metadata_forest, metadata_store, content_store).await?;
+        let content_forest_cid =
+            store_forest(&self.content_forest, content_store, metadata_store).await?;
+        let _content_forest_cid =
+            store_forest(&self.content_forest, content_store, content_store).await?;
         assert_eq!(metadata_forest_cid, _metadata_forest_cid);
         assert_eq!(content_forest_cid, _content_forest_cid);
 
@@ -106,17 +115,35 @@ impl FsMetadata {
         // Now for some linking magic
         // Construct new map for metadata
         let mut map = BTreeMap::new();
-        
+
         // Link everything in the map
         // Link our share manager
-        map.insert(SHARE_MANAGER_LABEL.to_string(), Ipld::Link(share_manager_cid));
+        map.insert(
+            SHARE_MANAGER_LABEL.to_string(),
+            Ipld::Link(share_manager_cid),
+        );
         // Link our Private Forests
-        map.insert(METADATA_FOREST_LABEL.to_string(), Ipld::Link(metadata_forest_cid));
-        map.insert(CONTENT_FOREST_LABEL.to_string(), Ipld::Link(content_forest_cid));
+        map.insert(
+            METADATA_FOREST_LABEL.to_string(),
+            Ipld::Link(metadata_forest_cid),
+        );
+        map.insert(
+            CONTENT_FOREST_LABEL.to_string(),
+            Ipld::Link(content_forest_cid),
+        );
         // Link our build metadata
-        map.insert(TOMB_BUILD_FEATURES_LABEL.to_string(), Ipld::String(env!("BUILD_FEATURES").to_string()));
-        map.insert(TOMB_BUILD_PROFILE_LABEL.to_string(), Ipld::String(env!("BUILD_PROFILE").to_string()));
-        map.insert(TOMB_REPO_VERSION_LABEL.to_string(), Ipld::String(env!("REPO_VERSION").to_string()));
+        map.insert(
+            TOMB_BUILD_FEATURES_LABEL.to_string(),
+            Ipld::String(env!("BUILD_FEATURES").to_string()),
+        );
+        map.insert(
+            TOMB_BUILD_PROFILE_LABEL.to_string(),
+            Ipld::String(env!("BUILD_PROFILE").to_string()),
+        );
+        map.insert(
+            TOMB_REPO_VERSION_LABEL.to_string(),
+            Ipld::String(env!("REPO_VERSION").to_string()),
+        );
 
         // Get the CID of the map
         let metadata_root = &Ipld::Map(map);
@@ -128,49 +155,65 @@ impl FsMetadata {
         metadata_store.set_root(&metadata_root_cid);
         content_store.set_root(&metadata_root_cid);
 
-        let _metadata_root_cid = metadata_store.get_root().ok_or(SerialError::MissingMetadata("root".to_string()))?;
+        let _metadata_root_cid = metadata_store
+            .get_root()
+            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
         assert_eq!(metadata_root_cid, _metadata_root_cid);
-        let _metadata_root_cid = content_store.get_root().ok_or(SerialError::MissingMetadata("root".to_string()))?;
+        let _metadata_root_cid = content_store
+            .get_root()
+            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
         assert_eq!(metadata_root_cid, _metadata_root_cid);
 
         Ok(())
     }
-    
+
     /// Unlock and initialize Metadata from a blockstore
     pub async fn unlock(
         wrapping_key: &EcEncryptionKey,
-        store: &impl RootedBlockStore
+        store: &impl RootedBlockStore,
     ) -> Result<Self> {
         // Get the map
-        let metadata_root_cid = store.get_root().ok_or(SerialError::MissingMetadata("root".to_string()))?;
+        let metadata_root_cid = store
+            .get_root()
+            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
         let metadata_root = match store.get_deserializable::<Ipld>(&metadata_root_cid).await {
             Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
+            _ => return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into()),
         };
         // Get the forest CIDs
         let metadata_forest_cid = match metadata_root.get(METADATA_FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(METADATA_FOREST_LABEL.to_string()).into())
+            _ => {
+                return Err(SerialError::MissingMetadata(METADATA_FOREST_LABEL.to_string()).into())
+            }
         };
         let content_forest_cid = match metadata_root.get(CONTENT_FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(CONTENT_FOREST_LABEL.to_string()).into())
+            _ => return Err(SerialError::MissingMetadata(CONTENT_FOREST_LABEL.to_string()).into()),
         };
         // Get the share manager CID
         let share_manager_cid = match metadata_root.get(SHARE_MANAGER_LABEL) {
             Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(SHARE_MANAGER_LABEL.to_string()).into())
+            _ => return Err(SerialError::MissingMetadata(SHARE_MANAGER_LABEL.to_string()).into()),
         };
 
         // Get the forests
         let metadata_forest = load_forest(metadata_forest_cid, store).await?;
         let content_forest = load_forest(content_forest_cid, store).await?;
         // Get the share manager
-        let mut share_manager = store.get_deserializable::<ShareManager>(share_manager_cid).await?;
+        let mut share_manager = store
+            .get_deserializable::<ShareManager>(share_manager_cid)
+            .await?;
         // Get our private Ref
         share_manager.load_refs(wrapping_key).await?;
-        let current_private_ref = share_manager.current_ref.as_ref().ok_or(SerialError::MissingMetadata("current private ref".to_string()))?;
-        
+        let current_private_ref =
+            share_manager
+                .current_ref
+                .as_ref()
+                .ok_or(SerialError::MissingMetadata(
+                    "current private ref".to_string(),
+                ))?;
+
         // Get the root directory
         let root_dir = load_dir(store, current_private_ref, &metadata_forest).await?;
         // Return the new metadata
@@ -185,9 +228,16 @@ impl FsMetadata {
     /// Get the original root directory
     pub async fn history(&mut self, store: &impl BlockStore) -> Result<PrivateNodeOnPathHistory> {
         // Get the original private ref
-        let original_private_ref = self.share_manager.original_ref.as_ref().ok_or(SerialError::MissingMetadata("original private ref".to_string()))?;
+        let original_private_ref =
+            self.share_manager
+                .original_ref
+                .as_ref()
+                .ok_or(SerialError::MissingMetadata(
+                    "original private ref".to_string(),
+                ))?;
         // Get the original root directory
-        let original_root_dir = load_dir(store, &original_private_ref, &self.metadata_forest).await?;
+        let original_root_dir =
+            load_dir(store, original_private_ref, &self.metadata_forest).await?;
         // Get the history
         PrivateNodeOnPathHistory::of(
             self.root_dir.clone(),
@@ -197,32 +247,54 @@ impl FsMetadata {
             true,
             self.metadata_forest.clone(),
             store,
-        ).await
+        )
+        .await
     }
 
     /// Return the build details
-    pub async fn build_details(&self, store: &impl RootedBlockStore) -> Result<(String, String, String)> {
+    pub async fn build_details(
+        &self,
+        store: &impl RootedBlockStore,
+    ) -> Result<(String, String, String)> {
         // Get the map
-        let metadata_root_cid = store.get_root().ok_or(SerialError::MissingMetadata("root".to_string()))?;
+        let metadata_root_cid = store
+            .get_root()
+            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
         let metadata_root = match store.get_deserializable::<Ipld>(&metadata_root_cid).await {
             Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into())
+            _ => return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into()),
         };
         // Get the build details
         let build_features = match metadata_root.get(TOMB_BUILD_FEATURES_LABEL) {
             Some(Ipld::String(build_features)) => build_features,
-            _ => return Err(SerialError::MissingMetadata(TOMB_BUILD_FEATURES_LABEL.to_string()).into())
+            _ => {
+                return Err(
+                    SerialError::MissingMetadata(TOMB_BUILD_FEATURES_LABEL.to_string()).into(),
+                )
+            }
         };
         let build_profile = match metadata_root.get(TOMB_BUILD_PROFILE_LABEL) {
             Some(Ipld::String(build_profile)) => build_profile,
-            _ => return Err(SerialError::MissingMetadata(TOMB_BUILD_PROFILE_LABEL.to_string()).into())
+            _ => {
+                return Err(
+                    SerialError::MissingMetadata(TOMB_BUILD_PROFILE_LABEL.to_string()).into(),
+                )
+            }
         };
         let repo_version = match metadata_root.get(TOMB_REPO_VERSION_LABEL) {
             Some(Ipld::String(repo_version)) => repo_version,
-            _ => return Err(SerialError::MissingMetadata(TOMB_REPO_VERSION_LABEL.to_string()).into())
+            _ => {
+                return Err(
+                    SerialError::MissingMetadata(TOMB_REPO_VERSION_LABEL.to_string()).into(),
+                )
+            }
         };
         // Ok
-        Ok((build_features.to_string(), build_profile.to_string(), repo_version.to_string()))
+        Ok((
+            build_features.to_string(),
+            build_profile.to_string(),
+            repo_version.to_string(),
+        ))
     }
 }
 

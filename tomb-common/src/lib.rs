@@ -15,10 +15,10 @@ pub mod banyan_api;
 pub mod blockstore;
 /// Car types and implementations
 pub mod car;
-/// Our encyption key types and helpers
-pub mod share;
 /// Describes how to read and write fs metadata
 pub mod metadata;
+/// Our encyption key types and helpers
+pub mod share;
 /// Common Traits
 mod traits;
 /// Utilities

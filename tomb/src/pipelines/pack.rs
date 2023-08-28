@@ -1,3 +1,4 @@
+use super::error::PipelineError;
 use crate::{
     types::config::globalconfig::GlobalConfig,
     utils::{
@@ -7,7 +8,6 @@ use crate::{
 };
 use anyhow::Result;
 use std::path::Path;
-use super::error::PipelineError;
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
 /// pack the input directory into the output directory and store a record of how this
@@ -23,10 +23,7 @@ use super::error::PipelineError;
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(
-    origin: &Path,
-    follow_links: bool,
-) -> Result<(), PipelineError> {
+pub async fn pipeline(origin: &Path, follow_links: bool) -> Result<(), PipelineError> {
     // Create packing plan
     let packing_plan = create_plans(origin, follow_links).await?;
     // TODO: optionally turn off the progress bar
@@ -38,12 +35,8 @@ pub async fn pipeline(
 
     // If the user has done initialization for this directory
     if let Some(mut config) = global.get_bucket(origin) {
-        let (
-            metadata_forest,
-            content_forest,
-            root_dir,
-            manager,
-        ) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, content_forest, root_dir, manager) =
+            &mut config.get_all(&wrapping_key).await?;
         // Create a new delta for this packing operation
         config.content.add_delta()?;
 
@@ -60,12 +53,7 @@ pub async fn pipeline(
         .await?;
 
         config
-            .set_all(
-                metadata_forest,
-                content_forest,
-                root_dir,
-                manager,
-            )
+            .set_all(metadata_forest, content_forest, root_dir, manager)
             .await?;
 
         global.update_config(&config)?;

@@ -1,11 +1,8 @@
 use async_trait::async_trait;
-use wnfs::{
-    common::blockstore::BlockStore,
-    libipld::Cid
-};
+use wnfs::{common::blockstore::BlockStore, libipld::Cid};
 
 // TODO: Use better error types
-/// Wrap a BlockStore with additional functionality to get / set a root CID 
+/// Wrap a BlockStore with additional functionality to get / set a root CID
 #[async_trait(?Send)]
 pub trait RootedBlockStore: BlockStore {
     /// Get the root CID

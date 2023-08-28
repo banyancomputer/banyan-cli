@@ -17,7 +17,7 @@ const ENCRYPTED_PRIVATE_REF_LABEL: &str = "ENCRYPTED_PRIVATE_REF";
 /// Map of:
 /// ECDH fingerprint -> (ECDH_PUBLIC_KEY, ENC_PRIVATE_REF)
 /// where
-///  - ECDH_PUBLIC_KEY is the DER encoded public key bytes of an ECDH keypair 
+///  - ECDH_PUBLIC_KEY is the DER encoded public key bytes of an ECDH keypair
 ///  - ENC_PRIVATE_REF is an EncryptedPrivateRef shared with that public key
 pub struct EncRefMapper(HashMap<String, (Vec<u8>, String)>);
 
@@ -44,7 +44,7 @@ impl EncRefMapper {
     }
 
     /// Add a new recipient to the mapper
-    /// Optionally share a private ref with the new recipient key 
+    /// Optionally share a private ref with the new recipient key
     pub async fn add_recipient(
         &mut self,
         private_ref: &Option<PrivateRef>,
@@ -57,7 +57,7 @@ impl EncRefMapper {
                 .await
                 .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?,
         );
-        // Get the DER encoded public key bytes 
+        // Get the DER encoded public key bytes
         let der = recipient
             .export_bytes()
             .await
@@ -67,16 +67,19 @@ impl EncRefMapper {
         let ref_string = match private_ref {
             Some(private_ref) => {
                 // Encrypt the private ref for the recipient
-                let encrypted_private_ref = EncryptedPrivateRef::encrypt_for(private_ref, recipient)
-                    .await
-                    .map_err(|_| anyhow::anyhow!("could not encrypt private ref for recipient"))?;
+                let encrypted_private_ref =
+                    EncryptedPrivateRef::encrypt_for(private_ref, recipient)
+                        .await
+                        .map_err(|_| {
+                            anyhow::anyhow!("could not encrypt private ref for recipient")
+                        })?;
                 // Export the encrypted private ref to a string
                 // Insert the encrypted private ref into the map
-                let ref_string = serde_json::to_string(&encrypted_private_ref)
-                    .map_err(|_| anyhow::anyhow!("could not export encrypted private ref to string"))?;
-                ref_string
-            },
-            None => String::new()
+                serde_json::to_string(&encrypted_private_ref).map_err(|_| {
+                    anyhow::anyhow!("could not export encrypted private ref to string")
+                })?
+            }
+            None => String::new(),
         };
         // Insert into the hashmap, using fingerprint as key
         self.0.insert(fingerprint, (der, ref_string));
@@ -86,7 +89,7 @@ impl EncRefMapper {
 
     /// Decrypt the TemporalKey using a recipient's PrivateKey
     pub async fn recover_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
-        // Grab the fingerprint from the 
+        // Grab the fingerprint from the
         let fingerprint = pretty_fingerprint(
             &recipient
                 .fingerprint()
@@ -96,7 +99,7 @@ impl EncRefMapper {
         // Grab the encrypted key associated with the fingerprint
         let (_, enc_ref_string) = match self.0.get(&fingerprint) {
             Some(entry) => entry,
-            None => return Err(KeyError::Missing.into())
+            None => return Err(KeyError::Missing.into()),
         };
         let enc_ref = serde_json::from_str::<EncryptedPrivateRef>(enc_ref_string)
             .map_err(|_| anyhow::anyhow!("could not deserialize encrypted private ref"))?;
@@ -118,7 +121,10 @@ impl EncRefMapper {
             // Insert the fingerprint
             sub_map.insert(PUBLIC_KEY_LABEL.to_string(), Ipld::Bytes(public_key));
             // Insert the encrypted key
-            sub_map.insert(ENCRYPTED_PRIVATE_REF_LABEL.to_string(), Ipld::String(encrypted_private_ref));
+            sub_map.insert(
+                ENCRYPTED_PRIVATE_REF_LABEL.to_string(),
+                Ipld::String(encrypted_private_ref),
+            );
             // Insert the sub_map
             map.insert(fingerprint, Ipld::Map(sub_map));
         }
@@ -173,7 +179,8 @@ mod test {
     use anyhow::Result;
     use wnfs::{
         common::dagcbor,
-        private::{AesKey, TemporalKey}, libipld::Cid,
+        libipld::Cid,
+        private::{AesKey, TemporalKey},
     };
 
     #[tokio::test]

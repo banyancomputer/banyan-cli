@@ -1,14 +1,12 @@
+use crate::share::manager::ShareManager;
 use anyhow::Result;
-use rand::{thread_rng, Rng, rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;
 use wnfs::{
     common::{dagcbor, AsyncSerialize, BlockStore},
     libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
-    private::{
-        PrivateDirectory, PrivateForest, PrivateNode, PrivateRef,
-    }
+    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
 };
-use crate::share::manager::ShareManager;
 
 /// Store a given PrivateDirectory in a given Store
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
@@ -47,7 +45,7 @@ pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
 /// Store the key Manager in both BlockStores
 pub async fn store_share_manager(
     share_manager: &ShareManager,
-    store: &impl BlockStore
+    store: &impl BlockStore,
 ) -> Result<Cid> {
     let share_manager_bytes = dagcbor::encode(share_manager)?;
     let share_manager_cid = store
@@ -117,13 +115,14 @@ mod test {
     async fn dir_object() -> Result<()> {
         let test_name = "dir_object";
         // Start er up!
-        let (metadata, content, metadata_forest, content_forest, dir) = &mut setup_memory_test(test_name).await?;
+        let (metadata, content, metadata_forest, content_forest, dir) =
+            &mut setup_memory_test(test_name).await?;
 
-        let private_ref = &store_dir(metadata, content, metadata_forest, content_forest, dir).await?;
+        let private_ref =
+            &store_dir(metadata, content, metadata_forest, content_forest, dir).await?;
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
         let new_metadata_forest = &load_forest(&metadata_forest_cid, metadata).await?;
-        let new_dir =
-            &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
+        let new_dir = &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
         // Assert equality
         assert_eq!(dir, new_dir);
         // Teardown
@@ -160,13 +159,13 @@ mod test {
             original_metadata_forest,
             original_content_forest,
             original_dir,
-        ).await?;
+        )
+        .await?;
         let metadata_forest_cid =
             store_forest(original_metadata_forest, metadata, metadata).await?;
 
         let new_metadata_forest = &mut load_forest(&metadata_forest_cid, metadata).await?;
-        let new_dir =
-            &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
+        let new_dir = &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 

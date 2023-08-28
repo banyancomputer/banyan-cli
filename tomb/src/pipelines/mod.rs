@@ -63,7 +63,10 @@ mod test {
         // Configure the remote endpoint
         configure::remote(address).await?;
         // Assert it was actually modified
-        assert_eq!(GlobalConfig::from_disk().await?.remote, Some(address.to_string()));
+        assert_eq!(
+            GlobalConfig::from_disk().await?.remote,
+            Some(address.to_string())
+        );
         Ok(())
     }
 
@@ -132,8 +135,7 @@ mod test {
         let config = global
             .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, dir, _) =
-            &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = dir
@@ -598,14 +600,14 @@ mod test {
             .await?
             .expect("cannot traverse history iterator")
             .as_dir()?;
-        
+
         // Assert that there are no more previous versions to find
         assert!(iterator
             .get_previous(&config.metadata)
             .await
             .expect("cannot traverse history iterator")
             .is_none());
-            println!("erg");
+        println!("erg");
         Ok(())
     }
 

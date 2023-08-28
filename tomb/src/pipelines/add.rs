@@ -53,12 +53,7 @@ pub async fn pipeline(
 
         // Store all the updated information, now that we've written the file
         config
-            .set_all(
-                metadata_forest,
-                content_forest,
-                root_dir,
-                manager,
-            )
+            .set_all(metadata_forest, content_forest, root_dir, manager)
             .await?;
 
         // Update global

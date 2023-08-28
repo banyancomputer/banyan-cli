@@ -1,5 +1,5 @@
 use crate::utils::config::xdg_config_home;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use tomb_crypt::prelude::*;
 
@@ -111,8 +111,7 @@ impl GlobalConfig {
         } else {
             println!("Creating new config at {:?}", config_path());
             Self::create().await?.to_disk()?;
-            let r = Self::from_disk().await;
-            r
+            Self::from_disk().await
         }
     }
 
@@ -176,7 +175,7 @@ impl GlobalConfig {
     }
 
     async fn create_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
-        let wrapping_key = wrapping_key(&self.wrapping_key_path).await?; 
+        let wrapping_key = wrapping_key(&self.wrapping_key_path).await?;
         let bucket = BucketConfig::new(origin, &wrapping_key).await?;
         self.buckets.push(bucket.clone());
         Ok(bucket)
@@ -195,13 +194,13 @@ impl GlobalConfig {
 /// Generate a new Ecdsa key to use for authentication
 /// Writes the key to the config path
 async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
-    if let Ok(_) = File::open(path) {
+    if File::open(path).is_ok() {
         api_key(path).await?;
     }
     let key = EcSignatureKey::generate().await?;
     let pem_bytes = key.export().await?;
     let mut f = File::create(path)?;
-    f.write(&pem_bytes)?;
+    f.write_all(&pem_bytes)?;
     Ok(key)
 }
 
@@ -219,13 +218,13 @@ async fn api_key(path: &PathBuf) -> Result<EcSignatureKey> {
 /// Generate a new Ecdh key to use for key wrapping
 /// Writes the key to the config path
 async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
-    if let Ok(_) = File::open(path) {
+    if File::open(path).is_ok() {
         wrapping_key(path).await?;
     }
     let key = EcEncryptionKey::generate().await?;
     let pem_bytes = key.export().await?;
     let mut f = File::create(path)?;
-    f.write(&pem_bytes)?;
+    f.write_all(&pem_bytes)?;
     Ok(key)
 }
 

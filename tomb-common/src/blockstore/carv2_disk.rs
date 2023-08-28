@@ -1,8 +1,5 @@
 use crate::blockstore::{BlockStore, RootedBlockStore};
-use crate::car::{
-    v1::block::Block,
-    v2::CarV2,
-};
+use crate::car::{v1::block::Block, v2::CarV2};
 use crate::utils::io::{get_read, get_read_write, get_write};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -132,7 +129,6 @@ impl RootedBlockStore for CarV2DiskBlockStore {
     //     Ok(new_block.cid)
     // }
 }
-
 
 impl Serialize for CarV2DiskBlockStore {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

@@ -6,11 +6,12 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use tomb_common::{
+    blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
+    metadata::FsMetadata,
+    share::manager::ShareManager,
+};
 use tomb_crypt::prelude::*;
-use tomb_common::{blockstore::{
-    carv2_disk::CarV2DiskBlockStore,
-    multi_carv2_disk::MultiCarV2DiskBlockStore,
-}, metadata::FsMetadata, share::manager::ShareManager};
 use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
 
 use crate::utils::config::xdg_data_home;
@@ -35,7 +36,7 @@ fn bucket_content_path(name: &str) -> PathBuf {
     path
 }
 
-// TODO: This is maybe better concieved of as a Bucket 
+// TODO: This is maybe better concieved of as a Bucket
 /// Configuration for an individual Bucket / FileSystem
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
@@ -71,12 +72,12 @@ impl BucketConfig {
         let content_path = bucket_content_path(&local_id);
         let metadata = CarV2DiskBlockStore::new(&metadata_path)?;
         let content = MultiCarV2DiskBlockStore::new(&content_path)?;
-        
+
         // Initialize the fs metadata
         let mut fs_metadata = FsMetadata::init(wrapping_key).await?;
         // Save our fs metadata in both of our stores
         fs_metadata.save(&metadata, &metadata).await?;
-        
+
         Ok(Self {
             name,
             origin: origin.to_path_buf(),
@@ -89,7 +90,7 @@ impl BucketConfig {
     pub(crate) fn remove_data(&self) -> Result<()> {
         // Remove dir if it exists
         if bucket_data_home(&self.local_id).exists() {
-            remove_dir_all(&bucket_data_home(&self.local_id))?;
+            remove_dir_all(bucket_data_home(&self.local_id))?;
         }
         Ok(())
     }
@@ -125,7 +126,7 @@ impl BucketConfig {
             metadata_forest: metadata_forest.clone(),
             content_forest: content_forest.clone(),
             root_dir: root_dir.clone(),
-            share_manager: share_manager.clone(),    
+            share_manager: share_manager.clone(),
         };
         fs_metadata.save(&self.metadata, &self.content).await?;
         Ok(())
@@ -167,9 +168,10 @@ mod test {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let mut config = global.get_or_create_bucket(origin).await?;
-        
+
         let rng = &mut thread_rng();
-        let (mut metadata_forest, mut content_forest, mut root_dir, mut share_manager) = config.get_all(&global.wrapping_key().await?).await?;
+        let (mut metadata_forest, mut content_forest, mut root_dir, mut share_manager) =
+            config.get_all(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
         let file = root_dir
             .open_file_mut(
