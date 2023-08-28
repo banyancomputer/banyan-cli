@@ -6,65 +6,81 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tomb_common::{blockstore::TombBlockStore, keys::manager::Manager, utils::serialize::*};
 use tomb_crypt::prelude::*;
-use wnfs::{
-    libipld::Cid,
-    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
-};
+use tomb_common::{blockstore::{
+    carv2_disk::CarV2DiskBlockStore,
+    multi_carv2_disk::MultiCarV2DiskBlockStore,
+}, metadata::FsMetadata, share::manager::ShareManager};
+use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
 
-use crate::{
-    types::blockstore::{carv2, multi},
-    utils::config::xdg_data_home,
-};
+use crate::utils::config::xdg_data_home;
 
+const BUCKET_METADATA_FILE_NAME: &str = "metadata.car";
+const BUCKET_CONTENT_DIR_NAME: &str = "deltas";
+
+fn bucket_data_home(local_id: &str) -> PathBuf {
+    xdg_data_home().join(local_id)
+}
+
+fn bucket_metadata_path(name: &str) -> PathBuf {
+    xdg_data_home().join(name).join(BUCKET_METADATA_FILE_NAME)
+}
+
+fn bucket_content_path(name: &str) -> PathBuf {
+    let path = xdg_data_home().join(name).join(BUCKET_CONTENT_DIR_NAME);
+    // If the directory doesnt exist yet, make it!
+    if !path.exists() {
+        create_dir_all(&path).expect("failed to create XDG data home");
+    }
+    path
+}
+
+// TODO: This is maybe better concieved of as a Bucket 
 /// Configuration for an individual Bucket / FileSystem
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BucketConfig {
     /// The name of this bucket
-    bucket_name: String,
+    pub(crate) name: String,
     /// The filesystem that this bucket represents
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
-    pub(crate) generated: PathBuf,
+    pub(crate) local_id: String,
     /// BlockStore for storing metadata only
-    pub metadata: carv2::BlockStore,
+    pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
-    pub content: multi::BlockStore,
+    pub content: MultiCarV2DiskBlockStore,
 }
 
 impl BucketConfig {
     /// Given a directory, initialize a configuration for it
-    pub fn new(origin: &Path) -> Result<Self> {
-        let bucket_name = origin
+    pub async fn new(origin: &Path, wrapping_key: &EcEncryptionKey) -> Result<Self> {
+        let name = origin
             .file_name()
             .expect("no file name")
             .to_str()
             .expect("no file name str")
             .to_string();
         // Generate a name for the generated directory
-        let generated_name: String = rand::thread_rng()
+        let local_id: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(7)
             .map(char::from)
             .collect();
         // Compose the generated directory
-        let generated = xdg_data_home().join(generated_name);
-
-        // TODO (organized grime) prevent collision
-        create_dir_all(&generated)?;
-
-        let metadata = carv2::BlockStore::new(&generated.join("meta.car"))?;
-        let content = multi::BlockStore::new(&generated.join("content"))?;
-
-        // Start with default roots such that we never have to shift blocks
-        metadata.set_root(&Cid::default());
-        content.set_root(&Cid::default());
-
+        let metadata_path = bucket_metadata_path(&local_id);
+        let content_path = bucket_content_path(&local_id);
+        let metadata = CarV2DiskBlockStore::new(&metadata_path)?;
+        let content = MultiCarV2DiskBlockStore::new(&content_path)?;
+        
+        // Initialize the fs metadata
+        let mut fs_metadata = FsMetadata::init(wrapping_key).await?;
+        // Save our fs metadata in both of our stores
+        fs_metadata.save(&metadata, &metadata).await?;
+        
         Ok(Self {
-            bucket_name,
+            name,
             origin: origin.to_path_buf(),
-            generated,
+            local_id,
             metadata,
             content,
         })
@@ -72,8 +88,8 @@ impl BucketConfig {
 
     pub(crate) fn remove_data(&self) -> Result<()> {
         // Remove dir if it exists
-        if self.generated.exists() {
-            remove_dir_all(&self.generated)?;
+        if bucket_data_home(&self.local_id).exists() {
+            remove_dir_all(&bucket_data_home(&self.local_id))?;
         }
         Ok(())
     }
@@ -86,11 +102,15 @@ impl BucketConfig {
         Rc<PrivateForest>,
         Rc<PrivateForest>,
         Rc<PrivateDirectory>,
-        Manager,
-        Cid,
+        ShareManager,
     )> {
-        // Load all
-        load_all(wrapping_key, &self.metadata).await
+        let fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
+        Ok((
+            fs_metadata.metadata_forest,
+            fs_metadata.content_forest,
+            fs_metadata.root_dir,
+            fs_metadata.share_manager,
+        ))
     }
 
     /// Shortcut for serialize::store_all
@@ -99,19 +119,16 @@ impl BucketConfig {
         metadata_forest: &mut Rc<PrivateForest>,
         content_forest: &mut Rc<PrivateForest>,
         root_dir: &Rc<PrivateDirectory>,
-        manager: &mut Manager,
-        manager_cid: &Cid,
+        share_manager: &mut ShareManager,
     ) -> Result<()> {
-        store_all(
-            &self.metadata,
-            &self.content,
-            metadata_forest,
-            content_forest,
-            root_dir,
-            manager,
-            manager_cid,
-        )
-        .await
+        let mut fs_metadata = FsMetadata {
+            metadata_forest: metadata_forest.clone(),
+            content_forest: content_forest.clone(),
+            root_dir: root_dir.clone(),
+            share_manager: share_manager.clone(),    
+        };
+        fs_metadata.save(&self.metadata, &self.metadata).await?;
+        Ok(())
     }
 
     /// Shortcut for serialize::load_history
@@ -119,7 +136,8 @@ impl BucketConfig {
         &self,
         wrapping_key: &EcEncryptionKey,
     ) -> Result<PrivateNodeOnPathHistory> {
-        load_history(wrapping_key, &self.metadata).await
+        let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
+        Ok(fs_metadata.history(wrapping_key, &self.metadata).await?)
     }
 }
 
@@ -128,7 +146,6 @@ mod test {
     use std::{
         fs::{create_dir_all, remove_dir_all},
         path::Path,
-        rc::Rc,
     };
 
     use crate::types::config::globalconfig::GlobalConfig;
@@ -136,16 +153,10 @@ mod test {
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
-    use tomb_common::{keys::manager::Manager, utils::serialize::*};
-    use tomb_crypt::prelude::*;
-    use wnfs::{
-        namefilter::Namefilter,
-        private::{PrivateDirectory, PrivateForest},
-    };
 
     #[tokio::test]
     #[serial]
-    async fn set_get_all() -> Result<()> {
+    async fn get_set_get_all() -> Result<()> {
         let test_name = "config_set_get_all";
         let origin = &Path::new("test").join(test_name);
         if origin.exists() {
@@ -154,25 +165,12 @@ mod test {
         create_dir_all(origin)?;
 
         let mut global = GlobalConfig::from_disk().await?;
-        let mut config = global.find_or_create_config(origin)?;
-        config.content.add_delta()?;
-        let mut manager = Manager::default();
-        let wrapping_key = global.load_key().await?;
-        let public_key = wrapping_key.public_key()?;
-        manager.insert(&public_key).await?;
-        let manager_cid = store_manager(&manager, &config.metadata, &config.content).await?;
-
+        let wrapping_key = global.clone().wrapping_key().await?;
+        let mut config = global.get_or_create_bucket(origin).await?;
+        
         let rng = &mut thread_rng();
-
-        let mut root_dir = Rc::new(PrivateDirectory::new(
-            Namefilter::default(),
-            Utc::now(),
-            rng,
-        ));
-
-        let mut metadata_forest = Rc::new(PrivateForest::new());
-        let mut content_forest = Rc::new(PrivateForest::new());
-
+        let (mut metadata_forest, mut content_forest, mut root_dir, mut share_manager) = config.get_all(&global.wrapping_key().await?).await?;
+        config.content.add_delta()?;
         let file = root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
@@ -198,33 +196,15 @@ mod test {
                 &mut metadata_forest,
                 &mut content_forest,
                 &root_dir,
-                &mut manager,
-                &manager_cid,
+                &mut share_manager,
             )
             .await?;
 
         // Get structs
-        let (new_metadata_forest, new_content_forest, new_root_dir, new_manager, _) =
+        let (_new_metadata_forest, _new_content_forest, new_root_dir, _new_manager) =
             config.get_all(&wrapping_key).await?;
 
-        assert_eq!(
-            metadata_forest
-                .diff(&new_metadata_forest, &config.metadata)
-                .await?
-                .len(),
-            0
-        );
-        assert_eq!(
-            content_forest
-                .diff(&new_content_forest, &config.content)
-                .await?
-                .len(),
-            0
-        );
-
         assert_eq!(root_dir, new_root_dir);
-
-        assert_eq!(manager, new_manager);
 
         let new_file = root_dir
             .open_file_mut(

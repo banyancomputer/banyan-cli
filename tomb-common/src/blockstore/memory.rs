@@ -1,4 +1,4 @@
-use crate::blockstore::{BlockStore, TombBlockStore};
+use crate::blockstore::{BlockStore, RootedBlockStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,7 @@ use wnfs::{
 };
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-/// Memory implementation of a TombBlockStore
+/// Memory implementation of a RootedBlockStore
 pub struct MemoryBlockStore {
     root: RefCell<Option<Cid>>,
     store: WnfsMemoryBlockStore,
@@ -36,7 +36,7 @@ impl BlockStore for MemoryBlockStore {
 }
 
 #[async_trait(?Send)]
-impl TombBlockStore for MemoryBlockStore {
+impl RootedBlockStore for MemoryBlockStore {
     fn get_root(&self) -> Option<Cid> {
         *self.root.borrow()
     }
@@ -44,14 +44,33 @@ impl TombBlockStore for MemoryBlockStore {
     fn set_root(&self, root: &Cid) {
         *self.root.borrow_mut() = Some(*root)
     }
+}
 
-    // There is no way to update content in a memory store
-    async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
-        // Grab bytes
-        let existing_bytes = self.store.get_block(cid).await?.to_vec();
-        // Assert length equality
-        assert_eq!(existing_bytes.len(), bytes.len());
-        // Put the block
-        self.store.put_block(bytes, codec).await
+#[cfg(test)]
+mod test {
+    use super::*;
+    use anyhow::Result;
+    use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
+
+    #[tokio::test]
+    async fn memory_blockstore() -> Result<()> {
+        let store = &MemoryBlockStore::default();
+        bs_retrieval_test(store).await?;
+        bs_duplication_test(store).await?;
+        bs_serialization_test(store).await
+    }
+
+    #[tokio::test]
+    async fn memory_rooted_blockstore() -> Result<()> {
+        let store = &MemoryBlockStore::default();
+        // Put a block in the store
+        let cid = store.put_block(vec![1, 2, 3], IpldCodec::Raw).await?;
+        // Set the root
+        store.set_root(&cid);
+        // Get the root
+        let root = store.get_root();
+        // Assert that the root is the same as the cid
+        assert_eq!(root, Some(cid));
+        Ok(())
     }
 }

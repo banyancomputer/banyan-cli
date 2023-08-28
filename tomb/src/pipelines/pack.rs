@@ -6,18 +6,7 @@ use crate::{
     },
 };
 use anyhow::Result;
-use chrono::Utc;
-use log::info;
-use rand::thread_rng;
-use std::{path::Path, rc::Rc};
-use tomb_common::{keys::manager::Manager, utils::serialize::store_manager};
-use tomb_crypt::prelude::*;
-use wnfs::{
-    libipld::Cid,
-    namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest},
-};
-
+use std::path::Path;
 use super::error::PipelineError;
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -36,7 +25,6 @@ use super::error::PipelineError;
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
     origin: &Path,
-    // _chunk_size: u64,
     follow_links: bool,
 ) -> Result<(), PipelineError> {
     // Create packing plan
@@ -46,67 +34,26 @@ pub async fn pipeline(
     let progress_bar = &get_progress_bar(packing_plan.len() as u64)?;
 
     let mut global = GlobalConfig::from_disk().await?;
-    let wrapping_key = global.load_key().await?;
+    let wrapping_key = global.clone().wrapping_key().await?;
 
     // If the user has done initialization for this directory
     if let Some(mut config) = global.get_bucket(origin) {
-        // Create the root directory in which all Nodes will be stored
-        let mut root_dir = Rc::new(PrivateDirectory::new(
-            Namefilter::default(),
-            Utc::now(),
-            &mut thread_rng(),
-        ));
-        // Create the PrivateForest from which Nodes will be queried
-        let mut metadata_forest = Rc::new(PrivateForest::new());
-        let mut content_forest = Rc::new(PrivateForest::new());
-
-        let mut manager = Manager::default();
-        let mut manager_cid = Cid::default();
-
-        // If this filesystem has already been packed
-        if let Ok((
-            new_metadata_forest,
-            new_content_forest,
-            new_root_dir,
-            new_manager,
-            new_manager_cid,
-        )) = config.get_all(&wrapping_key).await
-        {
-            // Update structs
-            metadata_forest = new_metadata_forest;
-            content_forest = new_content_forest;
-            root_dir = new_root_dir;
-            manager = new_manager;
-            manager_cid = new_manager_cid;
-        } else {
-            info!("tomb has not seen this filesystem before, starting from scratch! 💖");
-        }
-
+        let (
+            metadata_forest,
+            content_forest,
+            root_dir,
+            manager,
+        ) = &mut config.get_all(&wrapping_key).await?;
         // Create a new delta for this packing operation
         config.content.add_delta()?;
-        // Insert the wrapping key if it is not already there
-        manager
-            .insert(
-                &wrapping_key
-                    .public_key()
-                    .expect("failed to create public key"),
-            )
-            .await?;
-        // Put the keys in the BlockStores before any other data
-        manager_cid = if manager_cid == Cid::default() {
-            store_manager(&manager, &config.metadata, &config.content).await?
-        } else {
-            store_manager(&manager, &config.metadata, &config.content).await?
-            // update_manager(&manager, &manager_cid, &config.metadata, &config.content).await?
-        };
 
         // Process all of the PackPipelinePlans
         process_plans(
             &config.metadata,
             &config.content,
-            &mut metadata_forest,
-            &mut content_forest,
-            &mut root_dir,
+            metadata_forest,
+            content_forest,
+            root_dir,
             packing_plan,
             progress_bar,
         )
@@ -114,11 +61,10 @@ pub async fn pipeline(
 
         config
             .set_all(
-                &mut metadata_forest,
-                &mut content_forest,
-                &root_dir,
-                &mut manager,
-                &manager_cid,
+                metadata_forest,
+                content_forest,
+                root_dir,
+                manager,
             )
             .await?;
 

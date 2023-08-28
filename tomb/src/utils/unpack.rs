@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{path::Path, rc::Rc};
 use wnfs::{
-    common::BlockStore as WnfsBlockStore,
+    common::BlockStore,
     private::{PrivateForest, PrivateNode},
 };
 
@@ -13,8 +13,8 @@ use super::wnfsio::file_to_disk;
 #[async_recursion(?Send)]
 /// Recursively reconstruct each file and directory from the WNFS to disk
 pub async fn process_node(
-    metadata: &impl WnfsBlockStore,
-    content: &impl WnfsBlockStore,
+    metadata: &impl BlockStore,
+    content: &impl BlockStore,
     metadata_forest: &Rc<PrivateForest>,
     content_forest: &Rc<PrivateForest>,
     node: &PrivateNode,

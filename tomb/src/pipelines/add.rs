@@ -17,12 +17,12 @@ pub async fn pipeline(
 ) -> Result<(), PipelineError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
-    let wrapping_key = global.load_key().await?;
+    let wrapping_key = global.clone().wrapping_key().await?;
 
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
         // Get structs
-        let (metadata_forest, content_forest, root_dir, manager, manager_cid) =
+        let (metadata_forest, content_forest, root_dir, manager) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Compress the data in the file
@@ -58,7 +58,6 @@ pub async fn pipeline(
                 content_forest,
                 root_dir,
                 manager,
-                manager_cid,
             )
             .await?;
 

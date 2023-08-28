@@ -7,10 +7,10 @@ use std::path::Path;
 pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
-    let wrapping_key = global.load_key().await?;
+    let wrapping_key = global.clone().wrapping_key().await?;
     // Bucket config
     if let Some(config) = global.get_bucket(origin) {
-        let (metadata_forest, content_forest, root_dir, manager, manager_cid) =
+        let (metadata_forest, content_forest, root_dir, manager) =
             &mut config.get_all(&wrapping_key).await?;
         // Attempt to remove the node
         root_dir
@@ -29,7 +29,6 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineErr
                 content_forest,
                 root_dir,
                 manager,
-                manager_cid,
             )
             .await?;
 

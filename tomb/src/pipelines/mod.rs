@@ -63,7 +63,7 @@ mod test {
         // Configure the remote endpoint
         configure::remote(address).await?;
         // Assert it was actually modified
-        assert_eq!(GlobalConfig::from_disk().await?.remote, address);
+        assert_eq!(GlobalConfig::from_disk().await?.remote, Some(address.to_string()));
         Ok(())
     }
 
@@ -128,11 +128,11 @@ mod test {
 
         // Now that the pipeline has run, grab all metadata
         let global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.load_key().await?;
+        let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
             .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, dir, _, _) =
+        let (metadata_forest, content_forest, dir, _) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Grab the file at this path
@@ -175,11 +175,11 @@ mod test {
         let wnfs_segments = &path_to_segments(wnfs_path)?;
         // Load metadata
         let global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.load_key().await?;
+        let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
             .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -189,11 +189,11 @@ mod test {
         remove::pipeline(origin, wnfs_path).await?;
         // Reload metadata
         let global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.load_key().await?;
+        let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
             .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, _, dir, _, _) = &mut config.get_all(&wrapping_key).await?;
+        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
             .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
             .await?;
@@ -417,11 +417,11 @@ mod test {
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.load_key().await?;
+        let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
             .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, current_dir, _, _) =
+        let (metadata_forest, content_forest, current_dir, _) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
@@ -536,11 +536,11 @@ mod test {
         assert_pack_unpack(test_name).await?;
 
         let global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.load_key().await?;
+        let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
             .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, current_dir, _, _) =
+        let (metadata_forest, content_forest, current_dir, _) =
             &mut config.get_all(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory

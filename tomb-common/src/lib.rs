@@ -16,9 +16,10 @@ pub mod blockstore;
 /// Car types and implementations
 pub mod car;
 /// Our encyption key types and helpers
-pub mod keys;
-/// Utilities
-pub mod utils;
-
+pub mod share;
+/// Describes how to read and write fs metadata
+pub mod metadata;
 /// Common Traits
 mod traits;
+/// Utilities
+pub mod utils;

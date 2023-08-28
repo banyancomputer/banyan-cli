@@ -1,4 +1,4 @@
-use crate::blockstore::{BlockStore, TombBlockStore};
+use crate::blockstore::{BlockStore, RootedBlockStore};
 use crate::car::v1::block::Block;
 use crate::car::v2::CarV2;
 use anyhow::Result;
@@ -63,8 +63,8 @@ impl BlockStore for CarV2MemoryBlockStore {
 }
 
 #[async_trait(?Send)]
-/// TombBlockStore implementation for CarV2BlockStore -- needed in order to interact with the Fs
-impl TombBlockStore for CarV2MemoryBlockStore {
+/// RootedBlockStore implementation for CarV2BlockStore -- needed in order to interact with the Fs
+impl RootedBlockStore for CarV2MemoryBlockStore {
     fn get_root(&self) -> Option<Cid> {
         self.car.get_root()
     }
@@ -73,7 +73,7 @@ impl TombBlockStore for CarV2MemoryBlockStore {
         self.car.set_root(root)
     }
 
-    async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid, anyhow::Error> {
-        panic!("update block deprecated / not implemented")
-    }
+    // async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid, anyhow::Error> {
+    //     panic!("update block deprecated / not implemented")
+    // }
 }
