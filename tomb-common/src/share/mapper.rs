@@ -167,86 +167,88 @@ impl<'de> Deserialize<'de> for EncRefMapper {
     }
 }
 
-// impl std::fmt::Debug for EncRefMapper {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_tuple("EncRefMapper").field(&self.0.keys()).finish()
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use super::*;
+    use anyhow::Result;
+    use wnfs::{
+        common::dagcbor,
+        private::{AesKey, TemporalKey}, libipld::Cid,
+    };
 
-// #[cfg(test)]
-// mod test {
-//     use super::EncRefMapper;
-//     use anyhow::Result;
-//     use tomb_crypt::prelude::*;
-//     use wnfs::{
-//         common::dagcbor,
-//         private::{AesKey, TemporalKey},
-//     };
+    #[tokio::test]
+    async fn to_from_ipld() -> Result<()> {
+        // Create new mapper
+        let mut mapper1 = EncRefMapper::default();
+        // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
+        let wrapping_key = EcEncryptionKey::generate().await?;
+        // Public Key
+        let public_key = wrapping_key.public_key()?;
+        // Insert a public key
+        mapper1.add_recipient(&None, &public_key).await?;
 
-//     #[tokio::test]
-//     async fn to_from_ipld() -> Result<()> {
-//         // Create new mapper
-//         let mut mapper1 = EncRefMapper::default();
-//         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-//         let wrapping_key = EcEncryptionKey::generate().await?;
-//         // Public Key
-//         let public_key = wrapping_key.public_key()?;
-//         // Insert a public key
-//         mapper1.add_recipient(&None, &public_key).await?;
+        let mapper1_ipld = mapper1.to_ipld();
+        let mut mapper2 = EncRefMapper::from_ipld(mapper1_ipld)?;
+        // Assert reconstruction
+        assert_eq!(mapper1, mapper2);
+        let temporal_key = TemporalKey(AesKey::new([7u8; 32]));
+        let private_ref = PrivateRef {
+            temporal_key: temporal_key.clone(),
+            saturated_name_hash: [0u8; 32],
+            content_cid: Cid::default(),
+        };
 
-//         let mapper1_ipld = mapper1.to_ipld();
-//         let mut mapper2 = EncRefMapper::from_ipld(mapper1_ipld)?;
-//         // Assert reconstruction
-//         assert_eq!(mapper1, mapper2);
-//         let temporal_key = TemporalKey(AesKey::new([7u8; 32]));
-//         // Update temporal key
-//         mapper2.update_temporal_key(&temporal_key).await?;
+        // Update temporal key
+        mapper2.update_ref(&private_ref).await?;
 
-//         let mapper2_ipld = mapper2.to_ipld();
-//         let mapper3 = EncRefMapper::from_ipld(mapper2_ipld)?;
-//         // Assert reconstruction
-//         assert_eq!(mapper2, mapper3);
+        let mapper2_ipld = mapper2.to_ipld();
+        let mapper3 = EncRefMapper::from_ipld(mapper2_ipld)?;
+        // Assert reconstruction
+        assert_eq!(mapper2, mapper3);
 
-//         // Assert decryption
-//         let new_temporal_key = mapper3.reconstruct(&wrapping_key).await?;
-//         assert_eq!(temporal_key, new_temporal_key);
+        // Assert decryption
+        let new_private_ref = mapper3.recover_ref(&wrapping_key).await?;
+        assert_eq!(private_ref, new_private_ref);
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
-//     #[tokio::test]
-//     async fn serial_size() -> Result<()> {
-//         // Create new mapper
-//         let mut mapper1 = EncRefMapper::default();
-//         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
-//         let wrapping_key = EcEncryptionKey::generate().await?;
-//         // Public Key
-//         let public_key = wrapping_key.public_key()?;
-//         // Insert a public key
-//         mapper1.add_recipient(&None, &public_key).await?;
+    #[tokio::test]
+    async fn serial_size() -> Result<()> {
+        // Create new mapper
+        let mut mapper1 = EncRefMapper::default();
+        // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
+        let wrapping_key = EcEncryptionKey::generate().await?;
+        // Public Key
+        let public_key = wrapping_key.public_key()?;
+        // Insert a public key
+        mapper1.add_recipient(&None, &public_key).await?;
 
-//         // Serialize
-//         let mapper1_bytes = dagcbor::encode(&mapper1)?;
-//         let mut mapper2: EncRefMapper = dagcbor::decode(mapper1_bytes.as_slice())?;
-//         // Assert reconstruction
-//         assert_eq!(mapper1, mapper2);
+        // Serialize
+        let mapper1_bytes = dagcbor::encode(&mapper1)?;
+        let mut mapper2: EncRefMapper = dagcbor::decode(mapper1_bytes.as_slice())?;
+        // Assert reconstruction
+        assert_eq!(mapper1, mapper2);
 
-//         let temporal_key = TemporalKey(AesKey::new([7u8; 32]));
-//         // Update temporal key
-//         mapper2.update_temporal_key(&temporal_key).await?;
+        let temporal_key = TemporalKey(AesKey::new([7u8; 32]));
+        let private_ref = PrivateRef {
+            temporal_key: temporal_key.clone(),
+            saturated_name_hash: [0u8; 32],
+            content_cid: Cid::default(),
+        };
 
-//         let mapper2_bytes = dagcbor::encode(&mapper2)?;
-//         let mapper3: EncRefMapper = dagcbor::decode(mapper2_bytes.as_slice())?;
-//         // Assert reconstruction
-//         assert_eq!(mapper2, mapper3);
+        // Update temporal key
+        mapper2.update_ref(&private_ref).await?;
 
-//         // Assert that updating the temporal key did not alter the size of the struct
-//         assert_eq!(mapper1_bytes.len(), mapper2_bytes.len());
+        let mapper2_bytes = dagcbor::encode(&mapper2)?;
+        let mapper3: EncRefMapper = dagcbor::decode(mapper2_bytes.as_slice())?;
+        // Assert reconstruction
+        assert_eq!(mapper2, mapper3);
 
-//         // Assert decryption
-//         let new_temporal_key = mapper3.reconstruct(&wrapping_key).await?;
-//         assert_eq!(temporal_key, new_temporal_key);
+        // Assert decryption
+        let new_private_ref = mapper3.recover_ref(&wrapping_key).await?;
+        assert_eq!(private_ref, new_private_ref);
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

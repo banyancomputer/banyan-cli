@@ -592,6 +592,13 @@ mod test {
         // Assert that the previous version of the file was retrieved correctly
         assert_eq!(previous_content_decompressed, hello_bytes);
 
+        // pull off the last, empty version
+        let _empty_dir = iterator
+            .get_previous(&config.metadata)
+            .await?
+            .expect("cannot traverse history iterator")
+            .as_dir()?;
+        
         // Assert that there are no more previous versions to find
         assert!(iterator
             .get_previous(&config.metadata)
