@@ -50,12 +50,12 @@ impl ShareManager {
     }
 
     /// Retrieve the current_ref PrivateRef using a PrivateKey
-    pub async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
         self.current_map.recover_ref(recipient).await
     }
 
     /// Retrieve the original PrivateRef using a PrivateKey
-    pub async fn original_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    async fn original_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
         self.original_map.recover_ref(recipient).await
     }
 

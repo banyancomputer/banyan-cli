@@ -127,7 +127,7 @@ impl BucketConfig {
             root_dir: root_dir.clone(),
             share_manager: share_manager.clone(),    
         };
-        fs_metadata.save(&self.metadata, &self.metadata).await?;
+        fs_metadata.save(&self.metadata, &self.content).await?;
         Ok(())
     }
 
@@ -137,7 +137,7 @@ impl BucketConfig {
         wrapping_key: &EcEncryptionKey,
     ) -> Result<PrivateNodeOnPathHistory> {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
-        Ok(fs_metadata.history(wrapping_key, &self.metadata).await?)
+        Ok(fs_metadata.history(&self.metadata).await?)
     }
 }
 

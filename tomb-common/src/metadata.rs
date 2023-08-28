@@ -69,7 +69,9 @@ impl FsMetadata {
         // Store the root directory, get a new PrivateReference to the entry point of the Filesystem
         let root_dir_ref = store_dir(
             metadata_store,
+            content_store,
             &mut self.metadata_forest,
+            &mut self.content_forest,
             &self.root_dir,
         ).await?;
         // Update the private ref in the share manager
@@ -91,8 +93,8 @@ impl FsMetadata {
         // Put the forests in the store
         let metadata_forest_cid = store_forest(&self.metadata_forest, metadata_store, metadata_store).await?;
         let _metadata_forest_cid = store_forest(&self.metadata_forest, metadata_store, content_store).await?;
-        let content_forest_cid = store_forest(&self.content_forest, content_store, content_store).await?;
-        let _content_forest_cid = store_forest(&self.content_forest, content_store, metadata_store).await?;
+        let content_forest_cid = store_forest(&self.content_forest, content_store, metadata_store).await?;
+        let _content_forest_cid = store_forest(&self.content_forest, content_store, content_store).await?;
         assert_eq!(metadata_forest_cid, _metadata_forest_cid);
         assert_eq!(content_forest_cid, _content_forest_cid);
 
@@ -181,9 +183,9 @@ impl FsMetadata {
     }
 
     /// Get the original root directory
-    pub async fn history(&mut self, wrapping_key: &EcEncryptionKey, store: &impl BlockStore) -> Result<PrivateNodeOnPathHistory> {
+    pub async fn history(&mut self, store: &impl BlockStore) -> Result<PrivateNodeOnPathHistory> {
         // Get the original private ref
-        let original_private_ref = self.share_manager.original_ref(wrapping_key).await?;
+        let original_private_ref = self.share_manager.original_ref.as_ref().ok_or(SerialError::MissingMetadata("original private ref".to_string()))?;
         // Get the original root directory
         let original_root_dir = load_dir(store, &original_private_ref, &self.metadata_forest).await?;
         // Get the history
@@ -261,7 +263,7 @@ mod test {
         let content_store = &mut MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let mut metadata = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
-        let _history = metadata.history(&wrapping_key, metadata_store).await?;
+        let _history = metadata.history(metadata_store).await?;
         Ok(())
     }
 

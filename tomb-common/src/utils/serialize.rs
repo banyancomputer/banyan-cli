@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rand::thread_rng;
+use rand::{thread_rng, Rng, rngs::StdRng, SeedableRng};
 use std::rc::Rc;
 use wnfs::{
     common::{dagcbor, AsyncSerialize, BlockStore},
@@ -11,13 +11,21 @@ use wnfs::{
 use crate::share::manager::ShareManager;
 
 /// Store a given PrivateDirectory in a given Store
-pub async fn store_dir<BS: BlockStore>(
-    store: &BS,
+pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
+    metadata_store: &MBS,
+    content_store: &CBS,
     metadata_forest: &mut Rc<PrivateForest>,
+    content_forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
 ) -> Result<PrivateRef> {
+    // Get a seeded source of randomness
+    let seed = thread_rng().gen::<[u8; 32]>();
+    let mut rng = StdRng::from_seed(seed);
     // Store the PrivateDirectory in both PrivateForests
-    let metadata_ref = dir.store(metadata_forest, store, &mut thread_rng()).await?;
+    let metadata_ref = dir.store(metadata_forest, metadata_store, &mut rng).await?;
+    let content_ref = dir.store(content_forest, content_store, &mut rng).await?;
+    // Assert that the PrivateRefs are the same
+    assert_eq!(metadata_ref, content_ref);
     // Return Ok
     Ok(metadata_ref)
 }
@@ -109,9 +117,9 @@ mod test {
     async fn dir_object() -> Result<()> {
         let test_name = "dir_object";
         // Start er up!
-        let (metadata, _, metadata_forest, _content_forest, dir) = &mut setup_memory_test(test_name).await?;
+        let (metadata, content, metadata_forest, content_forest, dir) = &mut setup_memory_test(test_name).await?;
 
-        let private_ref = &store_dir(metadata, metadata_forest, dir).await?;
+        let private_ref = &store_dir(metadata, content, metadata_forest, content_forest, dir).await?;
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
         let new_metadata_forest = &load_forest(&metadata_forest_cid, metadata).await?;
         let new_dir =
@@ -146,7 +154,13 @@ mod test {
         let original_content = original_file
             .get_content(original_content_forest, content)
             .await?;
-        let private_ref = &store_dir(metadata, original_metadata_forest, original_dir).await?;
+        let private_ref = &store_dir(
+            metadata,
+            content,
+            original_metadata_forest,
+            original_content_forest,
+            original_dir,
+        ).await?;
         let metadata_forest_cid =
             store_forest(original_metadata_forest, metadata, metadata).await?;
 
