@@ -25,7 +25,10 @@ impl ApiRequest for ApproveBucketKey {
     type ErrorType = ApproveBucketKeyError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
-        let path = format!("/api/v1/buckets/{}/keys/{}/approve", self.bucket_id, self.id);
+        let path = format!(
+            "/api/v1/buckets/{}/keys/{}/approve",
+            self.bucket_id, self.id
+        );
         let full_url = base_url.join(&path).unwrap();
         client.post(full_url)
     }

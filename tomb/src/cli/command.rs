@@ -99,7 +99,6 @@ pub enum AuthSubCommand {
     Limit,
 }
 
-
 /// Unified way of specifying a Bucket
 #[derive(Debug, Clone, Args)]
 #[group(required = true, multiple = false)]

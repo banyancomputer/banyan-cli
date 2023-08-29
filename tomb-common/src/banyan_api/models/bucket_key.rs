@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
-    requests::buckets::keys::{create::*, delete::*, read::*, approve::*, reject::*},
+    requests::buckets::keys::{approve::*, create::*, delete::*, read::*, reject::*},
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -106,8 +106,13 @@ impl BucketKey {
     }
 
     /// Approve a Bucket Key
-    pub async fn approve(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
-        let response: ApproveBucketKeyResponse = client.call(ApproveBucketKey { bucket_id, id }).await?;
+    pub async fn approve(
+        bucket_id: Uuid,
+        id: Uuid,
+        client: &mut Client,
+    ) -> Result<Self, ClientError> {
+        let response: ApproveBucketKeyResponse =
+            client.call(ApproveBucketKey { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
             bucket_id,
@@ -117,8 +122,16 @@ impl BucketKey {
     }
 
     /// Reject a Bucket Key
-    pub async fn reject(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<String, ClientError> {
-        Ok(client.call(RejectBucketKey { bucket_id, id }).await?.id.to_string())
+    pub async fn reject(
+        bucket_id: Uuid,
+        id: Uuid,
+        client: &mut Client,
+    ) -> Result<String, ClientError> {
+        Ok(client
+            .call(RejectBucketKey { bucket_id, id })
+            .await?
+            .id
+            .to_string())
     }
 }
 

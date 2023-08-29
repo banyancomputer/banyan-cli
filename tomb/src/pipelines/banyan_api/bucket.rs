@@ -106,13 +106,13 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 BucketKey::approve(bucket_id, id, &mut client)
                     .await
                     .map(|key| get_key_string(&key))
-            },
+            }
             KeySubCommand::Reject(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::reject(bucket_id, id, &mut client)
                     .await
                     .map(|id| format!("rejected key!\nid:\t{}", id))
-            },
+            }
         },
     };
 
