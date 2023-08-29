@@ -1,23 +1,24 @@
-use anyhow::Result;
-use chrono::Utc;
-use rand::thread_rng;
-use std::{collections::BTreeMap, rc::Rc};
-use tomb_crypt::prelude::*;
-use wnfs::{
-    common::BlockStore,
-    libipld::{Cid, Ipld},
-    namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
-};
-
 use crate::{
     blockstore::RootedBlockStore, share::manager::ShareManager, utils::error::SerialError,
     utils::serialize::*,
+};
+use anyhow::Result;
+use chrono::Utc;
+use rand::thread_rng;
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, rc::Rc};
+use tomb_crypt::prelude::*;
+use wnfs::{
+    common::{BlockStore, Metadata},
+    libipld::{Cid, Ipld},
+    namefilter::Namefilter,
+    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory},
 };
 
 const SHARE_MANAGER_LABEL: &str = "SHARE_MANAGER";
 const METADATA_FOREST_LABEL: &str = "METADATA_FOREST";
 const CONTENT_FOREST_LABEL: &str = "CONTENT_FOREST";
+const ROOT_MAP_LABEL: &str = "ROOT_MAP";
 const TOMB_BUILD_FEATURES_LABEL: &str = "TOMB_BUILD_FEATURES";
 const TOMB_BUILD_PROFILE_LABEL: &str = "TOMB_BUILD_PROFILE";
 const TOMB_REPO_VERSION_LABEL: &str = "TOMB_REPO_VERSION";
@@ -113,56 +114,64 @@ impl FsMetadata {
         assert_eq!(share_manager_cid, _share_manager_cid);
 
         // Now for some linking magic
-        // Construct new map for metadata
-        let mut map = BTreeMap::new();
-
-        // Link everything in the map
-        // Link our share manager
-        map.insert(
-            SHARE_MANAGER_LABEL.to_string(),
-            Ipld::Link(share_manager_cid),
-        );
+        // Construct a new map for the forests
+        let mut root_map = BTreeMap::new();
         // Link our Private Forests
-        map.insert(
+        root_map.insert(
             METADATA_FOREST_LABEL.to_string(),
             Ipld::Link(metadata_forest_cid),
         );
-        map.insert(
+        root_map.insert(
             CONTENT_FOREST_LABEL.to_string(),
             Ipld::Link(content_forest_cid),
         );
+        // Put the map into BlockStores
+        let root = &Ipld::Map(root_map);
+        let root_cid = metadata_store.put_serializable(root).await?;
+        let _root_cid = content_store.put_serializable(root).await?;
+        assert_eq!(root_cid, _root_cid);
+
+        // Construct new map for metadata
+        let mut metadata_map = BTreeMap::new();
+        // Link our forests
+        metadata_map.insert(ROOT_MAP_LABEL.to_string(), Ipld::Link(root_cid));
+        // Link our share manager
+        metadata_map.insert(
+            SHARE_MANAGER_LABEL.to_string(),
+            Ipld::Link(share_manager_cid),
+        );
         // Link our build metadata
-        map.insert(
+        metadata_map.insert(
             TOMB_BUILD_FEATURES_LABEL.to_string(),
             Ipld::String(env!("BUILD_FEATURES").to_string()),
         );
-        map.insert(
+        metadata_map.insert(
             TOMB_BUILD_PROFILE_LABEL.to_string(),
             Ipld::String(env!("BUILD_PROFILE").to_string()),
         );
-        map.insert(
+        metadata_map.insert(
             TOMB_REPO_VERSION_LABEL.to_string(),
             Ipld::String(env!("REPO_VERSION").to_string()),
         );
 
-        // Get the CID of the map
-        let metadata_root = &Ipld::Map(map);
+        // Get the CID of the metadata map
+        let metadata = &Ipld::Map(metadata_map);
         // Put the metadata IPLD Map into BlockStores
-        let metadata_root_cid = metadata_store.put_serializable(metadata_root).await?;
-        let _metadata_root_cid = content_store.put_serializable(metadata_root).await?;
-        assert_eq!(metadata_root_cid, _metadata_root_cid);
+        let metadata_cid = metadata_store.put_serializable(metadata).await?;
+        let _metadata_cid = content_store.put_serializable(metadata).await?;
+        assert_eq!(metadata_cid, _metadata_cid);
 
-        metadata_store.set_root(&metadata_root_cid);
-        content_store.set_root(&metadata_root_cid);
+        metadata_store.set_root(&metadata_cid);
+        content_store.set_root(&metadata_cid);
 
-        let _metadata_root_cid = metadata_store
+        let _metadata_cid = metadata_store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
-        assert_eq!(metadata_root_cid, _metadata_root_cid);
-        let _metadata_root_cid = content_store
+            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+        assert_eq!(metadata_cid, _metadata_cid);
+        let _metadata_cid = content_store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
-        assert_eq!(metadata_root_cid, _metadata_root_cid);
+            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+        assert_eq!(metadata_cid, _metadata_cid);
 
         Ok(())
     }
@@ -173,26 +182,37 @@ impl FsMetadata {
         store: &impl RootedBlockStore,
     ) -> Result<Self> {
         // Get the map
-        let metadata_root_cid = store
+        let metadata_cid = store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
-        let metadata_root = match store.get_deserializable::<Ipld>(&metadata_root_cid).await {
+            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+        let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into()),
+            _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
         };
-        // Get the forest CIDs
-        let metadata_forest_cid = match metadata_root.get(METADATA_FOREST_LABEL) {
+        // Get the CID of the forest Map
+        let root_cid = match metadata.get(ROOT_MAP_LABEL) {
+            Some(Ipld::Link(cid)) => cid,
+            _ => return Err(SerialError::MissingMetadata(ROOT_MAP_LABEL.to_string()).into()),
+        };
+        // Get the forest Map
+        let root = match store.get_deserializable::<Ipld>(root_cid).await {
+            Ok(Ipld::Map(map)) => map,
+            _ => return Err(SerialError::MissingMetadata("root map".to_string()).into()),
+        };
+        // Get the metadata forest CID
+        let metadata_forest_cid = match root.get(METADATA_FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
             _ => {
                 return Err(SerialError::MissingMetadata(METADATA_FOREST_LABEL.to_string()).into())
             }
         };
-        let content_forest_cid = match metadata_root.get(CONTENT_FOREST_LABEL) {
+        // Get the content forest CID
+        let content_forest_cid = match root.get(CONTENT_FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
             _ => return Err(SerialError::MissingMetadata(CONTENT_FOREST_LABEL.to_string()).into()),
         };
         // Get the share manager CID
-        let share_manager_cid = match metadata_root.get(SHARE_MANAGER_LABEL) {
+        let share_manager_cid = match metadata.get(SHARE_MANAGER_LABEL) {
             Some(Ipld::Link(cid)) => cid,
             _ => return Err(SerialError::MissingMetadata(SHARE_MANAGER_LABEL.to_string()).into()),
         };
@@ -223,6 +243,32 @@ impl FsMetadata {
             root_dir,
             share_manager,
         })
+    }
+
+    /// Get the metadata cid from the blockstore
+    /// This should just be the root cid
+    pub async fn metadata_cid(&self, store: &impl RootedBlockStore) -> Result<Cid> {
+        store
+            .get_root()
+            .ok_or(SerialError::MissingMetadata("root cid".to_string()).into())
+    }
+
+    /// Get the root cid from the blockstore
+    pub async fn root_cid(&self, store: &impl RootedBlockStore) -> Result<Cid> {
+        // Get the map
+        let metadata_cid = store
+            .get_root()
+            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+        let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
+            Ok(Ipld::Map(map)) => map,
+            _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
+        };
+        // Get the CID of the forest Map
+        let root_cid = match metadata.get(ROOT_MAP_LABEL) {
+            Some(Ipld::Link(cid)) => cid,
+            _ => return Err(SerialError::MissingMetadata(ROOT_MAP_LABEL.to_string()).into()),
+        };
+        Ok(root_cid.clone())
     }
 
     /// Get the original root directory
@@ -257,15 +303,15 @@ impl FsMetadata {
         store: &impl RootedBlockStore,
     ) -> Result<(String, String, String)> {
         // Get the map
-        let metadata_root_cid = store
+        let metadata_cid = store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root".to_string()))?;
-        let metadata_root = match store.get_deserializable::<Ipld>(&metadata_root_cid).await {
+            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+        let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("IPLD Map".to_string()).into()),
+            _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
         };
         // Get the build details
-        let build_features = match metadata_root.get(TOMB_BUILD_FEATURES_LABEL) {
+        let build_features = match metadata.get(TOMB_BUILD_FEATURES_LABEL) {
             Some(Ipld::String(build_features)) => build_features,
             _ => {
                 return Err(
@@ -273,7 +319,7 @@ impl FsMetadata {
                 )
             }
         };
-        let build_profile = match metadata_root.get(TOMB_BUILD_PROFILE_LABEL) {
+        let build_profile = match metadata.get(TOMB_BUILD_PROFILE_LABEL) {
             Some(Ipld::String(build_profile)) => build_profile,
             _ => {
                 return Err(
@@ -281,7 +327,7 @@ impl FsMetadata {
                 )
             }
         };
-        let repo_version = match metadata_root.get(TOMB_REPO_VERSION_LABEL) {
+        let repo_version = match metadata.get(TOMB_REPO_VERSION_LABEL) {
             Some(Ipld::String(repo_version)) => repo_version,
             _ => {
                 return Err(
@@ -296,6 +342,115 @@ impl FsMetadata {
             repo_version.to_string(),
         ))
     }
+
+    /// Make a new directory in the Fs. Store in our metadata store
+    pub async fn mkdir(
+        &mut self,
+        path_segments: Vec<String>,
+        store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        // Search through the PrivateDirectory for a Node that matches the path provided
+        let result = self
+            .root_dir
+            .get_node(&path_segments, true, &self.metadata_forest, store)
+            .await;
+
+        if let Ok(node) = result && node.is_some() {}
+        // If there was an error searching for the Node or
+        else {
+            // Create the subdirectory
+            self.root_dir
+                .mkdir(
+                    &path_segments,
+                    true,
+                    Utc::now(),
+                    &self.metadata_forest,
+                    store,
+                    &mut thread_rng(),
+                )
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Ls the root directory at the path provided
+    pub async fn ls(
+        &self,
+        path_segments: Vec<String>,
+        store: &impl RootedBlockStore,
+    ) -> Result<Vec<FsMetadataEntry>> {
+        let fetched_entries = self
+            .root_dir
+            .ls(&path_segments, true, &self.metadata_forest, store)
+            .await?;
+
+        let mut transformed_entries = Vec::with_capacity(fetched_entries.len());
+        let mut futures = Vec::new();
+
+        for (name, metadata) in fetched_entries.iter() {
+            let node_path_segments = path_segments
+                .iter()
+                .chain(std::iter::once(name))
+                .cloned()
+                .collect::<Vec<String>>();
+
+            let future = async move {
+                // Get the node from the path
+                let entry = self
+                    .root_dir
+                    .get_node(&node_path_segments, true, &self.metadata_forest, store)
+                    .await
+                    .expect("node not found");
+                let entry = entry
+                    .ok_or(SerialError::NodeNotFound(
+                        node_path_segments.join("/").to_string(),
+                    ))
+                    .expect("node not found");
+                // Map the node to an FsMetadataEntry
+                let name = name.to_string();
+                let entry_type = match entry {
+                    PrivateNode::Dir(_) => FsMetadataEntryType::Dir,
+                    PrivateNode::File(_) => FsMetadataEntryType::File,
+                };
+                let metadata = metadata.clone();
+                FsMetadataEntry {
+                    name,
+                    entry_type,
+                    metadata,
+                }
+            };
+
+            futures.push(future);
+        }
+
+        // Since the transformation is async, await all futures
+        for future in futures {
+            let entry = future.await;
+            transformed_entries.push(entry);
+        }
+
+        Ok(transformed_entries)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+/// Dirty enum describing the type of a FsMetadataEntry
+pub enum FsMetadataEntryType {
+    /// Dir
+    Dir,
+    /// File
+    File,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+/// Helper struct to return FsMetadataEntry
+pub struct FsMetadataEntry {
+    /// File / Dir name
+    pub name: String,
+    /// File / Dir type
+    pub entry_type: FsMetadataEntryType,
+    /// File / Dir metadata
+    pub metadata: Metadata,
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::io::Read;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -68,6 +69,7 @@ pub struct Metadata {
 impl Metadata {
     // TODO: This should probably take a generic trait related to Tomb in order to extract these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn push<S>(
         bucket_id: Uuid,
         root_cid: String,
@@ -80,7 +82,48 @@ impl Metadata {
         reqwest::Body: From<S>,
     {
         let response = client
-            .call(PushMetadata {
+            .multipart(PushMetadata {
+                bucket_id,
+                root_cid: root_cid.clone(),
+                metadata_cid: metadata_cid.clone(),
+                expected_data_size,
+                metadata_stream,
+            })
+            .await?;
+        let metadata = Self {
+            id: response.id,
+            bucket_id,
+            root_cid,
+            metadata_cid,
+            data_size: 0,
+            state: response.state,
+        };
+        match response.storage_host {
+            None => Ok((metadata, None)),
+            Some(_) => Ok((
+                metadata,
+                Some(StorageTicket {
+                    host: response.storage_host.unwrap(),
+                    authorization: response.storage_authorization.unwrap(),
+                }),
+            )),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn push<S>(
+        bucket_id: Uuid,
+        root_cid: String,
+        metadata_cid: String,
+        expected_data_size: usize,
+        metadata_stream: S,
+        client: &mut Client,
+    ) -> Result<(Self, Option<StorageTicket>), ClientError>
+    where
+        S: Read
+    {
+        let response = client
+            .multipart(PushMetadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
                 metadata_cid: metadata_cid.clone(),
@@ -188,6 +231,7 @@ pub mod test {
     use crate::banyan_api::models::account::test::authenticated_client;
     use crate::banyan_api::models::bucket::test::create_bucket;
     use futures_util::stream::StreamExt;
+
     pub async fn push_metadata(
         bucket_id: Uuid,
         client: &mut Client,

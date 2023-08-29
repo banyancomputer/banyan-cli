@@ -607,7 +607,6 @@ mod test {
             .await
             .expect("cannot traverse history iterator")
             .is_none());
-        println!("erg");
         Ok(())
     }
 

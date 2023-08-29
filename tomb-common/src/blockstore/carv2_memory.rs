@@ -37,9 +37,9 @@ impl CarV2MemoryBlockStore {
         Ok(Self { data, car })
     }
 
-    /// Get the underlying data as bytes
+    /// Get a reader to the data underlying the CarV2
     pub fn get_data(&self) -> Vec<u8> {
-        self.data.borrow().clone()
+        self.car.to_bytes().unwrap()
     }
 }
 
