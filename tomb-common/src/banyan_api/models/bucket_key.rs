@@ -6,19 +6,19 @@ use uuid::Uuid;
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
-    requests::buckets::keys::{create::*, delete::*, read::*, approve::*},
+    requests::buckets::keys::{create::*, delete::*, read::*, approve::*, reject::*},
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 /// BucketKey Definition
 pub struct BucketKey {
-    /// The unique identifier for the bucket key
+    /// The unique identifier for the Bucket Key
     pub id: Uuid,
     /// The unique identifier for the bucket it belongs to
     pub bucket_id: Uuid,
-    /// The public key material for the bucket key
+    /// The public key material for the Bucket Key
     pub pem: String,
-    /// Whether or not the bucket key has been approved
+    /// Whether or not the Bucket Key has been approved
     pub approved: bool,
 }
 
@@ -37,7 +37,7 @@ impl Display for BucketKey {
 }
 
 impl BucketKey {
-    /// Create a new bucket key
+    /// Create a new Bucket Key
     pub async fn create(
         bucket_id: Uuid,
         pem: String,
@@ -57,7 +57,7 @@ impl BucketKey {
         })
     }
 
-    /// Read all bucket keys for a bucket
+    /// Read all Bucket Keys for a bucket
     pub async fn read_all(bucket_id: Uuid, client: &mut Client) -> Result<Vec<Self>, ClientError> {
         let response: ReadAllBucketKeysResponse =
             client.call(ReadAllBucketKeys { bucket_id }).await?;
@@ -73,7 +73,7 @@ impl BucketKey {
         Ok(bucket_keys)
     }
 
-    /// Read a bucket key
+    /// Read a Bucket Key
     pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
         let response: ReadBucketKeyResponse = client.call(ReadBucketKey { bucket_id, id }).await?;
         Ok(Self {
@@ -84,7 +84,7 @@ impl BucketKey {
         })
     }
 
-    /// Delete a bucket key
+    /// Delete a Bucket Key
     pub async fn delete(self, client: &mut Client) -> Result<String, ClientError> {
         let response = client
             .call(DeleteBucketKey {
@@ -95,7 +95,7 @@ impl BucketKey {
         Ok(response.id.to_string())
     }
 
-    /// Delete a bucket key by id
+    /// Delete a Bucket Key by id
     pub async fn delete_by_id(
         bucket_id: Uuid,
         id: Uuid,
@@ -105,7 +105,7 @@ impl BucketKey {
         Ok(response.id.to_string())
     }
 
-    /// Approve a bucket key
+    /// Approve a Bucket Key
     pub async fn approve(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
         let response: ApproveBucketKeyResponse = client.call(ApproveBucketKey { bucket_id, id }).await?;
         Ok(Self {
@@ -114,6 +114,11 @@ impl BucketKey {
             pem: response.pem,
             approved: response.approved,
         })
+    }
+
+    /// Reject a Bucket Key
+    pub async fn reject(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<String, ClientError> {
+        Ok(client.call(RejectBucketKey { bucket_id, id }).await?.id.to_string())
     }
 }
 

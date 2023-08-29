@@ -280,7 +280,7 @@ impl WasmMount {
 //     Ok(snapshots)
 // }
 
-// /// List bucket keys for a bucket
+// /// List Bucket Keys for a bucket
 // /// Returns an array of public keys in the form:
 // /// ```json
 // /// [

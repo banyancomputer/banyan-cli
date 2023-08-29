@@ -43,7 +43,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     .update_config(&config)
                     .expect("unable to update config to include local path");
                 // Return
-                format!("new bucket: {:?}\nnew bucket key: {}", bucket, key)
+                format!("new bucket: {:?}\nnew Bucket Key: {}", bucket, key)
             })
         }
         BucketsSubCommand::List => Bucket::read_all(&mut client).await.map(|buckets| {
@@ -93,7 +93,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::delete_by_id(bucket_id, id, &mut client)
                     .await
-                    .map(|v| format!("key {}:\n{}", id, v))
+                    .map(|id| format!("deleted key!\nid:\t{}", id))
             }
             KeySubCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
@@ -107,7 +107,12 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     .await
                     .map(|key| get_key_string(&key))
             },
-            KeySubCommand::Reject(_) => todo!(),
+            KeySubCommand::Reject(ks) => {
+                let (bucket_id, id) = get_key_ids(&global, &ks)?;
+                BucketKey::reject(bucket_id, id, &mut client)
+                    .await
+                    .map(|id| format!("rejected key!\nid:\t{}", id))
+            },
         },
     };
 
