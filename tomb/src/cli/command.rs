@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{arg, Args, Subcommand, ValueEnum};
+use clap::{arg, Subcommand};
 use uuid::Uuid;
 
 /// Defines the types of commands that can be executed from the CLI.
@@ -14,11 +14,13 @@ pub enum Command {
     },
     /// Login, Register, etc.
     Auth {
+        /// Subcommand
         #[clap(subcommand)]
         subcommand: AuthSubCommand,
     },
     /// Bucket management
     Bucket {
+        /// Subcommand
         #[clap(subcommand)]
         subcommand: BucketSubCommand,
     },
@@ -83,6 +85,7 @@ pub enum Command {
     },
 }
 
+/// Subcommand for Authentication
 #[derive(Subcommand, Clone, Debug)]
 pub enum AuthSubCommand {
     /// Create an account
@@ -97,6 +100,7 @@ pub enum AuthSubCommand {
     Limit,
 }
 
+/// Subcommand for Bucket Management
 #[derive(Subcommand, Clone, Debug)]
 pub enum BucketSubCommand {
     /// Initialize a new Bucket locally
@@ -111,19 +115,19 @@ pub enum BucketSubCommand {
     },
     /// List all Buckets
     List,
-    // Test(ModifyBucketSubCommand),
     /// Modify an existing Bucket
     Modify {
         /// Bucket Root
         #[arg(short, long, help = "bucket root")]
         origin: Option<PathBuf>,
 
-        // #[clap(subcommand)]
+        /// Subcommand
         #[clap(subcommand)]
         subcommand: ModifyBucketSubCommand,
     },
 }
 
+/// Subcommand for modifying Buckets
 #[derive(Subcommand, Clone, Debug)]
 pub enum ModifyBucketSubCommand {
     // /// Sync metadata
@@ -140,15 +144,20 @@ pub enum ModifyBucketSubCommand {
     Usage,
     /// Bucket Key management
     Keys {
+        /// Subcommand
         #[clap(subcommand)]
         subcommand: KeySubCommand,
     },
 }
 
+/// Subcommand for Bucket Keys
 #[derive(Subcommand, Clone, Debug)]
 pub enum KeySubCommand {
+    /// List all Keys in a Bucket
     List,
+    /// Create a new Key for a Bucket
     Create,
+    /// Modify Keys for a Bucket
     Modify {
         /// Key Identifier
         #[arg(short, long, help = "key identifier")]
@@ -160,8 +169,10 @@ pub enum KeySubCommand {
     },
 }
 
+/// Subcommand for modifying Bucket Keys
 #[derive(Subcommand, Clone, Debug)]
 pub enum ModifyKeySubCommand {
+    /// Delete a given Key
     Delete,
     /// List the keys persisted by the remote endpoint
     Info,

@@ -1,6 +1,6 @@
 use std::{env::current_dir, path::PathBuf};
 
-use crate::{cli::command::*, pipelines::configure, types::config::globalconfig::GlobalConfig};
+use crate::{cli::command::*, types::config::globalconfig::GlobalConfig};
 use anyhow::{anyhow, Result};
 use tomb_common::banyan_api::models::{
     bucket::{Bucket, BucketType, StorageClass},
@@ -33,6 +33,11 @@ fn get_bucket_info(global: &GlobalConfig, bucket: &Bucket) -> String {
     format!("| BUCKET INFO |\n{}\n{}", remote_info, local_info)
 }
 
+fn get_key_info(key: &BucketKey) -> String {
+    format!("| KEY INFO |\n{}", key)
+}
+
+/// Handle Bucket management both locally and remotely based on CLI input
 pub async fn pipeline(command: BucketSubCommand) -> Result<String> {
     // Grab global config
     let mut global = GlobalConfig::from_disk().await?;
@@ -87,7 +92,7 @@ pub async fn pipeline(command: BucketSubCommand) -> Result<String> {
                     .map(|v| format!("bucket {}: {}", bucket_id, v)),
                 ModifyBucketSubCommand::Info => Bucket::read(&mut client, bucket_id)
                     .await
-                    .map(|bucket| format!("{}", get_bucket_info(&global, &bucket))),
+                    .map(|bucket| get_bucket_info(&global, &bucket)),
                 ModifyBucketSubCommand::Usage => Bucket::read(&mut client, bucket_id)
                     .await?
                     .usage(&mut client)
@@ -98,8 +103,9 @@ pub async fn pipeline(command: BucketSubCommand) -> Result<String> {
                         BucketKey::read_all(bucket_id, &mut client)
                             .await
                             .map(|keys| {
-                                keys.iter()
-                                    .fold(String::new(), |acc, key| format!("{}\n{}", acc, key))
+                                keys.iter().fold(String::new(), |acc, key| {
+                                    format!("{}\n\n{}", acc, get_key_info(key))
+                                })
                             })
                     }
                     KeySubCommand::Create => {
@@ -108,7 +114,7 @@ pub async fn pipeline(command: BucketSubCommand) -> Result<String> {
                         let pem = String::from_utf8(public_key.export().await?)?;
                         BucketKey::create(bucket_id, pem, &mut client)
                             .await
-                            .map(|v| format!("|KEY INFO|\n{}", v))
+                            .map(|key| get_key_info(&key))
                     }
                     KeySubCommand::Modify { id, subcommand } => match subcommand {
                         ModifyKeySubCommand::Delete => {
@@ -118,7 +124,7 @@ pub async fn pipeline(command: BucketSubCommand) -> Result<String> {
                         }
                         ModifyKeySubCommand::Info => BucketKey::read(bucket_id, id, &mut client)
                             .await
-                            .map(|v| format!("|KEY INFO|\n\n{}", v)),
+                            .map(|key| get_key_info(&key)),
                         ModifyKeySubCommand::Approve => todo!(),
                         ModifyKeySubCommand::Reject => todo!(),
                     },

@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::{EcPublicEncryptionKey, PublicKey};
 use uuid::Uuid;
 
 use crate::banyan_api::{

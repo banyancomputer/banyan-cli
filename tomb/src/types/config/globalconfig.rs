@@ -101,7 +101,7 @@ impl GlobalConfig {
 
     // Get the Gredentials
     async fn get_credentials(&self) -> Result<Credentials> {
-        if let Ok(signing_key) = load_api_key(&self.api_key_path).await &&
+        if let Ok(signing_key) = self.api_key().await &&
            let Some(account_id) = self.remote_account_id {
             Ok(Credentials {
                 signing_key,
@@ -155,7 +155,7 @@ impl GlobalConfig {
 
     /// Write to disk
     pub fn to_disk(&self) -> Result<()> {
-        println!("SAVING CONFIG: {:?}", &self);
+        // println!("SAVING CONFIG: {:?}", &self);
         serde_json::to_writer_pretty(get_write(&config_path())?, &self)?;
         Ok(())
     }
@@ -166,7 +166,7 @@ impl GlobalConfig {
     pub async fn from_disk() -> Result<Self> {
         if let Ok(file) = get_read(&config_path()) &&
            let Ok(config) = serde_json::from_reader(file) {
-                println!("LOADED CONFIG: {:?}", &config);
+                // println!("LOADED CONFIG: {:?}", &config);
                 Ok(config)
         } else {
             println!("Creating new config at {:?}", config_path());

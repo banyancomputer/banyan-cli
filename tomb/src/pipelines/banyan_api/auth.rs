@@ -7,6 +7,7 @@ use tomb_common::banyan_api::{
 };
 use tomb_crypt::prelude::{EcSignatureKey, PrivateKey, PublicKey};
 
+/// Handle Auth management both locally and remotely based on CLI input
 pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
     // Grab global config
     let mut global = GlobalConfig::from_disk().await?;
