@@ -1,102 +1,185 @@
 use crate::utils::config::xdg_config_home;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
-use tomb_common::banyan_api::client::{Client, CodableClient};
+use tomb_common::banyan_api::client::{Client, Credentials};
 use tomb_crypt::prelude::*;
+use uuid::Uuid;
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, str::FromStr,
 };
 
+const GLOBAL_CONFIG_FILE_NAME: &str = "config.json";
+const DEVICE_API_KEY_FILE_NAME: &str = "device_api_key.pem";
+const DEVICE_WRAPPING_KEY_FILE_NAME: &str = "wrapping_key.pem";
+
 /// Represents the Global contents of the tomb configuration file in a user's .config
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GlobalConfig {
+    /// Tomb version
     version: String,
-    /// Location of PEM key used to encrypt / decrypt
+    /// Location of wrapping key on disk in PEM format
     pub wrapping_key_path: PathBuf,
-    /// Metadata Client
-    pub client: Option<Client>,
+    /// Location of api key on disk in PEM format
+    pub api_key_path: PathBuf,
+    /// Remote endpoint for Metadata API
+    pub remote: Option<String>,
+    /// Remote account id
+    pub remote_account_id: Option<Uuid>,
     buckets: Vec<BucketConfig>,
 }
 
+fn config_path() -> PathBuf {
+    xdg_config_home().join(GLOBAL_CONFIG_FILE_NAME)
+}
+
+fn default_api_key_path() -> PathBuf {
+    xdg_config_home().join(DEVICE_API_KEY_FILE_NAME)
+}
+
+fn default_wrapping_key_path() -> PathBuf {
+    xdg_config_home().join(DEVICE_WRAPPING_KEY_FILE_NAME)
+}
+
+fn get_read(path: &PathBuf) -> Result<File> {
+    File::open(path).map_err(anyhow::Error::new)
+}
+
+fn get_write(path: &PathBuf) -> Result<File> {
+    File::create(path).map_err(anyhow::Error::new)
+}
+
+impl Default for GlobalConfig {
+    fn default() -> Self {
+        Self {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            remote: None,
+            wrapping_key_path: default_wrapping_key_path(),
+            api_key_path: default_api_key_path(),
+            remote_account_id: None,
+            buckets: Vec::new(),
+        }
+    }
+}
+
+// Self
 impl GlobalConfig {
-    fn get_path() -> PathBuf {
-        xdg_config_home().join("global.json")
+    async fn create() -> Result<Self> {
+        let config = Self::default();
+        // Create the keys
+        let _wrapping_key = new_wrapping_key(&config.wrapping_key_path).await?;
+        let _api_key = new_api_key(&config.api_key_path).await?;
+        // Ok
+        Ok(config)
     }
 
-    fn get_read() -> Result<File> {
-        File::open(Self::get_path()).map_err(anyhow::Error::new)
+    // pub fn with_remote(mut self, remote: String) -> Self {
+    //     self.remote = Some(remote);
+    //     self
+    // }
+
+    // pub fn with_remote_account_id(mut self, remote_account_id: String) -> Self {
+    //     self.remote_account_id = Some(remote_account_id);
+    //     self
+    // }
+
+    /// Get the wrapping key
+    pub async fn wrapping_key(&self) -> Result<EcEncryptionKey> {
+        wrapping_key(&self.wrapping_key_path).await
     }
 
-    fn get_write() -> Result<File> {
-        File::create(Self::get_path()).map_err(anyhow::Error::new)
+    /// Get the api key
+    async fn api_key(&self) -> Result<EcSignatureKey> {
+        load_api_key(&self.api_key_path).await
     }
 
-    async fn to_codable(&self) -> Result<CodableGlobalConfig> {
-        // Get client
-        let codable_client = if let Some(client) = &self.client {
-            Some(client.to_codable().await?)
+    // Get the Gredentials
+    async fn get_credentials(&self) -> Result<Credentials> {
+        if let Ok(signing_key) = load_api_key(&self.api_key_path).await &&
+           let Some(account_id) = self.remote_account_id {
+            Ok(Credentials {
+                signing_key,
+                account_id
+            })
         } else {
-            None
-        };
+            Err(anyhow!("No credentials."))
+        }
 
-        Ok(CodableGlobalConfig {
-            version: self.version.clone(),
-            wrapping_key_path: self.wrapping_key_path.clone(),
-            client: codable_client,
-            buckets: self.buckets.clone(),
-        })
     }
 
-    async fn from_codable(global: CodableGlobalConfig) -> Result<Self> {
-        let client = if let Some(client) = global.client {
-            Some(Client::from_codable(client).await?)
+    /// Get the Client data
+    pub async fn get_client(&self) -> Result<Client> {
+        // If there is already a remote endpoint
+        if let Some(remote) = &self.remote {
+            // Create a new Client
+            let mut client = Client::new(remote)?;
+            // If there are already credentials
+            if let Ok(credentials) = self.get_credentials().await {
+                // Set the credentials
+                client.with_credentials(credentials);
+            }
+            // Return the Client
+            Ok(client)
         } else {
-            None
-        };
-
-        Ok(Self {
-            version: global.version,
-            wrapping_key_path: global.wrapping_key_path,
-            client,
-            buckets: global.buckets,
-        })
+            Err(anyhow!("Remote endpoint is not yet configured."))
+        }
     }
 
-    /// Write to disk
-    pub async fn to_disk(&self) -> Result<()> {
-        let codable = &self.to_codable().await?;
-        let writer = Self::get_write()?;
-        serde_json::to_writer_pretty(writer, codable)?;
+    /// Save the Client data to the config
+    pub async fn save_client(&mut self, client: Client) -> Result<()> {
+        // Update the Remote endpoint
+        self.remote = Some(client.remote.to_string());
+        // If there is a Claim
+        if let Some(token) = client.claims {
+            // Update the remote account ID
+            self.remote_account_id = Some(Uuid::from_str(token.sub()?)?);
+        }
+        
+        // If the Client has an API key
+        if let Some(api_key) = client.signing_key {
+            // Save the API key to disk
+            save_api_key(&self.api_key_path, api_key).await?;
+        }
+
+        // Save struct to disk
+        self.to_disk()?;
+
+        // Ok
         Ok(())
     }
 
+
+    /// Write to disk
+    pub fn to_disk(&self) -> Result<()> {
+        serde_json::to_writer_pretty(get_write(&config_path())?, &self)?;
+        Ok(())
+    }
+
+    // TODO: This should fail if the file does not exist
     /// Initialize from a reader
     #[async_recursion(?Send)]
     pub async fn from_disk() -> Result<Self> {
-        println!("doing the from-disk Global config!");
-        if let Ok(file) = Self::get_read() &&
-           let Ok(global) = serde_json::from_reader(file) {
-            println!("found an existing config, returning it");
-            Self::from_codable(global).await
+        if let Ok(file) = get_read(&config_path()) &&
+           let Ok(config) = serde_json::from_reader(file) {
+                Ok(config)
         } else {
-            println!("creating a default to serialize");
-            Self::default().await?.to_disk().await?;
+            println!("Creating new config at {:?}", config_path());
+            Self::create().await?.to_disk()?;
             Self::from_disk().await
         }
     }
 
     /// Create a new BucketConfig for an origin
-    pub fn new_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
-        self.find_or_create_config(origin)
+    pub async fn new_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
+        self.get_or_create_bucket(origin).await
     }
 
     /// Remove a BucketConfig for an origin
-    pub fn remove(&mut self, origin: &Path) -> Result<()> {
+    pub fn remove_bucket_by_origin(&mut self, origin: &Path) -> Result<()> {
         if let Some(bucket) = self.get_bucket(origin) {
             // Remove bucket data
             bucket.remove_data()?;
@@ -119,7 +202,7 @@ impl GlobalConfig {
             bucket.remove_data()?;
         }
         // Remove global
-        let path = Self::get_path();
+        let path = config_path();
         if path.exists() {
             remove_file(path)?;
         }
@@ -149,82 +232,86 @@ impl GlobalConfig {
             .find(|bucket| bucket.origin == origin)
     }
 
-    fn create_config(&mut self, origin: &Path) -> Result<BucketConfig> {
-        let bucket = BucketConfig::new(origin)?;
+    async fn create_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
+        let wrapping_key = wrapping_key(&self.wrapping_key_path).await?;
+        let bucket = BucketConfig::new(origin, &wrapping_key).await?;
         self.buckets.push(bucket.clone());
         Ok(bucket)
     }
 
-    pub(crate) fn find_or_create_config(&mut self, path: &Path) -> Result<BucketConfig> {
+    pub(crate) async fn get_or_create_bucket(&mut self, path: &Path) -> Result<BucketConfig> {
         let existing = self.get_bucket(path);
         if let Some(config) = existing {
             Ok(config)
         } else {
-            Ok(self.create_config(path)?)
+            Ok(self.create_bucket(path).await?)
         }
-    }
-
-    async fn default() -> Result<Self> {
-        // Path of the wrapping_key file
-        let wrapping_key_path = xdg_config_home().join("wrapping_key.pem");
-        // Load if it already exists
-        let wrapping_key = if wrapping_key_path.exists() {
-            Self::wrapping_key_from_disk(&wrapping_key_path).await?
-        } else {
-            EcEncryptionKey::generate().await?
-        };
-
-        // Save the key to disk
-        Self::wrapping_key_to_disk(&wrapping_key_path, &wrapping_key).await?;
-
-        // Create new Global Config
-        Ok(Self {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            client: None,
-            wrapping_key_path,
-            buckets: Vec::new(),
-        })
-    }
-
-    /// Load the wrapping key from disk with the known wrapping key path
-    pub async fn load_key(&self) -> Result<EcEncryptionKey> {
-        Self::wrapping_key_from_disk(&self.wrapping_key_path).await
-    }
-
-    /// Load the WrappingKey from its predetermined location
-    async fn wrapping_key_from_disk(path: &Path) -> Result<EcEncryptionKey> {
-        let mut pem_bytes = Vec::new();
-        println!("opening key!");
-        let mut file = File::open(path)?;
-        file.read_to_end(&mut pem_bytes)?;
-        println!("read key!");
-        // Return
-        Ok(EcEncryptionKey::import(&pem_bytes)
-            .await
-            .expect("Unable to convert PEM bytes to Key"))
-    }
-
-    /// Write the WRappingKey to its predetermined location
-    async fn wrapping_key_to_disk(path: &Path, wrapping_key: &EcEncryptionKey) -> Result<()> {
-        // PEM
-        let pem_bytes = wrapping_key.export().await?;
-        let mut file = File::create(path)?;
-        file.write_all(&pem_bytes)?;
-        Ok(())
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct CodableGlobalConfig {
-    version: String,
-    wrapping_key_path: PathBuf,
-    client: Option<CodableClient>,
-    buckets: Vec<BucketConfig>,
+/// Generate a new Ecdsa key to use for authentication
+/// Writes the key to the config path
+async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
+    if File::open(path).is_ok() {
+        load_api_key(path).await?;
+    }
+    let key = EcSignatureKey::generate().await?;
+    let pem_bytes = key.export().await?;
+    let mut f = File::create(path)?;
+    f.write_all(&pem_bytes)?;
+    Ok(key)
+}
+
+/// Read the API key from disk
+async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
+    if let Ok(mut reader) = File::open(path) {
+        let mut pem_bytes = Vec::new();
+        reader.read_to_end(&mut pem_bytes)?;
+        let key = EcSignatureKey::import(&pem_bytes).await?;
+        Ok(key)
+    } else {
+        Err(anyhow!("No api key at path"))
+    }
+}
+
+/// Save the API key to disk
+async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
+    if let Ok(mut writer) = File::create(path) {
+        // Write the PEM bytes
+        writer.write_all(&key.export().await?)?;
+        Ok(())
+    } else {
+        Err(anyhow!("Cannot write API key at this path"))
+    }
+}
+
+/// Generate a new Ecdh key to use for key wrapping
+/// Writes the key to the config path
+async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
+    if File::open(path).is_ok() {
+        wrapping_key(path).await?;
+    }
+    let key = EcEncryptionKey::generate().await?;
+    let pem_bytes = key.export().await?;
+    let mut f = File::create(path)?;
+    f.write_all(&pem_bytes)?;
+    Ok(key)
+}
+
+/// Read the Wrapping key from disk
+async fn wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
+    if let Ok(mut reader) = File::open(path) {
+        let mut pem_bytes = Vec::new();
+        reader.read_to_end(&mut pem_bytes)?;
+        let key = EcEncryptionKey::import(&pem_bytes).await?;
+        return Ok(key);
+    }
+    Err(anyhow!("No wrapping key at path"))
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{types::config::globalconfig::GlobalConfig, utils::config::xdg_config_home};
+    use super::*;
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path};
@@ -233,18 +320,28 @@ mod test {
     #[serial]
     async fn to_from_disk() -> Result<()> {
         // The known path of the global config file
-        let known_path = xdg_config_home().join("global.json");
+        let known_path = config_path();
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        let known_path = default_wrapping_key_path();
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        let known_path = default_api_key_path();
         // Remove it if it exists
         if known_path.exists() {
             remove_file(&known_path)?;
         }
         // Create default
-        let original = GlobalConfig::default().await?;
+        let original = GlobalConfig::create().await?;
         // Save to disk
-        original.to_disk().await?;
+        original.to_disk()?;
         // Load from disk
         let reconstructed = GlobalConfig::from_disk().await?;
-        // assert_eq!(original, reconstructed);
+        assert_eq!(original, reconstructed);
         Ok(())
     }
 
@@ -252,7 +349,17 @@ mod test {
     #[serial]
     async fn from_disk_direct() -> Result<()> {
         // The known path of the global config file
-        let known_path = xdg_config_home().join("global.json");
+        let known_path = config_path();
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        let known_path = default_wrapping_key_path();
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        let known_path = default_api_key_path();
         // Remove it if it exists
         if known_path.exists() {
             remove_file(&known_path)?;
@@ -260,7 +367,17 @@ mod test {
         // Load from disk
         let reconstructed = GlobalConfig::from_disk().await?;
         // Assert that it is just the default config
-        // assert_eq!(GlobalConfig::default().await?, reconstructed);
+        let known_path = default_wrapping_key_path();
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        let known_path = default_api_key_path();
+        // Remove it if it exists
+        if known_path.exists() {
+            remove_file(&known_path)?;
+        }
+        assert_eq!(GlobalConfig::create().await?, reconstructed);
         Ok(())
     }
 
@@ -269,7 +386,7 @@ mod test {
     #[ignore]
     async fn add_bucket() -> Result<()> {
         // The known path of the global config file
-        let known_path = xdg_config_home().join("global.json");
+        let known_path = config_path();
         // Remove it if it exists
         if known_path.exists() {
             remove_file(&known_path)?;
@@ -279,10 +396,10 @@ mod test {
 
         // Load from disk
         let mut original = GlobalConfig::from_disk().await?;
-        let original_bucket = original.new_bucket(origin)?;
+        let original_bucket = original.new_bucket(origin).await?;
 
         // Serialize to disk
-        original.to_disk().await?;
+        original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
         let reconstructed_bucket = reconstructed
             .get_bucket(origin)

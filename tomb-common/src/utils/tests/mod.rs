@@ -13,7 +13,7 @@ use wnfs::{
 };
 
 use crate::blockstore::memory::MemoryBlockStore;
-use crate::traits::blockstore::TombBlockStore;
+use crate::traits::blockstore::RootedBlockStore;
 
 /// Macro for testing streamable implementations
 pub mod streamable;
@@ -87,13 +87,13 @@ pub async fn setup_memory_test(
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data
-pub async fn setup_test<TBS: TombBlockStore>(
+pub async fn setup_test<RBS: RootedBlockStore>(
     test_name: &str,
-    metadata: TBS,
-    content: TBS,
+    metadata: RBS,
+    content: RBS,
 ) -> Result<(
-    TBS,
-    TBS,
+    RBS,
+    RBS,
     Rc<PrivateForest>,
     Rc<PrivateForest>,
     Rc<PrivateDirectory>,

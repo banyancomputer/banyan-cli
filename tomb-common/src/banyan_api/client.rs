@@ -33,6 +33,17 @@ impl Debug for Credentials {
     }
 }
 
+impl Credentials {
+    /// Create a new set of credentials
+    pub fn new(account_id: String, signing_key: EcSignatureKey) -> anyhow::Result<Self> {
+        let account_id = Uuid::parse_str(&account_id).expect("invalid account_id");
+        Ok(Self {
+            account_id,
+            signing_key,
+        })
+    }
+}
+
 /// The audience for the API token
 const AUDIENCE: &str = "banyan-platform";
 
@@ -217,59 +228,5 @@ impl Client {
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
             Err(ClientError::from(err))
         }
-    }
-
-    pub async fn to_codable(&self) -> anyhow::Result<CodableClient> {
-        let remote = self.remote.as_str().to_string();
-        let key = if let Some(key) = self.signing_key.as_ref() {
-            // Create a runtime from which to run the aynchronous export code
-            Some(key.export().await.expect("failed to export key"))
-        } else {
-            None
-        };
-        // (remote, self.claims.clone(), key, self.bearer_token.clone())
-        Ok(CodableClient {
-            remote,
-            claims: self.claims.clone(),
-            signing_key: key,
-            bearer_token: self.bearer_token.clone(),
-        })
-    }
-
-    pub async fn from_codable(client: CodableClient) -> anyhow::Result<Self> {
-        // Create a new client
-        let mut new_client = Self::new(&client.remote)
-            .expect("failed to create new client with endpoint in deserialize");
-        // Set the claims
-        new_client.claims = client.claims;
-
-        // If there is a signing key
-        if let Some(key_bytes) = client.signing_key {
-            // Set it
-            new_client.signing_key = Some(
-                EcSignatureKey::import(&key_bytes)
-                    .await
-                    .expect("failed to import key"),
-            );
-        }
-        // If there is a bearer token
-        if let Some(bearer_token) = client.bearer_token {
-            // Set it
-            new_client.with_bearer_token(bearer_token);
-        }
-
-        Ok(new_client)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CodableClient {
-    /// Base URL
-    pub remote: String,
-    /// Bearer auth
-    pub claims: Option<ApiToken>,
-    /// Credentials for signing
-    pub signing_key: Option<Vec<u8>>,
-    /// The current bearer token
-    pub bearer_token: Option<String>,
+    }   
 }

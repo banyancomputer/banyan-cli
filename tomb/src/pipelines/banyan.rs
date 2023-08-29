@@ -1,4 +1,4 @@
-use std::{path::PathBuf, env::current_dir};
+use std::{path::PathBuf, env::current_dir, fs::File, str::FromStr};
 
 use crate::{cli::command::*, types::config::globalconfig::GlobalConfig};
 use anyhow::{anyhow, Result};
@@ -17,26 +17,8 @@ use uuid::Uuid;
 
 use super::configure;
 
-async fn get_client() -> Result<Client> {
-    // Extract global configuration
-    if let Ok(global) = GlobalConfig::from_disk().await && 
-       let Some(client) = global.client {
-        Ok(client)
-    }
-    else {
-        Err(anyhow!("You are not logged in"))
-    }
-}
-
-async fn save_client(client: Client) -> Result<()> {
-    let mut global = GlobalConfig::from_disk().await?;
-    global.client = Some(client);
-    global.to_disk().await
-}
-
-async fn get_bucket_id(origin: Option<PathBuf>) -> Result<Uuid> {
+async fn get_bucket_id(global: &GlobalConfig, origin: Option<PathBuf>) -> Result<Uuid> {
     let origin = origin.unwrap_or(current_dir()?);
-    let global = GlobalConfig::from_disk().await?;
     if let Some(bucket) = global.get_bucket(&origin) && let Some(id) = bucket.id {
         Ok(id)
     } else {
@@ -45,8 +27,10 @@ async fn get_bucket_id(origin: Option<PathBuf>) -> Result<Uuid> {
 } 
 
 pub async fn auth(command: AuthSubCommand) -> Result<String> {
+    // Grab global config
+    let mut global = GlobalConfig::from_disk().await?;
     // Obtain the Client
-    let mut client = get_client().await?;
+    let mut client = global.get_client().await?;
 
     // Process the command
     let result = match command {
@@ -82,15 +66,17 @@ pub async fn auth(command: AuthSubCommand) -> Result<String> {
     };
 
     // Save the Client
-    save_client(client).await?;
+    global.save_client(client).await?;
 
     // Return 
     result.map_err(anyhow::Error::new)
 }
 
 pub async fn bucket(command: BucketSubCommand) -> Result<String> {
+    // Grab global config
+    let mut global = GlobalConfig::from_disk().await?;
     // Obtain the Client
-    let mut client = get_client().await?;
+    let mut client = global.get_client().await?;
 
     // Process the command
     let result = match command {
@@ -118,7 +104,7 @@ pub async fn bucket(command: BucketSubCommand) -> Result<String> {
             .map(|v| format!("buckets: {:?}", v)),
         BucketSubCommand::Modify { origin, subcommand } => {
             // Get the bucket ID
-            let bucket_id = get_bucket_id(origin).await?;
+            let bucket_id = get_bucket_id(&global, origin).await?;
 
             match subcommand {
                 ModifyBucketSubCommand::Push => todo!(),
@@ -162,7 +148,7 @@ pub async fn bucket(command: BucketSubCommand) -> Result<String> {
     };
 
     // Save the Client
-    save_client(client).await?;
+    global.save_client(client).await?;
 
     // Return 
     result.map_err(anyhow::Error::new)

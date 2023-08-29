@@ -15,7 +15,7 @@ where
 {
     pub bucket_id: Uuid,
 
-    pub data_size: usize,
+    pub expected_data_size: usize,
     pub metadata_cid: String,
     pub root_cid: String,
 
@@ -23,8 +23,8 @@ where
 }
 
 #[derive(Debug, Serialize)]
-pub struct PushMetadataData {
-    pub data_size: usize,
+struct PushMetadataData {
+    pub expected_data_size: usize,
     pub metadata_cid: String,
     pub root_cid: String,
 }
@@ -33,8 +33,8 @@ pub struct PushMetadataData {
 pub struct PushMetadataResponse {
     pub id: Uuid,
     pub state: MetadataState,
-    pub storage_host: String,
-    pub storage_authorization: String,
+    pub storage_host: Option<String>,
+    pub storage_authorization: Option<String>,
 }
 
 impl<S> ApiRequest for PushMetadata<S>
@@ -50,7 +50,7 @@ where
 
         // Create our form data
         let pbm_req = PushMetadataData {
-            data_size: self.data_size,
+            expected_data_size: self.expected_data_size,
             metadata_cid: self.metadata_cid,
             root_cid: self.root_cid,
         };
