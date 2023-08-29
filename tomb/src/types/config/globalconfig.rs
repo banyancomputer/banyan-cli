@@ -235,11 +235,11 @@ impl GlobalConfig {
     }
 
     /// Find a BucketConfig by origin
-    pub fn get_bucket_by_id(&self, id: &Uuid) -> Option<BucketConfig> {
+    pub fn get_bucket_by_remote_id(&self, id: &Uuid) -> Option<BucketConfig> {
         self.buckets
             .clone()
             .into_iter()
-            .find(|bucket| bucket.id == Some(*id))
+            .find(|bucket| bucket.remote_id == Some(*id))
     }
 
     async fn create_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {

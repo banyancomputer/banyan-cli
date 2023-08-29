@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{arg, Subcommand};
+use clap::{arg, Args, Subcommand};
 use uuid::Uuid;
 
 /// Defines the types of commands that can be executed from the CLI.
@@ -9,7 +9,7 @@ pub enum Command {
     /// Set the remote endpoint where Buckets are synced to / from
     SetRemote {
         /// Server address
-        #[arg(short, long, help = "full server address")]
+        #[arg(short, long)]
         address: String,
     },
     /// Login, Register, etc.
@@ -19,16 +19,15 @@ pub enum Command {
         subcommand: AuthSubCommand,
     },
     /// Bucket management
-    Bucket {
+    Buckets {
         /// Subcommand
         #[clap(subcommand)]
-        subcommand: BucketSubCommand,
+        subcommand: BucketsSubCommand,
     },
-
     /// Packing a filesystem on disk into an encrypted WNFS CAR file
     Pack {
         /// Bucket Root
-        #[arg(short, long, help = "bucket dir")]
+        #[arg(short, long)]
         origin: Option<PathBuf>,
 
         // /// Maximum size for each chunk, defaults to 1GiB.
@@ -100,48 +99,43 @@ pub enum AuthSubCommand {
     Limit,
 }
 
+
+/// Unified way of specifying a Bucket
+#[derive(Debug, Clone, Args)]
+#[group(required = true, multiple = false)]
+pub struct BucketSpecifier {
+    /// Bucket Id
+    #[arg(short, long)]
+    pub bucket_id: Option<Uuid>,
+    /// Bucket Root
+    #[arg(short, long)]
+    pub origin: Option<PathBuf>,
+}
+
 /// Subcommand for Bucket Management
 #[derive(Subcommand, Clone, Debug)]
-pub enum BucketSubCommand {
+pub enum BucketsSubCommand {
     /// Initialize a new Bucket locally
     Create {
-        /// Bucket Root
-        #[arg(short, long, help = "bucket root")]
-        origin: Option<PathBuf>,
-
         /// Bucket Name
-        #[arg(short, long, help = "bucket name")]
+        #[arg(short, long)]
         name: String,
+        /// Bucket Root
+        #[arg(short, long)]
+        origin: Option<PathBuf>,
     },
     /// List all Buckets
     List,
-    /// Modify an existing Bucket
-    Modify {
-        /// Bucket Root
-        #[arg(short, long, help = "bucket root")]
-        origin: Option<PathBuf>,
-
-        /// Subcommand
-        #[clap(subcommand)]
-        subcommand: ModifyBucketSubCommand,
-    },
-}
-
-/// Subcommand for modifying Buckets
-#[derive(Subcommand, Clone, Debug)]
-pub enum ModifyBucketSubCommand {
-    // /// Sync metadata
-    // Sync,
     /// Publish Bucket content
-    Push,
+    Push(BucketSpecifier),
     /// Pull
-    Pull,
+    Pull(BucketSpecifier),
     /// Delete Bucket
-    Delete,
+    Delete(BucketSpecifier),
     /// Bucket info
-    Info,
+    Info(BucketSpecifier),
     /// Bucket usage
-    Usage,
+    Usage(BucketSpecifier),
     /// Bucket Key management
     Keys {
         /// Subcommand
@@ -150,34 +144,29 @@ pub enum ModifyBucketSubCommand {
     },
 }
 
+/// Unified way of specifying a Key
+#[derive(Debug, Clone, Args)]
+pub struct KeySpecifier {
+    #[clap(flatten)]
+    pub(crate) bucket: BucketSpecifier,
+    /// Key Identifier
+    #[arg(short, long)]
+    pub(crate) key_id: Uuid,
+}
+
 /// Subcommand for Bucket Keys
 #[derive(Subcommand, Clone, Debug)]
 pub enum KeySubCommand {
     /// List all Keys in a Bucket
-    List,
+    List(BucketSpecifier),
     /// Create a new Key for a Bucket
-    Create,
-    /// Modify Keys for a Bucket
-    Modify {
-        /// Key Identifier
-        #[arg(short, long, help = "key identifier")]
-        id: Uuid,
-
-        /// Subcommand
-        #[clap(subcommand)]
-        subcommand: ModifyKeySubCommand,
-    },
-}
-
-/// Subcommand for modifying Bucket Keys
-#[derive(Subcommand, Clone, Debug)]
-pub enum ModifyKeySubCommand {
+    Create(BucketSpecifier),
     /// Delete a given Key
-    Delete,
+    Delete(KeySpecifier),
     /// List the keys persisted by the remote endpoint
-    Info,
+    Info(KeySpecifier),
     /// Approve a key for use and sync that with the remote endpoint
-    Approve,
+    Approve(KeySpecifier),
     /// Reject or remove a key and sync that witht the remote endpoint
-    Reject,
+    Reject(KeySpecifier),
 }

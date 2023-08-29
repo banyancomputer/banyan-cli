@@ -20,7 +20,7 @@ pub async fn run(command: Command) -> Result<()> {
         Command::Auth { subcommand } => {
             println!("{}", auth::pipeline(subcommand).await?);
         }
-        Command::Bucket { subcommand } => match bucket::pipeline(subcommand).await {
+        Command::Buckets { subcommand } => match bucket::pipeline(subcommand).await {
             Ok(message) => println!("{}", message),
             Err(error) => println!("{}", error),
         },

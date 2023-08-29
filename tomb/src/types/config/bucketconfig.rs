@@ -47,12 +47,12 @@ pub struct BucketConfig {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds packed content and key files
     pub(crate) local_id: String,
+    /// Bucket Uuid, if this
+    pub(crate) remote_id: Option<Uuid>,
     /// BlockStore for storing metadata only
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
     pub content: MultiCarV2DiskBlockStore,
-    /// Bucket Uuid, if this
-    pub id: Option<Uuid>,
 }
 
 impl BucketConfig {
@@ -85,9 +85,9 @@ impl BucketConfig {
             name,
             origin: origin.to_path_buf(),
             local_id,
+            remote_id: None,
             metadata,
             content,
-            id: None,
         })
     }
 
