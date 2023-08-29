@@ -1,7 +1,6 @@
 use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
@@ -13,6 +12,7 @@ use tomb_common::{
     share::manager::ShareManager,
 };
 use tomb_crypt::prelude::*;
+use uuid::Uuid;
 use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
 
 use crate::utils::config::xdg_data_home;
@@ -87,7 +87,7 @@ impl BucketConfig {
             local_id,
             metadata,
             content,
-            id: None
+            id: None,
         })
     }
 

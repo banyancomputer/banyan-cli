@@ -20,7 +20,7 @@ pub async fn pipeline(
     let wrapping_key = global.clone().wrapping_key().await?;
 
     // Bucket config
-    if let Some(config) = global.get_bucket(origin) {
+    if let Some(config) = global.get_bucket_by_origin(origin) {
         // Get structs
         let (metadata_forest, content_forest, root_dir, manager) =
             &mut config.get_all(&wrapping_key).await?;

@@ -25,8 +25,15 @@ pub struct BucketKey {
 
 impl Display for BucketKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let status = if self.approved { "approved" } else { "unapproved" };
-        f.write_fmt(format_args!("bucket_id: {}\nkey_id: {}\nstatus: {}", self.bucket_id, self.id, status))
+        let status = if self.approved {
+            "approved"
+        } else {
+            "unapproved"
+        };
+        f.write_fmt(format_args!(
+            "bucket_id: {}\nkey_id: {}\nstatus: {}",
+            self.bucket_id, self.id, status
+        ))
     }
 }
 

@@ -228,5 +228,5 @@ impl Client {
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
             Err(ClientError::from(err))
         }
-    }   
+    }
 }

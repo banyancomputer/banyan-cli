@@ -5,7 +5,7 @@ pub mod command;
 /// Debug level
 pub mod verbosity;
 
-use crate::pipelines::{add, banyan, configure, pack, remove, unpack};
+use crate::pipelines::{banyan_api::*, *};
 use anyhow::Result;
 use command::Command;
 use std::env::current_dir;
@@ -16,16 +16,14 @@ pub async fn run(command: Command) -> Result<()> {
     match command {
         Command::SetRemote { address } => {
             configure::remote(&address).await?;
-        },
-        Command::Auth { subcommand } => {
-            println!("{}", banyan::auth(subcommand).await?);
-        },
-        Command::Bucket { subcommand } => {
-            match banyan::bucket(subcommand).await {
-                Ok(message) => println!("{}", message),
-                Err(error) => println!("{}", error),
-            }
         }
+        Command::Auth { subcommand } => {
+            println!("{}", auth::pipeline(subcommand).await?);
+        }
+        Command::Bucket { subcommand } => match bucket::pipeline(subcommand).await {
+            Ok(message) => println!("{}", message),
+            Err(error) => println!("{}", error),
+        },
         // Execute the packing command
         Command::Pack {
             origin,
@@ -38,41 +36,36 @@ pub async fn run(command: Command) -> Result<()> {
             }
         }
         // Execute the unpacking command
-        Command::Unpack {
-            origin,
-            unpacked,
-        } => {
+        Command::Unpack { origin, unpacked } => {
             if let Some(origin) = origin {
                 unpack::pipeline(&origin, &unpacked).await?;
             } else {
                 unpack::pipeline(&current_dir()?, &unpacked).await?;
             }
         }
-        Command::Init {
-            dir
-        } => {
+        Command::Init { dir } => {
             // Initialize here
             if let Some(dir) = dir {
                 configure::init(&dir).await?;
-            }
-            else {
+            } else {
                 configure::init(&current_dir()?).await?;
             }
-        },
-        Command::Deinit {
-            dir
-        } => {
+        }
+        Command::Deinit { dir } => {
             // Initialize here
             if let Some(dir) = dir {
                 configure::deinit(&dir).await?;
-            }
-            else {
+            } else {
                 configure::deinit(&current_dir()?).await?;
             }
-        },
-        Command::Add { origin, input_file, wnfs_path } => {
+        }
+        Command::Add {
+            origin,
+            input_file,
+            wnfs_path,
+        } => {
             add::pipeline(&origin, &input_file, &wnfs_path).await?;
-        },
+        }
         Command::Remove { origin, wnfs_path } => {
             remove::pipeline(&origin, &wnfs_path).await?;
         }
@@ -103,7 +96,9 @@ mod test {
     }
 
     fn cmd_configure_remote(address: &str) -> Command {
-        Command::SetRemote { address: address.to_string() }
+        Command::SetRemote {
+            address: address.to_string(),
+        }
     }
 
     // Run the Pack pipeline through the CLI
@@ -137,7 +132,7 @@ mod test {
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .is_some());
         // Teardown test
         test_teardown(test_name).await
@@ -152,21 +147,21 @@ mod test {
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .is_none());
         // Initialization worked
         run(cmd_init(origin)).await?;
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .is_some());
         // Deinitialize the directory
         run(cmd_deinit(origin)).await?;
         // Assert the bucket is gone again
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .is_none());
         // Teardown test
         test_teardown(test_name).await

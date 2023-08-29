@@ -22,7 +22,7 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
     let wrapping_key = global.clone().wrapping_key().await?;
     println!("obtained key");
 
-    if let Some(config) = global.get_bucket(origin) {
+    if let Some(config) = global.get_bucket_by_origin(origin) {
         println!("obtained config");
         // Load metadata
         let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;

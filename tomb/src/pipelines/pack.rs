@@ -34,7 +34,7 @@ pub async fn pipeline(origin: &Path, follow_links: bool) -> Result<(), PipelineE
     let wrapping_key = global.clone().wrapping_key().await?;
 
     // If the user has done initialization for this directory
-    if let Some(mut config) = global.get_bucket(origin) {
+    if let Some(mut config) = global.get_bucket_by_origin(origin) {
         let (metadata_forest, content_forest, root_dir, manager) =
             &mut config.get_all(&wrapping_key).await?;
         // Create a new delta for this packing operation

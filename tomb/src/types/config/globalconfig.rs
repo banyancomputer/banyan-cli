@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::{remove_file, File},
     io::{Read, Write},
-    path::{Path, PathBuf}, str::FromStr,
+    path::{Path, PathBuf},
+    str::FromStr,
 };
 
 const GLOBAL_CONFIG_FILE_NAME: &str = "config.json";
@@ -30,6 +31,7 @@ pub struct GlobalConfig {
     pub remote: Option<String>,
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
+    /// Bucket Configurations
     buckets: Vec<BucketConfig>,
 }
 
@@ -108,7 +110,6 @@ impl GlobalConfig {
         } else {
             Err(anyhow!("No credentials."))
         }
-
     }
 
     /// Get the Client data
@@ -138,7 +139,7 @@ impl GlobalConfig {
             // Update the remote account ID
             self.remote_account_id = Some(Uuid::from_str(token.sub()?)?);
         }
-        
+
         // If the Client has an API key
         if let Some(api_key) = client.signing_key {
             // Save the API key to disk
@@ -152,9 +153,9 @@ impl GlobalConfig {
         Ok(())
     }
 
-
     /// Write to disk
     pub fn to_disk(&self) -> Result<()> {
+        println!("SAVING CONFIG: {:?}", &self);
         serde_json::to_writer_pretty(get_write(&config_path())?, &self)?;
         Ok(())
     }
@@ -165,6 +166,7 @@ impl GlobalConfig {
     pub async fn from_disk() -> Result<Self> {
         if let Ok(file) = get_read(&config_path()) &&
            let Ok(config) = serde_json::from_reader(file) {
+                println!("LOADED CONFIG: {:?}", &config);
                 Ok(config)
         } else {
             println!("Creating new config at {:?}", config_path());
@@ -180,7 +182,7 @@ impl GlobalConfig {
 
     /// Remove a BucketConfig for an origin
     pub fn remove_bucket_by_origin(&mut self, origin: &Path) -> Result<()> {
-        if let Some(bucket) = self.get_bucket(origin) {
+        if let Some(bucket) = self.get_bucket_by_origin(origin) {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
@@ -225,11 +227,19 @@ impl GlobalConfig {
     }
 
     /// Find a BucketConfig by origin
-    pub fn get_bucket(&self, origin: &Path) -> Option<BucketConfig> {
+    pub fn get_bucket_by_origin(&self, origin: &Path) -> Option<BucketConfig> {
         self.buckets
             .clone()
             .into_iter()
             .find(|bucket| bucket.origin == origin)
+    }
+
+    /// Find a BucketConfig by origin
+    pub fn get_bucket_by_id(&self, id: &Uuid) -> Option<BucketConfig> {
+        self.buckets
+            .clone()
+            .into_iter()
+            .find(|bucket| bucket.id == Some(*id))
     }
 
     async fn create_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
@@ -240,7 +250,7 @@ impl GlobalConfig {
     }
 
     pub(crate) async fn get_or_create_bucket(&mut self, path: &Path) -> Result<BucketConfig> {
-        let existing = self.get_bucket(path);
+        let existing = self.get_bucket_by_origin(path);
         if let Some(config) = existing {
             Ok(config)
         } else {
@@ -402,7 +412,7 @@ mod test {
         original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
         let reconstructed_bucket = reconstructed
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
 
         // Assert equality

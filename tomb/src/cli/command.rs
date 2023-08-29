@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{arg, Subcommand};
+use clap::{arg, Args, Subcommand, ValueEnum};
 use uuid::Uuid;
 
 /// Defines the types of commands that can be executed from the CLI.
@@ -111,17 +111,18 @@ pub enum BucketSubCommand {
     },
     /// List all Buckets
     List,
+    // Test(ModifyBucketSubCommand),
     /// Modify an existing Bucket
     Modify {
         /// Bucket Root
         #[arg(short, long, help = "bucket root")]
         origin: Option<PathBuf>,
 
+        // #[clap(subcommand)]
         #[clap(subcommand)]
-        subcommand: ModifyBucketSubCommand
-    }
+        subcommand: ModifyBucketSubCommand,
+    },
 }
-
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum ModifyBucketSubCommand {
@@ -141,7 +142,7 @@ pub enum ModifyBucketSubCommand {
     Keys {
         #[clap(subcommand)]
         subcommand: KeySubCommand,
-    }
+    },
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -156,7 +157,7 @@ pub enum KeySubCommand {
         /// Subcommand
         #[clap(subcommand)]
         subcommand: ModifyKeySubCommand,
-    }
+    },
 }
 
 #[derive(Subcommand, Clone, Debug)]

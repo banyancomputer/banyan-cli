@@ -1,7 +1,7 @@
 /// This module contains the add pipeline function, which is the main entry point for inserting into existing WNFS filesystems.
 pub mod add;
 /// Interfacing with the banyan api
-pub mod banyan;
+pub mod banyan_api;
 /// This module contains configuration functions for the cli
 pub mod configure;
 /// Pipeline Errors
@@ -52,7 +52,7 @@ mod test {
         // Assert that a config exists for this bucket now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .is_some());
         // Teardown
         test_teardown(test_name).await
@@ -137,7 +137,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
 
@@ -183,7 +183,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
@@ -197,7 +197,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
         let result = dir
@@ -353,14 +353,14 @@ mod test {
         // Compute the sizes of these directories
         let packed_dups_size = compute_directory_size(
             &global
-                .get_bucket(origin_dup)
+                .get_bucket_by_origin(origin_dup)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
         )? as f64;
         let packed_unique_size = compute_directory_size(
             &global
-                .get_bucket(origin_unique)
+                .get_bucket_by_origin(origin_unique)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
@@ -425,7 +425,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, current_dir, _) =
             &mut config.get_all(&wrapping_key).await?;
@@ -544,7 +544,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let (metadata_forest, content_forest, current_dir, _) =
             &mut config.get_all(&wrapping_key).await?;
