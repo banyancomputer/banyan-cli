@@ -17,9 +17,10 @@ pub async fn run(command: Command) -> Result<()> {
         Command::SetRemote { address } => {
             configure::remote(&address).await?;
         }
-        Command::Auth { subcommand } => {
-            println!("{}", auth::pipeline(subcommand).await?);
-        }
+        Command::Auth { subcommand } => match auth::pipeline(subcommand).await {
+            Ok(message) => println!("{}", message),
+            Err(error) => println!("{}", error),
+        },
         Command::Buckets { subcommand } => match bucket::pipeline(subcommand).await {
             Ok(message) => println!("{}", message),
             Err(error) => println!("{}", error),

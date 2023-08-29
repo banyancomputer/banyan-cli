@@ -101,7 +101,12 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     .await
                     .map(|key| get_key_string(&key))
             }
-            KeySubCommand::Approve(_) => todo!(),
+            KeySubCommand::Approve(ks) => {
+                let (bucket_id, id) = get_key_ids(&global, &ks)?;
+                BucketKey::approve(bucket_id, id, &mut client)
+                    .await
+                    .map(|key| get_key_string(&key))
+            },
             KeySubCommand::Reject(_) => todo!(),
         },
     };
