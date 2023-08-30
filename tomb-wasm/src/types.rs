@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::value;
-use js_sys::{Object, Reflect, Array};
+use js_sys::{Object, Reflect};
 use tomb_common::{
     banyan_api::models::{bucket::*, bucket_key::*, snapshot::*},
     metadata::{FsMetadataEntry, FsMetadataEntryType},

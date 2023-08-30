@@ -156,7 +156,7 @@ impl TombWasm {
         let pem_bytes = key.export().await.expect("Failed to export wrapping key");
         let pem = String::from_utf8(pem_bytes).expect("Failed to encode pem");
         // Call the API
-        let (bucket, bucket_key) =
+        let (bucket, _bucket_key) =
             Bucket::create(name, pem, bucket_type, storage_class, self.client())
                 .await
                 .expect("Failed to create bucket");
@@ -227,9 +227,7 @@ impl TombWasm {
                     &bucket_id
                 ));
                 // Create the mount and push an initial piece of metadata
-                let mut mount = WasmMount::new(bucket.clone(), &key, self.client()).await?;
-                // Ok
-                mount
+                WasmMount::new(bucket.clone(), &key, self.client()).await?
             }
         };
         // Ok

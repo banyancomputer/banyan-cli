@@ -30,21 +30,12 @@ tomb-common = { path = "../tomb-common", version = "1.1.0", features = ["banyan-
 wasm-bindgen-futures = "0.4.37"
 web-sys = { version = "0.3.64", features = [
     "console",
-    "Headers",
-    "Request",
-    "Window",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "ReadableStream",
     "Window",
     "Crypto",
     "CryptoKey",
     "CryptoKeyPair",
-    "AesKeyGenParams",
-    "AesGcmParams",
-    "RsaOaepParams",
     "SubtleCrypto",
+    "FileReader"
 ]}
 getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = { version = "0.2.86" }
@@ -63,19 +54,3 @@ uuid = "1.4.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.36"
-web-sys = { version = "0.3.64", features = [
-    "console",
-    "Headers",
-    "Request",
-    "Window",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "ReadableStream",
-    "Window",
-    "Crypto",
-    "CryptoKey",
-    "CryptoKeyPair",
-    "EcKeyGenParams",
-    "SubtleCrypto",
-]}

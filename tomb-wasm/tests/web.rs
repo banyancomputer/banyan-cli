@@ -63,7 +63,7 @@ async fn create_bucket_mount() -> JsResult<()> {
     let mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.is_locked(), false);
+    assert_eq!(mount.locked(), false);
     Ok(())
 }
 
@@ -76,7 +76,7 @@ async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.is_locked(), false);
+    assert_eq!(mount.locked(), false);
     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     mount.mkdir(mkdir_path_array).await?;
@@ -91,22 +91,29 @@ async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
 
 #[wasm_bindgen_test]
 async fn create_bucket_mount_mkdir_ls_remount_ls() -> JsResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): create_bucket()");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
         .await?;
-    assert_eq!(mount.is_locked(), false);
+    assert_eq!(mount.locked(), false);
+
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): mkdir() and ls()");
     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     mount.mkdir(mkdir_path_array).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
 
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): remount() and ls()");
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.is_locked(), false);
+    assert_eq!(mount.locked(), false);
     let ls: Array = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 1);
     let ls_0 = ls.get(0);

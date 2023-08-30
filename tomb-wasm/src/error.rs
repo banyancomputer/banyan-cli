@@ -28,7 +28,7 @@ impl Display for TombWasmError {
 
 impl From<TombWasmError> for js_sys::Error {
     fn from(err: TombWasmError) -> Self {
-        JsValue::from("an unknown error occurred".to_string()).into()
+        JsValue::from("An error occurred: ".to_owned() + &err.to_string()).into()
     }
 }
 

@@ -111,6 +111,8 @@ impl Metadata {
     }
 
     #[cfg(target_arch = "wasm32")]
+    /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
+    /// WASM implementation because reqwest hates me
     pub async fn push<S>(
         bucket_id: Uuid,
         root_cid: String,

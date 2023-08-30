@@ -1,6 +1,6 @@
 use crate::{
     blockstore::RootedBlockStore, share::manager::ShareManager, utils::error::SerialError,
-    utils::serialize::*,
+    utils::{serialize::*, io::*}
 };
 use anyhow::Result;
 use chrono::Utc;
@@ -430,6 +430,46 @@ impl FsMetadata {
         }
 
         Ok(transformed_entries)
+    }
+
+    // TODO: This can't be fully implemented here until we can use zstd in wasm
+    /// Add a Vector of bytes as a new file in the Fs. Store in our content store
+    pub async fn add(
+        &mut self,
+        path_segments: Vec<String>,
+        content: Vec<u8>,
+        metadata_store: &impl RootedBlockStore,
+        content_store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        // Compress the data in the file
+        let content_buf = compress_vec(&content)?;
+        // Turn the relative path into a vector of segments
+        let time = Utc::now();
+        let rng = &mut thread_rng();
+        let file = self
+            .root_dir
+            .open_file_mut(
+                &path_segments,
+                true,
+                time,
+                &mut self.metadata_forest,
+                metadata_store,
+                rng,
+            )
+            .await?;
+
+        // Set file contents
+        file.set_content(
+            time,
+            content_buf.as_slice(),
+            &mut self.content_forest,
+            content_store,
+            rng,
+        )
+        .await?;
+
+        // Ok
+        Ok(())
     }
 }
 
