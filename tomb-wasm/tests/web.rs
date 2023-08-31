@@ -1,9 +1,10 @@
 //! Test suite for the Web and headless browsers.
 
-use std::convert::TryFrom;
 use gloo::{console::log, utils::window};
-use js_sys::{Array, Reflect};
-use tomb_wasm::types::WasmBucket;
+use js_sys::{Array, Reflect, Uint8Array};
+use std::convert::TryFrom;
+use tomb_crypt::prelude::EcEncryptionKey;
+use tomb_wasm::types::{WasmBucket, WasmBucketKey};
 use wasm_bindgen_test::*;
 use web_sys::CryptoKey;
 
@@ -18,6 +19,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::account::Account;
 use web_sys::CryptoKeyPair;
+use tomb_common::banyan_api::models::bucket_key::BucketKey;
 
 const FIVE_TIB: u64 = 5_497_558_138_880;
 
@@ -34,7 +36,10 @@ pub async fn authenticated_client() -> JsResult<TombWasm> {
     Ok(TombWasm::from(client))
 }
 
-pub async fn create_bucket(client: &mut TombWasm, key_pair: &CryptoKeyPair) -> JsResult<WasmBucket> {
+pub async fn create_bucket(
+    client: &mut TombWasm,
+    key_pair: &CryptoKeyPair,
+) -> JsResult<WasmBucket> {
     let web_public_encryption_key =
         CryptoKey::from(Reflect::get(key_pair, &"publicKey".into()).unwrap());
     // Generate a random name
@@ -68,6 +73,29 @@ async fn create_bucket_mount() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
+async fn create_bucket_mount_share_with() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_share_with()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let wasm_bucket_key: WasmBucketKey = client
+        .create_bucket_key(bucket.id().to_string())
+        .await?
+        .try_into()
+        .expect("try_into failed wasm_bucket_key from js_value");
+    assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
+    assert_eq!(wasm_bucket_key.approved(), false);
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    mount
+        .share_with(wasm_bucket_key.try_into().expect("try_into failed wasm_bucket_key into js_value"))
+        .await?;
+    Ok(())
+}
+
+#[wasm_bindgen_test]
 async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
@@ -86,6 +114,30 @@ async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
     assert_eq!(fs_entry.name(), "test-dir");
     assert_eq!(fs_entry.entry_type(), "dir");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn create_bucket_mount_add_ls() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
 
@@ -124,6 +176,42 @@ async fn create_bucket_mount_mkdir_ls_remount_ls() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
+async fn create_bucket_mount_add_ls_remount_ls() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): create_bucket()");
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .await?;
+    assert_eq!(mount.locked(), false);
+
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): add() and ls()");
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
+
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): remount() and ls()");
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
 async fn get_usage() -> JsResult<()> {
     log!("tomb_wasm_test: get_usage()");
     let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -136,12 +224,12 @@ async fn get_usage() -> JsResult<()> {
 }
 
 fn random_string(length: usize) -> String {
-    use rand::{Rng, thread_rng};
+    use rand::{thread_rng, Rng};
     let mut rng = thread_rng();
     let bytes = (0..length)
         .map(|_| rng.sample(rand::distributions::Alphanumeric))
         .collect();
-    String::from_utf8(bytes).unwrap() 
+    String::from_utf8(bytes).unwrap()
 }
 
 async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {

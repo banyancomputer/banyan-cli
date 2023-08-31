@@ -31,7 +31,9 @@ futures-core = "0.3.28"
 futures-util = "0.3.28"
 bytes = "1.4.0"
 futures = "0.3.28"
-zstd.workspace = { workspace = true }
+# zstd.workspace = { workspace = true }
+lz4_flex = { workspace = true }
+gloo = { version = "0.10.0", features = ["console"] }
 
 [dev-dependencies]
 fs_extra = { workspace = true }
@@ -41,6 +43,7 @@ async-std = { version = "1.11", features = ["attributes"] }
 base64 = "0.21.2"
 hex-literal = "0.4.1"
 lazy_static.workspace = true
+gloo = { version = "0.10.0", features = ["console"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

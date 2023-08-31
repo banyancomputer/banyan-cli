@@ -6,3 +6,5 @@ pub mod io;
 pub mod serialize;
 /// Utils for testing
 pub mod tests;
+/// Utils for WNFS
+pub mod wnfsio;

@@ -15,8 +15,8 @@ wnfs.workspace = true
 anyhow.workspace = true
 jwalk.workspace = true
 serde.workspace = true
-zstd.workspace = true
-fclones.workspace = true
+# zstd.workspace = true
+fclones = "0.30"
 indicatif = { version = "0.17.3", features = ["improved_unicode"] }
 log = "0.4.17"
 chrono.workspace = true
@@ -29,6 +29,9 @@ env_logger = "0.10.0"
 async-trait = "0.1.71"
 hex = "0.4.3"
 tomb-crypt = { workspace = true }
+
+[dependencies.nix]
+features = ["user", "fs"]
 
 [dev-dependencies]
 fs_extra.workspace = true

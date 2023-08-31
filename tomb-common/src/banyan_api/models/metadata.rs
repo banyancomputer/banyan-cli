@@ -122,7 +122,7 @@ impl Metadata {
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
     where
-        S: Read
+        S: Read,
     {
         let response = client
             .multipart(PushMetadata {

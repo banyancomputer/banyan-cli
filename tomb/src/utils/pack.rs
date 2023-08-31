@@ -17,8 +17,8 @@ use crate::{
     types::spider::PackPipelinePlan,
     utils::{grouper::grouper, spider},
 };
-
-use super::{spider::path_to_segments, wnfsio::compress_file};
+use tomb_common::utils::wnfsio::compress_file;
+use super::spider::path_to_segments;
 
 /// Create PackPipelinePlans from an origin dir
 pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PackPipelinePlan>> {

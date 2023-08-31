@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "api")]
 use crate::banyan_api::{
     client::Client, error::ClientError, models::metadata::Metadata,
     requests::buckets::snapshots::restore::*,
@@ -20,7 +19,6 @@ pub struct Snapshot {
     pub created_at: i64,
 }
 
-#[cfg(feature = "api")]
 impl Snapshot {
     /// Restore a snapshot to its bucket
     pub async fn restore(&self, client: &mut Client) -> Result<Uuid, ClientError> {
@@ -37,7 +35,6 @@ impl Snapshot {
     }
 }
 
-#[cfg(feature = "api")]
 #[cfg(test)]
 mod test {
     use super::*;

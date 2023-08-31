@@ -1,6 +1,8 @@
 use crate::{
-    blockstore::RootedBlockStore, share::manager::ShareManager, utils::error::SerialError,
-    utils::{serialize::*, io::*}
+    blockstore::RootedBlockStore,
+    share::manager::ShareManager,
+    utils::error::SerialError,
+    utils::{wnfsio::*, serialize::*},
 };
 use anyhow::Result;
 use chrono::Utc;
@@ -36,6 +38,11 @@ pub struct FsMetadata {
     pub root_dir: Rc<PrivateDirectory>,
     /// Serialized key share
     pub share_manager: ShareManager,
+    /// Loaded Metadata
+    metadata: Option<BTreeMap<
+        String,
+        Ipld,
+    >>
 }
 
 impl FsMetadata {
@@ -58,12 +65,14 @@ impl FsMetadata {
         share_manager
             .share_with(&wrapping_key.public_key().expect("public key not available"))
             .await?;
+
         // Return the new metadata
         Ok(Self {
             metadata_forest,
             content_forest,
             root_dir,
             share_manager,
+            metadata: None,
         })
     }
 
@@ -155,7 +164,7 @@ impl FsMetadata {
         );
 
         // Get the CID of the metadata map
-        let metadata = &Ipld::Map(metadata_map);
+        let metadata = &Ipld::Map(metadata_map.clone());
         // Put the metadata IPLD Map into BlockStores
         let metadata_cid = metadata_store.put_serializable(metadata).await?;
         let _metadata_cid = content_store.put_serializable(metadata).await?;
@@ -173,6 +182,7 @@ impl FsMetadata {
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
         assert_eq!(metadata_cid, _metadata_cid);
 
+        self.metadata = Some(metadata_map.into());
         Ok(())
     }
 
@@ -242,7 +252,40 @@ impl FsMetadata {
             content_forest,
             root_dir,
             share_manager,
+            metadata: Some(metadata),
         })
+    }
+
+    /// Share with
+    pub async fn share_with(
+        &mut self,
+        recipient: &EcPublicEncryptionKey,
+        store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        self.share_manager.share_with(recipient).await?;
+        // Save the new share manager to the map, conserving all other links in the metadata
+        let store_manager_cid = store_share_manager(&self.share_manager, store).await?;
+        // Get the map
+        let mut metadata = self
+            .metadata
+            .as_ref()
+            .ok_or(SerialError::MissingMetadata("metadata map".to_string()))?
+            .clone();
+        // Update the share manager link
+        metadata.insert(
+            SHARE_MANAGER_LABEL.to_string(),
+            Ipld::Link(store_manager_cid),
+        );
+
+        self.metadata = Some(metadata.clone());
+        // Get the CID of the metadata map
+        let metadata = &Ipld::Map(metadata);
+        // Put the metadata IPLD Map into BlockStores
+        let metadata_cid = store.put_serializable(metadata).await?;
+        // Update the root CID
+        store.set_root(&metadata_cid);
+        // Update the metadata
+        Ok(())
     }
 
     /// Get the metadata cid from the blockstore

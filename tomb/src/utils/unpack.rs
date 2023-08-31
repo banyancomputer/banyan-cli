@@ -7,8 +7,7 @@ use wnfs::{
 };
 
 use crate::pipelines::error::PipelineError;
-
-use super::wnfsio::file_to_disk;
+use crate::utils::wnfsio::file_to_disk;
 
 #[async_recursion(?Send)]
 /// Recursively reconstruct each file and directory from the WNFS to disk

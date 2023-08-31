@@ -162,6 +162,21 @@ impl Bucket {
             .collect())
     }
 
+    /// List snapshots by a bucket id
+    pub async fn list_snapshots_by_bucket_id(client: &mut Client, bucket_id: Uuid) -> Result<Vec<Snapshot>, ClientError> {
+        let response = client.call(ReadAllSnapshots { bucket_id }).await?;
+        Ok(response
+            .0
+            .into_iter()
+            .map(|response| Snapshot {
+                id: response.id,
+                bucket_id: bucket_id.clone(),
+                metadata_id: response.metadata_id,
+                created_at: response.created_at,
+            })
+            .collect())
+    }
+
     /// Get the usage for the bucket
     pub async fn usage(&self, client: &mut Client) -> Result<usize, ClientError> {
         let response = client.call(GetBucketUsage { id: self.id }).await?;
