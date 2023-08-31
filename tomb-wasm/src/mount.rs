@@ -470,7 +470,10 @@ impl WasmMount {
             WasmBucketKey::try_from(recipient_key).expect("could not parse bucket key");
 
         let recipient_key = &recipient_key.0.pem;
-        log!("tomb-wasm: mount/share_with/{} - importing key", recipient_key.clone());
+        log!(
+            "tomb-wasm: mount/share_with/{} - importing key",
+            recipient_key.clone()
+        );
         let recipient_key = &EcPublicEncryptionKey::import(recipient_key.as_bytes())
             .await
             .expect("could not import key");
@@ -508,7 +511,11 @@ impl WasmMount {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
         // Get the bucket
         let metadata = self.metadata.as_ref();
-        metadata.expect("missing metadata").snapshot(&mut self.client).await.expect("could not snapshot");
+        metadata
+            .expect("missing metadata")
+            .snapshot(&mut self.client)
+            .await
+            .expect("could not snapshot");
         // Ok
         Ok(())
     }

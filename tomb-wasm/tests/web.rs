@@ -18,8 +18,8 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::account::Account;
-use web_sys::CryptoKeyPair;
 use tomb_common::banyan_api::models::bucket_key::BucketKey;
+use web_sys::CryptoKeyPair;
 
 const FIVE_TIB: u64 = 5_497_558_138_880;
 
@@ -90,7 +90,11 @@ async fn create_bucket_mount_share_with() -> JsResult<()> {
         .await?;
     assert_eq!(mount.locked(), false);
     mount
-        .share_with(wasm_bucket_key.try_into().expect("try_into failed wasm_bucket_key into js_value"))
+        .share_with(
+            wasm_bucket_key
+                .try_into()
+                .expect("try_into failed wasm_bucket_key into js_value"),
+        )
         .await?;
     Ok(())
 }

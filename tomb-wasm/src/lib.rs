@@ -23,7 +23,7 @@ use tomb_common::banyan_api::client::{Client, Credentials};
 use tomb_common::banyan_api::models::account::Account;
 use tomb_common::banyan_api::models::{
     bucket::{Bucket, BucketType, StorageClass},
-    bucket_key::*
+    bucket_key::*,
 };
 use tomb_crypt::prelude::*;
 use web_sys::CryptoKeyPair;
@@ -263,14 +263,13 @@ impl TombWasm {
     /// # Errors
     /// * `TombWasmError::UnknownError` - If the bucket key could not be created
     #[wasm_bindgen(js_name = createBucketKey)]
-    pub async fn create_bucket_key(
-        &mut self,
-        bucket_id: String,
-    ) -> JsResult<JsValue> {
+    pub async fn create_bucket_key(&mut self, bucket_id: String) -> JsResult<JsValue> {
         log!("tomb-wasm: create_bucket_key()");
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
         // Load the EcEncryptionKey
-        let key = EcEncryptionKey::generate().await.expect("Failed to generate key");
+        let key = EcEncryptionKey::generate()
+            .await
+            .expect("Failed to generate key");
         let key = key.public_key().expect("Failed to get public key");
         let pem = String::from_utf8(key.export().await.unwrap()).unwrap();
         // Call the API
@@ -280,7 +279,9 @@ impl TombWasm {
         // Convert the bucket key
         let wasm_bucket_key = WasmBucketKey(bucket_key);
         // Ok
-        Ok(wasm_bucket_key.try_into().expect("Failed to convert bucket key to JsValue"))
+        Ok(wasm_bucket_key
+            .try_into()
+            .expect("Failed to convert bucket key to JsValue"))
     }
 
     /// Delete a bucket
