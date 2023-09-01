@@ -566,8 +566,8 @@ mod test {
 
     async fn _init_save_unlock(
         wrapping_key: &EcEncryptionKey,
-        metadata_store: &mut MemoryBlockStore,
-        content_store: &mut MemoryBlockStore,
+        metadata_store: &MemoryBlockStore,
+        content_store: &MemoryBlockStore,
     ) -> Result<FsMetadata> {
         let mut metadata = FsMetadata::init(wrapping_key).await?;
         metadata.save(metadata_store, content_store).await?;

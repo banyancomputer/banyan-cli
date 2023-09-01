@@ -27,6 +27,7 @@ impl BlockStore for BanyanApiBlockStore {
     }
 
     /// Retrieves an array of bytes from the block store with given CID.
+    #[clippy::allow(held_ref_cell)]
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         let mut client = self.0.borrow_mut();
         let mut stream = client
