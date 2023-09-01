@@ -1,11 +1,11 @@
 use super::error::PipelineError;
+use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,
     utils::pack::{create_plans, process_plans},
 };
 use anyhow::Result;
 use std::path::Path;
-use crate::utils::wnfsio::get_progress_bar;
 
 /// Given the input directory, the output directory, the manifest file, and other metadata,
 /// pack the input directory into the output directory and store a record of how this

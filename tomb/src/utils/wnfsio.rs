@@ -1,19 +1,13 @@
-use std::{
-    fs::File,
-    io::Write,
-    os::unix::fs::symlink,
-    path::Path,
-    rc::Rc,
-};
+use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path, rc::Rc};
 
 use crate::pipelines::error::PipelineError;
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
+use tomb_common::utils::wnfsio::decompress_bytes;
 use wnfs::{
     common::BlockStore,
     private::{PrivateFile, PrivateForest},
 };
-use tomb_common::utils::wnfsio::decompress_bytes;
 
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
 pub async fn file_to_disk(

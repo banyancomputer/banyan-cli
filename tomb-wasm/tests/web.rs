@@ -3,7 +3,6 @@
 use gloo::{console::log, utils::window};
 use js_sys::{Array, Reflect, Uint8Array};
 use std::convert::TryFrom;
-use tomb_crypt::prelude::EcEncryptionKey;
 use tomb_wasm::types::{WasmBucket, WasmBucketKey};
 use wasm_bindgen_test::*;
 use web_sys::CryptoKey;
@@ -18,7 +17,6 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::account::Account;
-use tomb_common::banyan_api::models::bucket_key::BucketKey;
 use web_sys::CryptoKeyPair;
 
 const FIVE_TIB: u64 = 5_497_558_138_880;

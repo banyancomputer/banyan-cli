@@ -127,6 +127,7 @@ impl BucketConfig {
             content_forest: content_forest.clone(),
             root_dir: root_dir.clone(),
             share_manager: share_manager.clone(),
+            metadata: None,
         };
         fs_metadata.save(&self.metadata, &self.content).await?;
         Ok(())

@@ -44,6 +44,11 @@ impl CarV2MemoryBlockStore {
         self.car.write_bytes(&mut rw).unwrap();
         rw.into_inner().clone()
     }
+
+    /// Get the size of the data underlying the CarV1
+    pub fn data_size(&self) -> u64 {
+        self.car.data_size()
+    }
 }
 
 #[async_trait(?Send)]

@@ -1,4 +1,5 @@
 use std::fmt::Display;
+#[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,7 @@ use {
         error::ClientError,
         models::snapshot::Snapshot,
         models::storage_ticket::StorageTicket,
-        requests::buckets::{
+        requests::core::buckets::{
             metadata::{pull::*, push::*, read::*},
             snapshots::create::*,
         },
@@ -61,7 +62,7 @@ pub struct Metadata {
     /// The CID of the metadata forest
     pub metadata_cid: String,
     /// The size of the data in bytes that this metadata points to
-    pub data_size: usize,
+    pub data_size: u64,
     /// The state of the metadata
     pub state: MetadataState,
 }
@@ -74,7 +75,7 @@ impl Metadata {
         bucket_id: Uuid,
         root_cid: String,
         metadata_cid: String,
-        expected_data_size: usize,
+        expected_data_size: u64,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -117,7 +118,7 @@ impl Metadata {
         bucket_id: Uuid,
         root_cid: String,
         metadata_cid: String,
-        expected_data_size: usize,
+        expected_data_size: u64,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -174,7 +175,7 @@ impl Metadata {
             bucket_id,
             root_cid: response.root_cid,
             metadata_cid: response.metadata_cid,
-            data_size: response.data_size as usize,
+            data_size: response.data_size as u64,
             state: response.state,
         })
     }
@@ -190,7 +191,7 @@ impl Metadata {
                 bucket_id,
                 root_cid: response.root_cid,
                 metadata_cid: response.metadata_cid,
-                data_size: response.data_size as usize,
+                data_size: response.data_size as u64,
                 state: response.state,
             })
             .collect())
@@ -204,7 +205,7 @@ impl Metadata {
             bucket_id,
             root_cid: response.root_cid,
             metadata_cid: response.metadata_cid,
-            data_size: response.data_size as usize,
+            data_size: response.data_size as u64,
             state: response.state,
         })
     }
@@ -234,7 +235,7 @@ pub mod test {
     use crate::banyan_api::models::bucket::test::create_bucket;
     use futures_util::stream::StreamExt;
 
-    pub async fn push_metadata(
+    pub async fn push_empty_metadata(
         bucket_id: Uuid,
         client: &mut Client,
     ) -> Result<(Metadata, Option<StorageTicket>), ClientError> {
@@ -253,7 +254,7 @@ pub mod test {
         bucket_id: Uuid,
         client: &mut Client,
     ) -> Result<(Metadata, Option<StorageTicket>, Snapshot), ClientError> {
-        let (metadata, storage_ticket) = push_metadata(bucket_id, client).await?;
+        let (metadata, storage_ticket) = push_empty_metadata(bucket_id, client).await?;
         let snapshot = metadata.snapshot(client).await?;
         Ok((metadata, storage_ticket, snapshot))
     }
@@ -261,7 +262,7 @@ pub mod test {
     async fn push_read_pull() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket) = push_metadata(bucket.id, &mut client).await?;
+        let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.metadata_cid, "metadata_cid");
@@ -283,7 +284,7 @@ pub mod test {
     async fn push_read_unauthorized() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket) = push_metadata(bucket.id, &mut client).await?;
+        let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
 
         let mut bad_client = authenticated_client().await;
@@ -296,8 +297,9 @@ pub mod test {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (other_bucket, _) = create_bucket(&mut client).await?;
-        let (_metadata, _storage_ticket) = push_metadata(bucket.id, &mut client).await?;
-        let (other_metadata, _storage_ticket) = push_metadata(other_bucket.id, &mut client).await?;
+        let (_metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
+        let (other_metadata, _storage_ticket) =
+            push_empty_metadata(other_bucket.id, &mut client).await?;
         let read_metadata = Metadata::read(bucket.id, other_metadata.id, &mut client).await;
         assert!(read_metadata.is_err());
         Ok(())
@@ -307,7 +309,7 @@ pub mod test {
     async fn push_read_pull_snapshot() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket) = push_metadata(bucket.id, &mut client).await?;
+        let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.metadata_cid, "metadata_cid");

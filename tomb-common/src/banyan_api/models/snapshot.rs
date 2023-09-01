@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::banyan_api::{
     client::Client, error::ClientError, models::metadata::Metadata,
-    requests::buckets::snapshots::restore::*,
+    requests::core::buckets::snapshots::restore::*,
 };
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -40,14 +40,14 @@ mod test {
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
     use crate::banyan_api::models::bucket::test::create_bucket;
-    use crate::banyan_api::models::metadata::test::push_metadata;
+    use crate::banyan_api::models::metadata::test::push_empty_metadata;
     use crate::banyan_api::models::metadata::{Metadata, MetadataState};
 
     #[tokio::test]
     async fn restore() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
-        let (metadata, _) = push_metadata(bucket.id, &mut client).await.unwrap();
+        let (metadata, _) = push_empty_metadata(bucket.id, &mut client).await.unwrap();
         let snapshot = metadata.snapshot(&mut client).await.unwrap();
         let restored_metadata_id = snapshot.restore(&mut client).await.unwrap();
         assert_eq!(restored_metadata_id, metadata.id);

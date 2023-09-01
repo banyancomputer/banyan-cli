@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
-    requests::auth::device_api_key::{create::*, delete::*, read::*},
+    requests::core::auth::device_api_key::{create::*, delete::*, read::*},
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

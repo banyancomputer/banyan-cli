@@ -1,9 +1,5 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read, Write},
-    path::Path,
-};
 use anyhow::Result;
+use std::io::{BufReader, Read, Write};
 
 #[derive(Debug, Clone)]
 /// Wrapper for compression information
@@ -74,10 +70,10 @@ where
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Compress the contents of a file at a given path
-pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
+pub fn compress_file(path: &std::path::Path) -> Result<Vec<u8>> {
     println!("compressing file! {}", path.display());
     // Open the original file (just the first one!)
-    let file = File::open(path)?;
+    let file = std::fs::File::open(path)?;
     // Create a reader for the original file
     let reader = BufReader::new(file);
     // Create a buffer to hold the compressed bytes
@@ -98,4 +94,16 @@ pub fn compress_vec(buf: &[u8]) -> Result<Vec<u8>> {
     compress_bytes(reader, &mut compressed)?;
     // Return compressed bytes
     Ok(compressed)
+}
+
+/// Decompress a vector of bytes
+pub fn decompress_vec(buf: &[u8]) -> Result<Vec<u8>> {
+    // Create a reader for the original file
+    let reader = BufReader::new(buf);
+    // Create a buffer to hold the compressed bytes
+    let mut decompressed: Vec<u8> = vec![];
+    // Compress the chunk before feeding it to WNFS
+    decompress_bytes(reader, &mut decompressed)?;
+    // Return compressed bytes
+    Ok(decompressed)
 }

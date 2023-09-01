@@ -7,7 +7,7 @@ use crate::banyan_api::{
     client::Client,
     error::ClientError,
     models::bucket_key::BucketKey,
-    requests::buckets::{
+    requests::core::buckets::{
         create::*, delete::*, read::*, snapshots::read::ReadAllSnapshots, usage::GetBucketUsage,
     },
 };
@@ -163,14 +163,17 @@ impl Bucket {
     }
 
     /// List snapshots by a bucket id
-    pub async fn list_snapshots_by_bucket_id(client: &mut Client, bucket_id: Uuid) -> Result<Vec<Snapshot>, ClientError> {
+    pub async fn list_snapshots_by_bucket_id(
+        client: &mut Client,
+        bucket_id: Uuid,
+    ) -> Result<Vec<Snapshot>, ClientError> {
         let response = client.call(ReadAllSnapshots { bucket_id }).await?;
         Ok(response
             .0
             .into_iter()
             .map(|response| Snapshot {
                 id: response.id,
-                bucket_id: bucket_id.clone(),
+                bucket_id,
                 metadata_id: response.metadata_id,
                 created_at: response.created_at,
             })

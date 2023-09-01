@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
+#[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
-use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -18,7 +18,7 @@ where
 {
     pub bucket_id: Uuid,
 
-    pub expected_data_size: usize,
+    pub expected_data_size: u64,
     pub metadata_cid: String,
     pub root_cid: String,
 
@@ -33,7 +33,7 @@ where
 {
     pub bucket_id: Uuid,
 
-    pub expected_data_size: usize,
+    pub expected_data_size: u64,
     pub metadata_cid: String,
     pub root_cid: String,
 
@@ -42,7 +42,7 @@ where
 
 #[derive(Debug, Serialize)]
 struct PushMetadataData {
-    pub expected_data_size: usize,
+    pub expected_data_size: u64,
     pub metadata_cid: String,
     pub root_cid: String,
 }
@@ -57,6 +57,7 @@ pub struct PushMetadataResponse {
 
 #[cfg(target_arch = "wasm32")]
 fn generate_boundary() -> String {
+    use rand::{distributions::Alphanumeric, Rng};
     let random_string: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(30) // Adjust the length as needed

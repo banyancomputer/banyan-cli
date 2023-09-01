@@ -3,13 +3,16 @@ use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::convert::TryFrom;
 use std::io::Cursor;
+use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::{bucket::Bucket, metadata::Metadata};
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
-use web_sys::CryptoKey;
+
+// TODO: This should be a config
+const BLOCKSTORE_API_HOST: &str = "http://localhost:3002";
 
 use crate::error::TombWasmError;
 use crate::types::{WasmBucket, WasmBucketKey, WasmFsMetadataEntry};
@@ -200,7 +203,7 @@ impl WasmMount {
             root_cid.to_string()
         );
 
-        let (metadata, _) = Metadata::push(
+        let (metadata, storage_ticket) = Metadata::push(
             self.bucket.id,
             root_cid.to_string(),
             metadata_cid.to_string(),
@@ -214,8 +217,35 @@ impl WasmMount {
 
         assert_eq!(metadata.metadata_cid, metadata_cid.to_string());
         assert_eq!(metadata.root_cid, root_cid.to_string());
-
+        let metadata_id = metadata.id;
         self.metadata = Some(metadata);
+
+        match storage_ticket {
+            Some(storage_ticket) => {
+                log!(
+                    "tomb-wasm: mount/sync()/{} - storage ticket returned",
+                    self.bucket.id.to_string()
+                );
+                storage_ticket
+                    .clone()
+                    .create_grant(&mut self.client)
+                    .await
+                    .expect("could not create grant");
+                let content = Cursor::new(self.metadata_blockstore.get_data());
+                storage_ticket
+                    .clone()
+                    .upload_content(metadata_id, content, &mut self.client)
+                    .await
+                    .expect("could not upload content");
+            }
+            None => {
+                log!(
+                    "tomb-wasm: mount/sync()/{} - no storage ticket returned no content to upload",
+                    self.bucket.id.to_string()
+                );
+            }
+        }
+
         self.dirty = false;
         log!(
             "tomb-wasm: mount/sync()/{} - synced",
@@ -274,13 +304,13 @@ impl WasmMount {
 impl WasmMount {
     /// Returns whether or not the bucket is locked
     pub fn locked(&self) -> bool {
-        self.locked == true
+        self.locked
     }
 
     /// Returns whether or not the bucket is dirty
     /// - when a file or dir is changed
     pub fn dirty(&self) -> bool {
-        self.dirty == true
+        self.dirty
     }
 
     /// Ls the bucket at a path
@@ -339,8 +369,7 @@ impl WasmMount {
         let entries = fs_metadata_entries
             .iter()
             .map(|entry| {
-                let value = JsValue::try_from(WasmFsMetadataEntry(entry.clone())).unwrap();
-                value
+                JsValue::try_from(WasmFsMetadataEntry(entry.clone())).unwrap()
             })
             .collect::<Array>();
 
@@ -485,7 +514,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .share_with(recipient_key, &mut self.metadata_blockstore)
+            .share_with(recipient_key, &self.metadata_blockstore)
             .await
             .expect("could not share with");
 
@@ -530,7 +559,7 @@ impl WasmMount {
     /// A Promise<ArrayBuffer> in js speak
     #[wasm_bindgen(js_name = readBytes)]
     pub async fn read_bytes(
-        &self,
+        &mut self,
         path_segments: Array,
         _version: Option<String>,
     ) -> JsResult<ArrayBuffer> {
@@ -550,9 +579,27 @@ impl WasmMount {
             panic!("Bucket is locked");
         };
 
-        // Return a fake buffer for now
-        let buffer = Uint8Array::new_with_length(10);
-        Ok(buffer.buffer())
+        let mut banyan_api_blockstore_client = self.client.clone();
+        banyan_api_blockstore_client
+            .with_remote(BLOCKSTORE_API_HOST)
+            .expect("could not create blockstore client");
+        let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
+
+        let vec = self
+            .fs_metadata
+            .as_mut()
+            .unwrap()
+            .read(
+                path_segments,
+                &self.metadata_blockstore,
+                &banyan_api_blockstore,
+            )
+            .await
+            .expect("could not read bytes");
+
+        let bytes = vec.into_boxed_slice();
+        let array = Uint8Array::from(&bytes[..]);
+        Ok(array.buffer())
     }
 }
 

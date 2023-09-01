@@ -2,7 +2,7 @@ use crate::{
     blockstore::RootedBlockStore,
     share::manager::ShareManager,
     utils::error::SerialError,
-    utils::{wnfsio::*, serialize::*},
+    utils::{serialize::*, wnfsio::*},
 };
 use anyhow::Result;
 use chrono::Utc;
@@ -39,10 +39,7 @@ pub struct FsMetadata {
     /// Serialized key share
     pub share_manager: ShareManager,
     /// Loaded Metadata
-    metadata: Option<BTreeMap<
-        String,
-        Ipld,
-    >>
+    pub metadata: Option<BTreeMap<String, Ipld>>,
 }
 
 impl FsMetadata {
@@ -182,7 +179,7 @@ impl FsMetadata {
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
         assert_eq!(metadata_cid, _metadata_cid);
 
-        self.metadata = Some(metadata_map.into());
+        self.metadata = Some(metadata_map);
         Ok(())
     }
 
@@ -311,7 +308,7 @@ impl FsMetadata {
             Some(Ipld::Link(cid)) => cid,
             _ => return Err(SerialError::MissingMetadata(ROOT_MAP_LABEL.to_string()).into()),
         };
-        Ok(root_cid.clone())
+        Ok(*root_cid)
     }
 
     /// Get the original root directory
@@ -475,7 +472,6 @@ impl FsMetadata {
         Ok(transformed_entries)
     }
 
-    // TODO: This can't be fully implemented here until we can use zstd in wasm
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn add(
         &mut self,
@@ -513,6 +509,31 @@ impl FsMetadata {
 
         // Ok
         Ok(())
+    }
+
+    /// Add a Vector of bytes as a new file in the Fs. Store in our content store
+    pub async fn read(
+        &mut self,
+        path_segments: Vec<String>,
+        metadata_store: &impl RootedBlockStore,
+        content_store: &impl BlockStore,
+    ) -> Result<Vec<u8>> {
+        // Compress the data in the file
+        let result = self
+            .root_dir
+            .get_node(&path_segments, true, &self.metadata_forest, metadata_store)
+            .await
+            .expect("node not found");
+        match result {
+            Some(PrivateNode::File(file)) => {
+                let content = file
+                    .get_content(&self.content_forest, content_store)
+                    .await?;
+                let content = decompress_vec(&content)?;
+                Ok(content)
+            }
+            _ => Err(SerialError::NodeNotFound(path_segments.join("/").to_string()).into()),
+        }
     }
 }
 

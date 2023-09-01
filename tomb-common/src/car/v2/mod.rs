@@ -36,6 +36,11 @@ pub struct CarV2 {
 }
 
 impl CarV2 {
+    /// Return the data size specified by the CarV2 Header
+    pub fn data_size(&self) -> u64 {
+        self.header.borrow().data_size
+    }
+
     /// Load in the CarV2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
