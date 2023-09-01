@@ -1,7 +1,7 @@
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
-    requests::{
+    requests::core::{
         auth::{fake_account::create::*, who_am_i::read::*},
         buckets::usage::{GetTotalUsage, GetUsageLimit},
     },

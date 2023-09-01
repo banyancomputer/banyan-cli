@@ -1,3 +1,5 @@
+/// Our api blockstore implementation
+pub mod blockstore;
 /// Our API client
 pub mod client;
 /// Our API models, along with CRUD implementations

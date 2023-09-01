@@ -16,7 +16,7 @@ rand = { workspace = true }
 chrono = { workspace = true }
 unsigned-varint = "0.7.1"
 async-trait = "0.1.68"
-reqwest = { version = "0.11.18", features = ["blocking", "multipart", "json", "stream"] }
+reqwest = { workspace = true } 
 thiserror = "1.0.40"
 wasm-bindgen = "0.2.86"
 hex = "0.4.3"
@@ -30,6 +30,10 @@ uuid = { version = "1.4.1", features = ["serde"] }
 futures-core = "0.3.28"
 futures-util = "0.3.28"
 bytes = "1.4.0"
+futures = "0.3.28"
+# zstd.workspace = { workspace = true }
+lz4_flex = { workspace = true }
+gloo = { version = "0.10.0", features = ["console"] }
 
 [dev-dependencies]
 fs_extra = { workspace = true }
@@ -39,13 +43,12 @@ async-std = { version = "1.11", features = ["attributes"] }
 base64 = "0.21.2"
 hex-literal = "0.4.1"
 lazy_static.workspace = true
+gloo = { version = "0.10.0", features = ["console"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [features]
-default = ["native"]
 # Access to banyan api 
 banyan-api = []
-native = []

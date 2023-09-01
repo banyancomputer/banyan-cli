@@ -1,10 +1,13 @@
 //! Test suite for the Web and headless browsers.
 
 use gloo::{console::log, utils::window};
-use js_sys::{Array, Reflect};
+use js_sys::{Array, Reflect, Uint8Array};
+use std::convert::TryFrom;
+use tomb_wasm::types::{WasmBucket, WasmBucketKey};
 use wasm_bindgen_test::*;
 use web_sys::CryptoKey;
 
+use tomb_wasm::types::WasmFsMetadataEntry;
 use tomb_wasm::utils::*;
 use tomb_wasm::TombWasm;
 extern crate tomb_wasm;
@@ -31,62 +34,182 @@ pub async fn authenticated_client() -> JsResult<TombWasm> {
     Ok(TombWasm::from(client))
 }
 
-#[wasm_bindgen_test]
-async fn authenticate_client() -> JsResult<()> {
-    let _client = authenticated_client().await?;
-    Ok(())
-}
-
-#[wasm_bindgen_test]
-async fn create_bucket() -> JsResult<()> {
-    log!("tomb_wasm_test: create_bucket()");
-    let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+pub async fn create_bucket(
+    client: &mut TombWasm,
+    key_pair: &CryptoKeyPair,
+) -> JsResult<WasmBucket> {
     let web_public_encryption_key =
-        CryptoKey::from(Reflect::get(&web_encryption_key_pair, &"publicKey".into()).unwrap());
+        CryptoKey::from(Reflect::get(key_pair, &"publicKey".into()).unwrap());
+    // Generate a random name
+    let bucket_name = random_string(10);
     // Note: this might lint as an error, but it's not
     let bucket = client
         .create_bucket(
-            "test-bucket".to_string(),
+            bucket_name.clone(),
             "warm".to_string(),
             "interactive".to_string(),
             web_public_encryption_key,
         )
         .await?;
-    assert_eq!(bucket.name(), "test-bucket");
+    assert_eq!(bucket.name(), bucket_name);
     assert_eq!(bucket.storage_class(), "warm");
     assert_eq!(bucket.bucket_type(), "interactive");
+    Ok(bucket)
+}
+
+#[wasm_bindgen_test]
+async fn create_bucket_mount() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
     Ok(())
 }
 
 #[wasm_bindgen_test]
-#[should_panic]
-async fn create_mount_bucket() -> JsResult<()> {
-    log!("tomb_wasm_test: create_mount_bucket()");
+async fn create_bucket_mount_share_with() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_share_with()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
-    let web_public_encryption_key =
-        CryptoKey::from(Reflect::get(&web_encryption_key_pair, &"publicKey".into()).unwrap());
-    // Note: this might lint as an error, but it's not
-    let bucket = client
-        .create_bucket(
-            "test-bucket".to_string(),
-            "warm".to_string(),
-            "mount".to_string(),
-            web_public_encryption_key,
-        )
-        .await?;
-    assert_eq!(bucket.name(), "test-bucket");
-    assert_eq!(bucket.storage_class(), "warm");
-    assert_eq!(bucket.bucket_type(), "interactive");
-
-    let mount = client
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let wasm_bucket_key: WasmBucketKey = client
+        .create_bucket_key(bucket.id().to_string())
+        .await?
+        .try_into()
+        .expect("try_into failed wasm_bucket_key from js_value");
+    assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
+    assert_eq!(wasm_bucket_key.approved(), false);
+    let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.is_locked(), false);
-    let ls: Array = mount.ls("/".to_string()).await?;
-    println!("ls: {:?}", ls);
-    assert_eq!(ls.length(), 0);
+    assert_eq!(mount.locked(), false);
+    mount
+        .share_with(
+            wasm_bucket_key
+                .try_into()
+                .expect("try_into failed wasm_bucket_key into js_value"),
+        )
+        .await?;
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let mkdir_path_array: Array = js_array(&["test-dir"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    mount.mkdir(mkdir_path_array).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "test-dir");
+    assert_eq!(fs_entry.entry_type(), "dir");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn create_bucket_mount_add_ls() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn create_bucket_mount_mkdir_ls_remount_ls() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): create_bucket()");
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .await?;
+    assert_eq!(mount.locked(), false);
+
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): mkdir() and ls()");
+    let mkdir_path_array: Array = js_array(&["test-dir"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    mount.mkdir(mkdir_path_array).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
+
+    log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): remount() and ls()");
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "test-dir");
+    assert_eq!(fs_entry.entry_type(), "dir");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn create_bucket_mount_add_ls_remount_ls() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): create_bucket()");
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .await?;
+    assert_eq!(mount.locked(), false);
+
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): add() and ls()");
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
+
+    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): remount() and ls()");
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
 
@@ -102,9 +225,18 @@ async fn get_usage() -> JsResult<()> {
     Ok(())
 }
 
+fn random_string(length: usize) -> String {
+    use rand::{thread_rng, Rng};
+    let mut rng = thread_rng();
+    let bytes = (0..length)
+        .map(|_| rng.sample(rand::distributions::Alphanumeric))
+        .collect();
+    String::from_utf8(bytes).unwrap()
+}
+
 async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     let subtle = window().crypto().unwrap().subtle();
-    let params = web_sys::EcKeyGenParams::new(key_type, "P-256");
+    let params = web_sys::EcKeyGenParams::new(key_type, "P-384");
     let usages = js_array(uses);
     let promise = subtle
         .generate_key_with_object(&params, true, &usages)

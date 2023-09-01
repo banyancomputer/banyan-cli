@@ -3,10 +3,10 @@ use std::error::Error;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::de::DeserializeOwned;
 
-/// API Request implementations for routes under api/v1/auth
-pub mod auth;
-/// API Request implementations for routes under api/v1/buckets
-pub mod buckets;
+/// API Request implementations for routes managed by the core service
+pub mod core;
+/// API Request implementations for managed by a storage host
+pub mod staging;
 
 /// Defintion of an API request
 pub trait ApiRequest {

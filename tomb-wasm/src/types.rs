@@ -1,34 +1,14 @@
+use std::collections::BTreeMap;
+
 use crate::value;
 use js_sys::{Object, Reflect};
-use tomb_common::banyan_api::models::{bucket::*, bucket_key::*, snapshot::*};
+use tomb_common::{
+    banyan_api::models::{bucket::*, bucket_key::*, metadata::*, snapshot::*},
+    metadata::{FsMetadataEntry, FsMetadataEntryType},
+};
+use uuid::Uuid;
 use wasm_bindgen::prelude::*;
-use wnfs::{common::Metadata as FsEntryMetadata, libipld::Ipld};
-
-/* Js Value bindings for our Rust structs */
-// #[wasm_bindgen]
-// pub struct WasmBucketType(pub(crate) BucketType);
-// impl From<BucketType> for WasmBucketType {
-//     fn from(bucket_type: BucketType) -> Self {
-//         Self(bucket_type)
-//     }
-// }
-// impl From<WasmBucketType> for BucketType {
-//     fn from(wasm_bucket_type: WasmBucketType) -> Self {
-//         wasm_bucket_type.0
-//     }
-// }
-// #[wasm_bindgen]
-// pub struct WasmStorageClass(pub(crate) StorageClass);
-// impl From<StorageClass> for WasmStorageClass {
-//     fn from(storage_class: StorageClass) -> Self {
-//         Self(storage_class)
-//     }
-// }
-// impl From<WasmStorageClass> for StorageClass {
-//     fn from(wasm_storage_class: WasmStorageClass) -> Self {
-//         wasm_storage_class.0
-//     }
-// }
+use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
 /// Wrapper around a Bucket
 #[wasm_bindgen]
@@ -45,6 +25,7 @@ impl From<WasmBucket> for Bucket {
     }
 }
 
+#[wasm_bindgen]
 impl WasmBucket {
     pub fn name(&self) -> String {
         self.0.name.clone()
@@ -60,19 +41,64 @@ impl WasmBucket {
     }
 }
 
-#[wasm_bindgen]
 /// Wrapper around a BucketKey
 pub struct WasmBucketKey(pub(crate) BucketKey);
-impl From<BucketKey> for WasmBucketKey {
-    fn from(bucket_key: BucketKey) -> Self {
-        Self(bucket_key)
+impl TryFrom<WasmBucketKey> for JsValue {
+    type Error = js_sys::Error;
+    fn try_from(bucket_key: WasmBucketKey) -> Result<Self, Self::Error> {
+        let object = Object::new();
+        Reflect::set(&object, &value!("id"), &value!(bucket_key.0.id.to_string()))?;
+        Reflect::set(
+            &object,
+            &value!("bucket_id"),
+            &value!(bucket_key.0.bucket_id.to_string()),
+        )?;
+        Reflect::set(&object, &value!("pem"), &value!(bucket_key.0.pem))?;
+        Reflect::set(&object, &value!("approved"), &value!(bucket_key.0.approved))?;
+        Ok(value!(object))
     }
 }
-#[derive(Clone)]
-pub struct WasmBucketEntry(pub(crate) FsEntryMetadata);
-impl TryFrom<WasmBucketEntry> for JsValue {
+impl TryFrom<JsValue> for WasmBucketKey {
     type Error = js_sys::Error;
-    fn try_from(fs_entry: WasmBucketEntry) -> Result<Self, Self::Error> {
+    fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
+        let object = js_value.dyn_into::<Object>()?;
+        let id = Reflect::get(&object, &value!("id"))?.as_string().unwrap();
+        let bucket_id = Reflect::get(&object, &value!("bucket_id"))?
+            .as_string()
+            .unwrap();
+        let pem = Reflect::get(&object, &value!("pem"))?.as_string().unwrap();
+        let approved = Reflect::get(&object, &value!("approved"))?
+            .as_bool()
+            .unwrap();
+        Ok(Self(BucketKey {
+            id: Uuid::parse_str(&id).expect("Invalid bucket_key UUID"),
+            bucket_id: Uuid::parse_str(&bucket_id).expect("Invalid bucket_id UUID"),
+            pem,
+            approved,
+        }))
+    }
+}
+
+impl WasmBucketKey {
+    pub fn id(&self) -> String {
+        self.0.id.to_string()
+    }
+    pub fn bucket_id(&self) -> String {
+        self.0.bucket_id.to_string()
+    }
+    pub fn pem(&self) -> String {
+        self.0.pem.clone()
+    }
+    pub fn approved(&self) -> bool {
+        self.0.approved
+    }
+}
+
+#[derive(Clone)]
+pub struct WasmNodeMetadata(pub(crate) NodeMetadata);
+impl TryFrom<WasmNodeMetadata> for JsValue {
+    type Error = js_sys::Error;
+    fn try_from(fs_entry: WasmNodeMetadata) -> Result<Self, Self::Error> {
         let object = Object::new();
         if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("created") {
             Reflect::set(
@@ -94,7 +120,139 @@ impl TryFrom<WasmBucketEntry> for JsValue {
         Ok(value!(object))
     }
 }
+impl TryFrom<JsValue> for WasmNodeMetadata {
+    type Error = js_sys::Error;
+    fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
+        let object = js_value.dyn_into::<Object>()?;
+        let created = Reflect::get(&object, &value!("created"))?.as_f64().unwrap() as i64;
+        let modified = Reflect::get(&object, &value!("modified"))?
+            .as_f64()
+            .unwrap() as i64;
+        let mut map = BTreeMap::new();
+        map.insert("created".into(), Ipld::Integer(created as i128));
+        map.insert("modified".into(), Ipld::Integer(modified as i128));
+        let metadata = NodeMetadata(map);
+        Ok(Self(metadata))
+    }
+}
 
-#[wasm_bindgen]
 /// A wrapper around a snapshot
 pub struct WasmSnapshot(pub(crate) Snapshot);
+impl TryFrom<WasmSnapshot> for JsValue {
+    type Error = js_sys::Error;
+    fn try_from(snapshot: WasmSnapshot) -> Result<Self, Self::Error> {
+        let object = Object::new();
+        Reflect::set(&object, &value!("id"), &value!(snapshot.0.id.to_string()))?;
+        Reflect::set(
+            &object,
+            &value!("bucket_id"),
+            &value!(snapshot.0.bucket_id.to_string()),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("metadata_id"),
+            &value!(snapshot.0.metadata_id.to_string()),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("created_at"),
+            &value!(snapshot.0.created_at),
+        )?;
+        Ok(value!(object))
+    }
+}
+
+#[derive(Clone)]
+pub struct WasmFsMetadataEntry(pub(crate) FsMetadataEntry);
+impl WasmFsMetadataEntry {
+    pub fn name(&self) -> String {
+        self.0.name.clone()
+    }
+    pub fn entry_type(&self) -> String {
+        match self.0.entry_type {
+            FsMetadataEntryType::File => "file".to_string(),
+            FsMetadataEntryType::Dir => "dir".to_string(),
+        }
+    }
+    pub fn metadata(&self) -> WasmNodeMetadata {
+        WasmNodeMetadata(self.0.metadata.clone())
+    }
+}
+impl TryFrom<WasmFsMetadataEntry> for JsValue {
+    type Error = js_sys::Error;
+    fn try_from(fs_entry: WasmFsMetadataEntry) -> Result<Self, Self::Error> {
+        let name = fs_entry.0.name.clone();
+        let entry_type = match fs_entry.0.entry_type {
+            FsMetadataEntryType::File => "file",
+            FsMetadataEntryType::Dir => "dir",
+        };
+        let metadata: WasmNodeMetadata = WasmNodeMetadata(fs_entry.0.metadata.clone());
+        let object = Object::new();
+        Reflect::set(&object, &value!("name"), &value!(name))?;
+        Reflect::set(&object, &value!("type"), &value!(entry_type))?;
+        Reflect::set(&object, &value!("metadata"), &JsValue::try_from(metadata)?)?;
+        Ok(value!(object))
+    }
+}
+impl TryFrom<JsValue> for WasmFsMetadataEntry {
+    type Error = js_sys::Error;
+    fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
+        let object = js_value.dyn_into::<Object>()?;
+        let name = Reflect::get(&object, &value!("name"))?.as_string().unwrap();
+        let entry_type = match Reflect::get(&object, &value!("type"))?
+            .as_string()
+            .unwrap()
+            .as_str()
+        {
+            "file" => FsMetadataEntryType::File,
+            "dir" => FsMetadataEntryType::Dir,
+            _ => panic!("Invalid FsMetadataEntryType"),
+        };
+        let metadata: WasmNodeMetadata = Reflect::get(&object, &value!("metadata"))?.try_into()?;
+        Ok(Self(FsMetadataEntry {
+            name,
+            entry_type,
+            metadata: metadata.0,
+        }))
+    }
+}
+
+pub struct WasmBucketMetadata(pub(crate) Metadata);
+
+impl TryFrom<WasmBucketMetadata> for JsValue {
+    type Error = js_sys::Error;
+    fn try_from(bucket_metadata: WasmBucketMetadata) -> Result<Self, Self::Error> {
+        let object = Object::new();
+        Reflect::set(
+            &object,
+            &value!("id"),
+            &value!(bucket_metadata.0.id.to_string()),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("bucket_id"),
+            &value!(bucket_metadata.0.bucket_id.to_string()),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("root_cid"),
+            &value!(bucket_metadata.0.root_cid),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("metadata_cid"),
+            &value!(bucket_metadata.0.metadata_cid),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("data_size"),
+            &value!(bucket_metadata.0.data_size),
+        )?;
+        Reflect::set(
+            &object,
+            &value!("state"),
+            &value!(bucket_metadata.0.state.to_string()),
+        )?;
+        Ok(value!(object))
+    }
+}
