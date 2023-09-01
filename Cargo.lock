@@ -3042,6 +3042,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pem"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3163d2912b7c3b52d651a055f2c7eec9ba5cd22d26ef75b8dd3a59980b185923"
+dependencies = [
+ "base64 0.21.3",
+ "serde",
+]
+
+[[package]]
 name = "pem-rfc7468"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4382,7 +4392,7 @@ dependencies = [
  "jwt-simple",
  "openssl",
  "openssl-hkdf",
- "pem",
+ "pem 2.0.1",
  "rand 0.8.5",
  "serde",
  "tokio",
@@ -4406,7 +4416,7 @@ dependencies = [
  "gloo 0.8.1",
  "js-sys",
  "noosphere-car",
- "pem",
+ "pem 3.0.2",
  "rand 0.8.5",
  "rc",
  "serde",
