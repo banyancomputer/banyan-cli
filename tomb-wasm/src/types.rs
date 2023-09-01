@@ -25,6 +25,7 @@ impl From<WasmBucket> for Bucket {
     }
 }
 
+#[wasm_bindgen]
 impl WasmBucket {
     pub fn name(&self) -> String {
         self.0.name.clone()
@@ -77,6 +78,7 @@ impl TryFrom<JsValue> for WasmBucketKey {
         }))
     }
 }
+
 impl WasmBucketKey {
     pub fn id(&self) -> String {
         self.0.id.to_string()

@@ -34,7 +34,8 @@ impl StorageTicket {
             .expect("Failed to export public key");
         let public_key =
             String::from_utf8(public_key_bytes).expect("Failed to convert public key to string");
-        client.call_no_content(CreateGrant {
+        client
+            .call_no_content(CreateGrant {
                 host_url: self.host.clone(),
                 bearer_token: self.authorization.clone(),
                 public_key,

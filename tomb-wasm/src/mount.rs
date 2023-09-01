@@ -368,9 +368,7 @@ impl WasmMount {
         // Map the entries back to JsValues
         let entries = fs_metadata_entries
             .iter()
-            .map(|entry| {
-                JsValue::try_from(WasmFsMetadataEntry(entry.clone())).unwrap()
-            })
+            .map(|entry| JsValue::try_from(WasmFsMetadataEntry(entry.clone())).unwrap())
             .collect::<Array>();
 
         // Ok

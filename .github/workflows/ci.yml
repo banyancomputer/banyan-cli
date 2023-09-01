@@ -31,20 +31,24 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cd tomb-common && cargo test; cd ..     
+      - run: RUST_BACKTRACE=1 && cd tomb-common && cargo test; cd ..
+  
+  # TODO: wasm tests once we don't need a remote to run them
 
-  wasm:
-    name: wasm tests 
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cd tomb-wasm && cargo install wasm-pack && wasm-pack test --headless --firefox ; cd ..
-
-  docs:
+  docs-cli:
     name: docs tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cargo test --all-features --doc
+      - run: RUST_BACKTRACE=1 && cd tomb && cargo test --all-features --doc; cd ..
+
+  docs-common:
+    name: docs tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: RUST_BACKTRACE=1 && cd tomb-common && cargo test --all-features --doc; cd ..
+
+  # TODO: wasm docs tests once we figure out how to properly run them. Right now they assume target is NOT wasm32-unknown-unknown
