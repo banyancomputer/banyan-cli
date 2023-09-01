@@ -41,7 +41,7 @@ getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = { version = "0.2.86" }
 js-sys = "0.3.64"
 futures-util = "0.3.28"
-noosphere-car = "0.2.0"
+noosphere-car = "0.3.1"
 futures = "0.3.28"
 tokio-util = { version = "0.7.8", features = ["compat"] }
 gloo = { version = "0.8.1", features = ["net"] }
