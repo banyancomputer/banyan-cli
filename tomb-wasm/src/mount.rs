@@ -1,12 +1,12 @@
 use futures_util::StreamExt;
 use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
-use tomb_common::banyan_api::models::snapshot::Snapshot;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
 use tomb_common::banyan_api::client::Client;
-use tomb_common::banyan_api::models::{bucket::Bucket, metadata::Metadata, bucket_key::BucketKey};
+use tomb_common::banyan_api::models::snapshot::Snapshot;
+use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
@@ -16,7 +16,7 @@ use wasm_bindgen::prelude::*;
 const BLOCKSTORE_API_HOST: &str = "http://localhost:3002";
 
 use crate::error::TombWasmError;
-use crate::types::{WasmBucket, WasmBucketKey, WasmFsMetadataEntry};
+use crate::types::{WasmBucket, WasmFsMetadataEntry, WasmSnapshot};
 use crate::utils::JsResult;
 
 /// Mount point for a Bucket in WASM
@@ -81,7 +81,7 @@ impl WasmMount {
             locked: false,
             dirty: true,
             append: false,
-          
+
             metadata_blockstore,
             content_blockstore,
             fs_metadata: Some(fs_metadata),
@@ -147,12 +147,9 @@ impl WasmMount {
 
     /// Refresh the current fs_metadata with the remote
     pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
-        let bucket_id = self.bucket.id.clone();
+        let bucket_id = self.bucket.id;
         // Get the metadata associated with the bucket
-        let metadata = Metadata::read_current(
-                bucket_id, 
-                &mut self.client
-            )
+        let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
             .map_err(|_| TombWasmError::unknown_error())?;
         let metadata_cid = metadata.metadata_cid.clone();
@@ -184,9 +181,17 @@ impl WasmMount {
         self.metadata = Some(metadata.to_owned());
         self.metadata_blockstore = metadata_blockstore;
         self.content_blockstore = content_blockstore;
+        self.dirty = false;
+        self.append = false;
         self.fs_metadata = None;
-        log!("tomb-wasm: mount/pull()/{} - pulled", self.bucket.id.to_string());
+        log!(
+            "tomb-wasm: mount/pull()/{} - pulled",
+            self.bucket.id.to_string()
+        );
         self.unlock(key).await.expect("could not unlock");
+        // Ok
+        Ok(())
+    }
 
     /// Sync the current fs_metadata with the remote
     pub async fn sync(&mut self) -> Result<(), TombWasmError> {
@@ -379,7 +384,7 @@ impl WasmMount {
     /// * `path_segments` - The path to ls (as an Array)
     /// # Returns
     /// The an Array of objects in the form of:
-    /// This is an instance of 
+    /// This is an instance of
     /// ```json
     /// [
     /// 0.{
@@ -607,11 +612,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not mv` - If the mv fails, such as if the path does not exist in the bucket
     /// * `Could not sync` - If the sync fails
-    pub async fn mv(
-        &mut self, 
-        from_path_segments: Array,
-        to_path_segments: Array,
-    ) -> JsResult<()> {
+    pub async fn mv(&mut self, from_path_segments: Array, to_path_segments: Array) -> JsResult<()> {
         let from_path_segments = from_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
@@ -663,10 +664,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not rm` - If the rm fails
     /// * `Could not sync` - If the sync fails
-    pub async fn rm(
-        &mut self,
-        path_segments: Array
-    ) -> JsResult<()> {
+    pub async fn rm(&mut self, path_segments: Array) -> JsResult<()> {
         let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
@@ -725,7 +723,7 @@ impl WasmMount {
         let bucket_key = BucketKey::read(bucket_id, bucket_key_id, &mut self.client)
             .await
             .expect("could not read bucket key");
-        
+
         let recipient_key = &bucket_key.pem;
         log!(
             "tomb-wasm: mount/share_with/{} - importing key",

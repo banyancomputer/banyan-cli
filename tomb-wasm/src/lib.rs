@@ -106,7 +106,7 @@ impl TombWasm {
 
     /// List the buckets for the current account
     /// # Returns
-    /// An array of WasmBuckets 
+    /// An array of WasmBuckets
     /// ```
     #[wasm_bindgen(js_name = listBuckets)]
     pub async fn list_buckets(&mut self) -> JsResult<Array> {
@@ -241,7 +241,7 @@ impl TombWasm {
     /// # Arguments
     /// * `bucket_id` - The id of the bucket to create a key for
     /// # Returns
-    /// The WasmBucketKey that was created 
+    /// The WasmBucketKey that was created
     #[wasm_bindgen(js_name = createBucketKey)]
     pub async fn create_bucket_key(&mut self, bucket_id: String) -> JsResult<WasmBucketKey> {
         log!("tomb-wasm: create_bucket_key()");

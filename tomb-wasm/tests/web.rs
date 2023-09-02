@@ -57,18 +57,6 @@ pub async fn create_bucket(
     Ok(bucket)
 }
 
-async fn create_bucket_mount() -> JsResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount()");
-    let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
-    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
-    let mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
-        .await?;
-    assert_eq!(mount.locked(), false);
-    Ok(())
-}
-
 #[wasm_bindgen_test]
 async fn get_usage() -> JsResult<()> {
     log!("tomb_wasm_test: get_usage()");
@@ -78,6 +66,21 @@ async fn get_usage() -> JsResult<()> {
     assert_eq!(usage, 0);
     let usage_limit = client.get_usage_limit().await?;
     assert_eq!(usage_limit, FIVE_TIB);
+    Ok(())
+}
+
+// TODO: probably for API tests
+
+#[wasm_bindgen_test]
+async fn mount() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
     Ok(())
 }
 
@@ -97,11 +100,7 @@ async fn share_with() -> JsResult<()> {
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert_eq!(mount.locked(), false);
-    mount
-        .share_with(
-            wasm_bucket_key.id()
-        )
-        .await?;
+    mount.share_with(wasm_bucket_key.id()).await?;
     Ok(())
 }
 
@@ -160,7 +159,6 @@ async fn mkdir_remount() -> JsResult<()> {
     assert_eq!(fs_entry.entry_type(), "dir");
     Ok(())
 }
-
 
 #[wasm_bindgen_test]
 #[should_panic]

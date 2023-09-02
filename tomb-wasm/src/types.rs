@@ -7,7 +7,6 @@ use tomb_common::{
     metadata::{FsMetadataEntry, FsMetadataEntryType},
 };
 
-use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
@@ -47,57 +46,6 @@ impl WasmBucket {
 /// Wrapper around a BucketKey
 #[wasm_bindgen]
 pub struct WasmBucketKey(pub(crate) BucketKey);
-impl TryFrom<WasmBucketKey> for JsValue {
-    type Error = js_sys::Error;
-    fn try_from(bucket_key: WasmBucketKey) -> Result<Self, Self::Error> {
-        let object = Object::new();
-        Reflect::set(&object, &value!("id"), &value!(bucket_key.0.id.to_string()))?;
-        Reflect::set(
-            &object,
-            &value!("bucket_id"),
-            &value!(bucket_key.0.bucket_id.to_string()),
-        )?;
-        Reflect::set(&object, &value!("pem"), &value!(bucket_key.0.pem))?;
-        Reflect::set(&object, &value!("approved"), &value!(bucket_key.0.approved))?;
-        Ok(value!(object))
-    }
-}
-impl TryFrom<JsValue> for WasmBucketKey {
-    type Error = js_sys::Error;
-    fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
-        let object = js_value.dyn_into::<Object>()?;
-        let id = Reflect::get(&object, &value!("id"))?.as_string().unwrap();
-        let bucket_id = Reflect::get(&object, &value!("bucket_id"))?
-            .as_string()
-            .unwrap();
-        let pem = Reflect::get(&object, &value!("pem"))?.as_string().unwrap();
-        let approved = Reflect::get(&object, &value!("approved"))?
-            .as_bool()
-            .unwrap();
-        Ok(Self(BucketKey {
-            id: Uuid::parse_str(&id).expect("Invalid bucket_key UUID"),
-            bucket_id: Uuid::parse_str(&bucket_id).expect("Invalid bucket_id UUID"),
-            pem,
-            approved,
-        }))
-    }
-}
-
-impl WasmBucketKey {
-    pub fn id(&self) -> String {
-        self.0.id.to_string()
-    }
-    pub fn bucket_id(&self) -> String {
-        self.0.bucket_id.to_string()
-    }
-    pub fn pem(&self) -> String {
-        self.0.pem.clone()
-    }
-    pub fn approved(&self) -> bool {
-        self.0.approved
-    }
-}
-
 impl From<WasmBucketKey> for BucketKey {
     fn from(wasm_bucket_key: WasmBucketKey) -> Self {
         wasm_bucket_key.0
@@ -190,7 +138,7 @@ impl WasmSnapshot {
     }
     #[wasm_bindgen(js_name = "dataSize")]
     pub fn created_at(&self) -> i64 {
-        self.0.created_at as i64
+        self.0.created_at
     }
 }
 

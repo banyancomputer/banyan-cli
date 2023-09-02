@@ -615,10 +615,7 @@ impl FsMetadata {
             .await;
         match result {
             Ok(node) => Ok(node),
-            Err(_) => Err(SerialError::NodeNotFound(
-                path_segments.join("/").to_string(),
-            )
-            .into()),
+            Err(_) => Err(SerialError::NodeNotFound(path_segments.join("/").to_string()).into()),
         }
     }
 }
