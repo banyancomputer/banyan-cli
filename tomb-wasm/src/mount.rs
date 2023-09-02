@@ -16,7 +16,7 @@ use wasm_bindgen::prelude::*;
 const BLOCKSTORE_API_HOST: &str = "http://localhost:3002";
 
 use crate::error::TombWasmError;
-use crate::types::{WasmBucket, WasmFsMetadataEntry, WasmSnapshot};
+use crate::types::{WasmBucket, WasmBucketKey, WasmFsMetadataEntry};
 use crate::utils::JsResult;
 
 /// Mount point for a Bucket in WASM
@@ -81,6 +81,7 @@ impl WasmMount {
             locked: false,
             dirty: true,
             append: false,
+          
             metadata_blockstore,
             content_blockstore,
             fs_metadata: Some(fs_metadata),
@@ -137,6 +138,7 @@ impl WasmMount {
             locked: true,
             dirty: false,
             append: false,
+
             metadata_blockstore,
             content_blockstore,
             fs_metadata: None,
@@ -185,9 +187,6 @@ impl WasmMount {
         self.fs_metadata = None;
         log!("tomb-wasm: mount/pull()/{} - pulled", self.bucket.id.to_string());
         self.unlock(key).await.expect("could not unlock");
-        // Ok
-        Ok(())
-    }
 
     /// Sync the current fs_metadata with the remote
     pub async fn sync(&mut self) -> Result<(), TombWasmError> {
@@ -380,7 +379,7 @@ impl WasmMount {
     /// * `path_segments` - The path to ls (as an Array)
     /// # Returns
     /// The an Array of objects in the form of:
-    /// This is an instance of WasmFsMetadataEntry
+    /// This is an instance of 
     /// ```json
     /// [
     /// 0.{
@@ -753,6 +752,7 @@ impl WasmMount {
         );
 
         self.sync().await.expect("could not sync");
+
         // Ok
         Ok(())
     }

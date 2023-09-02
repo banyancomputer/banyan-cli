@@ -130,6 +130,16 @@ impl TombWasm {
     /// # Arguments
     /// * `bucket_id` - The id of the bucket to list snapshots for
     /// # Returns an array WasmSnapshots
+    /// ```json
+    /// [
+    /// {
+    /// "id": "uuid",
+    /// "bucket_id": "uuid",
+    /// "metadata_id": "string",
+    /// "created_at": "string",
+    /// }
+    /// ]
+    /// ```
     #[wasm_bindgen(js_name = listBucketSnapshots)]
     pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> JsResult<Array> {
         log!("tomb-wasm: list_bucket_snapshots()");
@@ -155,6 +165,16 @@ impl TombWasm {
     /// # Arguments
     /// * `bucket_id` - The id of the bucket to list keys for
     /// # Returns an array of WasmBucketKeys in the form:
+    /// ```json
+    /// [
+    /// {
+    /// "id": "uuid",
+    /// "bucket_id": "uuid",
+    /// "pem": "string"
+    /// "approved": "bool"
+    /// }
+    /// ]
+    /// ```
     #[wasm_bindgen(js_name = listBucketKeys)]
     pub async fn list_bucket_keys(&mut self, bucket_id: String) -> JsResult<Array> {
         log!("tomb-wasm: list_bucket_keys()");
