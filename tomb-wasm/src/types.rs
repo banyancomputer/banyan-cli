@@ -6,7 +6,6 @@ use tomb_common::{
     banyan_api::models::{bucket::*, bucket_key::*, metadata::*, snapshot::*},
     metadata::{FsMetadataEntry, FsMetadataEntryType},
 };
-use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
@@ -24,15 +23,16 @@ impl From<WasmBucket> for Bucket {
         wasm_bucket.0
     }
 }
-
 #[wasm_bindgen]
 impl WasmBucket {
     pub fn name(&self) -> String {
         self.0.name.clone()
     }
+    #[wasm_bindgen(js_name = "storageClass")]
     pub fn storage_class(&self) -> String {
         self.0.storage_class.clone().to_string()
     }
+    #[wasm_bindgen(js_name = "bucketType")]
     pub fn bucket_type(&self) -> String {
         self.0.r#type.clone().to_string()
     }
@@ -42,47 +42,24 @@ impl WasmBucket {
 }
 
 /// Wrapper around a BucketKey
+#[wasm_bindgen]
 pub struct WasmBucketKey(pub(crate) BucketKey);
-impl TryFrom<WasmBucketKey> for JsValue {
-    type Error = js_sys::Error;
-    fn try_from(bucket_key: WasmBucketKey) -> Result<Self, Self::Error> {
-        let object = Object::new();
-        Reflect::set(&object, &value!("id"), &value!(bucket_key.0.id.to_string()))?;
-        Reflect::set(
-            &object,
-            &value!("bucket_id"),
-            &value!(bucket_key.0.bucket_id.to_string()),
-        )?;
-        Reflect::set(&object, &value!("pem"), &value!(bucket_key.0.pem))?;
-        Reflect::set(&object, &value!("approved"), &value!(bucket_key.0.approved))?;
-        Ok(value!(object))
+impl From<BucketKey> for WasmBucketKey {
+    fn from(bucket_key: BucketKey) -> Self {
+        Self(bucket_key)
     }
 }
-impl TryFrom<JsValue> for WasmBucketKey {
-    type Error = js_sys::Error;
-    fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
-        let object = js_value.dyn_into::<Object>()?;
-        let id = Reflect::get(&object, &value!("id"))?.as_string().unwrap();
-        let bucket_id = Reflect::get(&object, &value!("bucket_id"))?
-            .as_string()
-            .unwrap();
-        let pem = Reflect::get(&object, &value!("pem"))?.as_string().unwrap();
-        let approved = Reflect::get(&object, &value!("approved"))?
-            .as_bool()
-            .unwrap();
-        Ok(Self(BucketKey {
-            id: Uuid::parse_str(&id).expect("Invalid bucket_key UUID"),
-            bucket_id: Uuid::parse_str(&bucket_id).expect("Invalid bucket_id UUID"),
-            pem,
-            approved,
-        }))
+impl From<WasmBucketKey> for BucketKey {
+    fn from(wasm_bucket_key: WasmBucketKey) -> Self {
+        wasm_bucket_key.0
     }
 }
-
+#[wasm_bindgen]
 impl WasmBucketKey {
     pub fn id(&self) -> String {
         self.0.id.to_string()
     }
+    #[wasm_bindgen(js_name = "bucketId")]
     pub fn bucket_id(&self) -> String {
         self.0.bucket_id.to_string()
     }
@@ -137,33 +114,51 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
 }
 
 /// A wrapper around a snapshot
+#[wasm_bindgen]
 pub struct WasmSnapshot(pub(crate) Snapshot);
-impl TryFrom<WasmSnapshot> for JsValue {
-    type Error = js_sys::Error;
-    fn try_from(snapshot: WasmSnapshot) -> Result<Self, Self::Error> {
-        let object = Object::new();
-        Reflect::set(&object, &value!("id"), &value!(snapshot.0.id.to_string()))?;
-        Reflect::set(
-            &object,
-            &value!("bucket_id"),
-            &value!(snapshot.0.bucket_id.to_string()),
-        )?;
-        Reflect::set(
-            &object,
-            &value!("metadata_id"),
-            &value!(snapshot.0.metadata_id.to_string()),
-        )?;
-        Reflect::set(
-            &object,
-            &value!("created_at"),
-            &value!(snapshot.0.created_at),
-        )?;
-        Ok(value!(object))
+impl From<Snapshot> for WasmSnapshot {
+    fn from(snapshot: Snapshot) -> Self {
+        Self(snapshot)
+    }
+}
+impl From<WasmSnapshot> for Snapshot {
+    fn from(wasm_snapshot: WasmSnapshot) -> Self {
+        wasm_snapshot.0
+    }
+}
+#[wasm_bindgen]
+impl WasmSnapshot {
+    pub fn id(&self) -> String {
+        self.0.id.clone().to_string()
+    }
+    #[wasm_bindgen(js_name = "bucketId")]
+    pub fn bucket_id(&self) -> String {
+        self.0.bucket_id.clone().to_string()
+    }
+    #[wasm_bindgen(js_name = "metadataId")]
+    pub fn metadata_id(&self) -> String {
+        self.0.metadata_id.clone().to_string()
+    }
+    #[wasm_bindgen(js_name = "dataSize")]
+    pub fn created_at(&self) -> i64 {
+        self.0.created_at as i64
     }
 }
 
+// TODO: Remove stubs
+// TODO: Proper wasm bindings
 #[derive(Clone)]
 pub struct WasmFsMetadataEntry(pub(crate) FsMetadataEntry);
+impl From<FsMetadataEntry> for WasmFsMetadataEntry {
+    fn from(fs_metadata_entry: FsMetadataEntry) -> Self {
+        Self(fs_metadata_entry)
+    }
+}
+impl From<WasmFsMetadataEntry> for FsMetadataEntry {
+    fn from(wasm_fs_metadata_entry: WasmFsMetadataEntry) -> Self {
+        wasm_fs_metadata_entry.0
+    }
+}
 impl WasmFsMetadataEntry {
     pub fn name(&self) -> String {
         self.0.name.clone()
@@ -217,6 +212,7 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
     }
 }
 
+/// A wrapper around a bucket metadata
 pub struct WasmBucketMetadata(pub(crate) Metadata);
 
 impl TryFrom<WasmBucketMetadata> for JsValue {
