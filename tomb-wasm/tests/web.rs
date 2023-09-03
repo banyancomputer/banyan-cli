@@ -58,7 +58,21 @@ pub async fn create_bucket(
 }
 
 #[wasm_bindgen_test]
-async fn create_bucket_mount() -> JsResult<()> {
+async fn get_usage() -> JsResult<()> {
+    log!("tomb_wasm_test: get_usage()");
+    let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let mut client = authenticated_client().await?;
+    let usage = client.get_usage().await?;
+    assert_eq!(usage, 0);
+    let usage_limit = client.get_usage_limit().await?;
+    assert_eq!(usage_limit, FIVE_TIB);
+    Ok(())
+}
+
+// TODO: probably for API tests
+
+#[wasm_bindgen_test]
+async fn mount() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket_mount()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -71,7 +85,7 @@ async fn create_bucket_mount() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn create_bucket_mount_share_with() -> JsResult<()> {
+async fn share_with() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_share_with()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -79,26 +93,19 @@ async fn create_bucket_mount_share_with() -> JsResult<()> {
     let wasm_bucket_key: WasmBucketKey = client
         .create_bucket_key(bucket.id().to_string())
         .await?
-        .try_into()
-        .expect("try_into failed wasm_bucket_key from js_value");
+        .into();
     assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
     assert_eq!(wasm_bucket_key.approved(), false);
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert_eq!(mount.locked(), false);
-    mount
-        .share_with(
-            wasm_bucket_key
-                .try_into()
-                .expect("try_into failed wasm_bucket_key into js_value"),
-        )
-        .await?;
+    mount.share_with(wasm_bucket_key.id()).await?;
     Ok(())
 }
 
 #[wasm_bindgen_test]
-async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
+async fn mkdir() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -120,31 +127,7 @@ async fn create_bucket_mount_mkdir_ls() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn create_bucket_mount_add_ls() -> JsResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
-    let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
-    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
-    let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
-        .await?;
-    assert_eq!(mount.locked(), false);
-    let add_path_array: Array = js_array(&["zero.bin"]).into();
-    let ls_path_array: Array = js_array(&[]).into();
-    let zero_content_buffer = Uint8Array::new_with_length(10);
-    let zero_content_array_buffer = zero_content_buffer.buffer();
-    mount.add(add_path_array, zero_content_array_buffer).await?;
-    let ls: Array = mount.ls(ls_path_array).await?;
-    assert_eq!(ls.length(), 1);
-    let ls_0 = ls.get(0);
-    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-    assert_eq!(fs_entry.name(), "zero.bin");
-    assert_eq!(fs_entry.entry_type(), "file");
-    Ok(())
-}
-
-#[wasm_bindgen_test]
-async fn create_bucket_mount_mkdir_ls_remount_ls() -> JsResult<()> {
+async fn mkdir_remount() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -178,7 +161,33 @@ async fn create_bucket_mount_mkdir_ls_remount_ls() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn create_bucket_mount_add_ls_remount_ls() -> JsResult<()> {
+#[should_panic]
+async fn add() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+#[should_panic]
+async fn add_remount() -> JsResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -214,14 +223,57 @@ async fn create_bucket_mount_add_ls_remount_ls() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn get_usage() -> JsResult<()> {
-    log!("tomb_wasm_test: get_usage()");
-    let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+#[should_panic]
+async fn add_rm() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_add_rm()");
     let mut client = authenticated_client().await?;
-    let usage = client.get_usage().await?;
-    assert_eq!(usage, 0);
-    let usage_limit = client.get_usage_limit().await?;
-    assert_eq!(usage_limit, FIVE_TIB);
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
+    let rm_path_array: Array = js_array(&["zero.bin"]).into();
+    mount.rm(rm_path_array).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 0);
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+#[should_panic]
+async fn add_mv() -> JsResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_add_mv()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert_eq!(mount.locked(), false);
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
+    let mv_from_path_array: Array = js_array(&["zero.bin"]).into();
+    let mv_to_path_array: Array = js_array(&["zero-renamed.bin"]).into();
+    mount.mv(mv_from_path_array, mv_to_path_array).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero-renamed.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
 

@@ -38,7 +38,6 @@ impl BlockStore for BanyanApiBlockStore {
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
-
         Ok(Cow::Owned(data))
     }
 }

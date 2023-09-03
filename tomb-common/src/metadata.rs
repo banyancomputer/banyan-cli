@@ -472,6 +472,41 @@ impl FsMetadata {
         Ok(transformed_entries)
     }
 
+    /// Mv
+    pub async fn mv(
+        &mut self,
+        src_path_segments: Vec<String>,
+        dest_path_segments: Vec<String>,
+        store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        // Search through the PrivateDirectory for a Node that matches the path provided
+        let result = self
+            .root_dir
+            .get_node(&src_path_segments, true, &self.metadata_forest, store)
+            .await;
+
+        if let Ok(node) = result && node.is_some() {
+            // Create the subdirectory
+            self.root_dir
+                .basic_mv(
+                    &src_path_segments,
+                    &dest_path_segments,
+                    true,
+                    Utc::now(),
+                    &mut self.metadata_forest,
+                    store,
+                    &mut thread_rng(),
+                )
+                .await?;
+        } else {
+            return Err(SerialError::NodeNotFound(
+                src_path_segments.join("/").to_string(),
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn add(
         &mut self,
@@ -511,6 +546,37 @@ impl FsMetadata {
         Ok(())
     }
 
+    /// Rm a file or directory
+    pub async fn rm(
+        &mut self,
+        path_segments: Vec<String>,
+        store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        // Search through the PrivateDirectory for a Node that matches the path provided
+        let result = self
+            .root_dir
+            .get_node(&path_segments, true, &self.metadata_forest, store)
+            .await;
+
+        if let Ok(node) = result && node.is_some() {
+            // Create the subdirectory
+            self.root_dir
+                .rm(
+                    &path_segments,
+                    true,
+                    &self.metadata_forest,
+                    store,
+                )
+                .await?;
+        } else {
+            return Err(SerialError::NodeNotFound(
+                path_segments.join("/").to_string(),
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn read(
         &mut self,
@@ -533,6 +599,23 @@ impl FsMetadata {
                 Ok(content)
             }
             _ => Err(SerialError::NodeNotFound(path_segments.join("/").to_string()).into()),
+        }
+    }
+
+    /// Get a node from the Fs
+    pub async fn get_node(
+        &mut self,
+        path_segments: Vec<String>,
+        store: &impl RootedBlockStore,
+    ) -> Result<Option<PrivateNode>> {
+        // Search through the PrivateDirectory for a Node that matches the path provided
+        let result = self
+            .root_dir
+            .get_node(&path_segments, true, &self.metadata_forest, store)
+            .await;
+        match result {
+            Ok(node) => Ok(node),
+            Err(_) => Err(SerialError::NodeNotFound(path_segments.join("/").to_string()).into()),
         }
     }
 }
