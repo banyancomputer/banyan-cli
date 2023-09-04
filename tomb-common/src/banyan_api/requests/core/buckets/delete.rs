@@ -13,10 +13,7 @@ pub struct DeleteBucket {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DeleteBucketResponse {
-    pub id: Uuid,
-    pub name: String,
-}
+pub struct DeleteBucketResponse {}
 
 impl ApiRequest for DeleteBucket {
     type ResponseType = DeleteBucketResponse;

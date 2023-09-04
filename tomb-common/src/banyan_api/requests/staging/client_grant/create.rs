@@ -18,11 +18,8 @@ struct CreateGrantData {
     pub public_key: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct CreateGrantResponse {}
-
 impl ApiRequest for CreateGrant {
-    type ResponseType = CreateGrantResponse;
+    type ResponseType = ();
     type ErrorType = CreateGrantError;
 
     fn build_request(self, _base_url: &Url, client: &Client) -> RequestBuilder {
@@ -45,27 +42,14 @@ impl ApiRequest for CreateGrant {
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 pub struct CreateGrantError {
-    #[serde(rename = "error")]
-    kind: CreateGrantErrorKind,
+    #[serde(rename = "msg")]
+    message: String,
 }
 
 impl Display for CreateGrantError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use CreateGrantErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(self.message.as_str())
     }
 }
 
 impl Error for CreateGrantError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum CreateGrantErrorKind {
-    Unknown,
-}
