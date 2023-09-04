@@ -17,7 +17,7 @@ chrono = { workspace = true }
 unsigned-varint = "0.7.1"
 async-trait = "0.1.68"
 reqwest = { workspace = true } 
-thiserror = "1.0.40"
+thiserror = "1.0.48"
 wasm-bindgen = "0.2.86"
 hex = "0.4.3"
 sha2 = "0.10.7"
