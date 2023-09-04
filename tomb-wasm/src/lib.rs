@@ -267,15 +267,15 @@ impl TombWasm {
     /// * `bucket_id` - The id of the bucket to delete
     /// # Returns the id of the bucket that was deleted
     #[wasm_bindgen(js_name = deleteBucket)]
-    pub async fn delete_bucket(&mut self, bucket_id: String) -> JsResult<String> {
+    pub async fn delete_bucket(&mut self, bucket_id: String) -> JsResult<()> {
         log!("tomb-wasm: delete_bucket()");
         // Parse the bucket id
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
         // Call the API
-        let response = Bucket::delete_by_id(self.client(), bucket_id)
+        Bucket::delete_by_id(self.client(), bucket_id)
             .await
             .map_err(|_| TombWasmError::unknown_error())?;
-        Ok(response)
+        Ok(())
     }
 
     /* Bucket Mounting interface */
