@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::banyan_api::models::bucket::{BucketType, StorageClass};
-use crate::banyan_api::requests::buckets::keys::create::CreateBucketKeyResponse;
+use crate::banyan_api::requests::core::buckets::keys::create::CreateBucketKeyResponse;
 use crate::banyan_api::requests::ApiRequest;
 
 #[derive(Debug, Serialize)]

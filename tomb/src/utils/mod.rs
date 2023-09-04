@@ -13,5 +13,5 @@ pub mod spider;
 pub mod test;
 ///Utils specific to the Unpack pipeline
 pub mod unpack;
-/// This module contains WNFS IO fns
+/// Native utils for working with files
 pub mod wnfsio;

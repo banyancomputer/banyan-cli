@@ -10,7 +10,6 @@ pub mod types;
 /// Misc utilities
 pub mod utils;
 
-use std::collections::HashMap;
 use std::convert::From;
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -23,16 +22,18 @@ use web_sys::CryptoKey;
 
 use tomb_common::banyan_api::client::{Client, Credentials};
 use tomb_common::banyan_api::models::account::Account;
-use tomb_common::banyan_api::models::bucket::{Bucket, BucketType, StorageClass};
+use tomb_common::banyan_api::models::{
+    bucket::{Bucket, BucketType, StorageClass},
+    bucket_key::*,
+};
 use tomb_crypt::prelude::*;
 use web_sys::CryptoKeyPair;
 
 use crate::error::TombWasmError;
 use crate::mount::WasmMount;
-use crate::types::WasmBucket;
+use crate::types::*;
 use crate::utils::{set_panic_hook, JsResult};
 
-// #[derive(Debug)]
 #[wasm_bindgen]
 pub struct TombWasm(pub(crate) Client);
 
@@ -40,9 +41,15 @@ pub struct TombWasm(pub(crate) Client);
 /// TombWasm exposes the functionality of Tomb in a WASM module
 impl TombWasm {
     // Note: Have to include this here so we can read the API key from the JS CryptoKey
-    #[cfg(target_arch = "wasm32")]
     #[wasm_bindgen(constructor)]
     /// Create a new TombWasm instance
+    /// # Arguments
+    /// * `web_signing_key` - The CryptoKeyPair to use for signing requests
+    /// * `account_id` - The id of the account to use
+    /// * `api_endpoint` - The API endpoint to use
+    /// # Returns
+    /// A new TombWasm instance
+    /// Don't call it from multiple threads in parallel!
     pub fn new(web_signing_key: CryptoKeyPair, account_id: String, api_endpoint: String) -> Self {
         set_panic_hook();
         log!("tomb-wasm: new()");
@@ -74,7 +81,7 @@ impl TombWasm {
      * Top level API Interface
      */
 
-    /// Get the Total Usage for the current account
+    /// Get the Total Usage for the current account, accounting for all buckets
     /// # Returns
     /// The total storage used by the account, in bytes
     #[wasm_bindgen(js_name = getUsage)]
@@ -100,17 +107,9 @@ impl TombWasm {
 
     /// List the buckets for the current account
     /// # Returns
-    /// An array of buckets of the form:
-    /// ```json
-    /// [
-    ///   {
-    ///    "id": "uuid",
-    ///    "name": "string"
-    ///   "type": "string",
-    ///  "storage_class": "string",
-    ///   }
-    /// ]
+    /// An array of WasmBuckets
     /// ```
+    #[wasm_bindgen(js_name = listBuckets)]
     pub async fn list_buckets(&mut self) -> JsResult<Array> {
         log!("tomb-wasm: list_buckets()");
         let buckets = Bucket::read_all(self.client())
@@ -128,6 +127,76 @@ impl TombWasm {
         Ok(buckets)
     }
 
+    /// List bucket snapshots for a bucket
+    /// # Arguments
+    /// * `bucket_id` - The id of the bucket to list snapshots for
+    /// # Returns an array WasmSnapshots
+    /// ```json
+    /// [
+    /// {
+    /// "id": "uuid",
+    /// "bucket_id": "uuid",
+    /// "metadata_id": "string",
+    /// "created_at": "string",
+    /// }
+    /// ]
+    /// ```
+    #[wasm_bindgen(js_name = listBucketSnapshots)]
+    pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> JsResult<Array> {
+        log!("tomb-wasm: list_bucket_snapshots()");
+        // Parse the bucket id
+        let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+        // Call the API
+        let snapshots = Bucket::list_snapshots_by_bucket_id(self.client(), bucket_id)
+            .await
+            .map_err(|_| TombWasmError::unknown_error())?;
+        // Convert the snapshots
+        let snapshots = snapshots
+            .iter()
+            .map(|snapshot| {
+                let wasm_snapshot = WasmSnapshot(snapshot.clone());
+                JsValue::try_from(wasm_snapshot).expect("Failed to convert snapshot to JsValue")
+            })
+            .collect::<Array>();
+        // Ok
+        Ok(snapshots)
+    }
+
+    /// List bucket keys for a bucket
+    /// # Arguments
+    /// * `bucket_id` - The id of the bucket to list keys for
+    /// # Returns an array of WasmBucketKeys in the form:
+    /// ```json
+    /// [
+    /// {
+    /// "id": "uuid",
+    /// "bucket_id": "uuid",
+    /// "pem": "string"
+    /// "approved": "bool"
+    /// }
+    /// ]
+    /// ```
+    #[wasm_bindgen(js_name = listBucketKeys)]
+    pub async fn list_bucket_keys(&mut self, bucket_id: String) -> JsResult<Array> {
+        log!("tomb-wasm: list_bucket_keys()");
+        // Parse the bucket id
+        let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+        // Call the API
+        let keys = BucketKey::read_all(bucket_id, self.client())
+            .await
+            .map_err(|_| TombWasmError::unknown_error())?;
+        // Convert the keys
+        let keys = keys
+            .iter()
+            .map(|key| {
+                let wasm_key = WasmBucketKey(key.clone());
+                JsValue::try_from(wasm_key).expect("Failed to convert key to JsValue")
+            })
+            .collect::<Array>();
+        // Ok
+        Ok(keys)
+    }
+
     /// Create a new bucket
     /// # Arguments
     /// * `name` - The name of the bucket to create
@@ -135,7 +204,7 @@ impl TombWasm {
     /// * `bucket_type` - The type of the bucket to create
     /// * `encryption_key` - The encryption key to use for the bucket
     /// # Returns
-    /// The bucket that was created
+    /// The bucket's metadata as a WasmBucket
     /// ```json
     /// {
     /// "id": "uuid",
@@ -159,16 +228,39 @@ impl TombWasm {
         let pem_bytes = key.export().await.expect("Failed to export wrapping key");
         let pem = String::from_utf8(pem_bytes).expect("Failed to encode pem");
         // Call the API
-        let (bucket, bucket_key) =
+        let (bucket, _bucket_key) =
             Bucket::create(name, pem, bucket_type, storage_class, self.client())
                 .await
                 .expect("Failed to create bucket");
-
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
-
         // Ok
         Ok(wasm_bucket)
+    }
+
+    /// Create a bucket key for a bucket
+    /// # Arguments
+    /// * `bucket_id` - The id of the bucket to create a key for
+    /// # Returns
+    /// The WasmBucketKey that was created
+    #[wasm_bindgen(js_name = createBucketKey)]
+    pub async fn create_bucket_key(&mut self, bucket_id: String) -> JsResult<WasmBucketKey> {
+        log!("tomb-wasm: create_bucket_key()");
+        let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+        // Load the EcEncryptionKey
+        let key = EcEncryptionKey::generate()
+            .await
+            .expect("Failed to generate key");
+        let key = key.public_key().expect("Failed to get public key");
+        let pem = String::from_utf8(key.export().await.unwrap()).unwrap();
+        // Call the API
+        let bucket_key = BucketKey::create(bucket_id, pem, self.client())
+            .await
+            .map_err(|_| TombWasmError::unknown_error())?;
+        // Convert the bucket key
+        let wasm_bucket_key = WasmBucketKey(bucket_key);
+        // Ok
+        Ok(wasm_bucket_key)
     }
 
     /// Delete a bucket
@@ -189,30 +281,58 @@ impl TombWasm {
 
     /* Bucket Mounting interface */
 
-    /// Initialize a bucket by id. Returns a mount object
+    /// Mount a bucket as a File System that can be managed by the user
     /// # Arguments
     /// * bucket_id - The id of the bucket to mount
-    #[wasm_bindgen(js_name = load)]
+    /// * key - The key to use to mount the bucket. This should be the crypto key pair that was used to create the bucket
+    ///         or that has access to the bucket
+    /// # Returns
+    /// A WasmMount instance
+    #[wasm_bindgen(js_name = mount)]
     pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> JsResult<WasmMount> {
-        log!("tomb-wasm: mount / {}", &bucket_id);
+        log!(format!("tomb-wasm: mount / {}", &bucket_id));
         // Parse the bucket id
-        let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+        let bucket_id_uuid = Uuid::parse_str(&bucket_id).unwrap();
+        log!(format!(
+            "tomb-wasm: mount / {} / reading key pair",
+            &bucket_id
+        ));
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::from(key);
+        log!(format!(
+            "tomb-wasm: mount / {} / reading bucket",
+            &bucket_id
+        ));
         // Load the bucket
-        let bucket: WasmBucket = Bucket::read(self.client(), bucket_id)
+        let bucket: WasmBucket = Bucket::read(self.client(), bucket_id_uuid)
             .await
             .map_err(|_| TombWasmError::unknown_error())?
             .into();
+        log!(format!("tomb-wasm: mount / {} / pulling mount", &bucket_id));
         // Get the bucket id
         // Try to pull the mount. Otherwise create it and push an initial piece of metadata
         let mount = match WasmMount::pull(bucket.clone(), self.client()).await {
-            Ok(mount) => mount.unlock(&key).await?,
-            Err(_) => {
-                // Create the mount and push an initial piece of metadata
-                let mut mount = WasmMount::new(bucket.clone(), &key, self.client()).await?;
+            Ok(mut mount) => {
+                log!(format!(
+                    "tomb-wasm: mount / {} / pulled mount, unlocking",
+                    &bucket_id
+                ));
+                // Unlock the mount
+                mount.unlock(&key).await?;
+                log!(format!(
+                    "tomb-wasm: mount / {} / unlocked mount",
+                    &bucket_id
+                ));
                 // Ok
                 mount
+            }
+            Err(_) => {
+                log!(format!(
+                    "tomb-wasm: mount / {} / failed to pull mount, creating",
+                    &bucket_id
+                ));
+                // Create the mount and push an initial piece of metadata
+                WasmMount::new(bucket.clone(), &key, self.client()).await?
             }
         };
         // Ok

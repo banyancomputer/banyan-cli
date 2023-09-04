@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
-    requests::buckets::keys::{approve::*, create::*, delete::*, read::*, reject::*},
+    requests::core::buckets::keys::{read::*, create::*, delete::*, approve::*, reject::*},
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

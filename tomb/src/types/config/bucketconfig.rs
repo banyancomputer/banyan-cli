@@ -121,16 +121,17 @@ impl BucketConfig {
     /// Shortcut for serialize::store_all
     pub async fn set_all(
         &self,
-        metadata_forest: &mut Rc<PrivateForest>,
-        content_forest: &mut Rc<PrivateForest>,
+        metadata_forest: &Rc<PrivateForest>,
+        content_forest: &Rc<PrivateForest>,
         root_dir: &Rc<PrivateDirectory>,
-        share_manager: &mut ShareManager,
+        share_manager: &ShareManager,
     ) -> Result<()> {
         let mut fs_metadata = FsMetadata {
             metadata_forest: metadata_forest.clone(),
             content_forest: content_forest.clone(),
             root_dir: root_dir.clone(),
             share_manager: share_manager.clone(),
+            metadata: None,
         };
         fs_metadata.save(&self.metadata, &self.content).await?;
         Ok(())

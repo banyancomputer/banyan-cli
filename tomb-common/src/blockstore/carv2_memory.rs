@@ -37,9 +37,17 @@ impl CarV2MemoryBlockStore {
         Ok(Self { data, car })
     }
 
-    /// Get the underlying data as bytes
+    /// Get a reader to the data underlying the CarV2
     pub fn get_data(&self) -> Vec<u8> {
-        self.data.borrow().clone()
+        let mut vec = self.data.borrow_mut();
+        let mut rw = Cursor::new(&mut *vec);
+        self.car.write_bytes(&mut rw).unwrap();
+        rw.into_inner().clone()
+    }
+
+    /// Get the size of the data underlying the CarV1
+    pub fn data_size(&self) -> u64 {
+        self.car.data_size()
     }
 }
 
@@ -72,8 +80,4 @@ impl RootedBlockStore for CarV2MemoryBlockStore {
     fn set_root(&self, root: &Cid) {
         self.car.set_root(root)
     }
-
-    // async fn update_block(&self, _: &Cid, _: Vec<u8>, _: IpldCodec) -> Result<Cid, anyhow::Error> {
-    //     panic!("update block deprecated / not implemented")
-    // }
 }

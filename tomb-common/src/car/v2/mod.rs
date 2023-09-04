@@ -11,6 +11,7 @@ use crate::car::v1::{block::Block, CarV1};
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 use std::{
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
@@ -35,6 +36,11 @@ pub struct CarV2 {
 }
 
 impl CarV2 {
+    /// Return the data size specified by the CarV2 Header
+    pub fn data_size(&self) -> u64 {
+        self.header.borrow().data_size
+    }
+
     /// Load in the CarV2
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
@@ -87,6 +93,17 @@ impl CarV2 {
         // Flush the writer
         rw.flush()?;
         Ok(())
+    }
+
+    /// Export the CarV2 as bytes to a Vec<u8>
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        // Create a new vec
+        let vec = Vec::new();
+        // Read everything in the car to the vec
+        let mut rw = Cursor::new(vec);
+        self.write_bytes(&mut rw)?;
+        // Return the vec
+        Ok(rw.into_inner())
     }
 
     /// Ensure the validity of the CarV2 PRAGMA in a given stream

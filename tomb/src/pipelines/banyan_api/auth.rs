@@ -2,8 +2,8 @@ use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalCon
 use anyhow::Result;
 use tomb_common::banyan_api::{
     client::Credentials,
-    models::account::Account,
-    requests::auth::fake_account::create::{CreateAccount, CreateAccountResponse},
+    models::account::Account, 
+    requests::core::auth::fake_account::create::{CreateAccount, CreateAccountResponse},
 };
 use tomb_crypt::prelude::{EcSignatureKey, PrivateKey, PublicKey};
 

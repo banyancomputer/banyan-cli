@@ -22,9 +22,10 @@ mod test {
         utils::{
             spider::path_to_segments,
             test::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
-            wnfsio::{self, decompress_bytes},
         },
     };
+    use tomb_common::utils::wnfsio::decompress_bytes;
+
     use anyhow::Result;
     use dir_assert::assert_paths;
     use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
@@ -441,7 +442,7 @@ mod test {
             .get_content(content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
-        wnfsio::decompress_bytes(
+        decompress_bytes(
             current_content.as_slice(),
             &mut current_content_decompressed,
         )?;
@@ -471,7 +472,7 @@ mod test {
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
-        wnfsio::decompress_bytes(
+        decompress_bytes(
             previous_content.as_slice(),
             &mut previous_content_decompressed,
         )?;
@@ -498,7 +499,7 @@ mod test {
             .await
             .expect("failed to retrieve file content");
         let mut original_content_decompressed: Vec<u8> = Vec::new();
-        wnfsio::decompress_bytes(
+        decompress_bytes(
             original_content.as_slice(),
             &mut original_content_decompressed,
         )?;
@@ -560,7 +561,7 @@ mod test {
             .get_content(content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
-        wnfsio::decompress_bytes(
+        decompress_bytes(
             current_content.as_slice(),
             &mut current_content_decompressed,
         )?;
@@ -590,7 +591,7 @@ mod test {
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
-        wnfsio::decompress_bytes(
+        decompress_bytes(
             previous_content.as_slice(),
             &mut previous_content_decompressed,
         )?;
@@ -611,7 +612,6 @@ mod test {
             .await
             .expect("cannot traverse history iterator")
             .is_none());
-        println!("erg");
         Ok(())
     }
 

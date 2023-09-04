@@ -1,52 +1,13 @@
-use std::{
-    fs::File,
-    io::{BufReader, Read, Write},
-    os::unix::fs::symlink,
-    path::Path,
-    rc::Rc,
-};
+use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path, rc::Rc};
 
-use crate::{pipelines::error::PipelineError, types::shared::CompressionScheme};
+use crate::pipelines::error::PipelineError;
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio as _;
+use tomb_common::utils::wnfsio::decompress_bytes;
 use wnfs::{
-    common::BlockStore as WnfsBlockStore,
+    common::BlockStore,
     private::{PrivateFile, PrivateForest},
 };
-
-/// Compresses bytes
-pub fn compress_bytes<R, W>(reader: R, writer: W) -> Result<()>
-where
-    R: Read,
-    W: Write,
-{
-    Ok(CompressionScheme::new_zstd().encode(reader, writer)?)
-}
-
-/// Decompresses bytes
-pub fn decompress_bytes<R, W>(reader: R, writer: W) -> Result<()>
-where
-    R: Read,
-    W: Write,
-{
-    Ok(CompressionScheme::new_zstd().decode(reader, writer)?)
-}
-
-/// Compress the contents of a file at a given path
-pub fn compress_file(path: &Path) -> Result<Vec<u8>> {
-    println!("compressing file! {}", path.display());
-    // Open the original file (just the first one!)
-    let file = File::open(path)?;
-    // Create a reader for the original file
-    let reader = BufReader::new(file);
-    // Create a buffer to hold the compressed bytes
-    let mut compressed: Vec<u8> = vec![];
-    // Compress the chunk before feeding it to WNFS
-    compress_bytes(reader, &mut compressed)?;
-    // Return compressed bytes
-    Ok(compressed)
-}
 
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
 pub async fn file_to_disk(
@@ -54,7 +15,7 @@ pub async fn file_to_disk(
     output_dir: &Path,
     file_path: &Path,
     content_forest: &PrivateForest,
-    content: &impl WnfsBlockStore,
+    content: &impl BlockStore,
 ) -> Result<(), PipelineError> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {
