@@ -2,9 +2,10 @@ use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
-    rc::Rc, fmt::Display,
+    rc::Rc,
 };
 use tomb_common::{
     blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
@@ -57,7 +58,12 @@ pub struct BucketConfig {
 
 impl Display for BucketConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("\n| LOCAL BUCKET INFO |\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{:?}" , self.origin.display(), self.local_id, self.remote_id))
+        f.write_fmt(format_args!(
+            "\n| LOCAL BUCKET INFO |\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{:?}",
+            self.origin.display(),
+            self.local_id,
+            self.remote_id
+        ))
     }
 }
 
@@ -181,7 +187,7 @@ mod test {
         let mut config = global.get_or_create_bucket(origin).await?;
 
         let rng = &mut thread_rng();
-        let (mut metadata_forest, mut content_forest, mut root_dir, mut share_manager) =
+        let (mut metadata_forest, mut content_forest, mut root_dir, share_manager) =
             config.get_all(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
         let file = root_dir
@@ -206,10 +212,10 @@ mod test {
 
         config
             .set_all(
-                &mut metadata_forest,
-                &mut content_forest,
+                &metadata_forest,
+                &content_forest,
                 &root_dir,
-                &mut share_manager,
+                &share_manager,
             )
             .await?;
 

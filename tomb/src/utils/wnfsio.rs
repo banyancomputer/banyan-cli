@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path, rc::Rc};
 
-use crate::pipelines::error::PipelineError;
+use crate::pipelines::error::TombError;
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use tomb_common::utils::wnfsio::decompress_bytes;
@@ -16,7 +16,7 @@ pub async fn file_to_disk(
     file_path: &Path,
     content_forest: &PrivateForest,
     content: &impl BlockStore,
-) -> Result<(), PipelineError> {
+) -> Result<(), TombError> {
     // If this file is a symlink
     if let Some(path) = file.symlink_origin() {
         // Write out the symlink
@@ -35,7 +35,7 @@ pub async fn file_to_disk(
         output_file.write_all(&decompressed_buf)?;
         Ok(())
     } else {
-        Err(PipelineError::file_missing_error(file_path.to_path_buf()))
+        Err(TombError::file_missing_error(file_path.to_path_buf()))
     }
 }
 

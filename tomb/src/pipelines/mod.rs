@@ -284,7 +284,7 @@ mod test {
     async fn deduplication_integrity() -> Result<()> {
         let test_name = "deduplication_integrity";
         // Setup the test
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
         let dup_origin = &origin.parent().expect("origin has no parent").join("dups");
         let original = &dup_origin.join("original");
         let duplicate = &dup_origin.join("duplicate");
@@ -397,7 +397,7 @@ mod test {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
-        let (origin, bucket_specifier) = &test_setup_structured(test_name, structure).await?;
+        let (origin, _) = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0").join("0");
@@ -524,7 +524,7 @@ mod test {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
         // Setup the test once
-        let (origin, bucket_specifier) = &test_setup_structured(test_name, structure).await?;
+        let (origin, _) = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0");
@@ -623,7 +623,7 @@ mod test {
         let test_name = "symlinks";
 
         // Setup the test
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
 
         // Path in which Directory symlink will be created
         // let sym_dir_root = test_path.join("input").join("symlinks");

@@ -43,7 +43,7 @@ pub enum AuthSubCommand {
 
 /// Unified way of specifying a Bucket
 #[derive(Debug, Clone, Args)]
-#[group(required = true, multiple = false)]
+// #[group(required = true, multiple = false)]
 pub struct BucketSpecifier {
     /// Bucket Id
     #[arg(short, long)]
@@ -54,6 +54,7 @@ pub struct BucketSpecifier {
 }
 
 impl BucketSpecifier {
+    /// Create a new BucketSpecifier with an Id
     pub fn with_id(id: Uuid) -> Self {
         Self {
             bucket_id: Some(id),
@@ -61,6 +62,7 @@ impl BucketSpecifier {
         }
     }
 
+    /// Create a new BucketSpecifier with a Path
     pub fn with_origin(path: &Path) -> Self {
         Self {
             bucket_id: None,

@@ -1,4 +1,4 @@
-use super::error::PipelineError;
+use super::error::TombError;
 use crate::{
     cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig,
     utils::extract::process_node,
@@ -19,7 +19,7 @@ use std::path::Path;
 pub async fn pipeline(
     bucket_specifier: &BucketSpecifier,
     extracted: &Path,
-) -> Result<String, PipelineError> {
+) -> Result<String, TombError> {
     // Announce that we're starting
     info!("🚀 Starting extracting pipeline...");
 

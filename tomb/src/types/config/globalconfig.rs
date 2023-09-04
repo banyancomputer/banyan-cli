@@ -1,9 +1,9 @@
-use crate::{cli::command::BucketSpecifier, pipelines::error::PipelineError, utils::config::*};
+use crate::{cli::command::BucketSpecifier, pipelines::error::TombError, utils::config::*};
 use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use tomb_common::{
     banyan_api::client::{Client, Credentials},
-    utils::io::get_write,
+    utils::io::{get_write, get_read},
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
@@ -162,8 +162,8 @@ impl GlobalConfig {
     }
 
     /// Remove a BucketConfig for an origin
-    pub fn remove_bucket_by_origin(&mut self, origin: &Path) -> Result<()> {
-        if let Some(bucket) = self.get_bucket_by_origin(origin) {
+    pub fn remove_bucket_by_specifier(&mut self, bucket_specifier: &BucketSpecifier) -> Result<()> {
+        if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
@@ -243,7 +243,7 @@ impl GlobalConfig {
     pub(crate) fn get_bucket_id(
         &self,
         bucket_specifier: &BucketSpecifier,
-    ) -> Result<Uuid, PipelineError> {
+    ) -> Result<Uuid, TombError> {
         if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) && let Some(id) = bucket.remote_id {
             Ok(id)
         }
@@ -255,7 +255,7 @@ impl GlobalConfig {
     pub(crate) fn get_bucket_by_specifier(
         &self,
         bucket_specifier: &BucketSpecifier,
-    ) -> Result<BucketConfig, PipelineError> {
+    ) -> Result<BucketConfig, TombError> {
         // If we already have the ID and can find a bucket from it
         if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
             Ok(bucket)
@@ -266,7 +266,7 @@ impl GlobalConfig {
             if let Some(bucket) = self.get_bucket_by_origin(&origin) {
                 Ok(bucket)
             } else {
-                Err(PipelineError::unknown_path(origin))
+                Err(TombError::unknown_path(origin))
             }
         }
     }

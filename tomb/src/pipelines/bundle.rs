@@ -1,4 +1,4 @@
-use super::error::PipelineError;
+use super::error::TombError;
 use crate::cli::command::BucketSpecifier;
 use crate::utils::wnfsio::get_progress_bar;
 use crate::{
@@ -23,7 +23,7 @@ use anyhow::Result;
 pub async fn pipeline(
     bucket_specifier: &BucketSpecifier,
     follow_links: bool,
-) -> Result<String, PipelineError> {
+) -> Result<String, TombError> {
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;
     let mut config = global.get_bucket_by_specifier(bucket_specifier)?;

@@ -6,7 +6,7 @@ use wnfs::{
     private::{PrivateForest, PrivateNode},
 };
 
-use crate::pipelines::error::PipelineError;
+use crate::pipelines::error::TombError;
 use crate::utils::wnfsio::file_to_disk;
 
 #[async_recursion(?Send)]
@@ -46,7 +46,7 @@ pub async fn process_node(
                     )
                     .await?;
                 } else {
-                    return Err(PipelineError::file_missing_error(
+                    return Err(TombError::file_missing_error(
                         Path::new(&node_name.to_string()).to_path_buf(),
                     )
                     .into());

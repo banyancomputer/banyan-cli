@@ -21,6 +21,7 @@ pub fn get_write(path: &Path) -> Result<File, std::io::Error> {
 /// Get a read-write reference to a File on disk
 pub fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
     OpenOptions::new()
+        .create(true)
         .append(false)
         .read(true)
         .write(true)

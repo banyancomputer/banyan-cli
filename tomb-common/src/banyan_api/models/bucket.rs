@@ -89,8 +89,10 @@ pub struct Bucket {
 
 impl Display for Bucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("\n| REMOTE BUCKET INFO |\nname:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
-        self.name, self.id, self.r#type, self.storage_class))
+        f.write_fmt(format_args!(
+            "\n| REMOTE BUCKET INFO |\nname:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
+            self.name, self.id, self.r#type, self.storage_class
+        ))
     }
 }
 
@@ -330,16 +332,5 @@ pub mod test {
         let mut client = authenticated_client().await;
         let fake_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
         let _ = Bucket::delete_by_id(&mut client, fake_id).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn create_upload_metadata() -> Result<(), ClientError> {
-        let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await?;
-        let buckets = Bucket::read_all(&mut client).await?;
-
-        // Bucket::
-
-        Ok(())
     }
 }

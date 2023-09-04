@@ -1,4 +1,4 @@
-use super::error::PipelineError;
+use super::error::TombError;
 use crate::{
     cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig,
     utils::spider::path_to_segments,
@@ -10,7 +10,7 @@ use std::path::Path;
 pub async fn pipeline(
     bucket_specifier: &BucketSpecifier,
     wnfs_path: &Path,
-) -> Result<(), PipelineError> {
+) -> Result<(), TombError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;

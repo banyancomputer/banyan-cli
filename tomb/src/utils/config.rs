@@ -1,7 +1,6 @@
-use anyhow::Result;
 use std::{
     env,
-    fs::{create_dir_all, File},
+    fs::create_dir_all,
     path::PathBuf,
 };
 
@@ -41,22 +40,17 @@ pub fn xdg_data_home() -> PathBuf {
     path
 }
 
+/// Grab path to config.json File
 pub fn config_path() -> PathBuf {
     xdg_config_home().join(GLOBAL_CONFIG_FILE_NAME)
 }
 
+/// Grab path to API Key
 pub fn default_api_key_path() -> PathBuf {
     xdg_config_home().join(DEVICE_API_KEY_FILE_NAME)
 }
 
+/// Grab path to Wrapping Key
 pub fn default_wrapping_key_path() -> PathBuf {
     xdg_config_home().join(DEVICE_WRAPPING_KEY_FILE_NAME)
-}
-
-pub fn get_read(path: &PathBuf) -> Result<File> {
-    File::open(path).map_err(anyhow::Error::new)
-}
-
-fn get_write(path: &PathBuf) -> Result<File> {
-    File::create(path).map_err(anyhow::Error::new)
 }

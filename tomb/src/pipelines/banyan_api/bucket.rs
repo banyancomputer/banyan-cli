@@ -2,10 +2,10 @@ use std::env::current_dir;
 
 use crate::{
     cli::command::*,
-    pipelines::{bundle, error::PipelineError, extract},
+    pipelines::{bundle, error::TombError, extract},
     types::config::globalconfig::GlobalConfig,
 };
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use tomb_common::banyan_api::models::{
     bucket::{Bucket, BucketType, StorageClass},
     bucket_key::BucketKey,
@@ -21,7 +21,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     let mut client = global.get_client().await?;
 
     // Process the command
-    let result: Result<String, PipelineError> = match command {
+    let result: Result<String, TombError> = match command {
         // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
         BucketsSubCommand::Create { name, origin } => {
             let private_key = EcEncryptionKey::generate().await?;
@@ -30,12 +30,18 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
             let origin = &origin.unwrap_or(current_dir()?);
 
+            // If we've already done this
             if global.get_bucket_by_origin(origin).is_some() {
-                return Err(anyhow!("Bucket already exists at this origin").into())
+                return Err(anyhow!("Bucket already exists at this origin"));
             }
-            
+
             // Initialize in the configs
             let mut config = global.new_bucket(origin).await?;
+
+            // Update the config globally
+            global
+                .update_config(&config)
+                .expect("unable to update config to include local path");
 
             // Initialize on the remote endpoint
             Bucket::create(
@@ -52,99 +58,135 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 // Update the config globally
                 global
                     .update_config(&config)
-                    .expect("unable to update config to include local path");
+                    .expect("unable to update config to include remote id");
                 // Return
                 format!("<<NEW BUCKET CREATED >>\n{}\n{}\n{}", bucket, config, key)
             })
-            .map_err(PipelineError::client_error)
+            .map_err(TombError::client_error)
         }
         // List all Buckets tracked remotely and locally
-        BucketsSubCommand::List => Bucket::read_all(&mut client)
-            .await
-            .map(|buckets| {
-                let remote = buckets.iter().fold(String::new(), |acc, bucket| {
+        BucketsSubCommand::List => {
+            let remote = Bucket::read_all(&mut client)
+                .await
+                .map(|buckets| {
+                    buckets
+                        .iter()
+                        .fold("<< REMOTE BUCKETS >>".to_string(), |acc, bucket| {
+                            format!("{}\n\n{}", acc, bucket)
+                        })
+                })
+                .map_err(TombError::client_error)?;
+
+            let local = global
+                .buckets
+                .iter()
+                .fold("<< LOCAL BUCKETS >>".to_string(), |acc, bucket| {
                     format!("{}\n\n{}", acc, bucket)
                 });
 
-                let local = global.buckets.iter().fold(String::new(), |acc, bucket| {
-                    format!("{}\n\n{}", acc, bucket)
-                });
-                
-                format!("<< REMOTE BUCKETS >>{}\n\n<< LOCAL BUCKETS >>{}", remote, local)
-            })
-            .map_err(PipelineError::client_error),
+            Ok(format!("{}\n{}", remote, local))
+        }
         BucketsSubCommand::Push(_) => todo!(),
         BucketsSubCommand::Pull(_) => todo!(),
+        // Bundle a local directory
         BucketsSubCommand::Bundle {
             bucket_specifier,
             follow_links,
         } => bundle::pipeline(&bucket_specifier, follow_links).await,
+        // Extract a local directory
         BucketsSubCommand::Extract {
             bucket_specifier,
             output,
         } => extract::pipeline(&bucket_specifier, &output).await,
-        BucketsSubCommand::Delete(bs) => {
-            let bucket_id = global.get_bucket_id(&bs)?;
+        // Delete a Bucket
+        BucketsSubCommand::Delete(bucket_specifier) => {
+            // Rmove the Bucket locally
+            global.remove_bucket_by_specifier(&bucket_specifier)?;
+            // Remove the bucket remotely
+            let bucket_id = global.get_bucket_id(&bucket_specifier)?;
             Bucket::delete_by_id(&mut client, bucket_id)
                 .await
                 .map(|v| format!("id:\t{}\nresponse:\t{}", bucket_id, v))
-                .map_err(PipelineError::client_error)
+                .map_err(TombError::client_error)
         }
-        BucketsSubCommand::Info(bs) => Bucket::read(&mut client, global.get_bucket_id(&bs)?)
-            .await
-            .map(|bucket| {
-                let config = global.get_bucket_by_remote_id(&bucket.id).unwrap();
-                format!("{}{}", bucket, config)
-            })
-            .map_err(PipelineError::client_error),
-        BucketsSubCommand::Usage(bs) => {
-            let bucket_id = global.get_bucket_id(&bs)?;
+        // Info about a Bucket
+        BucketsSubCommand::Info(bucket_specifier) => {
+            // If there is known remote counterpart to the Bucket
+            let remote = if let Ok(id) = global.get_bucket_id(&bucket_specifier) {
+                match Bucket::read(&mut client, id).await {
+                        Ok(bucket) => {
+                            format!("{}", bucket)
+                        },
+                        Err(err) => format!("error: {}", err),
+                }
+            } else {
+                format!("no known remote correlate")
+            };
+
+            let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
+                format!("{}", bucket)
+            }
+            else {
+                "no known local bucket".to_string()
+            };
+
+            Ok(format!("{}{}", local, remote))
+        },
+        // Bucket usage
+        BucketsSubCommand::Usage(bucket_specifier) => {
+            let bucket_id = global.get_bucket_id(&bucket_specifier)?;
             Bucket::read(&mut client, bucket_id)
                 .await?
                 .usage(&mut client)
                 .await
                 .map(|v| format!("id:\t{}\nusage:\t{}", bucket_id, v))
-                .map_err(PipelineError::client_error)
+                .map_err(TombError::client_error)
         }
+        // Bucket Key Management
         BucketsSubCommand::Keys { subcommand } => match subcommand {
-            KeySubCommand::List(bs) => BucketKey::read_all(global.get_bucket_id(&bs)?, &mut client)
+            // List Keys
+            KeySubCommand::List(bucket_specifier) => BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, &mut client)
                 .await
                 .map(|keys| {
                     keys.iter().fold(String::new(), |acc, key| {
                         format!("{}\n\n{}", acc, format!("{}", key))
                     })
                 })
-                .map_err(PipelineError::client_error),
-            KeySubCommand::Create(bs) => {
+                .map_err(TombError::client_error),
+            // Create a new key
+            KeySubCommand::Create(bucket_specifier) => {
                 let private_key = EcEncryptionKey::generate().await?;
                 let public_key = private_key.public_key()?;
                 let pem = String::from_utf8(public_key.export().await?)?;
-                let bucket_id = global.get_bucket_id(&bs)?;
+                let bucket_id = global.get_bucket_id(&bucket_specifier)?;
                 BucketKey::create(bucket_id, pem, &mut client)
                     .await
                     .map(|key| format!("{}", key))
-                    .map_err(PipelineError::client_error)
+                    .map_err(TombError::client_error)
             }
+            // Delete an already approved key
             KeySubCommand::Delete(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::delete_by_id(bucket_id, id, &mut client)
                     .await
                     .map(|id| format!("deleted key!\nid:\t{}", id))
-                    .map_err(PipelineError::client_error)
+                    .map_err(TombError::client_error)
             }
+            // Get info about a Key
             KeySubCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::read(bucket_id, id, &mut client)
                     .await
                     .map(|key| format!("{}", key))
-                    .map_err(PipelineError::client_error)
+                    .map_err(TombError::client_error)
             }
+            // Reject a Key pending approval
             KeySubCommand::Reject(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::reject(bucket_id, id, &mut client)
                     .await
                     .map(|id| format!("rejected key!\nid:\t{}", id))
-                    .map_err(PipelineError::client_error)
+                    .map_err(TombError::client_error)
             }
         },
     };
