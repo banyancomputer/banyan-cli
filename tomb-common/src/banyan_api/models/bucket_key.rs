@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
-    requests::core::buckets::keys::{approve::*, create::*, delete::*, read::*, reject::*},
+    requests::core::buckets::keys::{create::*, delete::*, read::*, reject::*},
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -30,7 +30,7 @@ impl Display for BucketKey {
             "unapproved"
         };
         f.write_fmt(format_args!(
-            "bucket_id: {}\nkey_id: {}\nstatus: {}",
+            "\n| KEY INFO |\nbucket_id: {}\nkey_id: {}\nstatus: {}",
             self.bucket_id, self.id, status
         ))
     }
@@ -103,22 +103,6 @@ impl BucketKey {
     ) -> Result<String, ClientError> {
         let response = client.call(DeleteBucketKey { bucket_id, id }).await?;
         Ok(response.id.to_string())
-    }
-
-    /// Approve a Bucket Key
-    pub async fn approve(
-        bucket_id: Uuid,
-        id: Uuid,
-        client: &mut Client,
-    ) -> Result<Self, ClientError> {
-        let response: ApproveBucketKeyResponse =
-            client.call(ApproveBucketKey { bucket_id, id }).await?;
-        Ok(Self {
-            id: response.id,
-            bucket_id,
-            pem: response.pem,
-            approved: response.approved,
-        })
     }
 
     /// Reject a Bucket Key

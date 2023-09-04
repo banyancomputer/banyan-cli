@@ -2,6 +2,9 @@ use std::{fmt::Display, path::PathBuf};
 
 use thiserror::Error;
 use tomb_common::banyan_api::error::ClientError;
+use uuid::Uuid;
+
+use crate::cli::command::BucketSpecifier;
 
 #[derive(Error, Debug)]
 #[non_exhaustive]
@@ -22,12 +25,17 @@ impl PipelineError {
         }
     }
 
-    pub fn uninitialized_error(path: PathBuf) -> Self {
+    pub fn unknown_path(path: PathBuf) -> Self {
         Self {
-            kind: PipelineErrorKind::Uninitialized(path),
+            kind: PipelineErrorKind::UnknownBucket(BucketSpecifier::with_origin(&path)),
         }
     }
 
+    pub fn unknown_id(id: Uuid) -> Self {
+        Self {
+            kind: PipelineErrorKind::UnknownBucket(BucketSpecifier::with_id(id)),
+        }
+    }
     pub fn file_missing_error(path: PathBuf) -> Self {
         Self {
             kind: PipelineErrorKind::FileMissing(path),
@@ -53,8 +61,7 @@ pub enum PipelineErrorKind {
     /// Error sending Client requests
     Client(ClientError),
     /// User simply never configured this directory
-    // #[error("Bucket not been initialized for this directory: {0.display()}")]
-    Uninitialized(PathBuf),
+    UnknownBucket(BucketSpecifier),
     // Missing File when searching for it during extracting
     // #[error("File not found in Content BlockStore: {0}")]
     FileMissing(PathBuf),

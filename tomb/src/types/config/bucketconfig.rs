@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
-    rc::Rc,
+    rc::Rc, fmt::Display,
 };
 use tomb_common::{
     blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
@@ -53,6 +53,12 @@ pub struct BucketConfig {
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
     pub content: MultiCarV2DiskBlockStore,
+}
+
+impl Display for BucketConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("\n| LOCAL BUCKET INFO |\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{:?}" , self.origin.display(), self.local_id, self.remote_id))
+    }
 }
 
 impl BucketConfig {

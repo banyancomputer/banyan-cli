@@ -14,7 +14,10 @@ use std::{
     time::Duration,
 };
 use tokio::runtime::Runtime;
-use tomb::pipelines::{bundle, extract};
+use tomb::{
+    cli::command::BucketSpecifier,
+    pipelines::{bundle, extract},
+};
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
@@ -294,7 +297,13 @@ fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundleed_path: &Path) 
             // Operation needed to make sure bundle doesn't fail
             || prep_bundle(bundleed_path),
             // The routine to benchmark
-            |_| async { bundle::pipeline(black_box(input_path), black_box(false)).await },
+            |_| async {
+                bundle::pipeline(
+                    black_box(&BucketSpecifier::with_origin(input_path)),
+                    black_box(false),
+                )
+                .await
+            },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -330,7 +339,11 @@ fn extract_benchmark(c: &mut Criterion, bundleed_path: &PathBuf, extracted_path:
             || prep_extract(extracted_path),
             // The routine to benchmark
             |_| async {
-                extract::pipeline(black_box(bundleed_path), black_box(extracted_path)).await
+                extract::pipeline(
+                    black_box(&BucketSpecifier::with_origin(bundleed_path)),
+                    black_box(extracted_path),
+                )
+                .await
             },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration

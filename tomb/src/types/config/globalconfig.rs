@@ -1,4 +1,4 @@
-use crate::{cli::command::BucketSpecifier, utils::config::*};
+use crate::{cli::command::BucketSpecifier, pipelines::error::PipelineError, utils::config::*};
 use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use tomb_common::{
@@ -32,7 +32,7 @@ pub struct GlobalConfig {
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
     /// Bucket Configurations
-    buckets: Vec<BucketConfig>,
+    pub(crate) buckets: Vec<BucketConfig>,
 }
 
 impl Default for GlobalConfig {
@@ -240,16 +240,22 @@ impl GlobalConfig {
     }
 
     /// Get a Bucket UUID by its BucketSpecifier
-    pub(crate) fn get_bucket_id(&self, bucket_specifier: &BucketSpecifier) -> Result<Uuid> {
-        if let Ok(bucket) = self.get_bucket(bucket_specifier) && let Some(id) = bucket.remote_id {
+    pub(crate) fn get_bucket_id(
+        &self,
+        bucket_specifier: &BucketSpecifier,
+    ) -> Result<Uuid, PipelineError> {
+        if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) && let Some(id) = bucket.remote_id {
             Ok(id)
         }
         else {
-            Err(anyhow!("no bucket for this specifier"))
+            Err(anyhow!("bucket had no known remote").into())
         }
     }
 
-    pub(crate) fn get_bucket(&self, bucket_specifier: &BucketSpecifier) -> Result<BucketConfig> {
+    pub(crate) fn get_bucket_by_specifier(
+        &self,
+        bucket_specifier: &BucketSpecifier,
+    ) -> Result<BucketConfig, PipelineError> {
         // If we already have the ID and can find a bucket from it
         if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
             Ok(bucket)
@@ -260,7 +266,7 @@ impl GlobalConfig {
             if let Some(bucket) = self.get_bucket_by_origin(&origin) {
                 Ok(bucket)
             } else {
-                Err(anyhow!("no bucket for this specifier"))
+                Err(PipelineError::unknown_path(origin))
             }
         }
     }

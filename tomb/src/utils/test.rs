@@ -6,16 +6,19 @@ use std::{
     process::Command,
 };
 
-use crate::pipelines::configure;
+use crate::{cli::command::BucketSpecifier, pipelines::configure};
 
 /// Set up temporary filesystem for test cases
-pub async fn test_setup(test_name: &str) -> Result<PathBuf> {
+pub async fn test_setup(test_name: &str) -> Result<(PathBuf, BucketSpecifier)> {
     // Run the structured test setup with a default Structure
     test_setup_structured(test_name, Structure::new(2, 2, 2000, Strategy::Simple)).await
 }
 
 /// Set up a temporary filesystem for test cases according to specified structure
-pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Result<PathBuf> {
+pub async fn test_setup_structured(
+    test_name: &str,
+    structure: Structure,
+) -> Result<(PathBuf, BucketSpecifier)> {
     // Deinit all
     configure::deinit_all().await?;
     // Base of the test directory
@@ -33,7 +36,10 @@ pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Res
     // Deinitialize existing data / metadata
     configure::deinit(&input_path).await?;
     // Return all paths
-    Ok(input_path)
+    Ok((
+        input_path.clone(),
+        BucketSpecifier::with_origin(&input_path),
+    ))
 }
 
 /// Remove contents of temporary dir

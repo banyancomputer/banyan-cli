@@ -2,10 +2,10 @@ use std::env::current_dir;
 
 use crate::{
     cli::command::*,
-    pipelines::{error::PipelineError, extract},
+    pipelines::{bundle, error::PipelineError, extract},
     types::config::globalconfig::GlobalConfig,
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use tomb_common::banyan_api::models::{
     bucket::{Bucket, BucketType, StorageClass},
     bucket_key::BucketKey,
@@ -22,13 +22,20 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
     // Process the command
     let result: Result<String, PipelineError> = match command {
+        // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
         BucketsSubCommand::Create { name, origin } => {
             let private_key = EcEncryptionKey::generate().await?;
             let public_key = private_key.public_key()?;
             let pem = String::from_utf8(public_key.export().await?)?;
 
+            let origin = &origin.unwrap_or(current_dir()?);
+
+            if global.get_bucket_by_origin(origin).is_some() {
+                return Err(anyhow!("Bucket already exists at this origin").into())
+            }
+            
             // Initialize in the configs
-            let mut config = global.new_bucket(&origin.unwrap_or(current_dir()?)).await?;
+            let mut config = global.new_bucket(origin).await?;
 
             // Initialize on the remote endpoint
             Bucket::create(
@@ -47,30 +54,35 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     .update_config(&config)
                     .expect("unable to update config to include local path");
                 // Return
-                format!("new bucket: {:?}\nnew Bucket Key: {}", bucket, key)
+                format!("<<NEW BUCKET CREATED >>\n{}\n{}\n{}", bucket, config, key)
             })
             .map_err(PipelineError::client_error)
         }
+        // List all Buckets tracked remotely and locally
         BucketsSubCommand::List => Bucket::read_all(&mut client)
             .await
             .map(|buckets| {
-                buckets.iter().fold(String::new(), |acc, bucket| {
-                    format!("{}\n\n{}", acc, get_bucket_string(&global, bucket))
-                })
+                let remote = buckets.iter().fold(String::new(), |acc, bucket| {
+                    format!("{}\n\n{}", acc, bucket)
+                });
+
+                let local = global.buckets.iter().fold(String::new(), |acc, bucket| {
+                    format!("{}\n\n{}", acc, bucket)
+                });
+                
+                format!("<< REMOTE BUCKETS >>{}\n\n<< LOCAL BUCKETS >>{}", remote, local)
             })
             .map_err(PipelineError::client_error),
         BucketsSubCommand::Push(_) => todo!(),
         BucketsSubCommand::Pull(_) => todo!(),
-        BucketsSubCommand::Bundle(bs) => Ok(format!("just ran encrypt")),
+        BucketsSubCommand::Bundle {
+            bucket_specifier,
+            follow_links,
+        } => bundle::pipeline(&bucket_specifier, follow_links).await,
         BucketsSubCommand::Extract {
             bucket_specifier,
             output,
-        } => {
-            let origin = global.get_bucket(&bucket_specifier)?.origin;
-            extract::pipeline(&origin, &output)
-                .await
-                .map(|x: ()| format!("successfully decrypted the bucket"))
-        }
+        } => extract::pipeline(&bucket_specifier, &output).await,
         BucketsSubCommand::Delete(bs) => {
             let bucket_id = global.get_bucket_id(&bs)?;
             Bucket::delete_by_id(&mut client, bucket_id)
@@ -80,7 +92,10 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
         }
         BucketsSubCommand::Info(bs) => Bucket::read(&mut client, global.get_bucket_id(&bs)?)
             .await
-            .map(|bucket| get_bucket_string(&global, &bucket))
+            .map(|bucket| {
+                let config = global.get_bucket_by_remote_id(&bucket.id).unwrap();
+                format!("{}{}", bucket, config)
+            })
             .map_err(PipelineError::client_error),
         BucketsSubCommand::Usage(bs) => {
             let bucket_id = global.get_bucket_id(&bs)?;
@@ -96,7 +111,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 .await
                 .map(|keys| {
                     keys.iter().fold(String::new(), |acc, key| {
-                        format!("{}\n\n{}", acc, get_key_string(key))
+                        format!("{}\n\n{}", acc, format!("{}", key))
                     })
                 })
                 .map_err(PipelineError::client_error),
@@ -107,7 +122,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 let bucket_id = global.get_bucket_id(&bs)?;
                 BucketKey::create(bucket_id, pem, &mut client)
                     .await
-                    .map(|key| get_key_string(&key))
+                    .map(|key| format!("{}", key))
                     .map_err(PipelineError::client_error)
             }
             KeySubCommand::Delete(ks) => {
@@ -121,14 +136,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::read(bucket_id, id, &mut client)
                     .await
-                    .map(|key| get_key_string(&key))
-                    .map_err(PipelineError::client_error)
-            }
-            KeySubCommand::Approve(ks) => {
-                let (bucket_id, id) = get_key_ids(&global, &ks)?;
-                BucketKey::approve(bucket_id, id, &mut client)
-                    .await
-                    .map(|key| get_key_string(&key))
+                    .map(|key| format!("{}", key))
                     .map_err(PipelineError::client_error)
             }
             KeySubCommand::Reject(ks) => {
@@ -153,27 +161,4 @@ fn get_key_ids(global: &GlobalConfig, key_specifier: &KeySpecifier) -> Result<(U
         global.get_bucket_id(&key_specifier.bucket)?,
         key_specifier.key_id,
     ))
-}
-
-fn get_bucket_string(global: &GlobalConfig, bucket: &Bucket) -> String {
-    // Information about the remote Bucket
-    let remote_info = format!(
-        "name:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
-        bucket.name, bucket.id, bucket.r#type, bucket.storage_class
-    );
-    // The location of the Bucket on disk
-    let location = if let Some(config) = global.get_bucket_by_remote_id(&bucket.id) {
-        format!("{}", config.origin.display())
-    } else {
-        "unknown".to_string()
-    };
-    // All the local info about the Bucket
-    let local_info = format!("local path:\t{}", location);
-
-    // The final str
-    format!("| BUCKET INFO |\n{}\n{}", remote_info, local_info)
-}
-
-fn get_key_string(key: &BucketKey) -> String {
-    format!("| KEY INFO |\n{}", key)
 }

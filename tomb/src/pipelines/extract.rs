@@ -1,5 +1,8 @@
 use super::error::PipelineError;
-use crate::{types::config::globalconfig::GlobalConfig, utils::extract::process_node};
+use crate::{
+    cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig,
+    utils::extract::process_node,
+};
 use anyhow::Result;
 use std::path::Path;
 
@@ -13,7 +16,10 @@ use std::path::Path;
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(origin: &Path, extracted: &Path) -> Result<(), PipelineError> {
+pub async fn pipeline(
+    bucket_specifier: &BucketSpecifier,
+    extracted: &Path,
+) -> Result<String, PipelineError> {
     // Announce that we're starting
     info!("🚀 Starting extracting pipeline...");
 
@@ -22,32 +28,33 @@ pub async fn pipeline(origin: &Path, extracted: &Path) -> Result<(), PipelineErr
     let wrapping_key = global.clone().wrapping_key().await?;
     println!("obtained key");
 
-    if let Some(config) = global.get_bucket_by_origin(origin) {
-        println!("obtained config");
-        // Load metadata
-        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
-        let metadata = &config.metadata;
-        let content = &config.content;
+    let config = global.get_bucket_by_specifier(bucket_specifier)?;
 
-        info!(
-            "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
-            extracted.display()
-        );
+    println!("obtained config");
+    // Load metadata
+    let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
+    let metadata = &config.metadata;
+    let content = &config.content;
 
-        // Run extraction on the base level with an empty built path
-        process_node(
-            metadata,
-            content,
-            metadata_forest,
-            content_forest,
-            &dir.as_node(),
-            extracted,
-            Path::new(""),
-        )
-        .await?;
+    info!(
+        "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
+        extracted.display()
+    );
 
-        Ok(())
-    } else {
-        Err(PipelineError::uninitialized_error(origin.to_path_buf()))
-    }
+    // Run extraction on the base level with an empty built path
+    process_node(
+        metadata,
+        content,
+        metadata_forest,
+        content_forest,
+        &dir.as_node(),
+        extracted,
+        Path::new(""),
+    )
+    .await?;
+
+    Ok(format!(
+        "successfully extracted data into {}",
+        extracted.display()
+    ))
 }

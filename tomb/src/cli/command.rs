@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::{arg, Args, Subcommand};
 use uuid::Uuid;
@@ -53,6 +53,22 @@ pub struct BucketSpecifier {
     pub origin: Option<PathBuf>,
 }
 
+impl BucketSpecifier {
+    pub fn with_id(id: Uuid) -> Self {
+        Self {
+            bucket_id: Some(id),
+            origin: None,
+        }
+    }
+
+    pub fn with_origin(path: &Path) -> Self {
+        Self {
+            bucket_id: None,
+            origin: Some(path.to_path_buf()),
+        }
+    }
+}
+
 /// Subcommand for Bucket Management
 #[derive(Subcommand, Clone, Debug)]
 pub enum BucketsSubCommand {
@@ -72,7 +88,14 @@ pub enum BucketsSubCommand {
     /// Pull
     Pull(BucketSpecifier),
     /// Encrypt / Bundle a Bucket
-    Bundle(BucketSpecifier),
+    Bundle {
+        /// Bucket in question
+        #[clap(flatten)]
+        bucket_specifier: BucketSpecifier,
+
+        /// Follow symbolic links
+        follow_links: bool,
+    },
     /// Decrypt / Extract a Bucket
     Extract {
         /// Bucket in question
@@ -117,8 +140,6 @@ pub enum KeySubCommand {
     Delete(KeySpecifier),
     /// List the keys persisted by the remote endpoint
     Info(KeySpecifier),
-    /// Approve a key for use and sync that with the remote endpoint
-    Approve(KeySpecifier),
     /// Reject or remove a key and sync that witht the remote endpoint
     Reject(KeySpecifier),
 }
