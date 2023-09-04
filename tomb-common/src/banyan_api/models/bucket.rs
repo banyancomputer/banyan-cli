@@ -318,6 +318,6 @@ pub mod test {
     async fn delete_by_id() {
         let mut client = authenticated_client().await;
         let fake_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        let _ = Bucket::delete_by_id(&mut client, fake_id).await.unwrap();
+        Bucket::delete_by_id(&mut client, fake_id).await.unwrap();
     }
 }
