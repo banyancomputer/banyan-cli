@@ -2,7 +2,7 @@ use super::error::PipelineError;
 use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,
-    utils::pack::{create_plans, process_plans},
+    utils::encrypt::{create_plans, process_plans},
 };
 use anyhow::Result;
 use std::path::Path;
@@ -58,6 +58,6 @@ pub async fn pipeline(origin: &Path, follow_links: bool) -> Result<(), PipelineE
         global.to_disk()?;
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized)
+        Err(PipelineError::uninitialized_error(origin.to_path_buf()))
     }
 }

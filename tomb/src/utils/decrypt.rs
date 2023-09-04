@@ -46,7 +46,10 @@ pub async fn process_node(
                     )
                     .await?;
                 } else {
-                    return Err(PipelineError::FileNotFound(node_name.to_string()).into());
+                    return Err(PipelineError::file_missing_error(
+                        Path::new(&node_name.to_string()).to_path_buf(),
+                    )
+                    .into());
                 }
             }
         }

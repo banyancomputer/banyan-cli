@@ -60,6 +60,6 @@ pub async fn pipeline(
         // Ok
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized)
+        Err(PipelineError::uninitialized_error(origin.to_path_buf()))
     }
 }

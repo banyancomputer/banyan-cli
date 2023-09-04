@@ -14,7 +14,7 @@ use std::{
     time::Duration,
 };
 use tokio::runtime::Runtime;
-use tomb::pipelines::{pack, unpack};
+use tomb::pipelines::{decrypt, encrypt};
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
@@ -294,7 +294,7 @@ fn pack_benchmark(c: &mut Criterion, input_path: &Path, packed_path: &Path) {
             // Operation needed to make sure pack doesn't fail
             || prep_pack(packed_path),
             // The routine to benchmark
-            |_| async { pack::pipeline(black_box(input_path), black_box(false)).await },
+            |_| async { encrypt::pipeline(black_box(input_path), black_box(false)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -329,7 +329,7 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
             // Operation needed to make sure unpack doesn't fail
             || prep_unpack(unpacked_path),
             // The routine to benchmark
-            |_| async { unpack::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
+            |_| async { decrypt::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,

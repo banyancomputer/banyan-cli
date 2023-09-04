@@ -8,73 +8,30 @@ pub mod verbosity;
 use crate::pipelines::{banyan_api::*, *};
 use anyhow::Result;
 use command::Command;
-use std::env::current_dir;
 
 /// Based on the Command, run pipelines
 pub async fn run(command: Command) -> Result<()> {
-    // Determine the command being executed
-    match command {
-        Command::SetRemote { address } => {
-            configure::remote(&address).await?;
+    // Determine the command being executed run appropriate subcommand
+    let result: Result<String, anyhow::Error> = match command {
+        Command::SetRemote { address } => configure::remote(&address).await,
+        Command::Auth { subcommand } => auth::pipeline(subcommand).await,
+        Command::Buckets { subcommand } => bucket::pipeline(subcommand).await,
+    };
+
+    // Provide output based on that
+    match result {
+        Ok(message) => {
+            println!("{}", message);
+            Ok(())
         }
-        Command::Auth { subcommand } => match auth::pipeline(subcommand).await {
-            Ok(message) => println!("{}", message),
-            Err(error) => println!("{}", error),
-        },
-        Command::Buckets { subcommand } => match bucket::pipeline(subcommand).await {
-            Ok(message) => println!("{}", message),
-            Err(error) => println!("{}", error),
-        },
-        // Execute the packing command
-        Command::Pack {
-            origin,
-            follow_links,
-        } => {
-            if let Some(origin) = origin {
-                pack::pipeline(&origin, follow_links).await?;
-            } else {
-                pack::pipeline(&current_dir()?, follow_links).await?;
-            }
-        }
-        // Execute the unpacking command
-        Command::Unpack { origin, unpacked } => {
-            if let Some(origin) = origin {
-                unpack::pipeline(&origin, &unpacked).await?;
-            } else {
-                unpack::pipeline(&current_dir()?, &unpacked).await?;
-            }
-        }
-        Command::Init { dir } => {
-            // Initialize here
-            if let Some(dir) = dir {
-                configure::init(&dir).await?;
-            } else {
-                configure::init(&current_dir()?).await?;
-            }
-        }
-        Command::Deinit { dir } => {
-            // Initialize here
-            if let Some(dir) = dir {
-                configure::deinit(&dir).await?;
-            } else {
-                configure::deinit(&current_dir()?).await?;
-            }
-        }
-        Command::Add {
-            origin,
-            input_file,
-            wnfs_path,
-        } => {
-            add::pipeline(&origin, &input_file, &wnfs_path).await?;
-        }
-        Command::Remove { origin, wnfs_path } => {
-            remove::pipeline(&origin, &wnfs_path).await?;
+        Err(error) => {
+            println!("{}", error);
+            Err(error)
         }
     }
-
-    Ok(())
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::command::Command;
@@ -227,3 +184,5 @@ mod test {
         test_teardown(test_name).await
     }
 }
+
+ */

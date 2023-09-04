@@ -1,22 +1,22 @@
-use crate::utils::config::xdg_config_home;
+use crate::{cli::command::BucketSpecifier, utils::config::*};
 use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
-use tomb_common::banyan_api::client::{Client, Credentials};
+use tomb_common::{
+    banyan_api::client::{Client, Credentials},
+    utils::io::get_write,
+};
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
+    env::current_dir,
     fs::{remove_file, File},
     io::{Read, Write},
     path::{Path, PathBuf},
     str::FromStr,
 };
-
-const GLOBAL_CONFIG_FILE_NAME: &str = "config.json";
-const DEVICE_API_KEY_FILE_NAME: &str = "device_api_key.pem";
-const DEVICE_WRAPPING_KEY_FILE_NAME: &str = "wrapping_key.pem";
 
 /// Represents the Global contents of the tomb configuration file in a user's .config
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -35,26 +35,6 @@ pub struct GlobalConfig {
     buckets: Vec<BucketConfig>,
 }
 
-fn config_path() -> PathBuf {
-    xdg_config_home().join(GLOBAL_CONFIG_FILE_NAME)
-}
-
-fn default_api_key_path() -> PathBuf {
-    xdg_config_home().join(DEVICE_API_KEY_FILE_NAME)
-}
-
-fn default_wrapping_key_path() -> PathBuf {
-    xdg_config_home().join(DEVICE_WRAPPING_KEY_FILE_NAME)
-}
-
-fn get_read(path: &PathBuf) -> Result<File> {
-    File::open(path).map_err(anyhow::Error::new)
-}
-
-fn get_write(path: &PathBuf) -> Result<File> {
-    File::create(path).map_err(anyhow::Error::new)
-}
-
 impl Default for GlobalConfig {
     fn default() -> Self {
         Self {
@@ -71,8 +51,9 @@ impl Default for GlobalConfig {
 // Self
 impl GlobalConfig {
     async fn create() -> Result<Self> {
+        // Create a default config
         let config = Self::default();
-        // Create the keys
+        // Create the key files referenced
         let _wrapping_key = new_wrapping_key(&config.wrapping_key_path).await?;
         let _api_key = new_api_key(&config.api_key_path).await?;
         // Ok
@@ -257,12 +238,38 @@ impl GlobalConfig {
             Ok(self.create_bucket(path).await?)
         }
     }
+
+    /// Get a Bucket UUID by its BucketSpecifier
+    pub(crate) fn get_bucket_id(&self, bucket_specifier: &BucketSpecifier) -> Result<Uuid> {
+        if let Ok(bucket) = self.get_bucket(bucket_specifier) && let Some(id) = bucket.remote_id {
+            Ok(id)
+        }
+        else { 
+            Err(anyhow!("no bucket for this specifier"))
+        }
+    }
+
+    pub(crate) fn get_bucket(&self, bucket_specifier: &BucketSpecifier) -> Result<BucketConfig> {
+        // If we already have the ID and can find a bucket from it
+        if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
+            Ok(bucket)
+        } else {
+            // Grab an Origin
+            let origin = bucket_specifier.origin.clone().unwrap_or(current_dir().expect("unable to obtain current working directory"));
+            // Find a BucketConfig at this origin and expect it has an ID saved as well
+            if let Some(bucket) = self.get_bucket_by_origin(&origin) {
+                Ok(bucket)
+            } else {
+                Err(anyhow!("no bucket for this specifier"))
+            }
+        }
+    }
 }
 
 /// Generate a new Ecdsa key to use for authentication
 /// Writes the key to the config path
 async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
-    if File::open(path).is_ok() {
+    if path.exists() {
         load_api_key(path).await?;
     }
     let key = EcSignatureKey::generate().await?;
@@ -298,7 +305,7 @@ async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
 /// Generate a new Ecdh key to use for key wrapping
 /// Writes the key to the config path
 async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
-    if File::open(path).is_ok() {
+    if path.exists() {
         wrapping_key(path).await?;
     }
     let key = EcEncryptionKey::generate().await?;

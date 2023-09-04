@@ -35,12 +35,7 @@ pub async fn file_to_disk(
         output_file.write_all(&decompressed_buf)?;
         Ok(())
     } else {
-        Err(PipelineError::FileNotFound(
-            file_path
-                .to_str()
-                .expect("failed to get file path string")
-                .to_string(),
-        ))
+        Err(PipelineError::file_missing_error(file_path.to_path_buf()))
     }
 }
 

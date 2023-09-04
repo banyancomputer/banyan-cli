@@ -32,6 +32,6 @@ pub async fn pipeline(origin: &Path, wnfs_path: &Path) -> Result<(), PipelineErr
         global.to_disk()?;
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized)
+        Err(PipelineError::uninitialized_error(origin.to_path_buf()))
     }
 }

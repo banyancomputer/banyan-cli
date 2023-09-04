@@ -4,20 +4,20 @@ pub mod add;
 pub mod banyan_api;
 /// This module contains configuration functions for the cli
 pub mod configure;
+/// This module contains the decryption pipeline function, which is the main entry point for extracting previously packed data.
+pub mod decrypt;
+/// This module contains the encryption pipeline function, which is the main entry point for packing new data.
+pub mod encrypt;
 /// Pipeline Errors
 pub mod error;
-/// This module contains the pack pipeline function, which is the main entry point for packing new data.
-pub mod pack;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
-/// This module contains the unpack pipeline function, which is the main entry point for extracting previously packed data.
-pub mod unpack;
 
 #[cfg(test)]
 mod test {
     use super::add;
     use crate::{
-        pipelines::{configure, pack, remove, unpack},
+        pipelines::{configure, decrypt, encrypt, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
@@ -47,7 +47,7 @@ mod test {
         // Deinitialize for user
         configure::deinit(origin).await?;
         // Assert that packing fails
-        assert!(pack::pipeline(origin, true).await.is_err());
+        assert!(encrypt::pipeline(origin, true).await.is_err());
         // Initialize for this user
         configure::init(origin).await?;
         // Assert that a config exists for this bucket now
@@ -84,7 +84,7 @@ mod test {
         // Initialize
         configure::init(origin).await?;
         // Pack
-        pack::pipeline(origin, true).await?;
+        encrypt::pipeline(origin, true).await?;
         // Teardown
         test_teardown(test_name).await
     }
@@ -98,7 +98,7 @@ mod test {
         // Initialize
         configure::init(origin).await?;
         // Pack locally
-        pack::pipeline(origin, true).await?;
+        encrypt::pipeline(origin, true).await?;
         // Create a new dir to unpack in
         let unpacked_dir = &origin
             .parent()
@@ -106,7 +106,7 @@ mod test {
             .join(format!("{}_unpacked", test_name));
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(origin, unpacked_dir).await?;
+        decrypt::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
         // Teardown
@@ -122,7 +122,7 @@ mod test {
         // Initialize tomb
         configure::init(origin).await?;
         // Run the pack pipeline
-        pack::pipeline(origin, true).await?;
+        encrypt::pipeline(origin, true).await?;
         // This is still in the input dir. Technically we could just
         let input_file = &origin.join("hello.txt");
         // Content to be written to the file
@@ -176,7 +176,7 @@ mod test {
         // Initialize tomb
         configure::init(origin).await?;
         // Run the pack pipeline
-        pack::pipeline(origin, true).await?;
+        encrypt::pipeline(origin, true).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
@@ -220,7 +220,7 @@ mod test {
         // Initialize
         configure::init(origin).await?;
         // Pack locally
-        pack::pipeline(origin, true).await?;
+        encrypt::pipeline(origin, true).await?;
         // Create a new dir to unpack in
         let unpacked_dir = &origin
             .parent()
@@ -228,7 +228,7 @@ mod test {
             .join("unpacked");
         create_dir_all(unpacked_dir)?;
         // Run the unpacking pipeline
-        unpack::pipeline(origin, unpacked_dir).await?;
+        decrypt::pipeline(origin, unpacked_dir).await?;
         // Assert the pre-packed and unpacked directories are identical
         assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
         Ok(())

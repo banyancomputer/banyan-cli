@@ -1,5 +1,5 @@
 use super::error::PipelineError;
-use crate::{types::config::globalconfig::GlobalConfig, utils::unpack::process_node};
+use crate::{types::config::globalconfig::GlobalConfig, utils::decrypt::process_node};
 use anyhow::Result;
 use std::path::Path;
 
@@ -48,6 +48,6 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
 
         Ok(())
     } else {
-        Err(PipelineError::Uninitialized)
+        Err(PipelineError::uninitialized_error(origin.to_path_buf()))
     }
 }

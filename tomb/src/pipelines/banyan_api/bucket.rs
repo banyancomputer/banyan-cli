@@ -1,7 +1,11 @@
 use std::env::current_dir;
 
-use crate::{cli::command::*, types::config::globalconfig::GlobalConfig};
-use anyhow::{anyhow, Result};
+use crate::{
+    cli::command::*,
+    pipelines::{decrypt, error::PipelineError},
+    types::config::globalconfig::GlobalConfig,
+};
+use anyhow::Result;
 use tomb_common::banyan_api::models::{
     bucket::{Bucket, BucketType, StorageClass},
     bucket_key::BucketKey,
@@ -17,7 +21,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     let mut client = global.get_client().await?;
 
     // Process the command
-    let result = match command {
+    let result: Result<String, PipelineError> = match command {
         BucketsSubCommand::Create { name, origin } => {
             let private_key = EcEncryptionKey::generate().await?;
             let public_key = private_key.public_key()?;
@@ -45,73 +49,94 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 // Return
                 format!("new bucket: {:?}\nnew Bucket Key: {}", bucket, key)
             })
+            .map_err(PipelineError::client_error)
         }
-        BucketsSubCommand::List => Bucket::read_all(&mut client).await.map(|buckets| {
-            buckets.iter().fold(String::new(), |acc, bucket| {
-                format!("{}\n\n{}", acc, get_bucket_string(&global, bucket))
+        BucketsSubCommand::List => Bucket::read_all(&mut client)
+            .await
+            .map(|buckets| {
+                buckets.iter().fold(String::new(), |acc, bucket| {
+                    format!("{}\n\n{}", acc, get_bucket_string(&global, bucket))
+                })
             })
-        }),
+            .map_err(PipelineError::client_error),
         BucketsSubCommand::Push(_) => todo!(),
         BucketsSubCommand::Pull(_) => todo!(),
+        BucketsSubCommand::Encrypt(bs) => Ok(format!("just ran encrypt")),
+        BucketsSubCommand::Decrypt {
+            bucket_specifier,
+            output,
+        } => {
+            let origin = global.get_bucket(&bucket_specifier)?.origin;
+            decrypt::pipeline(&origin, &output)
+                .await
+                .map(|x: ()| format!("successfully decrypted the bucket"))
+        }
         BucketsSubCommand::Delete(bs) => {
-            let bucket_id = get_bucket_id(&global, &bs)?;
+            let bucket_id = global.get_bucket_id(&bs)?;
             Bucket::delete_by_id(&mut client, bucket_id)
                 .await
                 .map(|v| format!("id:\t{}\nresponse:\t{}", bucket_id, v))
+                .map_err(PipelineError::client_error)
         }
-        BucketsSubCommand::Info(bs) => Bucket::read(&mut client, get_bucket_id(&global, &bs)?)
+        BucketsSubCommand::Info(bs) => Bucket::read(&mut client, global.get_bucket_id(&bs)?)
             .await
-            .map(|bucket| get_bucket_string(&global, &bucket)),
+            .map(|bucket| get_bucket_string(&global, &bucket))
+            .map_err(PipelineError::client_error),
         BucketsSubCommand::Usage(bs) => {
-            let bucket_id = get_bucket_id(&global, &bs)?;
+            let bucket_id = global.get_bucket_id(&bs)?;
             Bucket::read(&mut client, bucket_id)
                 .await?
                 .usage(&mut client)
                 .await
                 .map(|v| format!("id:\t{}\nusage:\t{}", bucket_id, v))
+                .map_err(PipelineError::client_error)
         }
         BucketsSubCommand::Keys { subcommand } => match subcommand {
-            KeySubCommand::List(bs) => {
-                BucketKey::read_all(get_bucket_id(&global, &bs)?, &mut client)
-                    .await
-                    .map(|keys| {
-                        keys.iter().fold(String::new(), |acc, key| {
-                            format!("{}\n\n{}", acc, get_key_string(key))
-                        })
+            KeySubCommand::List(bs) => BucketKey::read_all(global.get_bucket_id(&bs)?, &mut client)
+                .await
+                .map(|keys| {
+                    keys.iter().fold(String::new(), |acc, key| {
+                        format!("{}\n\n{}", acc, get_key_string(key))
                     })
-            }
+                })
+                .map_err(PipelineError::client_error),
             KeySubCommand::Create(bs) => {
                 let private_key = EcEncryptionKey::generate().await?;
                 let public_key = private_key.public_key()?;
                 let pem = String::from_utf8(public_key.export().await?)?;
-                let bucket_id = get_bucket_id(&global, &bs)?;
+                let bucket_id = global.get_bucket_id(&bs)?;
                 BucketKey::create(bucket_id, pem, &mut client)
                     .await
                     .map(|key| get_key_string(&key))
+                    .map_err(PipelineError::client_error)
             }
             KeySubCommand::Delete(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::delete_by_id(bucket_id, id, &mut client)
                     .await
                     .map(|id| format!("deleted key!\nid:\t{}", id))
+                    .map_err(PipelineError::client_error)
             }
             KeySubCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::read(bucket_id, id, &mut client)
                     .await
                     .map(|key| get_key_string(&key))
+                    .map_err(PipelineError::client_error)
             }
             KeySubCommand::Approve(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::approve(bucket_id, id, &mut client)
                     .await
                     .map(|key| get_key_string(&key))
+                    .map_err(PipelineError::client_error)
             }
             KeySubCommand::Reject(ks) => {
                 let (bucket_id, id) = get_key_ids(&global, &ks)?;
                 BucketKey::reject(bucket_id, id, &mut client)
                     .await
                     .map(|id| format!("rejected key!\nid:\t{}", id))
+                    .map_err(PipelineError::client_error)
             }
         },
     };
@@ -123,41 +148,29 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     result.map_err(anyhow::Error::new)
 }
 
-fn get_bucket_id(global: &GlobalConfig, bucket_specifier: &BucketSpecifier) -> Result<Uuid> {
-    // If we already have the ID
-    if let Some(id) = bucket_specifier.bucket_id {
-        Ok(id)
-    } else {
-        // Grab an Origin
-        let origin = bucket_specifier.origin.clone().unwrap_or(current_dir()?);
-        // Find a BucketConfig at this origin and expect it has an ID saved as well
-        if let Some(bucket) = global.get_bucket_by_origin(&origin) && let Some(id) = bucket.remote_id {
-            Ok(id)
-        } else {
-            Err(anyhow!("This directory is not configured as a Bucket"))
-        }
-    }
-}
-
 fn get_key_ids(global: &GlobalConfig, key_specifier: &KeySpecifier) -> Result<(Uuid, Uuid)> {
     Ok((
-        get_bucket_id(global, &key_specifier.bucket)?,
+        global.get_bucket_id(&key_specifier.bucket)?,
         key_specifier.key_id,
     ))
 }
 
 fn get_bucket_string(global: &GlobalConfig, bucket: &Bucket) -> String {
+    // Information about the remote Bucket
     let remote_info = format!(
         "name:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
         bucket.name, bucket.id, bucket.r#type, bucket.storage_class
     );
+    // The location of the Bucket on disk
     let location = if let Some(config) = global.get_bucket_by_remote_id(&bucket.id) {
         format!("{}", config.origin.display())
     } else {
         "unknown".to_string()
     };
+    // All the local info about the Bucket
     let local_info = format!("local path:\t{}", location);
 
+    // The final str
     format!("| BUCKET INFO |\n{}\n{}", remote_info, local_info)
 }
 

@@ -22,8 +22,9 @@ pub async fn deinit_all() -> Result<()> {
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
-pub async fn remote(address: &str) -> Result<()> {
+pub async fn remote(address: &str) -> Result<String> {
     let mut config = GlobalConfig::from_disk().await?;
     config.remote = Some(address.to_string());
-    config.to_disk()
+    config.to_disk()?;
+    Ok("saved remote address".to_string())
 }
