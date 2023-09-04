@@ -14,7 +14,7 @@ use std::{
     time::Duration,
 };
 use tokio::runtime::Runtime;
-use tomb::pipelines::{decrypt, encrypt};
+use tomb::pipelines::{bundle, extract};
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
@@ -23,10 +23,10 @@ lazy_static! {
     static ref BENCH_PATH: String = env::var("BENCH_PATH").unwrap_or_else(|_| "target/bench".to_string());
     // Path we will use to hold inputs we build for benchmarking
     static ref INPUT_PATH: String = env::var("INPUT_PATH").unwrap_or_else(|_| "target/bench/input".to_string());
-    // Path we will use to hold packed data we build from inputs for benchmarking
-    static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "target/bench/packed".to_string());
-    // Path we will use to hold unpacked data we build from packed data for benchmarking
-    static ref UNPACKED_PATH: String = env::var("UNPACKED_PATH").unwrap_or_else(|_| "target/bench/unpacked".to_string());
+    // Path we will use to hold bundleed data we build from inputs for benchmarking
+    static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "target/bench/bundleed".to_string());
+    // Path we will use to hold extracted data we build from bundleed data for benchmarking
+    static ref UNPACKED_PATH: String = env::var("UNPACKED_PATH").unwrap_or_else(|_| "target/bench/extracted".to_string());
 
     // Test Set Generation configuration
     // Defaults to a simple 4x4 file structure with 1Mb of data
@@ -66,9 +66,9 @@ lazy_static! {
         .unwrap();
 
     // Correctness Check Configuration
-    // Defaults to running a correctness check on the unpacked data - maybe don't use for large tests
+    // Defaults to running a correctness check on the extracted data - maybe don't use for large tests
     // This should be fine for the default configuration
-    // Whether not to run a correctness check on the unpacked data
+    // Whether not to run a correctness check on the extracted data
     static ref DO_CORRECTNESS_CHECK: bool = env::var("BENCH_DO_CORRECTNESS_CHECK")
         .unwrap_or_else(|_| "true".to_string()) // Default to true
         .parse::<bool>()
@@ -171,16 +171,16 @@ fn populate_input_dirs() {
 /// Setup the benchmarking directories
 /// Makes sure output directories exist and are empty
 /// Makes sure the input directory exists and is populated with the desired file structures
-/// Makes sure the packed directory exists and is empty
-/// Makes sure the unpacked directory exists and is empty
+/// Makes sure the bundleed directory exists and is empty
+/// Makes sure the extracted directory exists and is empty
 /// Makes sure the manifest file directory exists and is empty
 #[doc(hidden)]
 fn setup_bench() {
     info!("Setting up benchmarking directories...");
     info!("-> Bench Path: {}", BENCH_PATH.as_str());
     info!("-> Input Path: {}", INPUT_PATH.as_str());
-    info!("-> Packed Path: {}", PACKED_PATH.as_str());
-    info!("-> Unpacked Path: {}", UNPACKED_PATH.as_str());
+    info!("-> Bundleed Path: {}", PACKED_PATH.as_str());
+    info!("-> Extracted Path: {}", UNPACKED_PATH.as_str());
 
     // Make sure the bench directory exists
     ensure_path_exists_and_is_dir(&PathBuf::from(BENCH_PATH.as_str()))
@@ -200,86 +200,86 @@ fn setup_bench() {
     // Populate the input directory with the desired file structures, as needed
     populate_input_dirs();
 
-    // Make sure the packed directory exists and is empty
+    // Make sure the bundleed directory exists and is empty
     ensure_path_exists_and_is_dir(&PathBuf::from(PACKED_PATH.as_str()))
         .map_err(|e| {
-            error!("Error creating packed directory: {}", e);
+            error!("Error creating bundleed directory: {}", e);
             e
         })
         .unwrap();
 
-    // Make sure the unpacked directory exists and is empty
+    // Make sure the extracted directory exists and is empty
     ensure_path_exists_and_is_dir(&PathBuf::from(UNPACKED_PATH.as_str()))
         .map_err(|e| {
-            error!("Error creating unpacked directory: {}", e);
+            error!("Error creating extracted directory: {}", e);
             e
         })
         .unwrap();
 }
 
-/// Make sure the packed and unpacked directories are empty, using the environment variables (or defaults) for the paths
+/// Make sure the bundleed and extracted directories are empty, using the environment variables (or defaults) for the paths
 #[doc(hidden)]
 fn cleanup_bench() {
     info!("Cleaning up benchmarking directories...");
-    // Make sure the packed directory exists and is empty
+    // Make sure the bundleed directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(PACKED_PATH.as_str()), true)
         .map_err(|e| {
-            error!("Error creating packed directory: {}", e);
+            error!("Error creating bundleed directory: {}", e);
             e
         })
         .unwrap();
 
-    // Make sure the unpacked directory exists and is empty
+    // Make sure the extracted directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(UNPACKED_PATH.as_str()), true)
         .map_err(|e| {
-            error!("Error creating unpacked directory: {}", e);
+            error!("Error creating extracted directory: {}", e);
             e
         })
         .unwrap();
 }
 
-/// Make sure packed directory is empty for packing
+/// Make sure bundleed directory is empty for bundleing
 #[doc(hidden)]
-fn prep_pack(packed_path: &Path) {
-    // Ensure the packed directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(packed_path, true)
+fn prep_bundle(bundleed_path: &Path) {
+    // Ensure the bundleed directory exists and is empty
+    ensure_path_exists_and_is_empty_dir(bundleed_path, true)
         .map_err(|e| {
-            error!("Error creating packed directory: {}", e);
+            error!("Error creating bundleed directory: {}", e);
             e
         })
         .unwrap();
 
     // if the manifest file exists, remove it
-    let manifest_path = packed_path.with_file_name("manifest.json");
+    let manifest_path = bundleed_path.with_file_name("manifest.json");
     if manifest_path.exists() {
         fs::remove_file(manifest_path).unwrap();
     }
 }
 
-/// Make sure the unpacked directory is empty for unpacking and that the manifest file exists
+/// Make sure the extracted directory is empty for extracting and that the manifest file exists
 #[doc(hidden)]
-fn prep_unpack(unpacked_path: &Path) {
-    // Ensure the unpacked directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(unpacked_path, true)
+fn prep_extract(extracted_path: &Path) {
+    // Ensure the extracted directory exists and is empty
+    ensure_path_exists_and_is_empty_dir(extracted_path, true)
         .map_err(|e| {
-            error!("Error creating unpacked directory: {}", e);
+            error!("Error creating extracted directory: {}", e);
             e
         })
         .unwrap();
 }
 
-/// Benchmark packing - relies on input_path being populated!
+/// Benchmark bundleing - relies on input_path being populated!
 /// # Arguments
 /// * `c` - Criterion object
 /// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark
-/// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
+/// * `bundleed_path` - Path to the bundleed directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `result_path` - Path to the results directory to use for the benchmark. This will change for each benchmark
 /// * `timestamp` - Timestamp to use for the benchmark
-fn pack_benchmark(c: &mut Criterion, input_path: &Path, packed_path: &Path) {
+fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundleed_path: &Path) {
     // Get the filename of the input directory
     let input_name = input_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
-    let bench_id = BenchmarkId::new("pack", input_name.to_string());
+    let bench_id = BenchmarkId::new("bundle", input_name.to_string());
     // Figure out how many bytes are in the input directory
     let input_dir_size = dir::get_size(input_path).unwrap();
     // Declare a runtime for the async function
@@ -291,10 +291,10 @@ fn pack_benchmark(c: &mut Criterion, input_path: &Path, packed_path: &Path) {
     // Add the benchmark to the group
     group.bench_function(bench_id, |b| {
         b.to_async(&rt).iter_batched(
-            // Operation needed to make sure pack doesn't fail
-            || prep_pack(packed_path),
+            // Operation needed to make sure bundle doesn't fail
+            || prep_bundle(bundleed_path),
             // The routine to benchmark
-            |_| async { encrypt::pipeline(black_box(input_path), black_box(false)).await },
+            |_| async { bundle::pipeline(black_box(input_path), black_box(false)).await },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -303,19 +303,19 @@ fn pack_benchmark(c: &mut Criterion, input_path: &Path, packed_path: &Path) {
     group.finish();
 }
 
-/// Benchmark unpacking - relies on PACKED_PATH and MANIFEST_PATH having packed data!
+/// Benchmark extracting - relies on PACKED_PATH and MANIFEST_PATH having bundleed data!
 /// # Arguments
 /// * `c` - Criterion object
-/// * `packed_path` - Path to the packed directory to use for the benchmark. This will probably be the same as every other benchmark
-/// * `unpacked_path` - Path to the unpacked directory to use for the benchmark. This will probably be the same as every other benchmark
+/// * `bundleed_path` - Path to the bundleed directory to use for the benchmark. This will probably be the same as every other benchmark
+/// * `extracted_path` - Path to the extracted directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `manifest_path` - Path to the manifest file to use for the benchmark. This will probably be the same as every other benchmark, until need is demonstrated to keep these.
-fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &PathBuf) {
+fn extract_benchmark(c: &mut Criterion, bundleed_path: &PathBuf, extracted_path: &PathBuf) {
     // Get the filename of the input directory
-    let input_name = unpacked_path.file_name().unwrap().to_str().unwrap();
+    let input_name = extracted_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
-    let bench_id = BenchmarkId::new("unpack", input_name.to_string());
+    let bench_id = BenchmarkId::new("extract", input_name.to_string());
     // Figure out how many bytes are in the input directory
-    let input_dir_size = dir::get_size(packed_path).unwrap();
+    let input_dir_size = dir::get_size(bundleed_path).unwrap();
     // Declare a runtime for the async function
     let rt = Runtime::new().unwrap();
 
@@ -326,10 +326,12 @@ fn unpack_benchmark(c: &mut Criterion, packed_path: &PathBuf, unpacked_path: &Pa
     // Add the benchmark to the group
     group.bench_function(bench_id, |b| {
         b.to_async(&rt).iter_batched(
-            // Operation needed to make sure unpack doesn't fail
-            || prep_unpack(unpacked_path),
+            // Operation needed to make sure extract doesn't fail
+            || prep_extract(extracted_path),
             // The routine to benchmark
-            |_| async { decrypt::pipeline(black_box(packed_path), black_box(unpacked_path)).await },
+            |_| async {
+                extract::pipeline(black_box(bundleed_path), black_box(extracted_path)).await
+            },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
             BatchSize::PerIteration,
@@ -347,8 +349,8 @@ fn pipeline_benchmark(c: &mut Criterion) {
 
     // Where we will store our input sets
     let root_input_path = PathBuf::from(INPUT_PATH.as_str());
-    // Where we will store our packed data
-    let packed_path = PathBuf::from(PACKED_PATH.as_str());
+    // Where we will store our bundleed data
+    let bundleed_path = PathBuf::from(PACKED_PATH.as_str());
 
     // Read the input directory for the benchmark
     let root_input_dir = fs::read_dir(root_input_path).unwrap();
@@ -357,20 +359,20 @@ fn pipeline_benchmark(c: &mut Criterion) {
     for entry in root_input_dir {
         // Paths we will have to mutate
         let mut input_path = PathBuf::from(INPUT_PATH.as_str());
-        let mut unpacked_path = PathBuf::from(UNPACKED_PATH.as_str());
+        let mut extracted_path = PathBuf::from(UNPACKED_PATH.as_str());
 
         // Get the names of the input entry
         let entry_name = entry.unwrap().file_name();
         // Mutate the input path so we can use it in the benchmark
         input_path.push(entry_name.clone());
-        // Mutate the unpacked path so we can use it in the benchmark
-        unpacked_path.push(entry_name.clone());
+        // Mutate the extracted path so we can use it in the benchmark
+        extracted_path.push(entry_name.clone());
 
-        // Run the pack benchmark
-        pack_benchmark(c, &input_path, &packed_path);
+        // Run the bundle benchmark
+        bundle_benchmark(c, &input_path, &bundleed_path);
 
-        // Run the unpack benchmark
-        unpack_benchmark(c, &packed_path, &unpacked_path);
+        // Run the extract benchmark
+        extract_benchmark(c, &bundleed_path, &extracted_path);
 
         // If we have correctness testing enabled, run the correctness tests
         if *DO_CORRECTNESS_CHECK {
@@ -379,7 +381,7 @@ fn pipeline_benchmark(c: &mut Criterion) {
                 entry_name.to_str().unwrap()
             );
             // Make sure they have the same contents
-            assert_paths!(input_path, unpacked_path);
+            assert_paths!(input_path, extracted_path);
         }
         info!("Finished benchmarking {}", entry_name.to_str().unwrap());
         // Cleanup the bench

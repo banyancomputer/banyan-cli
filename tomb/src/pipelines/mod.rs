@@ -2,14 +2,14 @@
 pub mod add;
 /// Interfacing with the banyan api
 pub mod banyan_api;
+/// This module contains the encryption pipeline function, which is the main entry point for bundleing new data.
+pub mod bundle;
 /// This module contains configuration functions for the cli
 pub mod configure;
-/// This module contains the decryption pipeline function, which is the main entry point for extracting previously packed data.
-pub mod decrypt;
-/// This module contains the encryption pipeline function, which is the main entry point for packing new data.
-pub mod encrypt;
 /// Pipeline Errors
 pub mod error;
+/// This module contains the decryption pipeline function, which is the main entry point for extracting previously bundleed data.
+pub mod extract;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 
@@ -17,7 +17,7 @@ pub mod remove;
 mod test {
     use super::add;
     use crate::{
-        pipelines::{configure, decrypt, encrypt, remove},
+        pipelines::{bundle, configure, extract, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
@@ -46,8 +46,8 @@ mod test {
         let origin = &test_setup(test_name).await?;
         // Deinitialize for user
         configure::deinit(origin).await?;
-        // Assert that packing fails
-        assert!(encrypt::pipeline(origin, true).await.is_err());
+        // Assert that bundleing fails
+        assert!(bundle::pipeline(origin, true).await.is_err());
         // Initialize for this user
         configure::init(origin).await?;
         // Assert that a config exists for this bucket now
@@ -77,38 +77,38 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pack() -> Result<()> {
-        let test_name = "pack";
+    async fn bundle() -> Result<()> {
+        let test_name = "bundle";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
         configure::init(origin).await?;
-        // Pack
-        encrypt::pipeline(origin, true).await?;
+        // Bundle
+        bundle::pipeline(origin, true).await?;
         // Teardown
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn unpack() -> Result<()> {
-        let test_name = "unpack";
+    async fn extract() -> Result<()> {
+        let test_name = "extract";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
         // Initialize
         configure::init(origin).await?;
-        // Pack locally
-        encrypt::pipeline(origin, true).await?;
-        // Create a new dir to unpack in
-        let unpacked_dir = &origin
+        // Bundle locally
+        bundle::pipeline(origin, true).await?;
+        // Create a new dir to extract in
+        let extracted_dir = &origin
             .parent()
             .expect("origin has no parent")
-            .join(format!("{}_unpacked", test_name));
-        create_dir_all(unpacked_dir)?;
-        // Run the unpacking pipeline
-        decrypt::pipeline(origin, unpacked_dir).await?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
+            .join(format!("{}_extracted", test_name));
+        create_dir_all(extracted_dir)?;
+        // Run the extracting pipeline
+        extract::pipeline(origin, extracted_dir).await?;
+        // Assert the pre-bundleed and extracted directories are identical
+        assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         // Teardown
         test_teardown(test_name).await
     }
@@ -121,8 +121,8 @@ mod test {
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(origin).await?;
-        // Run the pack pipeline
-        encrypt::pipeline(origin, true).await?;
+        // Run the bundle pipeline
+        bundle::pipeline(origin, true).await?;
         // This is still in the input dir. Technically we could just
         let input_file = &origin.join("hello.txt");
         // Content to be written to the file
@@ -175,8 +175,8 @@ mod test {
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(origin).await?;
-        // Run the pack pipeline
-        encrypt::pipeline(origin, true).await?;
+        // Run the bundle pipeline
+        bundle::pipeline(origin, true).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
@@ -213,24 +213,24 @@ mod test {
     }
 
     // Helper function for structure tests
-    async fn assert_pack_unpack(test_name: &str) -> Result<()> {
+    async fn assert_bundle_extract(test_name: &str) -> Result<()> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
         // Initialize
         configure::init(origin).await?;
-        // Pack locally
-        encrypt::pipeline(origin, true).await?;
-        // Create a new dir to unpack in
-        let unpacked_dir = &origin
+        // Bundle locally
+        bundle::pipeline(origin, true).await?;
+        // Create a new dir to extract in
+        let extracted_dir = &origin
             .parent()
             .expect("origin has no parent")
-            .join("unpacked");
-        create_dir_all(unpacked_dir)?;
-        // Run the unpacking pipeline
-        decrypt::pipeline(origin, unpacked_dir).await?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
+            .join("extracted");
+        create_dir_all(extracted_dir)?;
+        // Run the extracting pipeline
+        extract::pipeline(origin, extracted_dir).await?;
+        // Assert the pre-bundleed and extracted directories are identical
+        assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         Ok(())
     }
 
@@ -242,7 +242,7 @@ mod test {
         let test_name = "structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -252,7 +252,7 @@ mod test {
         let test_name = "structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -262,7 +262,7 @@ mod test {
         let test_name = "structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -272,7 +272,7 @@ mod test {
         let test_name = "big_file";
         let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -299,11 +299,11 @@ mod test {
         rename(dup_origin, origin)?;
 
         // Run test
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
-    // / Ensure that the duplicate data occupies a smaller footprint when packed
+    // / Ensure that the duplicate data occupies a smaller footprint when bundleed
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
     #[serial]
@@ -346,20 +346,20 @@ mod test {
         structure.generate(unique2)?;
 
         // Run test
-        assert_pack_unpack(test_name_dup).await?;
-        assert_pack_unpack(test_name_unique).await?;
+        assert_bundle_extract(test_name_dup).await?;
+        assert_bundle_extract(test_name_unique).await?;
 
         // Get configs
         let global = GlobalConfig::from_disk().await?;
         // Compute the sizes of these directories
-        let packed_dups_size = compute_directory_size(
+        let bundleed_dups_size = compute_directory_size(
             &global
                 .get_bucket_by_origin(origin_dup)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
         )? as f64;
-        let packed_unique_size = compute_directory_size(
+        let bundleed_unique_size = compute_directory_size(
             &global
                 .get_bucket_by_origin(origin_unique)
                 .expect("bucket config does not exist for this origin")
@@ -367,9 +367,9 @@ mod test {
                 .path,
         )? as f64;
 
-        // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
-        println!("unique {} dup {}", packed_unique_size, packed_dups_size);
-        assert!(packed_unique_size / packed_dups_size >= 1.8);
+        // Ensure that the size of the bundleed duplicates directory is approximately half that of the unique directory
+        println!("unique {} dup {}", bundleed_unique_size, bundleed_dups_size);
+        assert!(bundleed_unique_size / bundleed_dups_size >= 1.8);
 
         test_teardown(test_name_dup).await?;
         test_teardown(test_name_unique).await
@@ -377,13 +377,13 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_packing() -> Result<()> {
-        let test_name = "double_packing";
+    async fn double_bundleing() -> Result<()> {
+        let test_name = "double_bundleing";
         // Setup the test once
         test_setup(test_name).await?;
         // Run the test twice
-        assert_pack_unpack(test_name).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Teardown
         test_teardown(test_name).await
     }
@@ -413,15 +413,15 @@ mod test {
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
         // Run the test
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Write "Still there, World?" out to the same file
         File::create(&versioned_file_path)?.write_all(still_bytes)?;
         // Run the test again
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
         // Run the test again
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
@@ -536,11 +536,11 @@ mod test {
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
         // Run the test
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
         // Run the test again
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
@@ -649,7 +649,7 @@ mod test {
         assert_eq!(file_original, read_link(file_sym)?);
 
         // Run the test on the created filesystem
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
 
         // Teardown
         test_teardown(test_name).await

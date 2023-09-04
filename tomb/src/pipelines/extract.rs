@@ -1,21 +1,21 @@
 use super::error::PipelineError;
-use crate::{types::config::globalconfig::GlobalConfig, utils::decrypt::process_node};
+use crate::{types::config::globalconfig::GlobalConfig, utils::extract::process_node};
 use anyhow::Result;
 use std::path::Path;
 
-/// Given the manifest file and a destination for our unpacked data, run the unpacking pipeline
+/// Given the manifest file and a destination for our extracted data, run the extracting pipeline
 /// on the data referenced in the manifest.
 ///
 /// # Arguments
 ///
-/// * `output_dir` - &Path representing the relative path of the output directory in which to unpack the data
+/// * `output_dir` - &Path representing the relative path of the output directory in which to extract the data
 /// * `manifest_file` - &Path representing the relative path of the manifest file
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineError> {
+pub async fn pipeline(origin: &Path, extracted: &Path) -> Result<(), PipelineError> {
     // Announce that we're starting
-    info!("🚀 Starting unpacking pipeline...");
+    info!("🚀 Starting extracting pipeline...");
 
     let global = GlobalConfig::from_disk().await?;
     println!("obtained global config");
@@ -31,7 +31,7 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
 
         info!(
             "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
-            unpacked.display()
+            extracted.display()
         );
 
         // Run extraction on the base level with an empty built path
@@ -41,7 +41,7 @@ pub async fn pipeline(origin: &Path, unpacked: &Path) -> Result<(), PipelineErro
             metadata_forest,
             content_forest,
             &dir.as_node(),
-            unpacked,
+            extracted,
             Path::new(""),
         )
         .await?;

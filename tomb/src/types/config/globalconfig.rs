@@ -244,7 +244,7 @@ impl GlobalConfig {
         if let Ok(bucket) = self.get_bucket(bucket_specifier) && let Some(id) = bucket.remote_id {
             Ok(id)
         }
-        else { 
+        else {
             Err(anyhow!("no bucket for this specifier"))
         }
     }

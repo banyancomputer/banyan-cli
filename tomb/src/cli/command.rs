@@ -71,10 +71,10 @@ pub enum BucketsSubCommand {
     Push(BucketSpecifier),
     /// Pull
     Pull(BucketSpecifier),
-    /// Encrypt / Pack a Bucket
-    Encrypt(BucketSpecifier),
-    /// Decrypt / Unpack a Bucket
-    Decrypt {
+    /// Encrypt / Bundle a Bucket
+    Bundle(BucketSpecifier),
+    /// Decrypt / Extract a Bucket
+    Extract {
         /// Bucket in question
         #[clap(flatten)]
         bucket_specifier: BucketSpecifier,

@@ -55,7 +55,7 @@ pub enum PipelineErrorKind {
     /// User simply never configured this directory
     // #[error("Bucket not been initialized for this directory: {0.display()}")]
     Uninitialized(PathBuf),
-    // Missing File when searching for it during unpacking
+    // Missing File when searching for it during extracting
     // #[error("File not found in Content BlockStore: {0}")]
     FileMissing(PathBuf),
     /// IO Operation Error

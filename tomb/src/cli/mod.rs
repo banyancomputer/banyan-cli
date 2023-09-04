@@ -59,19 +59,19 @@ mod test {
         }
     }
 
-    // Run the Pack pipeline through the CLI
-    fn cmd_pack(origin: &Path) -> Command {
-        Command::Pack {
+    // Run the Bundle pipeline through the CLI
+    fn cmd_bundle(origin: &Path) -> Command {
+        Command::Bundle {
             origin: Some(origin.to_path_buf()),
             follow_links: true,
         }
     }
 
-    // Run the Unpack pipeline through the CLI
-    fn cmd_unpack(origin: &Path, unpacked: &Path) -> Command {
-        Command::Unpack {
+    // Run the Extract pipeline through the CLI
+    fn cmd_extract(origin: &Path, extracted: &Path) -> Command {
+        Command::Extract {
             origin: Some(origin.to_path_buf()),
-            unpacked: unpacked.to_path_buf(),
+            extracted: extracted.to_path_buf(),
         }
     }
 
@@ -84,7 +84,7 @@ mod test {
         // Deinitialize for user
         run(cmd_deinit(origin)).await?;
         // Assert failure
-        assert!(run(cmd_pack(origin)).await.is_err());
+        assert!(run(cmd_bundle(origin)).await.is_err());
         // Initialization worked
         run(cmd_init(origin)).await?;
         // Assert the bucket exists now
@@ -148,38 +148,38 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pack() -> Result<()> {
-        let test_name = "cli_pack";
+    async fn bundle() -> Result<()> {
+        let test_name = "cli_bundle";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
         run(cmd_init(origin)).await?;
-        // Run pack and assert success
-        run(cmd_pack(origin)).await?;
+        // Run bundle and assert success
+        run(cmd_bundle(origin)).await?;
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn unpack() -> Result<()> {
-        let test_name = "cli_unpack";
+    async fn extract() -> Result<()> {
+        let test_name = "cli_extract";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
         run(cmd_init(origin)).await?;
-        // Run pack and assert success
-        run(cmd_pack(origin)).await?;
-        // Create unpacked dir
-        let unpacked = &origin
+        // Run bundle and assert success
+        run(cmd_bundle(origin)).await?;
+        // Create extracted dir
+        let extracted = &origin
             .parent()
             .expect("origin has no parent")
-            .join("unpacked");
-        create_dir(unpacked).ok();
-        // Run unpack and assert success
-        run(cmd_unpack(origin, unpacked)).await?;
+            .join("extracted");
+        create_dir(extracted).ok();
+        // Run extract and assert success
+        run(cmd_extract(origin, extracted)).await?;
         // Assert equality
-        assert_paths(origin, unpacked).expect("unpacked dir does not match origin");
+        assert_paths(origin, extracted).expect("extracted dir does not match origin");
         // Teardown test
         test_teardown(test_name).await
     }

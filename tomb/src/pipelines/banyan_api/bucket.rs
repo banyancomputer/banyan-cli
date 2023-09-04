@@ -2,7 +2,7 @@ use std::env::current_dir;
 
 use crate::{
     cli::command::*,
-    pipelines::{decrypt, error::PipelineError},
+    pipelines::{error::PipelineError, extract},
     types::config::globalconfig::GlobalConfig,
 };
 use anyhow::Result;
@@ -61,13 +61,13 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             .map_err(PipelineError::client_error),
         BucketsSubCommand::Push(_) => todo!(),
         BucketsSubCommand::Pull(_) => todo!(),
-        BucketsSubCommand::Encrypt(bs) => Ok(format!("just ran encrypt")),
-        BucketsSubCommand::Decrypt {
+        BucketsSubCommand::Bundle(bs) => Ok(format!("just ran encrypt")),
+        BucketsSubCommand::Extract {
             bucket_specifier,
             output,
         } => {
             let origin = global.get_bucket(&bucket_specifier)?.origin;
-            decrypt::pipeline(&origin, &output)
+            extract::pipeline(&origin, &output)
                 .await
                 .map(|x: ()| format!("successfully decrypted the bucket"))
         }
