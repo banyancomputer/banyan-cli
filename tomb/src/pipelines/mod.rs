@@ -22,7 +22,8 @@ mod test {
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
-            test::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
+            test::{test_setup, test_setup_structured, test_teardown},
+            wnfsio::compute_directory_size,
         },
     };
     use tomb_common::utils::wnfsio::decompress_bytes;

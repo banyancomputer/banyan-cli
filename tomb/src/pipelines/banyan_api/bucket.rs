@@ -1,16 +1,24 @@
 use std::env::current_dir;
-
 use crate::{
     cli::command::*,
     pipelines::{bundle, error::TombError, extract},
     types::config::globalconfig::GlobalConfig,
+    utils::wnfsio::compute_directory_size,
 };
 use anyhow::{anyhow, Result};
-use tomb_common::banyan_api::models::{
-    bucket::{Bucket, BucketType, StorageClass},
-    bucket_key::BucketKey,
-    metadata::Metadata,
+use reqwest::Body;
+use tokio::io::AsyncWriteExt;
+use tomb_common::{
+    banyan_api::models::{
+        bucket::{Bucket, BucketType, StorageClass},
+        bucket_key::BucketKey,
+        metadata::Metadata,
+        storage_ticket,
+    },
+    blockstore::RootedBlockStore,
+    utils::io::get_read,
 };
+use futures_util::stream::StreamExt;
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
 use uuid::Uuid;
 
@@ -82,7 +90,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     buckets
                         .iter()
                         .fold("<< REMOTE BUCKETS >>".to_string(), |acc, bucket| {
-                            format!("{}\n\n{}", acc, bucket)
+                            format!("{}{}", acc, bucket)
                         })
                 })
                 .map_err(TombError::client_error)?;
@@ -91,10 +99,10 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 .buckets
                 .iter()
                 .fold("<< LOCAL BUCKETS >>".to_string(), |acc, bucket| {
-                    format!("{}\n\n{}", acc, bucket)
+                    format!("{}{}", acc, bucket)
                 });
 
-            Ok(format!("{}\n{}", remote, local))
+            Ok(format!("{}\n\n{}", remote, local))
         }
         // Delete a Bucket
         BucketsSubCommand::Delete(bucket_specifier) => {
@@ -160,6 +168,77 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                         )))
                     }
                 }
+                MetadataSubCommand::Push(bucket_specifier) => {
+                    // Get info
+                    let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    let expected_data_size = compute_directory_size(&config.metadata.path)? as u64;
+                    let bucket_id = config.remote_id.expect("no remote id");
+                    let root_cid = config.metadata.get_root().expect("no root cid").to_string();
+                    let metadata_stream = tokio::fs::File::open(&config.metadata.path).await?;
+                    // Push the Metadata
+                    Metadata::push(
+                        bucket_id,
+                        root_cid,
+                        expected_data_size,
+                        metadata_stream,
+                        &mut client,
+                    )
+                    .await
+                    .map(|(metadata, storage_ticket)| {
+                        let mut info = format!("\t{}", metadata);
+                        if let Some(storage_ticket) = storage_ticket {
+                            info.push_str(&format!("\n\n\t{}", storage_ticket))
+                        }
+                        info
+                    })
+                    .map_err(TombError::client_error)
+                }
+                MetadataSubCommand::ReadCurrent(bucket_specifier) => {
+                    let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    let bucket_id = config.remote_id.expect("no remote id");
+                    Metadata::read_current(bucket_id, &mut client).await
+                    .map(|metadata| {
+                        format!("{:?}", metadata)
+                    })
+                    .map_err(TombError::client_error)
+                },
+                MetadataSubCommand::List(bucket_specifier) => {
+                    let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    let bucket_id = config.remote_id.expect("no remote id");
+                    Metadata::read_all(bucket_id, &mut client).await
+                    .map(|metadatas| {
+                        metadatas
+                        .iter()
+                        .fold("<< METADATAS >>".to_string(), |acc, metadata| {
+                            format!("{}{}", acc, metadata)
+                        })
+                    })
+                    .map_err(TombError::client_error)
+                },
+                MetadataSubCommand::Pull { bucket_specifier, metadata_id } => {
+                    let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    let bucket_id = config.remote_id.expect("no remote id");
+                    let metadata = Metadata::read(bucket_id, metadata_id, &mut client).await?;
+                    let mut byte_stream = metadata.pull(&mut client).await?;
+                    let mut file = tokio::fs::File::create(&config.metadata.path).await?;
+
+                    println!("starting to download metadata...");
+
+                    while let Some(chunk) = byte_stream.next().await {
+                        tokio::io::copy(&mut chunk?.as_ref(), &mut file).await?;
+                    }
+
+                    Ok(format!("successfully downloaded metadata"))
+                },
+                MetadataSubCommand::Snapshot { bucket_specifier, metadata_id } => {
+                    let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    let bucket_id = config.remote_id.expect("no remote id");
+                    let metadata = Metadata::read(bucket_id, metadata_id, &mut client).await?;
+                    
+                    metadata.snapshot(&mut client).await.map(|snapshot| {
+                        format!("{:?}", snapshot)
+                    }).map_err(TombError::client_error)
+                },
             }
         }
         // Bucket Key Management

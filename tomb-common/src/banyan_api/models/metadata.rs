@@ -65,6 +65,18 @@ pub struct Metadata {
     pub state: MetadataState,
 }
 
+impl Display for Metadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "\n| METADATA INFO |\nmetadata_id:\t{}\nroot_cid:\t{}\ndata_size:\t{}\nstatus:\t\t{}",
+            self.id,
+            self.root_cid,
+            self.data_size,
+            self.state
+        ))
+    }
+}
+
 impl Metadata {
     // TODO: This should probably take a generic trait related to Tomb in order to extract these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket

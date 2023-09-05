@@ -160,4 +160,28 @@ pub enum MetadataSubCommand {
         /// Id of the Metadata
         metadata_id: Uuid,
     },
+    /// Read the currently active Metadata
+    ReadCurrent(BucketSpecifier),
+    /// List all Metadatas associated with Bucket
+    List(BucketSpecifier),
+    /// Upload Metadata
+    Push(BucketSpecifier),
+    /// Download Metadata
+    Pull {
+        /// Bucket in question
+        #[clap(flatten)]
+        bucket_specifier: BucketSpecifier,
+
+        /// Id of the Metadata
+        metadata_id: Uuid,
+    },
+    /// Grab Snapshot
+    Snapshot{
+        /// Bucket in question
+        #[clap(flatten)]
+        bucket_specifier: BucketSpecifier,
+
+        /// Id of the Metadata
+        metadata_id: Uuid,
+    },
 }
