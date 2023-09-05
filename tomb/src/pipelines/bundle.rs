@@ -21,10 +21,10 @@ use anyhow::Result;
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
+    global: &mut GlobalConfig,
     bucket_specifier: &BucketSpecifier,
     follow_links: bool,
 ) -> Result<String, TombError> {
-    let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;
     let mut config = global.get_bucket_by_specifier(bucket_specifier)?;
     // Create bundleing plan

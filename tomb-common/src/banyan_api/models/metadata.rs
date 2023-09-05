@@ -86,6 +86,7 @@ impl Metadata {
         root_cid: String,
         expected_data_size: u64,
         metadata_stream: S,
+        valid_keys: Vec<String>,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
     where
@@ -97,7 +98,7 @@ impl Metadata {
                 root_cid: root_cid.clone(),
                 expected_data_size,
                 metadata_stream,
-                valid_keys: vec![],
+                valid_keys,
             })
             .await?;
         let metadata = Self {
@@ -249,6 +250,7 @@ pub mod test {
             "root_cid".to_string(),
             0,
             "metadata_stream".as_bytes(),
+            vec![],
             client,
         )
         .await?;

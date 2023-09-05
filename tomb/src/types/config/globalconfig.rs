@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     env::current_dir,
     fs::{remove_file, File},
-    io::{Read, Write},
+    io::{Read, Write, Seek, SeekFrom},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -126,10 +126,6 @@ impl GlobalConfig {
             // Save the API key to disk
             save_api_key(&self.api_key_path, api_key).await?;
         }
-
-        // Save struct to disk
-        self.to_disk()?;
-
         // Ok
         Ok(())
     }
@@ -137,13 +133,18 @@ impl GlobalConfig {
     /// Write to disk
     pub fn to_disk(&self) -> Result<()> {
         // println!("SAVING CONFIG: {:?}", &self);
-        serde_json::to_writer_pretty(get_write(&config_path())?, &self)?;
+        let mut writer = get_write(&config_path())?;
+        writer.seek(SeekFrom::Start(0))?;
+        let json = &serde_json::to_string_pretty(self)?;
+        println!("JSON: {}", json);
+        writer.write_all(json.as_bytes())?;
+
+        // serde_json::to_writer(get_write(&config_path())?, &self)?;
         Ok(())
     }
 
     // TODO: This should fail if the file does not exist
     /// Initialize from a reader
-    #[async_recursion(?Send)]
     pub async fn from_disk() -> Result<Self> {
         if let Ok(file) = get_read(&config_path()) &&
            let Ok(config) = serde_json::from_reader(file) {
@@ -151,8 +152,9 @@ impl GlobalConfig {
                 Ok(config)
         } else {
             println!("Creating new config at {:?}", config_path());
-            Self::create().await?.to_disk()?;
-            Self::from_disk().await
+            let config = Self::create().await?;
+            config.to_disk()?;
+            Ok(config)
         }
     }
 

@@ -216,6 +216,7 @@ pub mod test {
             root_cid.to_string(),
             data_size,
             metadata_bytes,
+            vec![],
             client,
         )
         .await?;

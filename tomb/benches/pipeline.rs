@@ -16,7 +16,7 @@ use std::{
 use tokio::runtime::Runtime;
 use tomb::{
     cli::command::BucketSpecifier,
-    pipelines::{bundle, extract},
+    pipelines::{bundle, extract}, types::config::globalconfig::GlobalConfig,
 };
 
 // Configure the Benching Framework from the Environment -- or use defaults
@@ -299,6 +299,7 @@ fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundleed_path: &Path) 
             // The routine to benchmark
             |_| async {
                 bundle::pipeline(
+                    black_box(&mut GlobalConfig::from_disk().await?),
                     black_box(&BucketSpecifier::with_origin(input_path)),
                     black_box(false),
                 )
@@ -340,6 +341,7 @@ fn extract_benchmark(c: &mut Criterion, bundleed_path: &PathBuf, extracted_path:
             // The routine to benchmark
             |_| async {
                 extract::pipeline(
+                    black_box(&mut GlobalConfig::from_disk().await?),
                     black_box(&BucketSpecifier::with_origin(bundleed_path)),
                     black_box(extracted_path),
                 )

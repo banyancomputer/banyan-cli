@@ -17,13 +17,12 @@ use std::path::Path;
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
+    global: &mut GlobalConfig,
     bucket_specifier: &BucketSpecifier,
     extracted: &Path,
 ) -> Result<String, TombError> {
     // Announce that we're starting
     info!("🚀 Starting extracting pipeline...");
-
-    let global = GlobalConfig::from_disk().await?;
     println!("obtained global config");
     let wrapping_key = global.clone().wrapping_key().await?;
     println!("obtained key");

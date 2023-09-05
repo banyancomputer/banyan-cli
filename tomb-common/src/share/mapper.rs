@@ -19,7 +19,7 @@ const ENCRYPTED_PRIVATE_REF_LABEL: &str = "ENCRYPTED_PRIVATE_REF";
 /// where
 ///  - ECDH_PUBLIC_KEY is the DER encoded public key bytes of an ECDH keypair
 ///  - ENC_PRIVATE_REF is an EncryptedPrivateRef shared with that public key
-pub struct EncRefMapper(HashMap<String, (Vec<u8>, String)>);
+pub struct EncRefMapper(pub(crate) HashMap<String, (Vec<u8>, String)>);
 
 impl EncRefMapper {
     /// Encrypt a private referece for all reciepients in the Mapper

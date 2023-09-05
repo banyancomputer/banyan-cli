@@ -16,7 +16,7 @@ use tomb_common::{
         storage_ticket,
     },
     blockstore::RootedBlockStore,
-    utils::io::get_read,
+    utils::io::get_read, metadata::FsMetadata,
 };
 use futures_util::stream::StreamExt;
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
@@ -77,12 +77,12 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
         BucketsSubCommand::Bundle {
             bucket_specifier,
             follow_links,
-        } => bundle::pipeline(&bucket_specifier, follow_links).await,
+        } => bundle::pipeline(&mut global, &bucket_specifier, follow_links).await,
         // Extract a local directory
         BucketsSubCommand::Extract {
             bucket_specifier,
             output,
-        } => extract::pipeline(&bucket_specifier, &output).await, // List all Buckets tracked remotely and locally
+        } => extract::pipeline(&mut global, &bucket_specifier, &output).await, // List all Buckets tracked remotely and locally
         BucketsSubCommand::List => {
             let remote = Bucket::read_all(&mut client)
                 .await
@@ -170,7 +170,11 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 }
                 MetadataSubCommand::Push(bucket_specifier) => {
                     // Get info
+                    let wrapping_key = global.wrapping_key().await?;
                     let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    let fs = FsMetadata::unlock(&wrapping_key, &config.metadata).await?;
+                    let valid_keys = fs.share_manager.recipients();
+
                     let expected_data_size = compute_directory_size(&config.metadata.path)? as u64;
                     let bucket_id = config.remote_id.expect("no remote id");
                     let root_cid = config.metadata.get_root().expect("no root cid").to_string();
@@ -181,6 +185,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                         root_cid,
                         expected_data_size,
                         metadata_stream,
+                        valid_keys,
                         &mut client,
                     )
                     .await
@@ -294,6 +299,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
     // Save the Client
     global.save_client(client).await?;
+    global.to_disk()?;
 
     // Return
     result.map_err(anyhow::Error::new)

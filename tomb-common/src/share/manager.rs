@@ -49,6 +49,10 @@ impl ShareManager {
         Ok(())
     }
 
+    pub fn recipients(&self) -> Vec<String> {
+        self.original_map.0.clone().into_keys().collect()
+    }
+
     /// Retrieve the current_ref PrivateRef using a PrivateKey
     async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
         self.current_map.recover_ref(recipient).await

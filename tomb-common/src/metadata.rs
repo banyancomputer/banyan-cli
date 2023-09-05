@@ -170,6 +170,7 @@ impl FsMetadata {
         assert_eq!(root_cid, _root_cid);
 
         self.metadata = Some(root_map);
+
         Ok(())
     }
 

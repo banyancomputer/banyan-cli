@@ -90,6 +90,7 @@ pub enum BucketsSubCommand {
         bucket_specifier: BucketSpecifier,
 
         /// Follow symbolic links
+        #[arg(short, long)]
         follow_links: bool,
     },
     /// Decrypt / Extract a Bucket
@@ -99,6 +100,7 @@ pub enum BucketsSubCommand {
         bucket_specifier: BucketSpecifier,
 
         /// Output Directory
+        #[arg(short, long)]
         output: PathBuf,
     },
     /// List all Buckets
@@ -158,6 +160,7 @@ pub enum MetadataSubCommand {
         bucket_specifier: BucketSpecifier,
 
         /// Id of the Metadata
+        #[arg(short, long)]
         metadata_id: Uuid,
     },
     /// Read the currently active Metadata
@@ -173,6 +176,7 @@ pub enum MetadataSubCommand {
         bucket_specifier: BucketSpecifier,
 
         /// Id of the Metadata
+        #[arg(short, long)]
         metadata_id: Uuid,
     },
     /// Grab Snapshot
@@ -182,6 +186,7 @@ pub enum MetadataSubCommand {
         bucket_specifier: BucketSpecifier,
 
         /// Id of the Metadata
+        #[arg(short, long)]
         metadata_id: Uuid,
     },
 }

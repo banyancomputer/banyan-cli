@@ -71,7 +71,6 @@ where
 #[cfg(not(target_arch = "wasm32"))]
 /// Compress the contents of a file at a given path
 pub fn compress_file(path: &std::path::Path) -> Result<Vec<u8>> {
-    println!("compressing file! {}", path.display());
     // Open the original file (just the first one!)
     let file = std::fs::File::open(path)?;
     // Create a reader for the original file

@@ -49,6 +49,7 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
 
     // Save the Client
     global.save_client(client).await?;
+    global.to_disk()?;
 
     // Return
     result.map_err(anyhow::Error::new)
