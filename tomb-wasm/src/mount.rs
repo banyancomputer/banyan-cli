@@ -288,14 +288,15 @@ impl WasmMount {
         match storage_ticket {
             Some(storage_ticket) => {
                 log!(
-                    "tomb-wasm: mount/sync()/{} - storage ticket returned",
+                    "tomb-wasm: mount/sync()/ - storage ticket returned",
                     self.bucket.id.to_string()
                 );
-                storage_ticket
-                    .clone()
-                    .create_grant(&mut self.client)
-                    .await
-                    .expect("could not create grant");
+
+                if let Err(err) = storage_ticket.clone().create_grant(&mut self.client).await {
+                    let err_msg = format!("{:?}", err);
+                    log!("tomb-wasm: mount/sync() - failed to register storage ticket: {}", err_msg);
+                }
+
                 let content = Cursor::new(self.metadata_blockstore.get_data());
                 storage_ticket
                     .clone()
