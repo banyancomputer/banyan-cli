@@ -8,15 +8,23 @@ use std::{
     rc::Rc,
 };
 use tomb_common::{
-    blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
+    banyan_api::models::metadata::{Metadata, MetadataState},
+    blockstore::{
+        carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore,
+        RootedBlockStore,
+    },
     metadata::FsMetadata,
     share::manager::ShareManager,
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
-use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
+use wnfs::{
+    common::BlockStore,
+    libipld::{Cid, Ipld},
+    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
+};
 
-use crate::utils::config::xdg_data_home;
+use crate::utils::{config::xdg_data_home, wnfsio::compute_directory_size};
 
 const BUCKET_METADATA_FILE_NAME: &str = "metadata.car";
 const BUCKET_CONTENT_DIR_NAME: &str = "deltas";
@@ -157,6 +165,25 @@ impl BucketConfig {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
         Ok(fs_metadata.history(&self.metadata).await?)
     }
+
+    /// Get the Metadata struct which can be used to create Metadata API requests
+    pub async fn get_metadata(&self) -> Result<Metadata> {
+        let remote_id = self
+            .remote_id
+            .ok_or(anyhow::anyhow!("remote id not found"))?;
+        let root_cid = self
+            .metadata
+            .get_root()
+            .ok_or(anyhow::anyhow!("root_cid not found"))?;
+
+        Ok(Metadata {
+            id: Uuid::new_v4(),
+            bucket_id: remote_id,
+            root_cid: root_cid.to_string(),
+            data_size: compute_directory_size(&self.content.path)? as u64,
+            state: MetadataState::Current,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -211,12 +238,7 @@ mod test {
         .await?;
 
         config
-            .set_all(
-                &metadata_forest,
-                &content_forest,
-                &root_dir,
-                &share_manager,
-            )
+            .set_all(&metadata_forest, &content_forest, &root_dir, &share_manager)
             .await?;
 
         // Get structs

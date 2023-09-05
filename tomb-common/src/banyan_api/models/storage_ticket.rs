@@ -97,6 +97,7 @@ pub mod test {
     use crate::banyan_api::models::metadata::Metadata;
     use crate::banyan_api::utils::generate_bucket_key;
     use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
+    use crate::blockstore::RootedBlockStore;
     use crate::metadata::FsMetadata;
 
     #[tokio::test]
@@ -196,20 +197,12 @@ pub mod test {
             .save(&metadata_store, &content_store)
             .await
             .expect("Failed to save fs metadata");
-        let metadata_cid = fs_metadata
-            .metadata_cid(&metadata_store)
-            .await
-            .expect("Failed to get metadata cid");
-        let root_cid = fs_metadata
-            .root_cid(&metadata_store)
-            .await
-            .expect("Failed to get root cid");
+        let root_cid = &metadata_store.get_root().expect("Failed to get root cid");
         let data_size = content_store.data_size();
         let metadata_bytes = metadata_store.get_data();
         let (metadata, storage_ticket) = Metadata::push(
             bucket.id,
             root_cid.to_string(),
-            metadata_cid.to_string(),
             data_size,
             metadata_bytes,
             client,

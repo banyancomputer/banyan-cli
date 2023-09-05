@@ -59,8 +59,6 @@ pub struct Metadata {
     pub bucket_id: Uuid,
     /// The CID of the root of the bucket
     pub root_cid: String,
-    /// The CID of the metadata forest
-    pub metadata_cid: String,
     /// The size of the data in bytes that this metadata points to
     pub data_size: u64,
     /// The state of the metadata
@@ -74,7 +72,6 @@ impl Metadata {
     pub async fn push<S>(
         bucket_id: Uuid,
         root_cid: String,
-        metadata_cid: String,
         expected_data_size: u64,
         metadata_stream: S,
         client: &mut Client,
@@ -86,16 +83,15 @@ impl Metadata {
             .multipart(PushMetadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
-                metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 metadata_stream,
+                valid_keys: vec![],
             })
             .await?;
         let metadata = Self {
             id: response.id,
             bucket_id,
             root_cid,
-            metadata_cid,
             data_size: 0,
             state: response.state,
         };
@@ -174,7 +170,6 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid: response.root_cid,
-            metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
         })
@@ -190,7 +185,6 @@ impl Metadata {
                 id: response.id,
                 bucket_id,
                 root_cid: response.root_cid,
-                metadata_cid: response.metadata_cid,
                 data_size: response.data_size as u64,
                 state: response.state,
             })
@@ -204,7 +198,6 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid: response.root_cid,
-            metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
         })
@@ -242,7 +235,6 @@ pub mod test {
         let (metadata, storage_ticket) = Metadata::push(
             bucket_id,
             "root_cid".to_string(),
-            "metadata_cid".to_string(),
             0,
             "metadata_stream".as_bytes(),
             client,
@@ -266,7 +258,6 @@ pub mod test {
         let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
-        assert_eq!(metadata.metadata_cid, "metadata_cid");
         assert_eq!(metadata.data_size, 0);
         assert_eq!(metadata.state, MetadataState::Current);
 
@@ -313,7 +304,6 @@ pub mod test {
         let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
-        assert_eq!(metadata.metadata_cid, "metadata_cid");
         assert_eq!(metadata.data_size, 0);
         assert_eq!(metadata.state, MetadataState::Current);
 

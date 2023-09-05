@@ -83,12 +83,6 @@ pub enum BucketsSubCommand {
         #[arg(short, long)]
         origin: Option<PathBuf>,
     },
-    /// List all Buckets
-    List,
-    /// Publish Bucket content
-    Push(BucketSpecifier),
-    /// Pull
-    Pull(BucketSpecifier),
     /// Encrypt / Bundle a Bucket
     Bundle {
         /// Bucket in question
@@ -107,12 +101,20 @@ pub enum BucketsSubCommand {
         /// Output Directory
         output: PathBuf,
     },
+    /// List all Buckets
+    List,
     /// Delete Bucket
     Delete(BucketSpecifier),
     /// Bucket info
     Info(BucketSpecifier),
     /// Bucket usage
     Usage(BucketSpecifier),
+    /// Metadata uploads and downloads
+    Metadata {
+        /// Subcommand
+        #[clap(subcommand)]
+        subcommand: MetadataSubCommand,
+    },
     /// Bucket Key management
     Keys {
         /// Subcommand
@@ -125,7 +127,7 @@ pub enum BucketsSubCommand {
 #[derive(Debug, Clone, Args)]
 pub struct KeySpecifier {
     #[clap(flatten)]
-    pub(crate) bucket: BucketSpecifier,
+    pub(crate) bucket_specifier: BucketSpecifier,
     /// Key Identifier
     #[arg(short, long)]
     pub(crate) key_id: Uuid,
@@ -144,4 +146,18 @@ pub enum KeySubCommand {
     Info(KeySpecifier),
     /// Reject or remove a key and sync that witht the remote endpoint
     Reject(KeySpecifier),
+}
+
+/// Subcommand for Bucket Metadata
+#[derive(Subcommand, Clone, Debug)]
+pub enum MetadataSubCommand {
+    /// Read an individual Metadata Id
+    Read {
+        /// Bucket in question
+        #[clap(flatten)]
+        bucket_specifier: BucketSpecifier,
+
+        /// Id of the Metadata
+        metadata_id: Uuid,
+    },
 }

@@ -20,7 +20,6 @@ use wnfs::{
 const SHARE_MANAGER_LABEL: &str = "SHARE_MANAGER";
 const METADATA_FOREST_LABEL: &str = "METADATA_FOREST";
 const CONTENT_FOREST_LABEL: &str = "CONTENT_FOREST";
-const ROOT_MAP_LABEL: &str = "ROOT_MAP";
 const TOMB_BUILD_FEATURES_LABEL: &str = "TOMB_BUILD_FEATURES";
 const TOMB_BUILD_PROFILE_LABEL: &str = "TOMB_BUILD_PROFILE";
 const TOMB_REPO_VERSION_LABEL: &str = "TOMB_REPO_VERSION";
@@ -131,55 +130,46 @@ impl FsMetadata {
             CONTENT_FOREST_LABEL.to_string(),
             Ipld::Link(content_forest_cid),
         );
-        // Put the map into BlockStores
-        let root = &Ipld::Map(root_map);
-        let root_cid = metadata_store.put_serializable(root).await?;
-        let _root_cid = content_store.put_serializable(root).await?;
-        assert_eq!(root_cid, _root_cid);
 
-        // Construct new map for metadata
-        let mut metadata_map = BTreeMap::new();
         // Link our forests
-        metadata_map.insert(ROOT_MAP_LABEL.to_string(), Ipld::Link(root_cid));
         // Link our share manager
-        metadata_map.insert(
+        root_map.insert(
             SHARE_MANAGER_LABEL.to_string(),
             Ipld::Link(share_manager_cid),
         );
         // Link our build metadata
-        metadata_map.insert(
+        root_map.insert(
             TOMB_BUILD_FEATURES_LABEL.to_string(),
             Ipld::String(env!("BUILD_FEATURES").to_string()),
         );
-        metadata_map.insert(
+        root_map.insert(
             TOMB_BUILD_PROFILE_LABEL.to_string(),
             Ipld::String(env!("BUILD_PROFILE").to_string()),
         );
-        metadata_map.insert(
+        root_map.insert(
             TOMB_REPO_VERSION_LABEL.to_string(),
             Ipld::String(env!("REPO_VERSION").to_string()),
         );
 
-        // Get the CID of the metadata map
-        let metadata = &Ipld::Map(metadata_map.clone());
-        // Put the metadata IPLD Map into BlockStores
-        let metadata_cid = metadata_store.put_serializable(metadata).await?;
-        let _metadata_cid = content_store.put_serializable(metadata).await?;
-        assert_eq!(metadata_cid, _metadata_cid);
+        // Put the map into BlockStores
+        let root = &Ipld::Map(root_map.clone());
+        let root_cid = metadata_store.put_serializable(root).await?;
+        let _root_cid = content_store.put_serializable(root).await?;
+        assert_eq!(root_cid, _root_cid);
 
-        metadata_store.set_root(&metadata_cid);
-        content_store.set_root(&metadata_cid);
+        metadata_store.set_root(&root_cid);
+        content_store.set_root(&root_cid);
 
-        let _metadata_cid = metadata_store
+        let _root_cid = metadata_store
             .get_root()
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
-        assert_eq!(metadata_cid, _metadata_cid);
-        let _metadata_cid = content_store
+        assert_eq!(root_cid, _root_cid);
+        let _root_cid = content_store
             .get_root()
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
-        assert_eq!(metadata_cid, _metadata_cid);
+        assert_eq!(root_cid, _root_cid);
 
-        self.metadata = Some(metadata_map);
+        self.metadata = Some(root_map);
         Ok(())
     }
 
@@ -192,34 +182,24 @@ impl FsMetadata {
         let metadata_cid = store
             .get_root()
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
-        let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
+        let root_map = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
             _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
         };
-        // Get the CID of the forest Map
-        let root_cid = match metadata.get(ROOT_MAP_LABEL) {
-            Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(ROOT_MAP_LABEL.to_string()).into()),
-        };
-        // Get the forest Map
-        let root = match store.get_deserializable::<Ipld>(root_cid).await {
-            Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("root map".to_string()).into()),
-        };
         // Get the metadata forest CID
-        let metadata_forest_cid = match root.get(METADATA_FOREST_LABEL) {
+        let metadata_forest_cid = match root_map.get(METADATA_FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
             _ => {
                 return Err(SerialError::MissingMetadata(METADATA_FOREST_LABEL.to_string()).into())
             }
         };
         // Get the content forest CID
-        let content_forest_cid = match root.get(CONTENT_FOREST_LABEL) {
+        let content_forest_cid = match root_map.get(CONTENT_FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
             _ => return Err(SerialError::MissingMetadata(CONTENT_FOREST_LABEL.to_string()).into()),
         };
         // Get the share manager CID
-        let share_manager_cid = match metadata.get(SHARE_MANAGER_LABEL) {
+        let share_manager_cid = match root_map.get(SHARE_MANAGER_LABEL) {
             Some(Ipld::Link(cid)) => cid,
             _ => return Err(SerialError::MissingMetadata(SHARE_MANAGER_LABEL.to_string()).into()),
         };
@@ -249,7 +229,7 @@ impl FsMetadata {
             content_forest,
             root_dir,
             share_manager,
-            metadata: Some(metadata),
+            metadata: Some(root_map),
         })
     }
 
@@ -283,32 +263,6 @@ impl FsMetadata {
         store.set_root(&metadata_cid);
         // Update the metadata
         Ok(())
-    }
-
-    /// Get the metadata cid from the blockstore
-    /// This should just be the root cid
-    pub async fn metadata_cid(&self, store: &impl RootedBlockStore) -> Result<Cid> {
-        store
-            .get_root()
-            .ok_or(SerialError::MissingMetadata("root cid".to_string()).into())
-    }
-
-    /// Get the root cid from the blockstore
-    pub async fn root_cid(&self, store: &impl RootedBlockStore) -> Result<Cid> {
-        // Get the map
-        let metadata_cid = store
-            .get_root()
-            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
-        let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
-            Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
-        };
-        // Get the CID of the forest Map
-        let root_cid = match metadata.get(ROOT_MAP_LABEL) {
-            Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(ROOT_MAP_LABEL.to_string()).into()),
-        };
-        Ok(*root_cid)
     }
 
     /// Get the original root directory

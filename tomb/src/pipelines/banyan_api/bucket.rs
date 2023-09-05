@@ -9,6 +9,7 @@ use anyhow::{anyhow, Result};
 use tomb_common::banyan_api::models::{
     bucket::{Bucket, BucketType, StorageClass},
     bucket_key::BucketKey,
+    metadata::Metadata,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -64,7 +65,16 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             })
             .map_err(TombError::client_error)
         }
-        // List all Buckets tracked remotely and locally
+        // Bundle a local directory
+        BucketsSubCommand::Bundle {
+            bucket_specifier,
+            follow_links,
+        } => bundle::pipeline(&bucket_specifier, follow_links).await,
+        // Extract a local directory
+        BucketsSubCommand::Extract {
+            bucket_specifier,
+            output,
+        } => extract::pipeline(&bucket_specifier, &output).await, // List all Buckets tracked remotely and locally
         BucketsSubCommand::List => {
             let remote = Bucket::read_all(&mut client)
                 .await
@@ -86,18 +96,6 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
             Ok(format!("{}\n{}", remote, local))
         }
-        BucketsSubCommand::Push(_) => todo!(),
-        BucketsSubCommand::Pull(_) => todo!(),
-        // Bundle a local directory
-        BucketsSubCommand::Bundle {
-            bucket_specifier,
-            follow_links,
-        } => bundle::pipeline(&bucket_specifier, follow_links).await,
-        // Extract a local directory
-        BucketsSubCommand::Extract {
-            bucket_specifier,
-            output,
-        } => extract::pipeline(&bucket_specifier, &output).await,
         // Delete a Bucket
         BucketsSubCommand::Delete(bucket_specifier) => {
             // Rmove the Bucket locally
@@ -114,10 +112,10 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             // If there is known remote counterpart to the Bucket
             let remote = if let Ok(id) = global.get_bucket_id(&bucket_specifier) {
                 match Bucket::read(&mut client, id).await {
-                        Ok(bucket) => {
-                            format!("{}", bucket)
-                        },
-                        Err(err) => format!("error: {}", err),
+                    Ok(bucket) => {
+                        format!("{}", bucket)
+                    }
+                    Err(err) => format!("error: {}", err),
                 }
             } else {
                 format!("no known remote correlate")
@@ -125,13 +123,12 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
             let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
                 format!("{}", bucket)
-            }
-            else {
+            } else {
                 "no known local bucket".to_string()
             };
 
             Ok(format!("{}{}", local, remote))
-        },
+        }
         // Bucket usage
         BucketsSubCommand::Usage(bucket_specifier) => {
             let bucket_id = global.get_bucket_id(&bucket_specifier)?;
@@ -142,17 +139,42 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 .map(|v| format!("id:\t{}\nusage:\t{}", bucket_id, v))
                 .map_err(TombError::client_error)
         }
+        // Bucket Metadata
+        BucketsSubCommand::Metadata { subcommand } => {
+            match subcommand {
+                MetadataSubCommand::Read {
+                    bucket_specifier,
+                    metadata_id,
+                } => {
+                    // Get Bucket config
+                    let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+                    // If we can get the metadata
+                    if let Some(remote_id) = config.remote_id {
+                        Metadata::read(remote_id, metadata_id, &mut client)
+                            .await
+                            .map(|metadata| format!("{:?}", metadata))
+                            .map_err(TombError::client_error)
+                    } else {
+                        Err(TombError::anyhow_error(anyhow!(
+                            "Conffig has no remote id!"
+                        )))
+                    }
+                }
+            }
+        }
         // Bucket Key Management
         BucketsSubCommand::Keys { subcommand } => match subcommand {
             // List Keys
-            KeySubCommand::List(bucket_specifier) => BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, &mut client)
-                .await
-                .map(|keys| {
-                    keys.iter().fold(String::new(), |acc, key| {
-                        format!("{}\n\n{}", acc, format!("{}", key))
+            KeySubCommand::List(bucket_specifier) => {
+                BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, &mut client)
+                    .await
+                    .map(|keys| {
+                        keys.iter().fold(String::new(), |acc, key| {
+                            format!("{}\n\n{}", acc, format!("{}", key))
+                        })
                     })
-                })
-                .map_err(TombError::client_error),
+                    .map_err(TombError::client_error)
+            }
             // Create a new key
             KeySubCommand::Create(bucket_specifier) => {
                 let private_key = EcEncryptionKey::generate().await?;
@@ -200,7 +222,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
 fn get_key_ids(global: &GlobalConfig, key_specifier: &KeySpecifier) -> Result<(Uuid, Uuid)> {
     Ok((
-        global.get_bucket_id(&key_specifier.bucket)?,
+        global.get_bucket_id(&key_specifier.bucket_specifier)?,
         key_specifier.key_id,
     ))
 }

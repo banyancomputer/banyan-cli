@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use tomb_common::{
     banyan_api::client::{Client, Credentials},
-    utils::io::{get_write, get_read},
+    utils::io::{get_read, get_write},
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;

@@ -1,8 +1,4 @@
-use std::{
-    env,
-    fs::create_dir_all,
-    path::PathBuf,
-};
+use std::{env, fs::create_dir_all, path::PathBuf};
 
 const HOME_ERROR: &str = "cant find home directory";
 
