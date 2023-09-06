@@ -53,7 +53,7 @@ impl WasmMount {
     pub async fn new(
         wasm_bucket: WasmBucket,
         key: &EcEncryptionKey,
-        client: &mut Client,
+        client: &Client,
     ) -> Result<Self, TombWasmError> {
         log!("tomb-wasm: mount/new()/{}", wasm_bucket.id());
         let bucket = Bucket::from(wasm_bucket.clone());
@@ -97,10 +97,12 @@ impl WasmMount {
         log!("tomb-wasm: mount/pull()/{}", wasm_bucket.id());
         // Get the underlying bucket
         let bucket = Bucket::from(wasm_bucket.clone());
+
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket.id, client)
             .await
-            .map_err(|_| TombWasmError::unknown_error())?;
+            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
+
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
             "tomb-wasm: mount/pull()/{} - pulling metadata at version {}",
@@ -148,42 +150,51 @@ impl WasmMount {
     /// Refresh the current fs_metadata with the remote
     pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
         let bucket_id = self.bucket.id;
+
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(|_| TombWasmError::unknown_error())?;
+            .map_err(|err| TombWasmError(format!("failed to read current metadata: {err}")))?;
+
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
             "tomb-wasm: mount/pull()/{} - pulling metadata at version {}",
             self.bucket.id.to_string(),
             metadata_cid
         );
+
         // Pull the Fs metadata on the matching entry
         let mut stream = metadata
             .pull(&mut self.client)
             .await
             .expect("could not pull metedata");
+
         log!(
             "tomb-wasm: mount/pull()/{} - reading metadata stream",
             self.bucket.id.to_string()
         );
+
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
+
         log!(
             "tomb-wasm: mount/pull()/{} - creating metadata blockstore",
             self.bucket.id.to_string()
         );
+
         let metadata_blockstore =
             BlockStore::try_from(data).expect("could not create metadata as blockstore");
         let content_blockstore = BlockStore::new().expect("could not create blockstore");
+
         self.metadata = Some(metadata.to_owned());
         self.metadata_blockstore = metadata_blockstore;
         self.content_blockstore = content_blockstore;
         self.dirty = false;
         self.append = false;
         self.fs_metadata = None;
+
         log!(
             "tomb-wasm: mount/pull()/{} - pulled",
             self.bucket.id.to_string()

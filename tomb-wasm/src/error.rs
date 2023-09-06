@@ -1,41 +1,22 @@
+use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 use wasm_bindgen::JsValue;
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub struct TombWasmError {
-    kind: TombWasmErrorKind,
-}
-
-impl TombWasmError {
-    pub fn unknown_error() -> Self {
-        Self {
-            kind: TombWasmErrorKind::UnknownError,
-        }
-    }
-}
+pub struct TombWasmError(pub String);
 
 impl Display for TombWasmError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use TombWasmErrorKind::*;
-
-        match &self.kind {
-            UnknownError => write!(f, "an unknown error occurred"),
-        }
+        write!(f, "tomm-wasm (unexpected error): {}", self.0)
     }
 }
 
 impl From<TombWasmError> for js_sys::Error {
     fn from(err: TombWasmError) -> Self {
-        JsValue::from("An error occurred: ".to_owned() + &err.to_string()).into()
+        JsValue::from(err.0).into()
     }
 }
 
-impl std::error::Error for TombWasmError {}
-
-#[derive(Debug)]
-#[non_exhaustive]
-enum TombWasmErrorKind {
-    UnknownError,
-}
+impl Error for TombWasmError {}
