@@ -13,10 +13,9 @@ pub mod extract;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 
-/*
 #[cfg(test)]
 mod test {
-    use super::add;
+    use super::{add, error::TombError};
     use crate::{
         cli::command::BucketSpecifier,
         pipelines::{bundle, configure, extract, remove},
@@ -38,8 +37,31 @@ mod test {
         fs::{create_dir_all, read_link, rename, symlink_metadata, File},
         io::Write,
         os::unix::fs::symlink,
-        path::PathBuf,
+        path::{Path, PathBuf},
     };
+
+    /// Simplified Bundle call function
+    async fn bundle_pipeline(bucket_specifier: &BucketSpecifier) -> Result<String, TombError> {
+        bundle::pipeline(
+            &mut GlobalConfig::from_disk().await?,
+            bucket_specifier,
+            true,
+        )
+        .await
+    }
+
+    /// Simplified Extract call function
+    async fn extract_pipeline(
+        bucket_specifier: &BucketSpecifier,
+        extracted: &Path,
+    ) -> Result<String, TombError> {
+        extract::pipeline(
+            &mut GlobalConfig::from_disk().await?,
+            bucket_specifier,
+            extracted,
+        )
+        .await
+    }
 
     #[tokio::test]
     #[serial]
@@ -50,7 +72,7 @@ mod test {
         // Deinitialize for user
         configure::deinit(origin).await?;
         // Assert that bundleing fails
-        assert!(bundle::pipeline(bucket_specifier, true).await.is_err());
+        assert!(bundle_pipeline(bucket_specifier).await.is_err());
         // Initialize for this user
         configure::init(origin).await?;
         // Assert that a config exists for this bucket now
@@ -87,7 +109,7 @@ mod test {
         // Initialize
         configure::init(origin).await?;
         // Bundle
-        bundle::pipeline(bucket_specifier, true).await?;
+        bundle_pipeline(bucket_specifier).await?;
         // Teardown
         test_teardown(test_name).await
     }
@@ -101,7 +123,7 @@ mod test {
         // Initialize
         configure::init(origin).await?;
         // Bundle locally
-        bundle::pipeline(bucket_specifier, true).await?;
+        bundle_pipeline(bucket_specifier).await?;
         // Create a new dir to extract in
         let extracted_dir = &origin
             .parent()
@@ -109,7 +131,7 @@ mod test {
             .join(format!("{}_extracted", test_name));
         create_dir_all(extracted_dir)?;
         // Run the extracting pipeline
-        extract::pipeline(bucket_specifier, extracted_dir).await?;
+        extract_pipeline(bucket_specifier, extracted_dir).await?;
         // Assert the pre-bundleed and extracted directories are identical
         assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         // Teardown
@@ -125,7 +147,7 @@ mod test {
         // Initialize tomb
         configure::init(origin).await?;
         // Run the bundle pipeline
-        bundle::pipeline(bucket_specifier, true).await?;
+        bundle_pipeline(bucket_specifier).await?;
         // This is still in the input dir. Technically we could just
         let input_file = &origin.join("hello.txt");
         // Content to be written to the file
@@ -179,7 +201,7 @@ mod test {
         // Initialize tomb
         configure::init(origin).await?;
         // Run the bundle pipeline
-        bundle::pipeline(bucket_specifier, true).await?;
+        bundle_pipeline(bucket_specifier).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
@@ -224,7 +246,7 @@ mod test {
         // Initialize
         configure::init(origin).await?;
         // Bundle locally
-        bundle::pipeline(bucket_specifier, true).await?;
+        bundle_pipeline(bucket_specifier).await?;
         // Create a new dir to extract in
         let extracted_dir = &origin
             .parent()
@@ -232,7 +254,7 @@ mod test {
             .join("extracted");
         create_dir_all(extracted_dir)?;
         // Run the extracting pipeline
-        extract::pipeline(bucket_specifier, extracted_dir).await?;
+        extract_pipeline(bucket_specifier, extracted_dir).await?;
         // Assert the pre-bundleed and extracted directories are identical
         assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         Ok(())
@@ -659,5 +681,3 @@ mod test {
         test_teardown(test_name).await
     }
 }
-
-*/

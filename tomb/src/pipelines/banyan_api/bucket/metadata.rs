@@ -16,6 +16,7 @@ pub(crate) async fn pipeline(
     command: MetadataSubCommand,
 ) -> Result<String, TombError> {
     match command {
+        // Read an existing metadata
         MetadataSubCommand::Read {
             bucket_specifier,
             metadata_id,
@@ -29,11 +30,10 @@ pub(crate) async fn pipeline(
                     .map(|metadata| format!("{:?}", metadata))
                     .map_err(TombError::client_error)
             } else {
-                Err(TombError::anyhow_error(anyhow!(
-                    "Conffig has no remote id!"
-                )))
+                Err(TombError::anyhow_error(anyhow!("Config has no remote id!")))
             }
         }
+        // Push metadata
         MetadataSubCommand::Push(bucket_specifier) => {
             // Get info
             let wrapping_key = global.wrapping_key().await?;
@@ -64,6 +64,7 @@ pub(crate) async fn pipeline(
             })
             .map_err(TombError::client_error)
         }
+        // Read the current Metadata
         MetadataSubCommand::ReadCurrent(bucket_specifier) => {
             let config = global.get_bucket_by_specifier(&bucket_specifier)?;
             let bucket_id = config.remote_id.expect("no remote id");
@@ -72,6 +73,7 @@ pub(crate) async fn pipeline(
                 .map(|metadata| format!("{:?}", metadata))
                 .map_err(TombError::client_error)
         }
+        // List all Metadata for a Bucket
         MetadataSubCommand::List(bucket_specifier) => {
             let config = global.get_bucket_by_specifier(&bucket_specifier)?;
             let bucket_id = config.remote_id.expect("no remote id");
@@ -86,6 +88,7 @@ pub(crate) async fn pipeline(
                 })
                 .map_err(TombError::client_error)
         }
+        // Pull a Metadata and replace the local copy
         MetadataSubCommand::Pull {
             bucket_specifier,
             metadata_id,
@@ -108,6 +111,7 @@ pub(crate) async fn pipeline(
 
             Ok(format!("successfully downloaded metadata"))
         }
+        // Take a Cold Snapshot of the remote metadata
         MetadataSubCommand::Snapshot {
             bucket_specifier,
             metadata_id,

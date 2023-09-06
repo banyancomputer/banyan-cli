@@ -41,6 +41,12 @@ mod test {
     use serial_test::serial;
     use std::{fs::create_dir, path::Path};
 
+    fn cmd_configure_remote(address: &str) -> Command {
+        Command::SetRemote {
+            address: address.to_string(),
+        }
+    }
+
     fn cmd_init(dir: &Path) -> Command {
         Command::Init {
             dir: Some(dir.to_path_buf()),
@@ -53,11 +59,6 @@ mod test {
         }
     }
 
-    fn cmd_configure_remote(address: &str) -> Command {
-        Command::SetRemote {
-            address: address.to_string(),
-        }
-    }
 
     // Run the Bundle pipeline through the CLI
     fn cmd_bundle(origin: &Path) -> Command {
@@ -183,6 +184,4 @@ mod test {
         // Teardown test
         test_teardown(test_name).await
     }
-}
-
- */
+} */
