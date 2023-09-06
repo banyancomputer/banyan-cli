@@ -155,27 +155,14 @@ where
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 pub struct PushContentError {
-    #[serde(rename = "error")]
-    kind: PushContentErrorKind,
+    #[serde(rename = "msg")]
+    message: String,
 }
 
 impl Display for PushContentError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use PushContentErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(self.message.as_ref())
     }
 }
 
 impl Error for PushContentError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum PushContentErrorKind {
-    Unknown,
-}
