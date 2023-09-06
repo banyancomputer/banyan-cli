@@ -49,6 +49,7 @@ impl ShareManager {
         Ok(())
     }
 
+    /// TODO actually use this in some way? Not sure if we want this server-side or not
     pub async fn public_fingerprints(&self) -> Result<Vec<String>> {
         let pems: Vec<String> = self.original_map.0.clone().into_keys().collect();
         let mut fingerprints = <Vec<String>>::new();
@@ -59,6 +60,7 @@ impl ShareManager {
         Ok(fingerprints)
     }
 
+    /// Grab a list of the PEM strings for each Public Key recipient
     pub fn public_pems(&self) -> Vec<String> {
         self.original_map.0.clone().into_keys().collect()
     }

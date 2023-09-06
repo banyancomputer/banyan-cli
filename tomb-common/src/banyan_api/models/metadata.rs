@@ -236,8 +236,9 @@ impl Metadata {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::banyan_api::models::account::test::authenticated_client;
-    use crate::banyan_api::models::bucket::test::create_bucket;
+    use crate::banyan_api::models::{
+        account::test::authenticated_client, bucket::test::create_bucket,
+    };
     use futures_util::stream::StreamExt;
 
     pub async fn push_empty_metadata(

@@ -83,13 +83,3 @@ fn get_key_ids(
         key_specifier.key_id,
     ))
 }
-
-
-#[cfg(test)]
-mod test {
-    /// Ensure that running the Create command updates metadata car
-    #[tokio::test]
-    async fn create_remote_and_local() {
-
-    }
-}

@@ -93,6 +93,7 @@ impl Error for ClientError {
     }
 }
 
+/// The type of the Client Error
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ClientErrorKind {

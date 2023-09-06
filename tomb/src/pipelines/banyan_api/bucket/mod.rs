@@ -72,7 +72,8 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
         BucketsSubCommand::Extract {
             bucket_specifier,
             output,
-        } => extract::pipeline(&mut global, &bucket_specifier, &output).await, // List all Buckets tracked remotely and locally
+        } => extract::pipeline(&global, &bucket_specifier, &output).await,
+        // List all Buckets tracked remotely and locally
         BucketsSubCommand::List => {
             let remote = Bucket::read_all(&mut client)
                 .await

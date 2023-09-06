@@ -18,9 +18,7 @@ use tomb_common::{
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
-use wnfs::{
-    private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
-};
+use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
 
 use crate::utils::{config::xdg_data_home, wnfsio::compute_directory_size};
 

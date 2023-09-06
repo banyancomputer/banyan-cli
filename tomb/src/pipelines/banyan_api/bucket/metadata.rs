@@ -124,14 +124,3 @@ pub(crate) async fn pipeline(
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-
-    #[tokio::test]
-    async fn key_approval() {
-
-    }
-
-
-}

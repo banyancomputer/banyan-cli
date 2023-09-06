@@ -124,6 +124,7 @@ mod test {
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
     use crate::banyan_api::models::bucket::test::create_bucket;
+    use crate::banyan_api::models::metadata::Metadata;
     use crate::banyan_api::utils::generate_bucket_key;
 
     #[tokio::test]
@@ -207,6 +208,7 @@ mod test {
         let (_, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem.clone(), &mut client).await?;
+        assert!(!bucket_key.approved);
         let rejected_id = BucketKey::reject(bucket.id, bucket_key.id, &mut client).await?;
         assert_eq!(bucket_key.id.to_string(), rejected_id);
         Ok(())
@@ -216,8 +218,36 @@ mod test {
     async fn reject_approved_key() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
+        assert!(initial_bucket_key.approved);
         let rejected_id = BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
         assert!(rejected_id.is_err());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn approve_new_key() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
+        // Create a new bucket key
+        let (_, pem) = generate_bucket_key().await;
+        let bucket_key = BucketKey::create(bucket.id, pem.clone(), &mut client).await?;
+        assert!(!bucket_key.approved);
+
+        // Push metadata with the new BucketKey listed as valid
+        Metadata::push(
+            bucket.id,
+            "root_cid".to_string(),
+            0,
+            vec![initial_bucket_key.pem, bucket_key.pem],
+            "metadata_stream".as_bytes(),
+            &mut client,
+        )
+        .await?;
+
+        // Read the bucket key again
+        let updated_bucket_key = BucketKey::read(bucket.id, bucket_key.id, &mut client).await?;
+        assert!(updated_bucket_key.approved);
+
         Ok(())
     }
 }
