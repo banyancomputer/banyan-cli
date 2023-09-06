@@ -131,7 +131,6 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
         }
     }
 }
- 
 
 #[cfg(test)]
 mod test {

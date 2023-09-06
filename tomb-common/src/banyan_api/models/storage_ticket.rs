@@ -23,8 +23,7 @@ impl Display for StorageTicket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
             "\n| STORAGE TICKET INFO |\nhost:\t{}\nauthorization:\t{}",
-            self.host,
-            self.authorization
+            self.host, self.authorization
         ))
     }
 }
@@ -215,8 +214,8 @@ pub mod test {
             bucket.id,
             root_cid.to_string(),
             data_size,
-            metadata_bytes,
             vec![],
+            metadata_bytes,
             client,
         )
         .await?;

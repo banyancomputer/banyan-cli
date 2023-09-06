@@ -69,10 +69,7 @@ impl Display for Metadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
             "\n| METADATA INFO |\nmetadata_id:\t{}\nroot_cid:\t{}\ndata_size:\t{}\nstatus:\t\t{}",
-            self.id,
-            self.root_cid,
-            self.data_size,
-            self.state
+            self.id, self.root_cid, self.data_size, self.state
         ))
     }
 }
@@ -85,8 +82,8 @@ impl Metadata {
         bucket_id: Uuid,
         root_cid: String,
         expected_data_size: u64,
-        metadata_stream: S,
         valid_keys: Vec<String>,
+        metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
     where
@@ -97,8 +94,8 @@ impl Metadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
                 expected_data_size,
-                metadata_stream,
                 valid_keys,
+                metadata_stream,
             })
             .await?;
         let metadata = Self {
@@ -128,6 +125,7 @@ impl Metadata {
         root_cid: String,
         metadata_cid: String,
         expected_data_size: u64,
+        valid_keys: Vec<String>,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -140,6 +138,7 @@ impl Metadata {
                 root_cid: root_cid.clone(),
                 metadata_cid: metadata_cid.clone(),
                 expected_data_size,
+                valid_keys,
                 metadata_stream,
             })
             .await?;
@@ -249,8 +248,8 @@ pub mod test {
             bucket_id,
             "root_cid".to_string(),
             0,
-            "metadata_stream".as_bytes(),
             vec![],
+            "metadata_stream".as_bytes(),
             client,
         )
         .await?;

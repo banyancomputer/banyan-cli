@@ -180,7 +180,7 @@ pub enum MetadataSubCommand {
         metadata_id: Uuid,
     },
     /// Grab Snapshot
-    Snapshot{
+    Snapshot {
         /// Bucket in question
         #[clap(flatten)]
         bucket_specifier: BucketSpecifier,

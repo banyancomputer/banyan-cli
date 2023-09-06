@@ -16,7 +16,8 @@ use std::{
 use tokio::runtime::Runtime;
 use tomb::{
     cli::command::BucketSpecifier,
-    pipelines::{bundle, extract}, types::config::globalconfig::GlobalConfig,
+    pipelines::{bundle, extract},
+    types::config::globalconfig::GlobalConfig,
 };
 
 // Configure the Benching Framework from the Environment -- or use defaults

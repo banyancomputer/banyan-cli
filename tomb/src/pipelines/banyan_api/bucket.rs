@@ -1,4 +1,3 @@
-use std::env::current_dir;
 use crate::{
     cli::command::*,
     pipelines::{bundle, error::TombError, extract},
@@ -6,7 +5,9 @@ use crate::{
     utils::wnfsio::compute_directory_size,
 };
 use anyhow::{anyhow, Result};
+use futures_util::stream::StreamExt;
 use reqwest::Body;
+use std::env::current_dir;
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
     banyan_api::models::{
@@ -16,9 +17,9 @@ use tomb_common::{
         storage_ticket,
     },
     blockstore::RootedBlockStore,
-    utils::io::get_read, metadata::FsMetadata,
+    metadata::FsMetadata,
+    utils::io::get_read,
 };
-use futures_util::stream::StreamExt;
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
 use uuid::Uuid;
 
@@ -184,8 +185,8 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                         bucket_id,
                         root_cid,
                         expected_data_size,
-                        metadata_stream,
                         valid_keys,
+                        metadata_stream,
                         &mut client,
                     )
                     .await
@@ -201,26 +202,29 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 MetadataSubCommand::ReadCurrent(bucket_specifier) => {
                     let config = global.get_bucket_by_specifier(&bucket_specifier)?;
                     let bucket_id = config.remote_id.expect("no remote id");
-                    Metadata::read_current(bucket_id, &mut client).await
-                    .map(|metadata| {
-                        format!("{:?}", metadata)
-                    })
-                    .map_err(TombError::client_error)
-                },
+                    Metadata::read_current(bucket_id, &mut client)
+                        .await
+                        .map(|metadata| format!("{:?}", metadata))
+                        .map_err(TombError::client_error)
+                }
                 MetadataSubCommand::List(bucket_specifier) => {
                     let config = global.get_bucket_by_specifier(&bucket_specifier)?;
                     let bucket_id = config.remote_id.expect("no remote id");
-                    Metadata::read_all(bucket_id, &mut client).await
-                    .map(|metadatas| {
-                        metadatas
-                        .iter()
-                        .fold("<< METADATAS >>".to_string(), |acc, metadata| {
-                            format!("{}{}", acc, metadata)
+                    Metadata::read_all(bucket_id, &mut client)
+                        .await
+                        .map(|metadatas| {
+                            metadatas
+                                .iter()
+                                .fold("<< METADATAS >>".to_string(), |acc, metadata| {
+                                    format!("{}{}", acc, metadata)
+                                })
                         })
-                    })
-                    .map_err(TombError::client_error)
-                },
-                MetadataSubCommand::Pull { bucket_specifier, metadata_id } => {
+                        .map_err(TombError::client_error)
+                }
+                MetadataSubCommand::Pull {
+                    bucket_specifier,
+                    metadata_id,
+                } => {
                     let config = global.get_bucket_by_specifier(&bucket_specifier)?;
                     let bucket_id = config.remote_id.expect("no remote id");
                     let metadata = Metadata::read(bucket_id, metadata_id, &mut client).await?;
@@ -234,16 +238,21 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     }
 
                     Ok(format!("successfully downloaded metadata"))
-                },
-                MetadataSubCommand::Snapshot { bucket_specifier, metadata_id } => {
+                }
+                MetadataSubCommand::Snapshot {
+                    bucket_specifier,
+                    metadata_id,
+                } => {
                     let config = global.get_bucket_by_specifier(&bucket_specifier)?;
                     let bucket_id = config.remote_id.expect("no remote id");
                     let metadata = Metadata::read(bucket_id, metadata_id, &mut client).await?;
-                    
-                    metadata.snapshot(&mut client).await.map(|snapshot| {
-                        format!("{:?}", snapshot)
-                    }).map_err(TombError::client_error)
-                },
+
+                    metadata
+                        .snapshot(&mut client)
+                        .await
+                        .map(|snapshot| format!("{:?}", snapshot))
+                        .map_err(TombError::client_error)
+                }
             }
         }
         // Bucket Key Management

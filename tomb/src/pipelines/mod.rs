@@ -13,7 +13,7 @@ pub mod extract;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 
-/* 
+/*
 #[cfg(test)]
 mod test {
     use super::add;

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     env::current_dir,
     fs::{remove_file, File},
-    io::{Read, Write, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     str::FromStr,
 };
