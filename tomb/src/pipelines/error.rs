@@ -88,3 +88,9 @@ impl From<anyhow::Error> for TombError {
         Self::anyhow_error(value)
     }
 }
+
+impl From<ClientError> for TombError {
+    fn from(value: ClientError) -> Self {
+        Self::client_error(value)
+    }
+}
