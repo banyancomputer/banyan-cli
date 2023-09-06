@@ -11,12 +11,11 @@ use tomb_common::banyan_api::models::metadata::*;
 use tomb_common::banyan_api::models::snapshot::*;
 use tomb_common::metadata::{FsMetadataEntry, FsMetadataEntryType};
 
-use crate::value;
 use crate::error::TombWasmError;
+use crate::{log, value};
 
-/// Wrapper around a Bucket
-#[wasm_bindgen]
 #[derive(Debug, Clone)]
+#[wasm_bindgen]
 pub struct WasmBucket(Bucket);
 
 #[wasm_bindgen]
@@ -68,20 +67,24 @@ impl From<WasmBucketKey> for BucketKey {
         wasm_bucket_key.0
     }
 }
+
 #[wasm_bindgen]
 impl WasmBucketKey {
-    pub fn id(&self) -> String {
-        self.0.id.to_string()
+    pub fn approved(&self) -> bool {
+        self.0.approved
     }
+
     #[wasm_bindgen(js_name = "bucketId")]
     pub fn bucket_id(&self) -> String {
         self.0.bucket_id.to_string()
     }
+
+    pub fn id(&self) -> String {
+        self.0.id.to_string()
+    }
+
     pub fn pem(&self) -> String {
         self.0.pem.clone()
-    }
-    pub fn approved(&self) -> bool {
-        self.0.approved
     }
 }
 
@@ -89,8 +92,10 @@ impl WasmBucketKey {
 pub struct WasmNodeMetadata(pub(crate) NodeMetadata);
 impl TryFrom<WasmNodeMetadata> for JsValue {
     type Error = js_sys::Error;
+
     fn try_from(fs_entry: WasmNodeMetadata) -> Result<Self, Self::Error> {
         let object = Object::new();
+
         if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("created") {
             Reflect::set(
                 &object,
@@ -98,6 +103,7 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
+
         if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("modified") {
             Reflect::set(
                 &object,
@@ -105,9 +111,11 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
+
         // TODO: Remove stubs, with standard object
         Reflect::set(&object, &value!("size"), &value!(1024))?;
         Reflect::set(&object, &value!("cid"), &value!("Qmabcde"))?;
+
         Ok(value!(object))
     }
 }
@@ -119,20 +127,27 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
         let object = js_value.dyn_into::<Object>()
             .map_err(|_| TombWasmError(format!("expected an object to be passed in")))?;
 
-        let created = Reflect::get(&object, &value!("created"))?
-            .map_err(|err| TombWasmError("WasmNodeMetadata requires a created key to be present".into()))?
-            .as_f64()
-            .map_err(|err| TombWasmError(format!("provided created timestamp was not numeric: {err}")))?;
-
-        let modified = Reflect::get(&object, &value!("modified"))?
-            .map_err(|err| TombWasmError("WasmNodeMetadata requires a modified key to be present".into()))?
-            .as_f64()
-            .map_err(|err| TombWasmError(format!("provided modified timestamp was not numeric: {err}")))?;
-
         let mut map = BTreeMap::new();
 
-        map.insert("created".into(), Ipld::Integer(created as i128));
-        map.insert("modified".into(), Ipld::Integer(modified as i128));
+        if let Ok(created_raw) = Reflect::get(&object, &JsValue::from_str("created")) {
+            let created_num: i128 = created_raw
+                .try_into()
+                .map_err(|_| TombWasmError("created key was not a positive integer".into()))?;
+
+            map.insert("created".into(), Ipld::Integer(created_num));
+        } else {
+            log!("WARNING: WasmNodeMetadata did not contain a 'created' timestamp");
+        }
+
+        if let Ok(modified_raw) = Reflect::get(&object, &JsValue::from_str("modified")) {
+            let modified_num: i128 = modified_raw
+                .try_into()
+                .map_err(|_| TombWasmError("modified key was not a positive integer".into()))?;
+
+            map.insert("modified".into(), Ipld::Integer(modified_num));
+        } else {
+            log!("WARNING: WasmNodeMetadata did not contain a 'modified' timestamp");
+        }
 
         Ok(Self(NodeMetadata(map)))
     }
