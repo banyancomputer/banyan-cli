@@ -5,8 +5,8 @@ version = { workspace = true}
 repository = { workspace = true}
 license = { workspace = true}
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+#[lib]
+#crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["console_error_panic_hook"]
@@ -15,42 +15,35 @@ default = ["console_error_panic_hook"]
 opt-level = "s" # Optimize for binary size
 
 [dependencies]
-# Workspace dependencies
-anyhow = { workspace = true }
-serde = { workspace = true }
-wnfs = { workspace = true }
-rand = { workspace = true }
-chrono = { workspace = true }
-serde_json = { workspace = true }
-# Crate dependencies
-async-trait = "0.1.68"
-console_error_panic_hook = { version = "0.1.7", optional = true }
-serde-wasm-bindgen = "0.5.0"
-tomb-common = { path = "../tomb-common", version = "1.1.0", features = ["banyan-api"] }
-wasm-bindgen-futures = "0.4.37"
-web-sys = { version = "0.3.64", features = [
-    "console",
-    "Window",
-    "Crypto",
-    "CryptoKey",
-    "CryptoKeyPair",
-    "SubtleCrypto",
-    "FileReader"
-]}
-getrandom = { version = "0.2", features = ["js"] }
-wasm-bindgen = { version = "0.2.86" }
-js-sys = "0.3.64"
-futures-util = "0.3.28"
-noosphere-car = "0.2.0"
-futures = "0.3.28"
-tokio-util = { version = "0.7.8", features = ["compat"] }
-gloo = { version = "0.8.1", features = ["net"] }
-rc = "0.1.1"
-base64 = "0.21.2"
-thiserror = "1.0.43"
-pem = "2.0.1"
-tomb-crypt = { workspace = true }
-uuid = "1.4.1"
+anyhow = { version = "^1", features = ["backtrace"] }
+async-trait = "^0.1"
+base64 = "^0.21"
+chrono = { version = "^0.4", default-features = false, features = ["clock", "std"] }
+console_error_panic_hook = { version = "^0.1", optional = true }
+futures = "^0.3"
+futures-util = "^0.3"
+getrandom = { version = "^0.2", features = ["js"] }
+gloo = { version = "^0.8", features = ["net"] }
+js-sys = "^0.3"
+noosphere-car = "^0.2"
+pem = "^2"
+rand = "^0.8"
+rc = "^0.1"
+serde_json = "^1"
+serde = { version= "^1", features = ["derive"] }
+serde-wasm-bindgen = "^0.5"
+thiserror = "^1"
+tokio-util = { version = "^0.7", features = ["compat"] }
+tomb-common = { path = "../tomb-common", features = ["banyan-api"] }
+tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main" }
+uuid = "^1"
+wasm-bindgen-futures = "^0.4"
+wasm-bindgen = { version = "^0.2" }
+web-sys = { version = "^0.3", features = [ "console", "Crypto", "CryptoKey", "CryptoKeyPair", "FileReader", "SubtleCrypto", "Window" ] }
+wnfs = "^0.1"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.36"
+wasm-bindgen-test = "^0.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wnfs = { version = "^0.1", features = ["wasm"] }

@@ -9,44 +9,44 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-tomb-common = { path = "../tomb-common", version = "1.1.0", features = ["banyan-api"] }
-serde_json = { workspace = true }
-wnfs.workspace = true
-anyhow.workspace = true
-jwalk.workspace = true
-serde.workspace = true
-# zstd.workspace = true
-fclones = "0.30"
-indicatif = { version = "0.17.3", features = ["improved_unicode"] }
-log = "0.4.17"
-chrono.workspace = true
-rand.workspace = true
+anyhow = { version = "1", features = ["backtrace"] }
 async-recursion = "1.0.4"
-tokio.workspace = true
-clap.workspace = true
-thiserror = "1.0.40"
-env_logger = "0.10.0"
-async-trait = "0.1.71"
-hex = "0.4.3"
-tomb-crypt = { workspace = true }
-
-[dependencies.nix]
-version = "0.27"
-features = ["user", "fs"]
+async-trait = "^0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "^4", features = ["derive"] }
+env_logger = "^0.10"
+fclones = "^0.30"
+hex = "^0.4"
+indicatif = { version = "^0.17", features = ["improved_unicode"] }
+jwalk = "^0.8"
+log = "^0.4"
+nix = { version = "^0.27", features = ["fs", "user"] }
+rand = "^0.8"
+serde_json = "^1"
+serde = { version = "^1", features = ["derive"] }
+thiserror = "^1"
+tokio = { version = "^1", features = ["fs", "full", "io-util"] }
+tomb-common = { path = "../tomb-common", features = ["banyan-api"] }
+tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main" }
+wnfs = "^0.1"
 
 [dev-dependencies]
-fs_extra.workspace = true
-dir-assert.workspace = true
-criterion.workspace = true
-lazy_static.workspace = true
-serial_test = "2.0.0"
-fake-file.workspace = true
+criterion = { version = "^0.4", features = ["async_tokio"] }
+dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "0.2.0" }
+fake-file = "^0.1"
+fs_extra = "^1"
+lazy_static = "^1"
+serial_test = "^2"
 
 # Benchmark for packing -> unpacking an input directory
 [[bench]]
 name = "pipeline"
 harness = false
 
+[[bin]]
+name = "tomb"
+path = "src/main.rs"
+
 [lib]
-crate-type = ["cdylib", "rlib"]
+#crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
