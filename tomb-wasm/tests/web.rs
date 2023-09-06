@@ -39,7 +39,7 @@ pub async fn authenticated_client() -> TombResult<TombWasm> {
     let who_am_i = Account::who_am_i(&mut client)
         .await
         .expect("who_am_i failed");
-    assert_eq!(account.id.to_string(), who_am_i.id.to_string());
+    assert_eq!(account.id, who_am_i.id);
 
     Ok(TombWasm::from(client))
 }
@@ -116,23 +116,30 @@ async fn share_with() -> TombResult<()> {
 
 #[wasm_bindgen_test]
 async fn mkdir() -> TombResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
+
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert_eq!(mount.locked(), false);
+
     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
-    let ls_path_array: Array = js_array(&[]).into();
     mount.mkdir(mkdir_path_array).await?;
-    let ls: Array = mount.ls(ls_path_array).await?;
+
+    let ls_path_array: Array = js_array(&[]).into();
+    let ls = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 1);
+
     let ls_0 = ls.get(0);
     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+
     assert_eq!(fs_entry.name(), "test-dir");
     assert_eq!(fs_entry.entry_type(), "dir");
+
     Ok(())
 }
 

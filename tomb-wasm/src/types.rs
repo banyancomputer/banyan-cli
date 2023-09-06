@@ -53,22 +53,21 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
 
         let mut map = BTreeMap::new();
 
-        if let Ok(created_raw) = Reflect::get(&object, &JsValue::from_str("created")) {
-            let created_num: i128 = created_raw
-                .try_into()
-                .map_err(|_| TombWasmError("created key was not a positive integer".into()))?;
-
-            map.insert("created".into(), Ipld::Integer(created_num));
+        // We know object is an Object already, so this shouldn't be able to panic (that is the
+        // only documented way for this to throw an error).
+        let created_ref = Reflect::get(&object, &JsValue::from_str("created"))
+            .expect("undocumented error");
+        if let Some(timestamp) = created_ref.as_f64() {
+            map.insert("created".into(), Ipld::Integer(timestamp as i128));
         } else {
             log!("WARNING: WasmNodeMetadata did not contain a 'created' timestamp");
         }
 
-        if let Ok(modified_raw) = Reflect::get(&object, &JsValue::from_str("modified")) {
-            let modified_num: i128 = modified_raw
-                .try_into()
-                .map_err(|_| TombWasmError("modified key was not a positive integer".into()))?;
-
-            map.insert("modified".into(), Ipld::Integer(modified_num));
+        // See created
+        let modified_ref = Reflect::get(&object, &JsValue::from_str("created"))
+            .expect("undocumented error");
+        if let Some(timestamp) = modified_ref.as_f64() {
+            map.insert("modified".into(), Ipld::Integer(timestamp as i128));
         } else {
             log!("WARNING: WasmNodeMetadata did not contain a 'modified' timestamp");
         }
