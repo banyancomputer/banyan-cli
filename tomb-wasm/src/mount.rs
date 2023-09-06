@@ -13,7 +13,7 @@ use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
 
 // TODO: This should be a config
-const BLOCKSTORE_API_HOST: &str = "http://localhost:3002";
+const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
 
 use crate::error::TombWasmError;
 use crate::types::{WasmBucket, WasmFsMetadataEntry, WasmSnapshot};
@@ -299,7 +299,7 @@ impl WasmMount {
         match storage_ticket {
             Some(storage_ticket) => {
                 log!(
-                    "tomb-wasm: mount/sync()/{} - storage ticket returned",
+                    "tomb-wasm: mount/sync()/ - storage ticket returned",
                     self.bucket.id.to_string()
                 );
 

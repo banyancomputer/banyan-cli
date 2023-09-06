@@ -22,7 +22,7 @@ use web_sys::CryptoKeyPair;
 const FIVE_TIB: u64 = 5_497_558_138_880;
 
 pub async fn authenticated_client() -> JsResult<TombWasm> {
-    let mut client = Client::new("http://localhost:3001").expect("client creation failed");
+    let mut client = Client::new("http://127.0.0.1:3001").expect("client creation failed");
     let (account, _signing_key) = Account::create_fake(&mut client)
         .await
         .expect("fake account creation failed");
