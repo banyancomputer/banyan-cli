@@ -1,7 +1,7 @@
 use super::mapper::EncRefMapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::*;
+use tomb_crypt::{prelude::*, pretty_fingerprint};
 use wnfs::private::PrivateRef;
 
 /// Fs Share manager
@@ -49,7 +49,17 @@ impl ShareManager {
         Ok(())
     }
 
-    pub fn recipients(&self) -> Vec<String> {
+    pub async fn public_fingerprints(&self) -> Result<Vec<String>> {
+        let pems: Vec<String> = self.original_map.0.clone().into_keys().collect();
+        let mut fingerprints = <Vec<String>>::new();
+        for pem in pems {
+            let key = EcPublicEncryptionKey::import(pem.as_bytes()).await?;
+            fingerprints.push(pretty_fingerprint(&key.fingerprint().await?));
+        }
+        Ok(fingerprints)
+    }
+
+    pub fn public_pems(&self) -> Vec<String> {
         self.original_map.0.clone().into_keys().collect()
     }
 

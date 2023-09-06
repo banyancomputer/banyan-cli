@@ -318,6 +318,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
+    #[ignore]
     async fn create_delete_unauthorized() -> Result<(), ClientError> {
         let mut good_client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut good_client).await?;

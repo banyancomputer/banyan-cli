@@ -173,7 +173,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     let wrapping_key = global.wrapping_key().await?;
                     let config = global.get_bucket_by_specifier(&bucket_specifier)?;
                     let fs = FsMetadata::unlock(&wrapping_key, &config.metadata).await?;
-                    let valid_keys = fs.share_manager.recipients();
+                    let valid_keys = fs.share_manager.public_pems();
 
                     let expected_data_size = compute_directory_size(&config.metadata.path)? as u64;
                     let bucket_id = config.remote_id.expect("no remote id");
