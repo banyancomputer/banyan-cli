@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use gloo::console::log;
 use gloo::utils::window;
 use js_sys::{Array, Reflect, Uint8Array};
+use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 use web_sys::{CryptoKey, CryptoKeyPair};
 
@@ -12,14 +13,22 @@ use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::account::Account;
 
 use tomb_wasm::types::WasmFsMetadataEntry;
-use tomb_wasm::utils::*;
-use tomb_wasm::TombWasm;
+use tomb_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
 const FIVE_TIB: u64 = 5_497_558_138_880;
 
-pub async fn authenticated_client() -> JsResult<TombWasm> {
+fn js_array(values: &[&str]) -> JsValue {
+    let js_array: Array = values
+        .iter()
+        .map(|s| JsValue::from_str(s))
+        .collect();
+
+    JsValue::from(js_array)
+}
+
+pub async fn authenticated_client() -> TombResult<TombWasm> {
     let mut client = Client::new("http://127.0.0.1:3001").expect("client creation failed");
 
     let (account, _signing_key) = Account::create_fake(&mut client)
@@ -38,7 +47,7 @@ pub async fn authenticated_client() -> JsResult<TombWasm> {
 pub async fn create_bucket(
     client: &mut TombWasm,
     key_pair: &CryptoKeyPair,
-) -> JsResult<WasmBucket> {
+) -> TombResult<WasmBucket> {
     let web_public_encryption_key =
         CryptoKey::from(Reflect::get(key_pair, &"publicKey".into()).unwrap());
     // Generate a random name
@@ -59,7 +68,7 @@ pub async fn create_bucket(
 }
 
 #[wasm_bindgen_test]
-async fn get_usage() -> JsResult<()> {
+async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
     let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
     let mut client = authenticated_client().await?;
@@ -73,7 +82,7 @@ async fn get_usage() -> JsResult<()> {
 // TODO: probably for API tests
 
 #[wasm_bindgen_test]
-async fn mount() -> JsResult<()> {
+async fn mount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -86,7 +95,7 @@ async fn mount() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn share_with() -> JsResult<()> {
+async fn share_with() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_share_with()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -106,7 +115,7 @@ async fn share_with() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn mkdir() -> JsResult<()> {
+async fn mkdir() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -128,7 +137,7 @@ async fn mkdir() -> JsResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn mkdir_remount() -> JsResult<()> {
+async fn mkdir_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -163,7 +172,7 @@ async fn mkdir_remount() -> JsResult<()> {
 
 #[wasm_bindgen_test]
 #[should_panic]
-async fn add() -> JsResult<()> {
+async fn add() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -188,7 +197,7 @@ async fn add() -> JsResult<()> {
 
 #[wasm_bindgen_test]
 #[should_panic]
-async fn add_remount() -> JsResult<()> {
+async fn add_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -225,7 +234,7 @@ async fn add_remount() -> JsResult<()> {
 
 #[wasm_bindgen_test]
 #[should_panic]
-async fn add_rm() -> JsResult<()> {
+async fn add_rm() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_rm()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -250,7 +259,7 @@ async fn add_rm() -> JsResult<()> {
 
 #[wasm_bindgen_test]
 #[should_panic]
-async fn add_mv() -> JsResult<()> {
+async fn add_mv() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_mv()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
