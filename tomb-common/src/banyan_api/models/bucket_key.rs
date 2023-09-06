@@ -200,4 +200,24 @@ mod test {
             .await
             .unwrap();
     }
+
+    #[tokio::test]
+    async fn create_reject() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (_, pem) = generate_bucket_key().await;
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let bucket_key = BucketKey::create(bucket.id, pem.clone(), &mut client).await?;
+        let rejected_id = BucketKey::reject(bucket.id, bucket_key.id, &mut client).await?;
+        assert_eq!(bucket_key.id.to_string(), rejected_id);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn reject_approved_key() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
+        let rejected_id = BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
+        assert!(rejected_id.is_err());
+        Ok(())
+    }
 }

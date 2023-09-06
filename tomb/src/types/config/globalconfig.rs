@@ -1,6 +1,6 @@
 use crate::{cli::command::BucketSpecifier, pipelines::error::TombError, utils::config::*};
 use anyhow::{anyhow, Result};
-use async_recursion::async_recursion;
+
 use tomb_common::{
     banyan_api::client::{Client, Credentials},
     utils::io::{get_read, get_write},

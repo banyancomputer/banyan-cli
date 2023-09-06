@@ -49,7 +49,7 @@ pub(crate) async fn pipeline(
         }
         // Delete an already approved key
         KeySubCommand::Delete(ks) => {
-            let (bucket_id, id) = get_key_ids(&global, &ks)?;
+            let (bucket_id, id) = get_key_ids(global, &ks)?;
             BucketKey::delete_by_id(bucket_id, id, client)
                 .await
                 .map(|id| format!("deleted key!\nid:\t{}", id))
@@ -57,7 +57,7 @@ pub(crate) async fn pipeline(
         }
         // Get info about a Key
         KeySubCommand::Info(ks) => {
-            let (bucket_id, id) = get_key_ids(&global, &ks)?;
+            let (bucket_id, id) = get_key_ids(global, &ks)?;
             BucketKey::read(bucket_id, id, client)
                 .await
                 .map(|key| format!("{}", key))
@@ -65,7 +65,7 @@ pub(crate) async fn pipeline(
         }
         // Reject a Key pending approval
         KeySubCommand::Reject(ks) => {
-            let (bucket_id, id) = get_key_ids(&global, &ks)?;
+            let (bucket_id, id) = get_key_ids(global, &ks)?;
             BucketKey::reject(bucket_id, id, client)
                 .await
                 .map(|id| format!("rejected key!\nid:\t{}", id))
@@ -82,4 +82,14 @@ fn get_key_ids(
         global.get_bucket_id(&key_specifier.bucket_specifier)?,
         key_specifier.key_id,
     ))
+}
+
+
+#[cfg(test)]
+mod test {
+    /// Ensure that running the Create command updates metadata car
+    #[tokio::test]
+    async fn create_remote_and_local() {
+
+    }
 }

@@ -19,8 +19,6 @@ use tomb_common::{
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 use wnfs::{
-    common::BlockStore,
-    libipld::{Cid, Ipld},
     private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory},
 };
 

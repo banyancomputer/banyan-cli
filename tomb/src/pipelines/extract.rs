@@ -17,7 +17,7 @@ use std::path::Path;
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
-    global: &mut GlobalConfig,
+    global: &GlobalConfig,
     bucket_specifier: &BucketSpecifier,
     extracted: &Path,
 ) -> Result<String, TombError> {
