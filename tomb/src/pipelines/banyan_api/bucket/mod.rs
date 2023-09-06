@@ -143,7 +143,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     Err(err) => format!("error: {}", err),
                 }
             } else {
-                format!("no known remote correlate")
+                "no known remote correlate".to_string()
             };
 
             Ok(format!("{}{}", local, remote))

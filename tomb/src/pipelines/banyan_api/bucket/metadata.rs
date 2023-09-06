@@ -107,7 +107,7 @@ pub(crate) async fn pipeline(
                 .await?;
             }
 
-            Ok(format!("successfully downloaded metadata"))
+            Ok("successfully downloaded metadata".to_string())
         }
         // Take a Cold Snapshot of the remote metadata
         MetadataSubCommand::Snapshot {

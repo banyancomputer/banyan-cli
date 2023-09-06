@@ -20,9 +20,8 @@ pub(crate) async fn pipeline(
             BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, client)
                 .await
                 .map(|keys| {
-                    keys.iter().fold(String::new(), |acc, key| {
-                        format!("{}\n\n{}", acc, format!("{}", key))
-                    })
+                    keys.iter()
+                        .fold(String::new(), |acc, key| format!("{}\n\n{}", acc, key))
                 })
                 .map_err(TombError::client_error)
         }

@@ -342,7 +342,7 @@ fn extract_benchmark(c: &mut Criterion, bundleed_path: &PathBuf, extracted_path:
             // The routine to benchmark
             |_| async {
                 extract::pipeline(
-                    black_box(&mut GlobalConfig::from_disk().await?),
+                    black_box(&GlobalConfig::from_disk().await?),
                     black_box(&BucketSpecifier::with_origin(bundleed_path)),
                     black_box(extracted_path),
                 )
