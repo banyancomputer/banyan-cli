@@ -3,9 +3,9 @@ name = "tomb-wasm"
 edition = "2021"
 rust-version = "1.69"
 
-version = { workspace = true }
-repository = { workspace = true }
 license = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
 
 # todo: this only does something at the workspace level, we should probably
 # move all wasm stuff into its own repo because we always need to specify
@@ -54,7 +54,7 @@ web-sys = { version = "^0.3", features = [
 ]}
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.36"
+wasm-bindgen-test = "^0.3"
 
 [features]
 default = ["console_error_panic_hook"]
