@@ -5,14 +5,15 @@ version = { workspace = true}
 repository = { workspace = true}
 license = { workspace = true}
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [features]
 default = ["console_error_panic_hook"]
 
-[profile.release]
-opt-level = "s" # Optimize for binary size
+# todo: this only does something at the workspace level, we should probably
+# move all wasm stuff into its own repo because we always need to specify
+# alternate flags and profile settings which we simply can't do from a
+# sub-crate.
+#[profile.release]
+#opt-level = "s" # Optimize for binary size
 
 [dependencies]
 # Workspace dependencies
@@ -23,12 +24,12 @@ rand = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
 # Crate dependencies
-async-trait = "0.1.68"
-console_error_panic_hook = { version = "0.1.7", optional = true }
-serde-wasm-bindgen = "0.5.0"
-tomb-common = { path = "../tomb-common", version = "1.1.0", features = ["banyan-api"] }
-wasm-bindgen-futures = "0.4.37"
-web-sys = { version = "0.3.64", features = [
+async-trait = "^0.1"
+console_error_panic_hook = { version = "^0.1", optional = true }
+serde-wasm-bindgen = "^0.5"
+tomb-common = { path = "../tomb-common", version = "^1", features = ["banyan-api"] }
+wasm-bindgen-futures = "^0.4"
+web-sys = { version = "^0.3", features = [
     "console",
     "Window",
     "Crypto",
@@ -37,20 +38,23 @@ web-sys = { version = "0.3.64", features = [
     "SubtleCrypto",
     "FileReader"
 ]}
-getrandom = { version = "0.2", features = ["js"] }
-wasm-bindgen = { version = "0.2.86" }
-js-sys = "0.3.64"
-futures-util = "0.3.28"
-noosphere-car = "0.2.0"
-futures = "0.3.28"
-tokio-util = { version = "0.7.8", features = ["compat"] }
-gloo = { version = "0.8.1", features = ["net"] }
-rc = "0.1.1"
-base64 = "0.21.2"
-thiserror = "1.0.43"
-pem = "2.0.1"
+getrandom = { version = "^0.2", features = ["js"] }
+wasm-bindgen = { version = "^0.2" }
+js-sys = "^0.3"
+futures-util = "^0.3"
+noosphere-car = "^0.2"
+futures = "^0.3"
+tokio-util = { version = "^0.7", features = ["compat"] }
+gloo = { version = "^0.8", features = ["net"] }
+rc = "^0.1"
+base64 = "^0.21"
+thiserror = "^1"
+pem = "^2"
 tomb-crypt = { workspace = true }
-uuid = "1.4.1"
+uuid = "^1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.36"
+
+[lib]
+crate-type = ["cdylib"]
