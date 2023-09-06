@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 
 use tomb_common::{
     banyan_api::client::{Client, Credentials},
-    utils::io::{get_read, get_write},
+    utils::io::get_read,
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
@@ -12,8 +12,8 @@ use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
     env::current_dir,
-    fs::{remove_file, File},
-    io::{Read, Seek, SeekFrom, Write},
+    fs::{remove_file, File, OpenOptions},
+    io::{Read, Write},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -132,14 +132,14 @@ impl GlobalConfig {
 
     /// Write to disk
     pub fn to_disk(&self) -> Result<()> {
-        // println!("SAVING CONFIG: {:?}", &self);
-        let mut writer = get_write(&config_path())?;
-        writer.seek(SeekFrom::Start(0))?;
-        let json = &serde_json::to_string_pretty(self)?;
-        println!("JSON: {}", json);
-        writer.write_all(json.as_bytes())?;
+        let writer = OpenOptions::new()
+            .create(true)
+            .append(false)
+            .truncate(true)
+            .write(true)
+            .open(config_path())?;
 
-        // serde_json::to_writer(get_write(&config_path())?, &self)?;
+        serde_json::to_writer(writer, &self)?;
         Ok(())
     }
 
@@ -151,7 +151,6 @@ impl GlobalConfig {
                 // println!("LOADED CONFIG: {:?}", &config);
                 Ok(config)
         } else {
-            println!("Creating new config at {:?}", config_path());
             let config = Self::create().await?;
             config.to_disk()?;
             Ok(config)

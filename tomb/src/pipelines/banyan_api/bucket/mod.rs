@@ -30,12 +30,13 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let origin = &origin.unwrap_or(current_dir()?);
 
             // If we've already done this
-            if global.get_bucket_by_origin(origin).is_some() {
-                return Err(anyhow!("Bucket already exists at this origin"));
+            if let Some(bucket) = global.get_bucket_by_origin(origin) && let Some(remote_id) = bucket.remote_id && Bucket::read(&mut client, remote_id).await.is_ok() {
+                // If we are able to read the bucket
+                return Err(anyhow!("Bucket already exists at this origin and is persisted remotely"));
             }
 
             // Initialize in the configs
-            let mut config = global.new_bucket(origin).await?;
+            let mut config = global.get_or_create_bucket(origin).await?;
 
             // Update the config globally
             global
