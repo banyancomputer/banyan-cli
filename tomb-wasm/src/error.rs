@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::JsValue;
 
 #[derive(Debug)]
-pub struct TombWasmError(pub String);
+pub struct TombWasmError(pub(crate) String);
 
 impl Display for TombWasmError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

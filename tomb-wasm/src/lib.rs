@@ -35,6 +35,8 @@ use crate::mount::WasmMount;
 use crate::types::*;
 use crate::utils::*;
 
+pub type JsResult<T> = Result<T, js_sys::Error>;
+
 #[wasm_bindgen]
 pub struct TombWasm(pub(crate) Client);
 
@@ -131,18 +133,19 @@ impl TombWasm {
     /// List bucket snapshots for a bucket
     ///
     /// # Arguments
+    ///
     /// * `bucket_id` - The id of the bucket to list snapshots for
     ///
     /// # Returns an array WasmSnapshots
     ///
     /// ```json
     /// [
-    ///     {
-    ///         "id": "ffc1dca2-5155-40be-adc6-c81eb7322fb8",
-    ///         "bucket_id": "f0c55cc7-4896-4ff3-95de-76422af271b2",
-    ///         "metadata_id": "05d063f1-1e3f-4876-8b16-aeb106af0eb0",
-    ///         "created_at": "string"
-    ///     }
+    ///   {
+    ///     "id": "ffc1dca2-5155-40be-adc6-c81eb7322fb8",
+    ///     "bucket_id": "f0c55cc7-4896-4ff3-95de-76422af271b2",
+    ///     "metadata_id": "05d063f1-1e3f-4876-8b16-aeb106af0eb0",
+    ///     "created_at": "2023-09-05T19:05:34Z"
+    ///   }
     /// ]
     /// ```
     #[wasm_bindgen(js_name = listBucketSnapshots)]
@@ -158,9 +161,9 @@ impl TombWasm {
 
         // Convert the snapshots
         snapshots
-            .iter()
+            .into_iter()
             .map(|snapshot| {
-                let wasm_snapshot = WasmSnapshot(snapshot.clone());
+                let wasm_snapshot = WasmSnapshot::new(snapshot);
                 JsValue::try_from(wasm_snapshot).map_err(|err| {
                     TombWasmError(format!("failed to convert snapshot to JsValue: {err}")).into()
                 })

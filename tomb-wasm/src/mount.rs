@@ -18,34 +18,31 @@ const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
 
 use crate::error::TombWasmError;
 use crate::types::{WasmBucket, WasmFsMetadataEntry, WasmSnapshot};
-use crate::utils::JsResult;
+use crate::JsResult;
 
 /// Mount point for a Bucket in WASM
+///
 /// Enables to call Fs methods on a Bucket, pulling metadata from a remote
 #[wasm_bindgen]
 pub struct WasmMount {
-    /* Remote client */
-    /// Client to use for remote calls
     client: Client,
 
-    /* Remote metadata */
-    /// Bucket Metadata
     bucket: Bucket,
+
     /// Currently initialized version of Fs Metadata
     metadata: Option<Metadata>,
-    /// Whether or not the bucket is locked
+
     locked: bool,
+
     /// Whether or not a change requires a call to save
     dirty: bool,
+
     /// Whether or not data has been appended to the content blockstore
     append: bool,
 
-    /* Fs Exposure  */
-    /// Encrypted metadata within a local memory blockstore
     metadata_blockstore: BlockStore,
     content_blockstore: BlockStore,
 
-    /// Fs Metadata
     fs_metadata: Option<FsMetadata>,
 }
 
@@ -57,6 +54,7 @@ impl WasmMount {
         client: &Client,
     ) -> Result<Self, TombWasmError> {
         log!("tomb-wasm: mount/new()/{}", wasm_bucket.id());
+
         let bucket = Bucket::from(wasm_bucket.clone());
         log!(
             "tomb-wasm: mount/new()/{} - creating blockstores",

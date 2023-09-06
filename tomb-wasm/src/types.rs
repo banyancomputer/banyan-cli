@@ -1,19 +1,44 @@
 use std::collections::BTreeMap;
+use std::ops::Deref;
 
-use crate::value;
 use js_sys::{Object, Reflect};
-use tomb_common::{
-    banyan_api::models::{bucket::*, bucket_key::*, metadata::*, snapshot::*},
-    metadata::{FsMetadataEntry, FsMetadataEntryType},
-};
-
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
+
+use tomb_common::banyan_api::models::bucket::*;
+use tomb_common::banyan_api::models::bucket_key::*;
+use tomb_common::banyan_api::models::metadata::*;
+use tomb_common::banyan_api::models::snapshot::*;
+use tomb_common::metadata::{FsMetadataEntry, FsMetadataEntryType};
+
+use crate::value;
+use crate::error::TombWasmError;
 
 /// Wrapper around a Bucket
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
-pub struct WasmBucket(pub(crate) Bucket);
+pub struct WasmBucket(Bucket);
+
+#[wasm_bindgen]
+impl WasmBucket {
+    #[wasm_bindgen(js_name = "bucketType")]
+    pub fn bucket_type(&self) -> String {
+        self.r#type.to_string()
+    }
+
+    pub fn id(&self) -> String {
+        self.id.to_string()
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    #[wasm_bindgen(js_name = "storageClass")]
+    pub fn storage_class(&self) -> String {
+        self.storage_class.to_string()
+    }
+}
 
 impl From<Bucket> for WasmBucket {
     fn from(bucket: Bucket) -> Self {
@@ -27,24 +52,11 @@ impl From<WasmBucket> for Bucket {
     }
 }
 
-#[wasm_bindgen]
-impl WasmBucket {
-    pub fn name(&self) -> String {
-        self.0.name.clone()
-    }
+impl Deref for WasmBucket {
+    type Target = Bucket;
 
-    #[wasm_bindgen(js_name = "storageClass")]
-    pub fn storage_class(&self) -> String {
-        self.0.storage_class.clone().to_string()
-    }
-
-    #[wasm_bindgen(js_name = "bucketType")]
-    pub fn bucket_type(&self) -> String {
-        self.0.r#type.clone().to_string()
-    }
-
-    pub fn id(&self) -> String {
-        self.0.id.clone().to_string()
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -99,48 +111,69 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
         Ok(value!(object))
     }
 }
+
 impl TryFrom<JsValue> for WasmNodeMetadata {
-    type Error = js_sys::Error;
+    type Error = TombWasmError;
+
     fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
-        let object = js_value.dyn_into::<Object>()?;
-        let created = Reflect::get(&object, &value!("created"))?.as_f64().unwrap() as i64;
-        let modified = Reflect::get(&object, &value!("modified"))?
+        let object = js_value.dyn_into::<Object>()
+            .map_err(|_| TombWasmError(format!("expected an object to be passed in")))?;
+
+        let created = Reflect::get(&object, &value!("created"))?
+            .map_err(|err| TombWasmError("WasmNodeMetadata requires a created key to be present".into()))?
             .as_f64()
-            .unwrap() as i64;
+            .map_err(|err| TombWasmError(format!("provided created timestamp was not numeric: {err}")))?;
+
+        let modified = Reflect::get(&object, &value!("modified"))?
+            .map_err(|err| TombWasmError("WasmNodeMetadata requires a modified key to be present".into()))?
+            .as_f64()
+            .map_err(|err| TombWasmError(format!("provided modified timestamp was not numeric: {err}")))?;
+
         let mut map = BTreeMap::new();
+
         map.insert("created".into(), Ipld::Integer(created as i128));
         map.insert("modified".into(), Ipld::Integer(modified as i128));
-        let metadata = NodeMetadata(map);
-        Ok(Self(metadata))
+
+        Ok(Self(NodeMetadata(map)))
     }
 }
 
 /// A wrapper around a snapshot
 #[wasm_bindgen]
-pub struct WasmSnapshot(pub(crate) Snapshot);
+pub struct WasmSnapshot(Snapshot);
+
 impl From<Snapshot> for WasmSnapshot {
     fn from(snapshot: Snapshot) -> Self {
         Self(snapshot)
     }
 }
+
 impl From<WasmSnapshot> for Snapshot {
     fn from(wasm_snapshot: WasmSnapshot) -> Self {
         wasm_snapshot.0
     }
 }
+
 #[wasm_bindgen]
 impl WasmSnapshot {
     pub fn id(&self) -> String {
         self.0.id.clone().to_string()
     }
+
     #[wasm_bindgen(js_name = "bucketId")]
     pub fn bucket_id(&self) -> String {
         self.0.bucket_id.clone().to_string()
     }
+
     #[wasm_bindgen(js_name = "metadataId")]
     pub fn metadata_id(&self) -> String {
         self.0.metadata_id.clone().to_string()
     }
+
+    pub(crate) fn new(snapshot: Snapshot) -> Self {
+        Self(snapshot)
+    }
+
     #[wasm_bindgen(js_name = "dataSize")]
     pub fn created_at(&self) -> i64 {
         self.0.created_at
