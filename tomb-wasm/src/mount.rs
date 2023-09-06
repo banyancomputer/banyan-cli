@@ -1,5 +1,4 @@
 use futures_util::StreamExt;
-use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::convert::TryFrom;
 use std::io::Cursor;
@@ -11,6 +10,8 @@ use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
+
+use crate::log;
 
 // TODO: This should be a config
 const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";

@@ -1,11 +1,14 @@
 //! This crate contains modules which are compiled to WASM
-#![warn(rust_2018_idioms)]
+
 /// Expose Errors
 mod error;
+
 /// Mount implementation
 pub mod mount;
+
 /// Banyan API
 pub mod types;
+
 /// Misc utilities
 pub mod utils;
 

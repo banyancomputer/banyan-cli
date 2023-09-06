@@ -14,11 +14,13 @@ use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct WasmBucket(pub(crate) Bucket);
+
 impl From<Bucket> for WasmBucket {
     fn from(bucket: Bucket) -> Self {
         Self(bucket)
     }
 }
+
 impl From<WasmBucket> for Bucket {
     fn from(wasm_bucket: WasmBucket) -> Self {
         wasm_bucket.0
@@ -30,14 +32,17 @@ impl WasmBucket {
     pub fn name(&self) -> String {
         self.0.name.clone()
     }
+
     #[wasm_bindgen(js_name = "storageClass")]
     pub fn storage_class(&self) -> String {
         self.0.storage_class.clone().to_string()
     }
+
     #[wasm_bindgen(js_name = "bucketType")]
     pub fn bucket_type(&self) -> String {
         self.0.r#type.clone().to_string()
     }
+
     pub fn id(&self) -> String {
         self.0.id.clone().to_string()
     }
