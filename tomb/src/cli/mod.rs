@@ -31,10 +31,9 @@ pub async fn run(command: Command) -> Result<()> {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
-    use super::command::Command;
+    use super::command::{AuthSubCommand, BucketSpecifier, BucketsSubCommand, Command};
     use crate::{cli::run, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::Result;
     use dir_assert::assert_paths;
@@ -47,32 +46,44 @@ mod test {
         }
     }
 
-    fn cmd_init(dir: &Path) -> Command {
-        Command::Init {
-            dir: Some(dir.to_path_buf()),
+    fn cmd_register() -> Command {
+        Command::Auth {
+            subcommand: AuthSubCommand::Register,
         }
     }
 
-    fn cmd_deinit(dir: &Path) -> Command {
-        Command::Deinit {
-            dir: Some(dir.to_path_buf()),
+    fn cmd_create(origin: &Path) -> Command {
+        Command::Buckets {
+            subcommand: BucketsSubCommand::Create {
+                name: "Bucket Name".to_string(),
+                origin: Some(origin.to_path_buf()),
+            },
         }
     }
 
+    fn cmd_delete(origin: &Path) -> Command {
+        Command::Buckets {
+            subcommand: BucketsSubCommand::Delete(BucketSpecifier::with_origin(origin)),
+        }
+    }
 
     // Run the Bundle pipeline through the CLI
     fn cmd_bundle(origin: &Path) -> Command {
-        Command::Bundle {
-            origin: Some(origin.to_path_buf()),
-            follow_links: true,
+        Command::Buckets {
+            subcommand: BucketsSubCommand::Bundle {
+                bucket_specifier: BucketSpecifier::with_origin(origin),
+                follow_links: true,
+            },
         }
     }
 
     // Run the Extract pipeline through the CLI
     fn cmd_extract(origin: &Path, extracted: &Path) -> Command {
-        Command::Extract {
-            origin: Some(origin.to_path_buf()),
-            extracted: extracted.to_path_buf(),
+        Command::Buckets {
+            subcommand: BucketsSubCommand::Extract {
+                bucket_specifier: BucketSpecifier::with_origin(origin),
+                output: extracted.to_path_buf(),
+            },
         }
     }
 
@@ -81,13 +92,13 @@ mod test {
     async fn init() -> Result<()> {
         let test_name = "cli_init";
         // Setup test
-        let origin = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
         // Deinitialize for user
-        run(cmd_deinit(origin)).await?;
+        run(cmd_delete(origin)).await.ok();
         // Assert failure
         assert!(run(cmd_bundle(origin)).await.is_err());
         // Initialization worked
-        run(cmd_init(origin)).await?;
+        run(cmd_create(origin)).await?;
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
@@ -102,21 +113,23 @@ mod test {
     async fn init_deinit() -> Result<()> {
         let test_name = "cli_init_deinit";
         // Setup test
-        let origin = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
+        // Deinit if present
+        run(cmd_delete(origin)).await.ok();
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()
             .await?
             .get_bucket_by_origin(origin)
             .is_none());
         // Initialization worked
-        run(cmd_init(origin)).await?;
+        run(cmd_create(origin)).await?;
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
             .get_bucket_by_origin(origin)
             .is_some());
         // Deinitialize the directory
-        run(cmd_deinit(origin)).await?;
+        run(cmd_delete(origin)).await?;
         // Assert the bucket is gone again
         assert!(GlobalConfig::from_disk()
             .await?
@@ -131,10 +144,10 @@ mod test {
     async fn configure_remote() -> Result<()> {
         let test_name = "cli_configure_remote";
         // Setup test
-        let input_dir = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
 
         // Initialize
-        run(cmd_init(input_dir)).await?;
+        run(cmd_create(origin)).await?;
 
         // Configure remote endpoint
         run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
@@ -152,9 +165,9 @@ mod test {
     async fn bundle() -> Result<()> {
         let test_name = "cli_bundle";
         // Setup test
-        let origin = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
         // Initialize tomb
-        run(cmd_init(origin)).await?;
+        run(cmd_create(origin)).await?;
         // Run bundle and assert success
         run(cmd_bundle(origin)).await?;
         // Teardown test
@@ -166,9 +179,9 @@ mod test {
     async fn extract() -> Result<()> {
         let test_name = "cli_extract";
         // Setup test
-        let origin = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
         // Initialize tomb
-        run(cmd_init(origin)).await?;
+        run(cmd_create(origin)).await?;
         // Run bundle and assert success
         run(cmd_bundle(origin)).await?;
         // Create extracted dir
@@ -184,4 +197,4 @@ mod test {
         // Teardown test
         test_teardown(test_name).await
     }
-} */
+}

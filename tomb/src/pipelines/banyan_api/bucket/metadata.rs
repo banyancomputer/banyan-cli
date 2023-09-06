@@ -30,7 +30,7 @@ pub(crate) async fn pipeline(
                     .map(|metadata| format!("{:?}", metadata))
                     .map_err(TombError::client_error)
             } else {
-                Err(TombError::anyhow_error(anyhow!("Config has no remote id!")))
+                Err(anyhow!("Config has no remote id!").into())
             }
         }
         // Push metadata

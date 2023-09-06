@@ -5,7 +5,10 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use std::env::current_dir;
-use tomb_common::banyan_api::models::bucket::{Bucket, BucketType, StorageClass};
+use tomb_common::banyan_api::{
+    client::Client,
+    models::bucket::{Bucket, BucketType, StorageClass},
+};
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
 
 pub(crate) mod keys;
@@ -17,7 +20,11 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     // Grab global config
     let mut global = GlobalConfig::from_disk().await?;
     // Obtain the Client
-    let mut client = global.get_client().await?;
+    let client: &mut Option<Client> = &mut global.get_client().await.ok();
+
+    // if let Some(client) = client {
+
+    // }
 
     // Process the command
     let result: Result<String, TombError> = match command {
@@ -29,7 +36,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let origin = &origin.unwrap_or(current_dir()?);
 
             // If this bucket already exists both locally and remotely
-            if let Some(bucket) = global.get_bucket_by_origin(origin) && let Some(remote_id) = bucket.remote_id && Bucket::read(&mut client, remote_id).await.is_ok() {
+            if let Some(bucket) = global.get_bucket_by_origin(origin) && let Some(remote_id) = bucket.remote_id && let Some(client) = client && Bucket::read(client, remote_id).await.is_ok() {
                 // If we are able to read the bucket
                 return Err(anyhow!("Bucket already exists at this origin and is persisted remotely"));
             }
@@ -42,26 +49,31 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 .update_config(&config)
                 .expect("unable to update config to include local path");
 
-            // Initialize on the remote endpoint
-            Bucket::create(
-                name,
-                pem,
-                BucketType::Interactive,
-                StorageClass::Hot,
-                &mut client,
-            )
-            .await
-            .map(|(bucket, key)| {
-                // Update the bucket config id
-                config.remote_id = Some(bucket.id);
-                // Update the config globally
-                global
-                    .update_config(&config)
-                    .expect("unable to update config to include remote id");
-                // Return
-                format!("<<NEW BUCKET CREATED >>\n{}\n{}\n{}", bucket, config, key)
-            })
-            .map_err(TombError::client_error)
+            // If we're online
+            if let Some(client) = client {
+                // Initialize on the remote endpoint
+                Bucket::create(
+                    name,
+                    pem,
+                    BucketType::Interactive,
+                    StorageClass::Hot,
+                    client,
+                )
+                .await
+                .map(|(bucket, key)| {
+                    // Update the bucket config id
+                    config.remote_id = Some(bucket.id);
+                    // Update the config globally
+                    global
+                        .update_config(&config)
+                        .expect("unable to update config to include remote id");
+                    // Return
+                    format!("<< NEW BUCKET CREATED >>\n{bucket}\n{config}\n{key}")
+                })
+                .map_err(TombError::client_error)
+            } else {
+                Ok(format!("<< NEW BUCKET CREATED (LOCAL ONLY) >>\n{config}"))
+            }
         }
         // Bundle a local directory
         BucketsSubCommand::Bundle {
@@ -75,44 +87,58 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
         } => extract::pipeline(&global, &bucket_specifier, &output).await,
         // List all Buckets tracked remotely and locally
         BucketsSubCommand::List => {
-            let remote = Bucket::read_all(&mut client)
-                .await
-                .map(|buckets| {
-                    buckets
-                        .iter()
-                        .fold("<< REMOTE BUCKETS >>".to_string(), |acc, bucket| {
-                            format!("{}{}", acc, bucket)
-                        })
-                })
-                .map_err(TombError::client_error)?;
-
             let local = global
                 .buckets
                 .iter()
                 .fold("<< LOCAL BUCKETS >>".to_string(), |acc, bucket| {
-                    format!("{}{}", acc, bucket)
+                    format!("{acc}{bucket}")
                 });
 
-            Ok(format!("{}\n\n{}", remote, local))
+            if let Some(client) = client {
+                let remote = Bucket::read_all(client)
+                    .await
+                    .map(|buckets| {
+                        buckets
+                            .iter()
+                            .fold("<< REMOTE BUCKETS >>".to_string(), |acc, bucket| {
+                                format!("{acc}{bucket}")
+                            })
+                    })
+                    .map_err(TombError::client_error)?;
+                Ok(format!("{}\n\n{}", remote, local))
+            } else {
+                Ok(format!("{}\n", local))
+            }
         }
         // Delete a Bucket
         BucketsSubCommand::Delete(bucket_specifier) => {
             // Rmove the Bucket locally
-            global.remove_bucket_by_specifier(&bucket_specifier)?;
+            let local_deletion = global.remove_bucket_by_specifier(&bucket_specifier).is_ok();
+
             // Remove the bucket remotely
-            let bucket_id = global.get_bucket_id(&bucket_specifier)?;
-            Bucket::delete_by_id(&mut client, bucket_id)
-                .await
-                .map(|_| "bucket deleted".to_string())
-                .map_err(TombError::client_error)
+            if let Ok(bucket_id) = global.get_bucket_id(&bucket_specifier) && let Some(client) = client {
+                Bucket::delete_by_id(client, bucket_id)
+                    .await
+                    .map(|_| format!("<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote\t{}", true))
+                    .map_err(TombError::client_error)
+            } else {
+                Ok(format!("<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote\t{}", false))
+            }
         }
         // Info about a Bucket
         BucketsSubCommand::Info(bucket_specifier) => {
+            // Local info
+            let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
+                format!("{}", bucket)
+            } else {
+                "no known local bucket".to_string()
+            };
+
             // If there is known remote counterpart to the Bucket
-            let remote = if let Ok(id) = global.get_bucket_id(&bucket_specifier) {
-                match Bucket::read(&mut client, id).await {
+            let remote = if let Some(client) = client && let Ok(id) = global.get_bucket_id(&bucket_specifier) {
+                match Bucket::read(client, id).await {
                     Ok(bucket) => {
-                        format!("{}", bucket)
+                        format!("{bucket}")
                     }
                     Err(err) => format!("error: {}", err),
                 }
@@ -120,38 +146,49 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 format!("no known remote correlate")
             };
 
-            let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
-                format!("{}", bucket)
-            } else {
-                "no known local bucket".to_string()
-            };
-
             Ok(format!("{}{}", local, remote))
         }
         // Bucket usage
         BucketsSubCommand::Usage(bucket_specifier) => {
             let bucket_id = global.get_bucket_id(&bucket_specifier)?;
-            Bucket::read(&mut client, bucket_id)
-                .await?
-                .usage(&mut client)
-                .await
-                .map(|v| format!("id:\t{}\nusage:\t{}", bucket_id, v))
-                .map_err(TombError::client_error)
+            if let Some(client) = client {
+                Bucket::read(client, bucket_id)
+                    .await?
+                    .usage(client)
+                    .await
+                    .map(|v| format!("id:\t{}\nusage:\t{}", bucket_id, v))
+                    .map_err(TombError::client_error)
+            } else {
+                Err(anyhow!("cannot check usage offline").into())
+            }
         }
         // Bucket Metadata
         BucketsSubCommand::Metadata { subcommand } => {
-            metadata::pipeline(&global, &mut client, subcommand).await
+            if let Some(client) = client {
+                metadata::pipeline(&global, client, subcommand).await
+            } else {
+                Err(anyhow!("cannot perform metadata operations offline").into())
+            }
         }
         // Bucket Key Management
         BucketsSubCommand::Keys { subcommand } => {
-            keys::pipeline(&global, &mut client, subcommand).await
+            if let Some(client) = client {
+                keys::pipeline(&global, client, subcommand).await
+            } else {
+                Err(anyhow!("cannot perform key management operations offline").into())
+            }
         }
     };
 
-    // Save the Client
-    global.save_client(client).await?;
+    // If there is a client to update and save
+    if let Some(client) = client {
+        // Save the Client
+        global.save_client(client.clone()).await?;
+    }
     global.to_disk()?;
 
     // Return
     result.map_err(anyhow::Error::new)
+
+    // Ok("".to_string())
 }
