@@ -265,8 +265,7 @@ impl WasmMount {
         );
         log!(format!(
             "tomb-wasm: mount/sync()/{} - pushing root at version {}",
-            self.bucket.id,
-            root_cid,
+            self.bucket.id, root_cid,
         ));
         // Assume that the metadata is always at least as big as the content
         let mut data_size = 0;
@@ -307,14 +306,20 @@ impl WasmMount {
                     .clone()
                     .create_grant(&mut self.client)
                     .await
-                    .map_err(|err| TombWasmError(format!("unable to register storage ticket: {err}")))?;
+                    .map_err(|err| {
+                        TombWasmError(format!("unable to register storage ticket: {err}"))
+                    })?;
 
                 let content = Cursor::new(self.metadata_blockstore.get_data());
                 storage_ticket
                     .clone()
                     .upload_content(metadata_id, content, &mut self.client)
                     .await
-                    .map_err(|err| TombWasmError(format!("unable to upload data to distribution service: {err}")))?;
+                    .map_err(|err| {
+                        TombWasmError(format!(
+                            "unable to upload data to distribution service: {err}"
+                        ))
+                    })?;
             }
             None => {
                 log!(format!(
@@ -327,7 +332,10 @@ impl WasmMount {
         self.dirty = false;
         self.append = false;
 
-        log!(format!("tomb-wasm: mount/sync()/{} - synced", self.bucket.id.to_string()));
+        log!(format!(
+            "tomb-wasm: mount/sync()/{} - synced",
+            self.bucket.id.to_string()
+        ));
 
         Ok(())
     }
@@ -430,7 +438,10 @@ impl WasmMount {
         );
 
         if self.locked() {
-            return Err(TombWasmError("unable to list directory contents of a locked bucket".to_string()).into());
+            return Err(TombWasmError(
+                "unable to list directory contents of a locked bucket".to_string(),
+            )
+            .into());
         };
 
         log!(format!(
@@ -458,8 +469,12 @@ impl WasmMount {
             .iter()
             .map(|entry| {
                 let wasm_fs_metadata_entry = WasmFsMetadataEntry::from(entry.clone());
-                JsValue::try_from(wasm_fs_metadata_entry)
-                    .map_err(|err| TombWasmError(format!("unable to convert directory entries to JS objects: {err:?}")).into())
+                JsValue::try_from(wasm_fs_metadata_entry).map_err(|err| {
+                    TombWasmError(format!(
+                        "unable to convert directory entries to JS objects: {err:?}"
+                    ))
+                    .into()
+                })
             })
             .collect()
     }
