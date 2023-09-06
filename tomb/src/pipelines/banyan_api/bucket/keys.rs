@@ -1,5 +1,12 @@
-use tomb_common::banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey};
-use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
+use anyhow::anyhow;
+use tomb_common::{
+    banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
+    metadata::FsMetadata,
+};
+use tomb_crypt::{
+    prelude::{EcEncryptionKey, PrivateKey, PublicKey},
+    pretty_fingerprint,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -27,12 +34,13 @@ pub(crate) async fn pipeline(
         }
         // Create a new key
         KeySubCommand::Create(bucket_specifier) => {
-            let private_key = EcEncryptionKey::generate()
-                .await
-                .map_err(ClientError::crypto_error)?;
-            let public_key = private_key
+            // let all_keys = BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, client).await?;
+            let public_key = global
+                .wrapping_key()
+                .await?
                 .public_key()
                 .map_err(ClientError::crypto_error)?;
+            // Compute PEM
             let pem = String::from_utf8(
                 public_key
                     .export()
@@ -40,11 +48,26 @@ pub(crate) async fn pipeline(
                     .map_err(ClientError::crypto_error)?,
             )
             .unwrap();
-            let bucket_id = global.get_bucket_id(&bucket_specifier)?;
-            BucketKey::create(bucket_id, pem, client)
-                .await
-                .map(|key| format!("{}", key))
-                .map_err(TombError::client_error)
+            // // If the current fingerprint is already in the
+            // if all_keys.iter().position(|key| key.pem == pem).is_some() {
+            //     return Err(TombError::anyhow_error(anyhow!("this device key is already used").into()))
+            // }
+
+            // Get Bucket
+            let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
+            let mut fs =
+                FsMetadata::unlock(&global.wrapping_key().await?, &bucket.metadata).await?;
+            fs.share_with(&public_key, &bucket.metadata).await?;
+            fs.save(&bucket.metadata, &bucket.content).await?;
+
+            if let Some(remote_id) = bucket.remote_id {
+                BucketKey::create(remote_id, pem, client)
+                    .await
+                    .map(|key| format!("{}", key))
+                    .map_err(TombError::client_error)
+            } else {
+                Ok(format!("added key to bucket locally"))
+            }
         }
         // Delete an already approved key
         KeySubCommand::Delete(ks) => {

@@ -22,6 +22,7 @@ struct CreateBucketKeyLess {
 pub struct CreateBucketKeyResponse {
     pub id: Uuid,
     pub approved: bool,
+    pub fingerprint: String,
 }
 
 impl ApiRequest for CreateBucketKey {

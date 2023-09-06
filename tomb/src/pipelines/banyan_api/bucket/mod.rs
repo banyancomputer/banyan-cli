@@ -9,7 +9,10 @@ use tomb_common::banyan_api::{
     client::Client,
     models::bucket::{Bucket, BucketType, StorageClass},
 };
-use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
+use tomb_crypt::{
+    prelude::{EcEncryptionKey, PrivateKey, PublicKey},
+    pretty_fingerprint,
+};
 
 pub(crate) mod keys;
 pub(crate) mod metadata;
@@ -33,6 +36,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let private_key = EcEncryptionKey::generate().await?;
             let public_key = private_key.public_key()?;
             let pem = String::from_utf8(public_key.export().await?)?;
+            let fingerprint = pretty_fingerprint(&public_key.fingerprint().await?);
             let origin = &origin.unwrap_or(current_dir()?);
 
             // If this bucket already exists both locally and remotely
@@ -55,6 +59,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 Bucket::create(
                     name,
                     pem,
+                    fingerprint,
                     BucketType::Interactive,
                     StorageClass::Hot,
                     client,

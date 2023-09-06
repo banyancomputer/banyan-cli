@@ -145,13 +145,14 @@ pub mod test {
     async fn create_bucket(
         client: &mut Client,
     ) -> Result<(Bucket, BucketKey, EcEncryptionKey), ClientError> {
-        let (key, pem) = generate_bucket_key().await;
+        let (key, pem, fingerprint) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),
+            fingerprint.clone(),
             bucket_type,
             bucket_class,
             client,
@@ -161,6 +162,7 @@ pub mod test {
         assert_eq!(bucket.r#type, bucket_type.clone());
         assert!(bucket_key.approved);
         assert_eq!(bucket_key.pem, pem);
+        assert_eq!(bucket_key.fingerprint, fingerprint);
         assert!(bucket_key.approved);
         Ok((bucket, bucket_key, key))
     }

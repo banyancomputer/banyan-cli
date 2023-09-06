@@ -7,10 +7,18 @@ pub(crate) async fn generate_api_key() -> (EcSignatureKey, String) {
 }
 
 #[cfg(test)]
-pub(crate) async fn generate_bucket_key() -> (EcEncryptionKey, String) {
+pub(crate) async fn generate_bucket_key() -> (EcEncryptionKey, String, String) {
+    use tomb_crypt::pretty_fingerprint;
+
     let bucket_key = EcEncryptionKey::generate().await.unwrap();
     let public_bucket_key = bucket_key.public_key().unwrap();
     let public_bucket_key_pem =
         String::from_utf8(public_bucket_key.export().await.unwrap()).unwrap();
-    (bucket_key, public_bucket_key_pem)
+    let public_bucket_key_fingerprint =
+        pretty_fingerprint(&public_bucket_key.fingerprint().await.unwrap());
+    (
+        bucket_key,
+        public_bucket_key_pem,
+        public_bucket_key_fingerprint,
+    )
 }
