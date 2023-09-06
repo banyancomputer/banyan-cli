@@ -20,7 +20,7 @@ use gloo::console::log;
 use js_sys::Array;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
-use web_sys::CryptoKey;
+use web_sys::{CryptoKey, CryptoKeyPair};
 
 use tomb_common::banyan_api::client::{Client, Credentials};
 use tomb_common::banyan_api::models::account::Account;
@@ -29,31 +29,42 @@ use tomb_common::banyan_api::models::{
     bucket_key::*,
 };
 use tomb_crypt::prelude::*;
-use web_sys::CryptoKeyPair;
 
 use crate::error::TombWasmError;
 use crate::mount::WasmMount;
 use crate::types::*;
-use crate::utils::{set_panic_hook, JsResult};
+use crate::utils::*;
 
 #[wasm_bindgen]
 pub struct TombWasm(pub(crate) Client);
 
-#[wasm_bindgen]
 /// TombWasm exposes the functionality of Tomb in a WASM module
+#[wasm_bindgen]
 impl TombWasm {
+    fn client(&mut self) -> &mut Client {
+        &mut self.0
+    }
+
     // Note: Have to include this here so we can read the API key from the JS CryptoKey
     #[wasm_bindgen(constructor)]
     /// Create a new TombWasm instance
     /// # Arguments
+    ///
     /// * `web_signing_key` - The CryptoKeyPair to use for signing requests
     /// * `account_id` - The id of the account to use
     /// * `api_endpoint` - The API endpoint to use
+    ///
     /// # Returns
+    ///
     /// A new TombWasm instance
+    ///
     /// Don't call it from multiple threads in parallel!
     pub fn new(web_signing_key: CryptoKeyPair, account_id: String, api_endpoint: String) -> Self {
+        #[cfg(feature = "console_error_panic_hook")]
         set_panic_hook();
+
+        // todo: this method needs to return a Result type but that would currently change the
+        // external API so I'm leaving this one alone for now
 
         log!("tomb-wasm: new()");
 
@@ -69,10 +80,6 @@ impl TombWasm {
 
         Self(banyan_client)
     }
-
-    fn client(&mut self) -> &mut Client {
-        &mut self.0
-    }
 }
 
 impl From<Client> for TombWasm {
@@ -87,42 +94,29 @@ impl TombWasm {
      * Top level API Interface
      */
 
-    /// Get the Total Usage for the current account, accounting for all buckets
-    /// # Returns
-    /// The total storage used by the account, in bytes
+    /// Get the total consume storage space for the current account in bytes
     #[wasm_bindgen(js_name = getUsage)]
     pub async fn get_usage(&mut self) -> JsResult<u64> {
-        log!("tomb-wasm: get_usage");
         Account::usage(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to retrieve usage: {err}")).into())
     }
 
-    /// Get the Usage limit for the current account
-    /// # Returns
-    /// The storage limit for the account in bytes (this should be 5 TiB)
+    /// Get the current usage limit for the current account in bytes
     #[wasm_bindgen(js_name = getUsageLimit)]
     pub async fn get_usage_limit(&mut self) -> JsResult<u64> {
-        log!("tomb-wasm: get_usage_limit");
-
         Account::usage_limit(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to get usage limit: {err}")).into())
     }
 
     /// List the buckets for the current account
-    /// # Returns
-    /// An array of WasmBuckets
-    /// ```
     #[wasm_bindgen(js_name = listBuckets)]
     pub async fn list_buckets(&mut self) -> JsResult<Array> {
-        log!("tomb-wasm: list_buckets()");
-
         let buckets = Bucket::read_all(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to read all buckets: {err}")))?;
 
-        // Iterate over the buckets and turn them into Wasm Buckets
         buckets
             .iter()
             .map(|bucket| {
@@ -135,17 +129,20 @@ impl TombWasm {
     }
 
     /// List bucket snapshots for a bucket
+    ///
     /// # Arguments
     /// * `bucket_id` - The id of the bucket to list snapshots for
+    ///
     /// # Returns an array WasmSnapshots
+    ///
     /// ```json
     /// [
-    /// {
-    /// "id": "uuid",
-    /// "bucket_id": "uuid",
-    /// "metadata_id": "string",
-    /// "created_at": "string",
-    /// }
+    ///     {
+    ///         "id": "ffc1dca2-5155-40be-adc6-c81eb7322fb8",
+    ///         "bucket_id": "f0c55cc7-4896-4ff3-95de-76422af271b2",
+    ///         "metadata_id": "05d063f1-1e3f-4876-8b16-aeb106af0eb0",
+    ///         "created_at": "string"
+    ///     }
     /// ]
     /// ```
     #[wasm_bindgen(js_name = listBucketSnapshots)]

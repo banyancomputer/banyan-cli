@@ -4,7 +4,6 @@ use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::JsValue;
 
 #[derive(Debug)]
-#[non_exhaustive]
 pub struct TombWasmError(pub String);
 
 impl Display for TombWasmError {
