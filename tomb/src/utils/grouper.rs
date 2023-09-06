@@ -60,10 +60,10 @@ pub fn grouper(
 
             // Construct the metadata
             let spider_metadata = Arc::new(SpiderMetadata {
-                /// This is the path relative to the root of the backup
+                // This is the path relative to the root of the backup
                 original_location,
                 canonicalized_path,
-                /// This is the metadata of the original file
+                // This is the metadata of the original file
                 original_metadata: fs::metadata(file_path_buf)
                     .expect("failed to obtain metadata for path"),
             });

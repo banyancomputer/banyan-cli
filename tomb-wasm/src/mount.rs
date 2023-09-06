@@ -13,7 +13,7 @@ use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
 
 // TODO: This should be a config
-const BLOCKSTORE_API_HOST: &str = "http://localhost:3002";
+const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
 
 use crate::error::TombWasmError;
 use crate::types::{WasmBucket, WasmFsMetadataEntry, WasmSnapshot};
@@ -53,7 +53,7 @@ impl WasmMount {
     pub async fn new(
         wasm_bucket: WasmBucket,
         key: &EcEncryptionKey,
-        client: &mut Client,
+        client: &Client,
     ) -> Result<Self, TombWasmError> {
         log!("tomb-wasm: mount/new()/{}", wasm_bucket.id());
         let bucket = Bucket::from(wasm_bucket.clone());
@@ -97,10 +97,12 @@ impl WasmMount {
         log!("tomb-wasm: mount/pull()/{}", wasm_bucket.id());
         // Get the underlying bucket
         let bucket = Bucket::from(wasm_bucket.clone());
+
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket.id, client)
             .await
-            .map_err(|_| TombWasmError::unknown_error())?;
+            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
+
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
             "tomb-wasm: mount/pull()/{} - pulling metadata at version {}",
@@ -148,42 +150,51 @@ impl WasmMount {
     /// Refresh the current fs_metadata with the remote
     pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
         let bucket_id = self.bucket.id;
+
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(|_| TombWasmError::unknown_error())?;
+            .map_err(|err| TombWasmError(format!("failed to read current metadata: {err}")))?;
+
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
             "tomb-wasm: mount/pull()/{} - pulling metadata at version {}",
             self.bucket.id.to_string(),
             metadata_cid
         );
+
         // Pull the Fs metadata on the matching entry
         let mut stream = metadata
             .pull(&mut self.client)
             .await
             .expect("could not pull metedata");
+
         log!(
             "tomb-wasm: mount/pull()/{} - reading metadata stream",
             self.bucket.id.to_string()
         );
+
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
+
         log!(
             "tomb-wasm: mount/pull()/{} - creating metadata blockstore",
             self.bucket.id.to_string()
         );
+
         let metadata_blockstore =
             BlockStore::try_from(data).expect("could not create metadata as blockstore");
         let content_blockstore = BlockStore::new().expect("could not create blockstore");
+
         self.metadata = Some(metadata.to_owned());
         self.metadata_blockstore = metadata_blockstore;
         self.content_blockstore = content_blockstore;
         self.dirty = false;
         self.append = false;
         self.fs_metadata = None;
+
         log!(
             "tomb-wasm: mount/pull()/{} - pulled",
             self.bucket.id.to_string()
@@ -252,11 +263,10 @@ impl WasmMount {
             self.bucket.id.to_string(),
             metadata_cid.to_string()
         );
-        log!(
+        log!(format!(
             "tomb-wasm: mount/sync()/{} - pushing root at version {}",
-            self.bucket.id.to_string(),
-            root_cid.to_string()
-        );
+            self.bucket.id, root_cid,
+        ));
         // Assume that the metadata is always at least as big as the content
         let mut data_size = 0;
         if self.append {
@@ -288,80 +298,95 @@ impl WasmMount {
         match storage_ticket {
             Some(storage_ticket) => {
                 log!(
-                    "tomb-wasm: mount/sync()/{} - storage ticket returned",
+                    "tomb-wasm: mount/sync()/ - storage ticket returned",
                     self.bucket.id.to_string()
                 );
+
                 storage_ticket
                     .clone()
                     .create_grant(&mut self.client)
                     .await
-                    .expect("could not create grant");
+                    .map_err(|err| {
+                        TombWasmError(format!("unable to register storage ticket: {err}"))
+                    })?;
+
                 let content = Cursor::new(self.metadata_blockstore.get_data());
                 storage_ticket
                     .clone()
                     .upload_content(metadata_id, content, &mut self.client)
                     .await
-                    .expect("could not upload content");
+                    .map_err(|err| {
+                        TombWasmError(format!(
+                            "unable to upload data to distribution service: {err}"
+                        ))
+                    })?;
             }
             None => {
-                log!(
+                log!(format!(
                     "tomb-wasm: mount/sync()/{} - no storage ticket returned no content to upload",
-                    self.bucket.id.to_string()
-                );
+                    self.bucket.id,
+                ));
             }
         }
 
         self.dirty = false;
         self.append = false;
-        log!(
+
+        log!(format!(
             "tomb-wasm: mount/sync()/{} - synced",
             self.bucket.id.to_string()
-        );
-        // Ok
+        ));
+
         Ok(())
     }
 
     /// Unlock the current fs_metadata
     pub async fn unlock(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
-        log!("tomb-wasm: mount/unlock()/{}", self.bucket.id.to_string());
+        log!(format!("tomb-wasm: mount/unlock()/{}", self.bucket.id));
+
         // Check if the bucket is already unlocked
         if !self.locked() {
-            panic!("Bucket is already unlocked");
-        };
-        log!(
+            return Ok(());
+        }
+
+        log!(format!(
             "tomb-wasm: mount/unlock()/{} - unlocking",
-            self.bucket.id.to_string()
-        );
+            self.bucket.id,
+        ));
+
         // Get the metadata
         let fs_metadata = FsMetadata::unlock(key, &self.metadata_blockstore)
             .await
-            .expect("could not unlock fs metadata");
+            .map_err(|err| TombWasmError(format!("could not unlock fs metadata: {err}")))?;
 
-        log!(
+        log!(format!(
             "tomb-wasm: mount/unlock()/{} - checking versioning",
-            self.bucket.id.to_string()
-        );
+            self.bucket.id,
+        ));
 
         let metadata_cid = fs_metadata
             .metadata_cid(&self.metadata_blockstore)
             .await
-            .expect("could not get metadata cid");
+            .map_err(|err| TombWasmError(format!("unable to retrieve metadata CID: {err}")))?;
+
         let root_cid = fs_metadata
             .root_cid(&self.metadata_blockstore)
             .await
-            .expect("could not get root cid");
+            .map_err(|err| TombWasmError(format!("unable to retrieve root CID: {err}")))?;
+
         let metadata = self.metadata.as_ref().unwrap();
 
         assert_eq!(metadata_cid.to_string(), metadata.metadata_cid);
         assert_eq!(root_cid.to_string(), metadata.root_cid);
 
-        log!(
+        log!(format!(
             "tomb-wasm: mount/unlock()/{} - unlocked",
-            self.bucket.id.to_string()
-        );
-        // Ok
+            self.bucket.id,
+        ));
+
         self.locked = false;
         self.fs_metadata = Some(fs_metadata);
+
         Ok(())
     }
 }
@@ -413,14 +438,18 @@ impl WasmMount {
         );
 
         if self.locked() {
-            panic!("Bucket is locked");
+            return Err(TombWasmError(
+                "unable to list directory contents of a locked bucket".to_string(),
+            )
+            .into());
         };
 
-        log!(
+        log!(format!(
             "tomb-wasm: mount/ls/{}/{} - getting entries",
-            self.bucket.id.to_string(),
+            self.bucket.id,
             &path_segments.join("/")
-        );
+        ));
+
         // Get the entries
         let fs_metadata_entries = self
             .fs_metadata
@@ -428,22 +457,26 @@ impl WasmMount {
             .unwrap()
             .ls(path_segments, &self.metadata_blockstore)
             .await
-            .expect("could not ls");
+            .map_err(|err| TombWasmError(format!("could not list directory entries: {err}")))?;
 
-        log!(
+        log!(format!(
             "tomb-wasm: mount/ls/{} - mapping entries",
-            self.bucket.id.to_string()
-        );
+            self.bucket.id,
+        ));
+
         // Map the entries back to JsValues
-        let entries = fs_metadata_entries
+        fs_metadata_entries
             .iter()
             .map(|entry| {
                 let wasm_fs_metadata_entry = WasmFsMetadataEntry::from(entry.clone());
-                JsValue::try_from(wasm_fs_metadata_entry).expect("could not convert to js value")
+                JsValue::try_from(wasm_fs_metadata_entry).map_err(|err| {
+                    TombWasmError(format!(
+                        "unable to convert directory entries to JS objects: {err:?}"
+                    ))
+                    .into()
+                })
             })
-            .collect::<Array>();
-        // Ok
-        Ok(entries)
+            .collect()
     }
 
     /// Mkdir

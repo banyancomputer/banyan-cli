@@ -34,27 +34,14 @@ impl StreamableApiRequest for PullBlock {
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 pub struct PullBlockError {
-    #[serde(rename = "error")]
-    kind: PullBlockErrorKind,
+    #[serde(rename = "msg")]
+    message: String,
 }
 
 impl Display for PullBlockError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use PullBlockErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(self.message.as_ref())
     }
 }
 
 impl Error for PullBlockError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum PullBlockErrorKind {
-    Unknown,
-}

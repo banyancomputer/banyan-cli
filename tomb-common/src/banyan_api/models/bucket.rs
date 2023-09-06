@@ -196,15 +196,13 @@ impl Bucket {
     }
 
     /// Delete a bucket
-    pub async fn delete(self, _client: &mut Client) -> Result<String, ClientError> {
-        let response: DeleteBucketResponse = _client.call(DeleteBucket { id: self.id }).await?;
-        Ok(response.id.to_string())
+    pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
+        client.call_no_content(DeleteBucket { id: self.id }).await
     }
 
     /// Delete a bucket by id
-    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<String, ClientError> {
-        let response: DeleteBucketResponse = client.call(DeleteBucket { id }).await?;
-        Ok(response.id.to_string())
+    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ClientError> {
+        client.call_no_content(DeleteBucket { id }).await
     }
 }
 
@@ -312,19 +310,16 @@ pub mod test {
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let original_bucket_id = bucket.id;
-        let bucket_id = bucket.delete(&mut client).await?;
-        assert_eq!(bucket_id, original_bucket_id.to_string());
+        bucket.delete(&mut client).await?;
         Ok(())
     }
     #[tokio::test]
-    #[ignore]
     async fn create_delete_unauthorized() -> Result<(), ClientError> {
         let mut good_client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut good_client).await?;
         let mut bad_client = authenticated_client().await;
-        let bucket_id = bucket.delete(&mut bad_client).await;
-        assert!(bucket_id.is_err());
+        let delete_result = bucket.delete(&mut bad_client).await;
+        assert!(delete_result.is_err());
         Ok(())
     }
     #[tokio::test]
@@ -332,6 +327,6 @@ pub mod test {
     async fn delete_by_id() {
         let mut client = authenticated_client().await;
         let fake_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        let _ = Bucket::delete_by_id(&mut client, fake_id).await.unwrap();
+        Bucket::delete_by_id(&mut client, fake_id).await.unwrap();
     }
 }

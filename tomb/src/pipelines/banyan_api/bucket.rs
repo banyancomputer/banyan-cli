@@ -112,7 +112,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let bucket_id = global.get_bucket_id(&bucket_specifier)?;
             Bucket::delete_by_id(&mut client, bucket_id)
                 .await
-                .map(|v| format!("id:\t{}\nresponse:\t{}", bucket_id, v))
+                .map(|_| "bucket deleted".to_string())
                 .map_err(TombError::client_error)
         }
         // Info about a Bucket
