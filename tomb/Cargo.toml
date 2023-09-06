@@ -9,7 +9,6 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-anyhow = { version = "1", features = ["backtrace"] }
 async-recursion = "1.0.4"
 async-trait = "^0.1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
@@ -48,5 +47,4 @@ name = "tomb"
 path = "src/main.rs"
 
 [lib]
-#crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"

@@ -1,12 +1,15 @@
-/// Our api blockstore implementation
-pub mod blockstore;
-/// Our API client
-pub mod client;
-/// Our API models, along with CRUD implementations
-pub mod models;
-/// Our API request implementation
-#[allow(missing_docs)]
-pub mod requests;
+///// Our api blockstore implementation
+//pub mod blockstore;
 
-mod error;
-mod utils;
+///// Our API client
+//pub mod client;
+
+//mod error;
+
+///// Our API models, along with CRUD implementations
+//pub mod models;
+
+///// Our API request implementation
+//pub mod requests;
+
+//mod utils;

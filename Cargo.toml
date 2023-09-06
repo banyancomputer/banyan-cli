@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "tomb",
-    "tomb-common",
-    "tomb-wasm"
+    #"tomb",
+    #"tomb-wasm",
+    "tomb-common"
 ]
 resolver = "2"
 
