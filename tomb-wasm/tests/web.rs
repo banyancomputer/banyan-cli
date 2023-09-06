@@ -1,36 +1,37 @@
 //! Test suite for the Web and headless browsers.
 
-use gloo::{console::log, utils::window};
-use js_sys::{Array, Reflect, Uint8Array};
 use std::convert::TryFrom;
-use tomb_wasm::types::{WasmBucket, WasmBucketKey};
+
+use gloo::console::log;
+use gloo::utils::window;
+use js_sys::{Array, Reflect, Uint8Array};
 use wasm_bindgen_test::*;
-use web_sys::CryptoKey;
+use web_sys::{CryptoKey, CryptoKeyPair};
+
+use tomb_common::banyan_api::client::Client;
+use tomb_common::banyan_api::models::account::Account;
 
 use tomb_wasm::types::WasmFsMetadataEntry;
 use tomb_wasm::utils::*;
 use tomb_wasm::TombWasm;
-extern crate tomb_wasm;
-extern crate wasm_bindgen_test;
 
 wasm_bindgen_test_configure!(run_in_browser);
-
-use tomb_common::banyan_api::client::Client;
-use tomb_common::banyan_api::models::account::Account;
-use web_sys::CryptoKeyPair;
 
 const FIVE_TIB: u64 = 5_497_558_138_880;
 
 pub async fn authenticated_client() -> JsResult<TombWasm> {
     let mut client = Client::new("http://127.0.0.1:3001").expect("client creation failed");
+
     let (account, _signing_key) = Account::create_fake(&mut client)
         .await
         .expect("fake account creation failed");
     assert_eq!(account.id.to_string(), client.subject().unwrap());
+
     let who_am_i = Account::who_am_i(&mut client)
         .await
         .expect("who_am_i failed");
     assert_eq!(account.id.to_string(), who_am_i.id.to_string());
+
     Ok(TombWasm::from(client))
 }
 

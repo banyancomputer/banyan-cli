@@ -60,4 +60,5 @@ wasm-bindgen-test = "^0.3"
 default = ["console_error_panic_hook"]
 
 [lib]
-crate-type = ["cdylib"]
+name = "tomb_wasm"
+crate-type = ["cdylib", "rlib"]

@@ -1,16 +1,15 @@
 //! This crate contains modules which are compiled to WASM
 
-/// Expose Errors
 mod error;
-
-/// Mount implementation
 pub mod mount;
-
-/// Banyan API
 pub mod types;
-
-/// Misc utilities
 pub mod utils;
+
+mod wasm_bucket;
+mod wasm_bucket_key;
+
+pub use wasm_bucket::WasmBucket;
+pub use wasm_bucket_key::WasmBucketKey;
 
 use std::convert::From;
 use std::convert::TryFrom;
@@ -35,7 +34,7 @@ use crate::mount::WasmMount;
 use crate::types::*;
 use crate::utils::*;
 
-pub type JsResult<T> = Result<T, js_sys::Error>;
+pub type TombResult<T> = Result<T, js_sys::Error>;
 
 #[wasm_bindgen]
 pub struct TombWasm(pub(crate) Client);
@@ -98,7 +97,7 @@ impl TombWasm {
 
     /// Get the total consume storage space for the current account in bytes
     #[wasm_bindgen(js_name = getUsage)]
-    pub async fn get_usage(&mut self) -> JsResult<u64> {
+    pub async fn get_usage(&mut self) -> TombResult<u64> {
         Account::usage(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to retrieve usage: {err}")).into())
@@ -106,7 +105,7 @@ impl TombWasm {
 
     /// Get the current usage limit for the current account in bytes
     #[wasm_bindgen(js_name = getUsageLimit)]
-    pub async fn get_usage_limit(&mut self) -> JsResult<u64> {
+    pub async fn get_usage_limit(&mut self) -> TombResult<u64> {
         Account::usage_limit(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to get usage limit: {err}")).into())
@@ -114,7 +113,7 @@ impl TombWasm {
 
     /// List the buckets for the current account
     #[wasm_bindgen(js_name = listBuckets)]
-    pub async fn list_buckets(&mut self) -> JsResult<Array> {
+    pub async fn list_buckets(&mut self) -> TombResult<Array> {
         let buckets = Bucket::read_all(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to read all buckets: {err}")))?;
@@ -149,7 +148,7 @@ impl TombWasm {
     /// ]
     /// ```
     #[wasm_bindgen(js_name = listBucketSnapshots)]
-    pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> JsResult<Array> {
+    pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> TombResult<Array> {
         log!("tomb-wasm: list_bucket_snapshots()");
         // Parse the bucket id
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
@@ -186,7 +185,7 @@ impl TombWasm {
     /// ]
     /// ```
     #[wasm_bindgen(js_name = listBucketKeys)]
-    pub async fn list_bucket_keys(&mut self, bucket_id: String) -> JsResult<Array> {
+    pub async fn list_bucket_keys(&mut self, bucket_id: String) -> TombResult<Array> {
         log!("tomb-wasm: list_bucket_keys()");
         // Parse the bucket id
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
@@ -230,7 +229,7 @@ impl TombWasm {
         storage_class: String,
         bucket_type: String,
         initial_key: CryptoKey,
-    ) -> JsResult<WasmBucket> {
+    ) -> TombResult<WasmBucket> {
         log!("tomb-wasm: create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class).expect("Invalid storage class");
         let bucket_type = BucketType::from_str(&bucket_type).expect("Invalid bucket type");
@@ -254,7 +253,7 @@ impl TombWasm {
     /// # Returns
     /// The WasmBucketKey that was created
     #[wasm_bindgen(js_name = createBucketKey)]
-    pub async fn create_bucket_key(&mut self, bucket_id: String) -> JsResult<WasmBucketKey> {
+    pub async fn create_bucket_key(&mut self, bucket_id: String) -> TombResult<WasmBucketKey> {
         log!("tomb-wasm: create_bucket_key()");
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
 
@@ -283,7 +282,7 @@ impl TombWasm {
     /// * `bucket_id` - The id of the bucket to delete
     /// # Returns the id of the bucket that was deleted
     #[wasm_bindgen(js_name = deleteBucket)]
-    pub async fn delete_bucket(&mut self, bucket_id: String) -> JsResult<()> {
+    pub async fn delete_bucket(&mut self, bucket_id: String) -> TombResult<()> {
         log!("tomb-wasm: delete_bucket()");
 
         // Parse the bucket id
@@ -305,7 +304,7 @@ impl TombWasm {
     /// # Returns
     /// A WasmMount instance
     #[wasm_bindgen(js_name = mount)]
-    pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> JsResult<WasmMount> {
+    pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> TombResult<WasmMount> {
         log!(format!("tomb-wasm: mount / {}", &bucket_id));
 
         // Parse the bucket id

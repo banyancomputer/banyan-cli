@@ -17,8 +17,8 @@ use crate::log;
 const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
 
 use crate::error::TombWasmError;
-use crate::types::{WasmBucket, WasmFsMetadataEntry, WasmSnapshot};
-use crate::JsResult;
+use crate::types::{WasmFsMetadataEntry, WasmSnapshot};
+use crate::{TombResult, WasmBucket};
 
 /// Mount point for a Bucket in WASM
 ///
@@ -392,38 +392,46 @@ impl WasmMount {
 
 #[wasm_bindgen]
 impl WasmMount {
+    /// Returns whether or not the bucket is dirty (this will be true when a file or directory has
+    /// been changed).
+    pub fn dirty(&self) -> bool {
+        self.dirty
+    }
+
     /// Returns whether or not the bucket is locked
     pub fn locked(&self) -> bool {
         self.locked
     }
 
-    /// Returns whether or not the bucket is dirty
-    /// - when a file or dir is changed
-    pub fn dirty(&self) -> bool {
-        self.dirty
-    }
-
-    /// Ls the bucket at a path
+    /// List the contents of the bucket at a provided path
+    ///
     /// # Arguments
+    ///
     /// * `path_segments` - The path to ls (as an Array)
+    ///
     /// # Returns
+    ///
     /// The an Array of objects in the form of:
-    /// This is an instance of
+    ///
     /// ```json
     /// [
-    /// 0.{
-    ///    "name": "string",
-    ///   "entry_type": "string", (file | dir)
-    ///  "metadata": {
-    ///    "created": 0,
-    ///   "modified": 0,
-    ///  "size": 0,
-    /// "cid": "string"
-    /// }
+    ///   {
+    ///     "name": "string",
+    ///     "entry_type": "(file | dir)"
+    ///     "metadata": {
+    ///       "created": 0,
+    ///       "modified": 0,
+    ///       "size": 0,
+    ///       "cid": "string"
+    ///     }
+    ///   }
     /// ]
+    /// ```
+    ///
     /// # Errors
+    ///
     /// * `Bucket is locked` - If the bucket is locked
-    pub async fn ls(&mut self, path_segments: Array) -> JsResult<Array> {
+    pub async fn ls(&mut self, path_segments: Array) -> TombResult<Array> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -487,7 +495,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not mkdir` - If the mkdir fails
     /// * `Could not sync` - If the sync fails
-    pub async fn mkdir(&mut self, path_segments: Array) -> JsResult<()> {
+    pub async fn mkdir(&mut self, path_segments: Array) -> TombResult<()> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -537,7 +545,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not add` - If the add fails
     /// * `Could not sync` - If the sync fails
-    pub async fn add(&mut self, path_segments: Array, content_buffer: ArrayBuffer) -> JsResult<()> {
+    pub async fn add(&mut self, path_segments: Array, content_buffer: ArrayBuffer) -> TombResult<()> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -592,7 +600,7 @@ impl WasmMount {
         &mut self,
         path_segments: Array,
         _version: Option<String>,
-    ) -> JsResult<ArrayBuffer> {
+    ) -> TombResult<ArrayBuffer> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -644,7 +652,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not mv` - If the mv fails, such as if the path does not exist in the bucket
     /// * `Could not sync` - If the sync fails
-    pub async fn mv(&mut self, from_path_segments: Array, to_path_segments: Array) -> JsResult<()> {
+    pub async fn mv(&mut self, from_path_segments: Array, to_path_segments: Array) -> TombResult<()> {
         let from_path_segments = from_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
@@ -696,7 +704,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not rm` - If the rm fails
     /// * `Could not sync` - If the sync fails
-    pub async fn rm(&mut self, path_segments: Array) -> JsResult<()> {
+    pub async fn rm(&mut self, path_segments: Array) -> TombResult<()> {
         let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
@@ -743,7 +751,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `could not share with` - If the share fails
     #[wasm_bindgen(js_name = shareWith)]
-    pub async fn share_with(&mut self, bucket_key_id: String) -> JsResult<()> {
+    pub async fn share_with(&mut self, bucket_key_id: String) -> TombResult<()> {
         log!(
             "tomb-wasm: mount/share_with/{}/{}",
             self.bucket.id.to_string(),
@@ -794,7 +802,7 @@ impl WasmMount {
     /// * "missing metadata" - If the metadata is missing
     /// * "could not snapshot" - If the snapshot fails
     #[wasm_bindgen(js_name = snapshot)]
-    pub async fn snapshot(&mut self) -> JsResult<()> {
+    pub async fn snapshot(&mut self) -> TombResult<()> {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
         // Get the bucket
         let metadata = self.metadata.as_ref();
@@ -812,7 +820,7 @@ impl WasmMount {
     /// * `wasm_snapshot` - The snapshot to restore from
     /// # Returns
     /// A Promise<void> in js speak. Should update the mount to the version of the snapshot
-    pub async fn restore(&mut self, wasm_snapshot: WasmSnapshot) -> JsResult<()> {
+    pub async fn restore(&mut self, wasm_snapshot: WasmSnapshot) -> TombResult<()> {
         log!(
             "tomb-wasm: mount/restore/{}/{}",
             self.bucket.id.to_string(),

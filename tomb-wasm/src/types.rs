@@ -1,12 +1,9 @@
 use std::collections::BTreeMap;
-use std::ops::Deref;
 
 use js_sys::{Object, Reflect};
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
-use tomb_common::banyan_api::models::bucket::*;
-use tomb_common::banyan_api::models::bucket_key::*;
 use tomb_common::banyan_api::models::metadata::*;
 use tomb_common::banyan_api::models::snapshot::*;
 use tomb_common::metadata::{FsMetadataEntry, FsMetadataEntryType};
@@ -14,107 +11,34 @@ use tomb_common::metadata::{FsMetadataEntry, FsMetadataEntryType};
 use crate::error::TombWasmError;
 use crate::{log, value};
 
-#[derive(Debug, Clone)]
-#[wasm_bindgen]
-pub struct WasmBucket(Bucket);
-
-#[wasm_bindgen]
-impl WasmBucket {
-    #[wasm_bindgen(js_name = "bucketType")]
-    pub fn bucket_type(&self) -> String {
-        self.r#type.to_string()
-    }
-
-    pub fn id(&self) -> String {
-        self.id.to_string()
-    }
-
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    #[wasm_bindgen(js_name = "storageClass")]
-    pub fn storage_class(&self) -> String {
-        self.storage_class.to_string()
-    }
-}
-
-impl From<Bucket> for WasmBucket {
-    fn from(bucket: Bucket) -> Self {
-        Self(bucket)
-    }
-}
-
-impl From<WasmBucket> for Bucket {
-    fn from(wasm_bucket: WasmBucket) -> Self {
-        wasm_bucket.0
-    }
-}
-
-impl Deref for WasmBucket {
-    type Target = Bucket;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-/// Wrapper around a BucketKey
-#[wasm_bindgen]
-pub struct WasmBucketKey(pub(crate) BucketKey);
-impl From<WasmBucketKey> for BucketKey {
-    fn from(wasm_bucket_key: WasmBucketKey) -> Self {
-        wasm_bucket_key.0
-    }
-}
-
-#[wasm_bindgen]
-impl WasmBucketKey {
-    pub fn approved(&self) -> bool {
-        self.0.approved
-    }
-
-    #[wasm_bindgen(js_name = "bucketId")]
-    pub fn bucket_id(&self) -> String {
-        self.0.bucket_id.to_string()
-    }
-
-    pub fn id(&self) -> String {
-        self.0.id.to_string()
-    }
-
-    pub fn pem(&self) -> String {
-        self.0.pem.clone()
-    }
-}
-
 #[derive(Clone)]
 pub struct WasmNodeMetadata(pub(crate) NodeMetadata);
+
 impl TryFrom<WasmNodeMetadata> for JsValue {
     type Error = js_sys::Error;
 
     fn try_from(fs_entry: WasmNodeMetadata) -> Result<Self, Self::Error> {
         let object = Object::new();
 
-        if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("created") {
+        if let Some(Ipld::Integer(i)) = fs_entry.0.0.get("created") {
             Reflect::set(
                 &object,
-                &value!("created"),
+                &JsValue::from_str("created"),
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
 
-        if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("modified") {
+        if let Some(Ipld::Integer(i)) = fs_entry.0.0.get("modified") {
             Reflect::set(
                 &object,
-                &value!("modified"),
+                &JsValue::from_str("modified"),
                 &value!(i64::try_from(*i).unwrap() as f64),
             )?;
         }
 
         // TODO: Remove stubs, with standard object
-        Reflect::set(&object, &value!("size"), &value!(1024))?;
-        Reflect::set(&object, &value!("cid"), &value!("Qmabcde"))?;
+        Reflect::set(&object, &JsValue::from_str("size"), &JsValue::from_f64(1024.0))?;
+        Reflect::set(&object, &JsValue::from_str("cid"), &JsValue::from_str("Qmabcde"))?;
 
         Ok(value!(object))
     }
@@ -195,20 +119,21 @@ impl WasmSnapshot {
     }
 }
 
-// TODO: Remove stubs
-// TODO: Proper wasm bindings
 #[derive(Clone)]
 pub struct WasmFsMetadataEntry(pub(crate) FsMetadataEntry);
+
 impl From<FsMetadataEntry> for WasmFsMetadataEntry {
     fn from(fs_metadata_entry: FsMetadataEntry) -> Self {
         Self(fs_metadata_entry)
     }
 }
+
 impl From<WasmFsMetadataEntry> for FsMetadataEntry {
     fn from(wasm_fs_metadata_entry: WasmFsMetadataEntry) -> Self {
         wasm_fs_metadata_entry.0
     }
 }
+
 impl WasmFsMetadataEntry {
     pub fn name(&self) -> String {
         self.0.name.clone()
@@ -223,6 +148,7 @@ impl WasmFsMetadataEntry {
         WasmNodeMetadata(self.0.metadata.clone())
     }
 }
+
 impl TryFrom<WasmFsMetadataEntry> for JsValue {
     type Error = js_sys::Error;
     fn try_from(fs_entry: WasmFsMetadataEntry) -> Result<Self, Self::Error> {
@@ -239,6 +165,7 @@ impl TryFrom<WasmFsMetadataEntry> for JsValue {
         Ok(value!(object))
     }
 }
+
 impl TryFrom<JsValue> for WasmFsMetadataEntry {
     type Error = js_sys::Error;
     fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
