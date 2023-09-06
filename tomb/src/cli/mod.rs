@@ -46,6 +46,7 @@ mod test {
         }
     }
 
+    #[allow(dead_code)]
     fn cmd_register() -> Command {
         Command::Auth {
             subcommand: AuthSubCommand::Register,

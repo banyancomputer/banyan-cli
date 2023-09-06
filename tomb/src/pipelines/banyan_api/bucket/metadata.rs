@@ -99,8 +99,6 @@ pub(crate) async fn pipeline(
             let mut byte_stream = metadata.pull(client).await?;
             let mut file = tokio::fs::File::create(&config.metadata.path).await?;
 
-            println!("starting to download metadata...");
-
             while let Some(chunk) = byte_stream.next().await {
                 tokio::io::copy(
                     &mut chunk.map_err(ClientError::http_error)?.as_ref(),

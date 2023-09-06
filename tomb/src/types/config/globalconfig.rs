@@ -139,16 +139,14 @@ impl GlobalConfig {
             .write(true)
             .open(config_path())?;
 
-        serde_json::to_writer(writer, &self)?;
+        serde_json::to_writer_pretty(writer, &self)?;
         Ok(())
     }
 
-    // TODO: This should fail if the file does not exist
-    /// Initialize from a reader
+    /// Initialize from file on disk
     pub async fn from_disk() -> Result<Self> {
         if let Ok(file) = get_read(&config_path()) &&
            let Ok(config) = serde_json::from_reader(file) {
-                // println!("LOADED CONFIG: {:?}", &config);
                 Ok(config)
         } else {
             let config = Self::create().await?;

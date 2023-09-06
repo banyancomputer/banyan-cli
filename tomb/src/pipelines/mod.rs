@@ -56,7 +56,7 @@ mod test {
         extracted: &Path,
     ) -> Result<String, TombError> {
         extract::pipeline(
-            &mut GlobalConfig::from_disk().await?,
+            &GlobalConfig::from_disk().await?,
             bucket_specifier,
             extracted,
         )

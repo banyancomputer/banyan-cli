@@ -23,13 +23,8 @@ pub async fn pipeline(
 ) -> Result<String, TombError> {
     // Announce that we're starting
     info!("🚀 Starting extracting pipeline...");
-    println!("obtained global config");
     let wrapping_key = global.clone().wrapping_key().await?;
-    println!("obtained key");
-
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
-
-    println!("obtained config");
     // Load metadata
     let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
     let metadata = &config.metadata;
