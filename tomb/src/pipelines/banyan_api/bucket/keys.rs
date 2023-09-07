@@ -42,11 +42,6 @@ pub(crate) async fn pipeline(
                     .map_err(ClientError::crypto_error)?,
             )
             .unwrap();
-            // If the current fingerprint is already in the list of them
-            // let all_keys = BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, client).await?;
-            // if all_keys.iter().position(|key| key.pem == pem).is_some() {
-            //     return Err(TombError::anyhow_error(anyhow!("this device key is already used").into()))
-            // }
 
             // Get Bucket
             let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
@@ -60,7 +55,7 @@ pub(crate) async fn pipeline(
                     .map(|key| format!("{}", key))
                     .map_err(TombError::client_error)
             } else {
-                Ok(format!("added key to bucket locally"))
+                Ok("added key to bucket locally".to_string())
             }
         }
         // Delete an already approved key
