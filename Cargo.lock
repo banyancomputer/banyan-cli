@@ -4403,7 +4403,7 @@ dependencies = [
  "futures",
  "futures-util",
  "getrandom",
- "gloo 0.8.1",
+ "gloo 0.10.0",
  "js-sys",
  "noosphere-car",
  "pem",

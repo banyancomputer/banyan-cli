@@ -31,7 +31,7 @@ console_error_panic_hook = { version = "^0.1", optional = true }
 futures = "^0.3"
 futures-util = "^0.3"
 getrandom = { version = "^0.2", features = ["js"] }
-gloo = { version = "^0.8", features = ["net"] }
+gloo = { version = "^0.10", features = ["net"] }
 js-sys = "^0.3"
 noosphere-car = "^0.2"
 pem = "^2"
