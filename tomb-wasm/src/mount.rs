@@ -545,7 +545,11 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not add` - If the add fails
     /// * `Could not sync` - If the sync fails
-    pub async fn add(&mut self, path_segments: Array, content_buffer: ArrayBuffer) -> TombResult<()> {
+    pub async fn add(
+        &mut self,
+        path_segments: Array,
+        content_buffer: ArrayBuffer,
+    ) -> TombResult<()> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -652,7 +656,11 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not mv` - If the mv fails, such as if the path does not exist in the bucket
     /// * `Could not sync` - If the sync fails
-    pub async fn mv(&mut self, from_path_segments: Array, to_path_segments: Array) -> TombResult<()> {
+    pub async fn mv(
+        &mut self,
+        from_path_segments: Array,
+        to_path_segments: Array,
+    ) -> TombResult<()> {
         let from_path_segments = from_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())

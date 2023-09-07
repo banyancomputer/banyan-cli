@@ -20,10 +20,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 const FIVE_TIB: u64 = 5_497_558_138_880;
 
 fn js_array(values: &[&str]) -> JsValue {
-    let js_array: Array = values
-        .iter()
-        .map(|s| JsValue::from_str(s))
-        .collect();
+    let js_array: Array = values.iter().map(|s| JsValue::from_str(s)).collect();
 
     JsValue::from(js_array)
 }
