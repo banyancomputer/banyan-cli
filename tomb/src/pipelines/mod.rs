@@ -165,14 +165,14 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Grab the file at this path
-        let file = dir
+        let file = fs.root_dir
             .get_node(
                 &path_to_segments(input_file)?,
                 true,
-                metadata_forest,
+                &mut fs.metadata_forest,
                 &config.metadata,
             )
             .await?
@@ -181,7 +181,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(content_forest, &config.content)
+            file.get_content(&fs.content_forest, &config.content)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -211,9 +211,9 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
-        let result = dir
-            .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let result = fs.root_dir
+            .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
@@ -225,9 +225,9 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
-        let result = dir
-            .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let result = fs.root_dir
+            .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
@@ -454,18 +454,18 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, current_dir, _) =
-            &mut config.get_all(&wrapping_key).await?;
+        let fs =
+            &mut config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
-        let current_file = current_dir
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+        let current_file = fs.root_dir
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
@@ -487,14 +487,14 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
@@ -514,14 +514,14 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut original_content_decompressed: Vec<u8> = Vec::new();
@@ -573,18 +573,17 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, current_dir, _) =
-            &mut config.get_all(&wrapping_key).await?;
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];
-        let current_file = current_dir
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+        let current_file = fs.root_dir
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
@@ -606,14 +605,14 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();

@@ -26,7 +26,7 @@ pub async fn pipeline(
     let wrapping_key = global.clone().wrapping_key().await?;
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
     // Load metadata
-    let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
+    let fs = &mut config.unlock_fs(&wrapping_key).await?;
     let metadata = &config.metadata;
     let content = &config.content;
 
@@ -39,9 +39,9 @@ pub async fn pipeline(
     process_node(
         metadata,
         content,
-        metadata_forest,
-        content_forest,
-        &dir.as_node(),
+        &mut fs.metadata_forest,
+        &mut fs.content_forest,
+        &fs.root_dir.as_node(),
         extracted,
         Path::new(""),
     )

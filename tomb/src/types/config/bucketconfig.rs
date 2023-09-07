@@ -116,42 +116,12 @@ impl BucketConfig {
         Ok(())
     }
 
-    /// Shortcut for serialize::load_all
-    pub async fn get_all(
-        &self,
-        wrapping_key: &EcEncryptionKey,
-    ) -> Result<(
-        Rc<PrivateForest>,
-        Rc<PrivateForest>,
-        Rc<PrivateDirectory>,
-        ShareManager,
-    )> {
-        let fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
-        Ok((
-            fs_metadata.metadata_forest,
-            fs_metadata.content_forest,
-            fs_metadata.root_dir,
-            fs_metadata.share_manager,
-        ))
+    pub async fn unlock_fs(&self, wrapping_key: &EcEncryptionKey) -> Result<FsMetadata> {
+        FsMetadata::unlock(wrapping_key, &self.metadata).await
     }
 
-    /// Shortcut for serialize::store_all
-    pub async fn set_all(
-        &self,
-        metadata_forest: &Rc<PrivateForest>,
-        content_forest: &Rc<PrivateForest>,
-        root_dir: &Rc<PrivateDirectory>,
-        share_manager: &ShareManager,
-    ) -> Result<()> {
-        let mut fs_metadata = FsMetadata {
-            metadata_forest: metadata_forest.clone(),
-            content_forest: content_forest.clone(),
-            root_dir: root_dir.clone(),
-            share_manager: share_manager.clone(),
-            metadata: None,
-        };
-        fs_metadata.save(&self.metadata, &self.content).await?;
-        Ok(())
+    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
+        fs.save(&self.metadata, &self.content).await
     }
 
     /// Shortcut for serialize::load_history
@@ -211,15 +181,14 @@ mod test {
         let mut config = global.get_or_create_bucket(origin).await?;
 
         let rng = &mut thread_rng();
-        let (mut metadata_forest, mut content_forest, mut root_dir, share_manager) =
-            config.get_all(&global.wrapping_key().await?).await?;
+        let fs = &mut config.unlock_fs(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
-        let file = root_dir
+        let file = fs.root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut metadata_forest,
+                &mut fs.metadata_forest,
                 &config.metadata,
                 rng,
             )
@@ -228,34 +197,33 @@ mod test {
         file.set_content(
             Utc::now(),
             file_content,
-            &mut content_forest,
+            &mut fs.content_forest,
             &config.content,
             rng,
         )
         .await?;
 
         config
-            .set_all(&metadata_forest, &content_forest, &root_dir, &share_manager)
+            .save_fs(fs)
             .await?;
 
         // Get structs
-        let (_new_metadata_forest, _new_content_forest, new_root_dir, _new_manager) =
-            config.get_all(&wrapping_key).await?;
+        let new_fs = &mut config.unlock_fs(&wrapping_key).await?;
 
-        assert_eq!(root_dir, new_root_dir);
+        assert_eq!(fs.root_dir, new_fs.root_dir);
 
-        let new_file = root_dir
+        let new_file = new_fs.root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut metadata_forest,
+                &mut new_fs.metadata_forest,
                 &config.metadata,
                 rng,
             )
             .await?;
         let new_file_content = new_file
-            .get_content(&content_forest, &config.content)
+            .get_content(&new_fs.content_forest, &config.content)
             .await?;
 
         assert_eq!(file_content, new_file_content);

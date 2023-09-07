@@ -5,14 +5,11 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use std::env::current_dir;
-use tomb_common::banyan_api::{
+use tomb_common::{banyan_api::{
     client::Client,
     models::bucket::{Bucket, BucketType, StorageClass},
-};
-use tomb_crypt::{
-    prelude::{EcEncryptionKey, PrivateKey, PublicKey},
-    pretty_fingerprint,
-};
+}, metadata::FsMetadata};
+use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
 
 pub(crate) mod keys;
 pub(crate) mod metadata;
@@ -36,7 +33,9 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let private_key = EcEncryptionKey::generate().await?;
             let public_key = private_key.public_key()?;
             let pem = String::from_utf8(public_key.export().await?)?;
-            let fingerprint = pretty_fingerprint(&public_key.fingerprint().await?);
+
+
+            
             let origin = &origin.unwrap_or(current_dir()?);
 
             // If this bucket already exists both locally and remotely
@@ -47,7 +46,8 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
             // Initialize in the configs
             let mut config = global.get_or_create_bucket(origin).await?;
-
+            let mut fs = FsMetadata::init(&private_key).await?;
+            fs.save(&config.metadata, &config.content).await?;
             // Update the config globally
             global
                 .update_config(&config)
@@ -59,7 +59,6 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 Bucket::create(
                     name,
                     pem,
-                    fingerprint,
                     BucketType::Interactive,
                     StorageClass::Hot,
                     client,

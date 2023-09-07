@@ -101,7 +101,6 @@ impl Bucket {
     pub async fn create(
         name: String,
         initial_bucket_key_pem: String,
-        initial_bucket_key_fingerprint: String,
         r#type: BucketType,
         storage_class: StorageClass,
         client: &mut Client,
@@ -126,7 +125,7 @@ impl Bucket {
                 bucket_id: response.id,
                 approved: response.initial_bucket_key.approved,
                 pem: initial_bucket_key_pem,
-                fingerprint: initial_bucket_key_fingerprint,
+                fingerprint: response.initial_bucket_key.fingerprint,
             },
         ))
     }
@@ -211,20 +210,23 @@ impl Bucket {
 #[cfg(test)]
 
 pub mod test {
+    use tomb_crypt::prelude::PrivateKey;
+    use tomb_crypt::pretty_fingerprint;
+
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
     use crate::banyan_api::models::metadata::test::push_metadata_and_snapshot;
     use crate::banyan_api::utils::generate_bucket_key;
 
     pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ClientError> {
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (key, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
+        let fingerprint = pretty_fingerprint(&key.fingerprint().await.expect("create fingerprint"));
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),
-            fingerprint.clone(),
             bucket_type,
             bucket_class,
             client,

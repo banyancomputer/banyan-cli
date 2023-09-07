@@ -1,12 +1,12 @@
-use anyhow::anyhow;
 use tomb_common::{
-    banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
+    banyan_api::{
+        client::Client,
+        error::ClientError,
+        models::bucket_key::BucketKey,
+    },
     metadata::FsMetadata,
 };
-use tomb_crypt::{
-    prelude::{EcEncryptionKey, PrivateKey, PublicKey},
-    pretty_fingerprint,
-};
+use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
 
 use crate::{
@@ -34,10 +34,8 @@ pub(crate) async fn pipeline(
         }
         // Create a new key
         KeySubCommand::Create(bucket_specifier) => {
-            // let all_keys = BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, client).await?;
-            let public_key = global
-                .wrapping_key()
-                .await?
+            let private_key = &global.wrapping_key().await?;
+            let public_key = private_key
                 .public_key()
                 .map_err(ClientError::crypto_error)?;
             // Compute PEM
@@ -48,17 +46,17 @@ pub(crate) async fn pipeline(
                     .map_err(ClientError::crypto_error)?,
             )
             .unwrap();
-            // // If the current fingerprint is already in the
+            // If the current fingerprint is already in the list of them
+            // let all_keys = BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, client).await?;
             // if all_keys.iter().position(|key| key.pem == pem).is_some() {
             //     return Err(TombError::anyhow_error(anyhow!("this device key is already used").into()))
             // }
 
             // Get Bucket
             let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
-            let mut fs =
-                FsMetadata::unlock(&global.wrapping_key().await?, &bucket.metadata).await?;
+            let mut fs = FsMetadata::unlock(private_key, &bucket.metadata).await?;
             fs.share_with(&public_key, &bucket.metadata).await?;
-            fs.save(&bucket.metadata, &bucket.content).await?;
+            fs.save(&bucket.metadata, &bucket.metadata).await?;
 
             if let Some(remote_id) = bucket.remote_id {
                 BucketKey::create(remote_id, pem, client)
@@ -71,7 +69,7 @@ pub(crate) async fn pipeline(
         }
         // Delete an already approved key
         KeySubCommand::Delete(ks) => {
-            let (bucket_id, id) = get_key_ids(global, &ks)?;
+            let (bucket_id, id) = get_key_info(client, global, &ks).await?;
             BucketKey::delete_by_id(bucket_id, id, client)
                 .await
                 .map(|id| format!("deleted key!\nid:\t{}", id))
@@ -79,7 +77,7 @@ pub(crate) async fn pipeline(
         }
         // Get info about a Key
         KeySubCommand::Info(ks) => {
-            let (bucket_id, id) = get_key_ids(global, &ks)?;
+            let (bucket_id, id) = get_key_info(client, global, &ks).await?;
             BucketKey::read(bucket_id, id, client)
                 .await
                 .map(|key| format!("{}", key))
@@ -87,7 +85,7 @@ pub(crate) async fn pipeline(
         }
         // Reject a Key pending approval
         KeySubCommand::Reject(ks) => {
-            let (bucket_id, id) = get_key_ids(global, &ks)?;
+            let (bucket_id, id) = get_key_info(client, global, &ks).await?;
             BucketKey::reject(bucket_id, id, client)
                 .await
                 .map(|id| format!("rejected key!\nid:\t{}", id))
@@ -96,12 +94,18 @@ pub(crate) async fn pipeline(
     }
 }
 
-fn get_key_ids(
+async fn get_key_info(
+    client: &mut Client,
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
 ) -> anyhow::Result<(Uuid, Uuid)> {
-    Ok((
-        global.get_bucket_id(&key_specifier.bucket_specifier)?,
-        key_specifier.key_id,
-    ))
+    let bucket_id = global.get_bucket_id(&key_specifier.bucket_specifier)?;
+    let all_keys = BucketKey::read_all(bucket_id, client).await?;
+    let key_index = all_keys
+        .iter()
+        .position(|key| key.fingerprint == key_specifier.fingerprint)
+        .unwrap();
+    let key = all_keys[key_index].clone();
+
+    Ok((bucket_id, key.id))
 }

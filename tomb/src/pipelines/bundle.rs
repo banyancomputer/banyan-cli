@@ -32,9 +32,7 @@ pub async fn pipeline(
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = &get_progress_bar(bundleing_plan.len() as u64)?;
-
-    let (metadata_forest, content_forest, root_dir, manager) =
-        &mut config.get_all(&wrapping_key).await?;
+    let fs = &mut config.unlock_fs(&wrapping_key).await?;
     // Create a new delta for this bundleing operation
     config.content.add_delta()?;
 
@@ -42,17 +40,15 @@ pub async fn pipeline(
     process_plans(
         &config.metadata,
         &config.content,
-        metadata_forest,
-        content_forest,
-        root_dir,
+        &mut fs.metadata_forest,
+        &mut fs.content_forest,
+        &mut fs.root_dir,
         bundleing_plan,
         progress_bar,
     )
     .await?;
 
-    config
-        .set_all(metadata_forest, content_forest, root_dir, manager)
-        .await?;
+    config.save_fs(fs).await?;
 
     global.update_config(&config)?;
     global.to_disk()?;

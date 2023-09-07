@@ -126,6 +126,9 @@ impl BucketKey {
 
 #[cfg(test)]
 mod test {
+    use tomb_crypt::prelude::PrivateKey;
+    use tomb_crypt::pretty_fingerprint;
+
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
     use crate::banyan_api::models::bucket::test::create_bucket;
@@ -135,7 +138,7 @@ mod test {
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (_, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem.clone(), &mut client).await?;
         assert_eq!(bucket_key.bucket_id, bucket.id);
@@ -147,21 +150,25 @@ mod test {
     #[tokio::test]
     async fn create_read() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (key, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
+        let our_fingerprint =
+            pretty_fingerprint(&key.fingerprint().await.expect("cant fingerprint"));
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
-        // let read_bucket_key = BucketKey::read(bucket.id, bucket_key.id, &mut client).await?;
-        // assert_eq!(bucket_key.id, read_bucket_key.id);
-        // assert_eq!(bucket_key.bucket_id, read_bucket_key.bucket_id);
-        // assert_eq!(bucket_key.approved, read_bucket_key.approved);
-        // assert_eq!(bucket_key.pem, read_bucket_key.pem);
+        assert_eq!(our_fingerprint, bucket_key.fingerprint);
+        let read_bucket_key = BucketKey::read(bucket.id, bucket_key.id, &mut client).await?;
+        assert_eq!(bucket_key.id, read_bucket_key.id);
+        assert_eq!(bucket_key.bucket_id, read_bucket_key.bucket_id);
+        assert_eq!(bucket_key.approved, read_bucket_key.approved);
+        assert_eq!(bucket_key.pem, read_bucket_key.pem);
+        assert_eq!(bucket_key.fingerprint, read_bucket_key.fingerprint);
         Ok(())
     }
 
     #[tokio::test]
     async fn create_read_all() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (_, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         let bucket_keys = BucketKey::read_all(bucket.id, &mut client).await?;
@@ -176,7 +183,7 @@ mod test {
     #[tokio::test]
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (_, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         let bucket_key_ = bucket_key.clone();
@@ -210,7 +217,7 @@ mod test {
     #[tokio::test]
     async fn create_reject() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (_, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert!(!bucket_key.approved);
@@ -234,7 +241,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
         // Create a new bucket key
-        let (_, pem, fingerprint) = generate_bucket_key().await;
+        let (_, pem) = generate_bucket_key().await;
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert!(!bucket_key.approved);
 

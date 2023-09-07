@@ -17,21 +17,20 @@ pub async fn pipeline(
     // Bucket config
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
 
-    let (metadata_forest, content_forest, root_dir, manager) =
-        &mut config.get_all(&wrapping_key).await?;
+    let fs = &mut config.unlock_fs(&wrapping_key).await?;
     // Attempt to remove the node
-    root_dir
+    fs.root_dir
         .rm(
             &path_to_segments(wnfs_path)?,
             true,
-            metadata_forest,
+            &mut fs.metadata_forest,
             &config.metadata,
         )
         .await?;
 
     // Store all the updated information, now that we've written the file
     config
-        .set_all(metadata_forest, content_forest, root_dir, manager)
+        .save_fs(fs)
         .await?;
 
     // Update global

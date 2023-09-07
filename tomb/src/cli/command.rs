@@ -132,7 +132,7 @@ pub struct KeySpecifier {
     pub(crate) bucket_specifier: BucketSpecifier,
     /// Key Identifier
     #[arg(short, long)]
-    pub(crate) key_id: Uuid,
+    pub(crate) fingerprint: String,
 }
 
 /// Subcommand for Bucket Keys

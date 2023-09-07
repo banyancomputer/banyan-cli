@@ -1,7 +1,7 @@
 use super::mapper::EncRefMapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::{prelude::*, pretty_fingerprint};
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::PrivateRef;
 
 /// Fs Share manager
@@ -49,19 +49,8 @@ impl ShareManager {
         Ok(())
     }
 
-    /// TODO actually use this in some way? Not sure if we want this server-side or not
-    pub async fn public_fingerprints(&self) -> Result<Vec<String>> {
-        let pems: Vec<String> = self.original_map.0.clone().into_keys().collect();
-        let mut fingerprints = <Vec<String>>::new();
-        for pem in pems {
-            let key = EcPublicEncryptionKey::import(pem.as_bytes()).await?;
-            fingerprints.push(pretty_fingerprint(&key.fingerprint().await?));
-        }
-        Ok(fingerprints)
-    }
-
     /// Grab a list of the PEM strings for each Public Key recipient
-    pub fn public_pems(&self) -> Vec<String> {
+    pub fn public_fingerprints(&self) -> Vec<String> {
         self.original_map.0.clone().into_keys().collect()
     }
 

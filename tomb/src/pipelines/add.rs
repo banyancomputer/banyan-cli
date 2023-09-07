@@ -23,20 +23,19 @@ pub async fn pipeline(
     // Bucket config
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
     // Get structs
-    let (metadata_forest, content_forest, root_dir, manager) =
-        &mut config.get_all(&wrapping_key).await?;
+    let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
     // Compress the data in the file
     let content_buf = compress_file(input_file)?;
     // Turn the relative path into a vector of segments
     let time = Utc::now();
     let rng = &mut thread_rng();
-    let file = root_dir
+    let file = fs.root_dir
         .open_file_mut(
             &path_to_segments(wnfs_path)?,
             true,
             time,
-            metadata_forest,
+            &mut fs.metadata_forest,
             &config.metadata,
             rng,
         )
@@ -46,16 +45,14 @@ pub async fn pipeline(
     file.set_content(
         time,
         content_buf.as_slice(),
-        content_forest,
+        &mut fs.content_forest,
         &config.content,
         rng,
     )
     .await?;
 
     // Store all the updated information, now that we've written the file
-    config
-        .set_all(metadata_forest, content_forest, root_dir, manager)
-        .await?;
+    config.save_fs(fs).await?;
 
     // Update global
     global.update_config(&config)?;

@@ -99,6 +99,8 @@ impl StorageTicket {
 
 #[cfg(test)]
 pub mod test {
+    use tomb_crypt::pretty_fingerprint;
+
     use super::*;
     use crate::banyan_api::blockstore::BanyanApiBlockStore;
     use crate::banyan_api::models::account::test::authenticated_client;
@@ -145,14 +147,14 @@ pub mod test {
     async fn create_bucket(
         client: &mut Client,
     ) -> Result<(Bucket, BucketKey, EcEncryptionKey), ClientError> {
-        let (key, pem, fingerprint) = generate_bucket_key().await;
+        let (key, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
+        let fingerprint = pretty_fingerprint(&key.fingerprint().await.expect("create fingerprint"));
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),
-            fingerprint.clone(),
             bucket_type,
             bucket_class,
             client,
