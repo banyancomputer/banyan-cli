@@ -126,7 +126,7 @@ impl BucketKey {
 
 #[cfg(test)]
 mod test {
-    use tomb_crypt::prelude::PrivateKey;
+    use tomb_crypt::prelude::{EcPublicEncryptionKey, PrivateKey, PublicKey};
     use tomb_crypt::pretty_fingerprint;
 
     use super::*;
@@ -245,12 +245,29 @@ mod test {
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert!(!bucket_key.approved);
 
+        let fingerprint1 = pretty_fingerprint(
+            &EcPublicEncryptionKey::import(initial_bucket_key.pem.as_bytes())
+                .await
+                .unwrap()
+                .fingerprint()
+                .await
+                .unwrap(),
+        );
+        let fingerprint2 = pretty_fingerprint(
+            &EcPublicEncryptionKey::import(bucket_key.pem.as_bytes())
+                .await
+                .unwrap()
+                .fingerprint()
+                .await
+                .unwrap(),
+        );
+
         // Push metadata with the new BucketKey listed as valid
         Metadata::push(
             bucket.id,
             "root_cid".to_string(),
             0,
-            vec![initial_bucket_key.pem, bucket_key.pem],
+            vec![fingerprint1, fingerprint2],
             "metadata_stream".as_bytes(),
             &mut client,
         )

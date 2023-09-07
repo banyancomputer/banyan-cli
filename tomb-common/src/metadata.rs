@@ -397,9 +397,7 @@ impl FsMetadata {
                     .await
                     .expect("node not found");
                 let entry = entry
-                    .ok_or(SerialError::NodeNotFound(
-                        node_path_segments.join("/").to_string(),
-                    ))
+                    .ok_or(SerialError::NodeNotFound(node_path_segments.join("/")))
                     .expect("node not found");
                 // Map the node to an FsMetadataEntry
                 let name = name.to_string();
@@ -455,7 +453,7 @@ impl FsMetadata {
                 .await?;
         } else {
             return Err(SerialError::NodeNotFound(
-                src_path_segments.join("/").to_string(),
+                src_path_segments.join("/"),
             )
             .into());
         }
@@ -525,7 +523,7 @@ impl FsMetadata {
                 .await?;
         } else {
             return Err(SerialError::NodeNotFound(
-                path_segments.join("/").to_string(),
+                path_segments.join("/"),
             )
             .into());
         }
@@ -553,7 +551,7 @@ impl FsMetadata {
                 let content = decompress_vec(&content)?;
                 Ok(content)
             }
-            _ => Err(SerialError::NodeNotFound(path_segments.join("/").to_string()).into()),
+            _ => Err(SerialError::NodeNotFound(path_segments.join("/")).into()),
         }
     }
 
@@ -570,7 +568,7 @@ impl FsMetadata {
             .await;
         match result {
             Ok(node) => Ok(node),
-            Err(_) => Err(SerialError::NodeNotFound(path_segments.join("/").to_string()).into()),
+            Err(_) => Err(SerialError::NodeNotFound(path_segments.join("/")).into()),
         }
     }
 }
