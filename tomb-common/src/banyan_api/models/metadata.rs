@@ -123,7 +123,6 @@ impl Metadata {
     pub async fn push<S>(
         bucket_id: Uuid,
         root_cid: String,
-        metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
         metadata_stream: S,
@@ -136,7 +135,6 @@ impl Metadata {
             .multipart(PushMetadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
-                metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
                 metadata_stream,
@@ -146,7 +144,6 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid,
-            metadata_cid,
             data_size: 0,
             state: response.state,
         };
