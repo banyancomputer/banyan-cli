@@ -20,7 +20,7 @@ tokio = { workspace = true }
 tomb-crypt = { workspace = true }
 wnfs = { workspace = true }
 
-fclones = "^0.30"
+fclones = "^0.32"
 indicatif = { version = "^0.17", features = ["improved_unicode"] }
 log = "^0.4"
 async-recursion = "^1"
