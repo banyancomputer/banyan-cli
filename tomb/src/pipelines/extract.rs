@@ -39,8 +39,8 @@ pub async fn pipeline(
     process_node(
         metadata,
         content,
-        &mut fs.metadata_forest,
-        &mut fs.content_forest,
+        &fs.metadata_forest,
+        &fs.content_forest,
         &fs.root_dir.as_node(),
         extracted,
         Path::new(""),

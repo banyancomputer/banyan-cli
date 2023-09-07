@@ -23,15 +23,13 @@ pub async fn pipeline(
         .rm(
             &path_to_segments(wnfs_path)?,
             true,
-            &mut fs.metadata_forest,
+            &fs.metadata_forest,
             &config.metadata,
         )
         .await?;
 
     // Store all the updated information, now that we've written the file
-    config
-        .save_fs(fs)
-        .await?;
+    config.save_fs(fs).await?;
 
     // Update global
     global.update_config(&config)?;

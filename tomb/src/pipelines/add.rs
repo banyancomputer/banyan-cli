@@ -30,7 +30,8 @@ pub async fn pipeline(
     // Turn the relative path into a vector of segments
     let time = Utc::now();
     let rng = &mut thread_rng();
-    let file = fs.root_dir
+    let file = fs
+        .root_dir
         .open_file_mut(
             &path_to_segments(wnfs_path)?,
             true,

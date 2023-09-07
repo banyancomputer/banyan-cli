@@ -1,9 +1,5 @@
 use tomb_common::{
-    banyan_api::{
-        client::Client,
-        error::ClientError,
-        models::bucket_key::BucketKey,
-    },
+    banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
     metadata::FsMetadata,
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};

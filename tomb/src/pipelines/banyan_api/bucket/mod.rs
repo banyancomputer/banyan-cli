@@ -5,11 +5,11 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use std::env::current_dir;
-use tomb_common::{banyan_api::{
+use tomb_common::banyan_api::{
     client::Client,
     models::bucket::{Bucket, BucketType, StorageClass},
-}, metadata::FsMetadata};
-use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
+};
+use tomb_crypt::prelude::{PrivateKey, PublicKey};
 
 pub(crate) mod keys;
 pub(crate) mod metadata;
@@ -30,12 +30,10 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     let result: Result<String, TombError> = match command {
         // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
         BucketsSubCommand::Create { name, origin } => {
-            let private_key = EcEncryptionKey::generate().await?;
+            let private_key = global.wrapping_key().await?;
             let public_key = private_key.public_key()?;
             let pem = String::from_utf8(public_key.export().await?)?;
 
-
-            
             let origin = &origin.unwrap_or(current_dir()?);
 
             // If this bucket already exists both locally and remotely
@@ -46,8 +44,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
             // Initialize in the configs
             let mut config = global.get_or_create_bucket(origin).await?;
-            let mut fs = FsMetadata::init(&private_key).await?;
-            fs.save(&config.metadata, &config.content).await?;
+
             // Update the config globally
             global
                 .update_config(&config)
@@ -116,18 +113,23 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
         }
         // Delete a Bucket
         BucketsSubCommand::Delete(bucket_specifier) => {
-            // Rmove the Bucket locally
-            let local_deletion = global.remove_bucket_by_specifier(&bucket_specifier).is_ok();
-
-            // Remove the bucket remotely
-            if let Ok(bucket_id) = global.get_bucket_id(&bucket_specifier) && let Some(client) = client {
+            // If we're online and there is a known bucket id with this specifier
+            let remote_deletion = if let Some(client) = client && let Ok(bucket_id) = global.get_bucket_id(&bucket_specifier) {
                 Bucket::delete_by_id(client, bucket_id)
-                    .await
-                    .map(|_| format!("<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote\t{}", true))
-                    .map_err(TombError::client_error)
+                    .await.is_ok()
+            } else { false };
+
+            // Remove the bucket locally if it is known
+            let local_deletion = if global.get_bucket_by_specifier(&bucket_specifier).is_ok() {
+                // Remove the Bucket locally
+                global.remove_bucket_by_specifier(&bucket_specifier).is_ok()
             } else {
-                Ok(format!("<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote\t{}", false))
-            }
+                false
+            };
+
+            Ok(format!(
+                "<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote:\t{remote_deletion}"
+            ))
         }
         // Info about a Bucket
         BucketsSubCommand::Info(bucket_specifier) => {
@@ -147,10 +149,13 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     Err(err) => format!("error: {}", err),
                 }
             } else {
-                "no known remote correlate".to_string()
+                "no known remote bucket".to_string()
             };
 
-            Ok(format!("{}{}", local, remote))
+            Ok(format!(
+                "<< BUCKET INFO >>\nlocal:\t{}\nremote:\t{}",
+                local, remote
+            ))
         }
         // Bucket usage
         BucketsSubCommand::Usage(bucket_specifier) => {
@@ -193,6 +198,4 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
 
     // Return
     result.map_err(anyhow::Error::new)
-
-    // Ok("".to_string())
 }

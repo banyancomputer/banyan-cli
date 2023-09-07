@@ -25,14 +25,15 @@ pub async fn pipeline(
     bucket_specifier: &BucketSpecifier,
     follow_links: bool,
 ) -> Result<String, TombError> {
-    let wrapping_key = global.clone().wrapping_key().await?;
+    let wrapping_key = global.wrapping_key().await?;
     let mut config = global.get_bucket_by_specifier(bucket_specifier)?;
+    let fs = &mut config.unlock_fs(&wrapping_key).await?;
+
     // Create bundleing plan
     let bundleing_plan = create_plans(&config.origin, follow_links).await?;
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = &get_progress_bar(bundleing_plan.len() as u64)?;
-    let fs = &mut config.unlock_fs(&wrapping_key).await?;
     // Create a new delta for this bundleing operation
     config.content.add_delta()?;
 

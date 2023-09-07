@@ -168,11 +168,12 @@ mod test {
         let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Grab the file at this path
-        let file = fs.root_dir
+        let file = fs
+            .root_dir
             .get_node(
                 &path_to_segments(input_file)?,
                 true,
-                &mut fs.metadata_forest,
+                &fs.metadata_forest,
                 &config.metadata,
             )
             .await?
@@ -212,7 +213,8 @@ mod test {
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let fs = &mut config.unlock_fs(&wrapping_key).await?;
-        let result = fs.root_dir
+        let result = fs
+            .root_dir
             .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
             .await?;
         // Assert the node exists presently
@@ -226,7 +228,8 @@ mod test {
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
         let fs = &mut config.unlock_fs(&wrapping_key).await?;
-        let result = fs.root_dir
+        let result = fs
+            .root_dir
             .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
@@ -454,12 +457,12 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs =
-            &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
-        let current_file = fs.root_dir
+        let current_file = fs
+            .root_dir
             .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
@@ -577,7 +580,8 @@ mod test {
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];
-        let current_file = fs.root_dir
+        let current_file = fs
+            .root_dir
             .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")

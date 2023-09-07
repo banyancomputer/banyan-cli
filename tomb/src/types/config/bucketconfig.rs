@@ -5,7 +5,6 @@ use std::{
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
-    rc::Rc,
 };
 use tomb_common::{
     banyan_api::models::metadata::{Metadata, MetadataState},
@@ -14,11 +13,10 @@ use tomb_common::{
         RootedBlockStore,
     },
     metadata::FsMetadata,
-    share::manager::ShareManager,
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
-use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
+use wnfs::private::PrivateNodeOnPathHistory;
 
 use crate::utils::{config::xdg_data_home, wnfsio::compute_directory_size};
 
@@ -95,7 +93,13 @@ impl BucketConfig {
 
         // Initialize the fs metadata
         let mut fs_metadata = FsMetadata::init(wrapping_key).await?;
-        // Save our fs metadata in both of our stores
+        let public_key = wrapping_key.public_key()?;
+
+        // Save our fs to establish map
+        fs_metadata.save(&metadata, &metadata).await?;
+        // Share it with the owner of this wrapping key
+        fs_metadata.share_with(&public_key, &metadata).await?;
+        // Save our fs again
         fs_metadata.save(&metadata, &metadata).await?;
 
         Ok(Self {
@@ -116,10 +120,12 @@ impl BucketConfig {
         Ok(())
     }
 
+    ///
     pub async fn unlock_fs(&self, wrapping_key: &EcEncryptionKey) -> Result<FsMetadata> {
         FsMetadata::unlock(wrapping_key, &self.metadata).await
     }
 
+    /// Shortcut for saving a filesystem
     pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
         fs.save(&self.metadata, &self.content).await
     }
@@ -183,7 +189,8 @@ mod test {
         let rng = &mut thread_rng();
         let fs = &mut config.unlock_fs(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
-        let file = fs.root_dir
+        let file = fs
+            .root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
@@ -203,16 +210,15 @@ mod test {
         )
         .await?;
 
-        config
-            .save_fs(fs)
-            .await?;
+        config.save_fs(fs).await?;
 
         // Get structs
         let new_fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         assert_eq!(fs.root_dir, new_fs.root_dir);
 
-        let new_file = new_fs.root_dir
+        let new_file = new_fs
+            .root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
