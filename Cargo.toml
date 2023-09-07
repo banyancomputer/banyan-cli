@@ -19,45 +19,43 @@ repository = "https://github.com/banyancomputer/tomb"
 readme = "README.md"
 
 # Cargo publication optionals
-keywords = [
-    "banyan",
-    "tomb",
-    "filecoin",
-    "ipfs",
-    "decentralisation"
-]
 categories = [
   "compression",
   "cryptography",
   "encoding",
   "filesystem"
 ]
-# End cargo publication
+keywords = [
+    "decentralization",
+    "filecoin",
+    "ipfs",
+    "storage"
+]
 
 [workspace.dependencies]
-# Dependencies
-reqwest = { version = "0.11.20", features = ["blocking", "multipart", "json", "stream"] }
-clap = { version = "4.0.32", features = ["derive"] }
-anyhow = { version = "1", features = ["backtrace"] }
-tokio = { version = "1.24", features = ["full", "io-util", "fs"]}
-jwalk = "0.8.1"
-rand = "0.8.4"
-serde = {version= "^1", features = ["derive"]}
+anyhow = { version = "^1", features = ["backtrace"] }
+chrono = { version = "^0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "^4", features = ["derive"] }
+criterion = { version = "^0.4", features = ["async_tokio"] }
+dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "^0.2" }
+fake-file = "^0.1"
+fs_extra = "^1"
+jwalk = "^0.8"
+lazy_static = "^1"
+lz4_flex = "^0.11"
+rand = "^0.8"
+reqwest = { version = "^0.11", features = ["blocking", "multipart", "json", "stream"] }
 serde_json = { version = "^1", features = ["std"]}
-# Dev dependencies
-criterion = { version = "0.4.0", features = ["async_tokio"] }
-dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "0.2.0" }
-fake-file = "0.1.0"
-fs_extra = "1.3.0"
-lazy_static = "1.4"
-lz4_flex = "0.11"
+serde = {version= "^1", features = ["derive"]}
+tokio = { version = "^1", features = ["full", "io-util", "fs"]}
+tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main", version = "^0.1" }
 
 # For local dev if needed..
 #wnfs = { path = "../rs-wnfs/wnfs" }
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", version = "0.1.20" }
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", version = "0.1.0" }
-
 
 [profile.dev]
 split-debuginfo = "unpacked"
+
+[profile.release]
+lto = true

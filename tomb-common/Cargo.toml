@@ -1,54 +1,54 @@
 [package]
 name = "tomb-common"
+edition = "2021"
+rust-version = "1.69"
 
-# These are locked across the repository for now
-edition = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
 version = { workspace = true }
 
 [dependencies]
-serde = { workspace = true }
-wnfs = { workspace = true }
 anyhow = { workspace = true }
-serde_json = { workspace = true }
-rand = { workspace = true }
 chrono = { workspace = true }
-unsigned-varint = "0.7.1"
-async-trait = "0.1.68"
-reqwest = { workspace = true } 
-thiserror = "1.0.40"
-wasm-bindgen = "0.2.86"
-hex = "0.4.3"
-sha2 = "0.10.7"
-tomb-crypt = { workspace = true } 
-test-case = "3.1.0"
-blake3 = "1.4.1"
-sha1 = "0.10.5"
-base58 = "0.2.0"
-uuid = { version = "1.4.1", features = ["serde"] }
-futures-core = "0.3.28"
-futures-util = "0.3.28"
-bytes = "1.4.0"
-futures = "0.3.28"
-# zstd.workspace = { workspace = true }
 lz4_flex = { workspace = true }
-gloo = { version = "0.10.0", features = ["console"] }
+rand = { workspace = true }
+reqwest = { workspace = true } 
+serde_json = { workspace = true }
+serde = { workspace = true }
+tomb-crypt = { workspace = true } 
+wnfs = { workspace = true }
+
+async-trait = "^0.1"
+base58 = "^0.2"
+blake3 = "^1"
+bytes = "^1"
+futures = "^0.3"
+futures-core = "^0.3"
+futures-util = "^0.3"
+gloo = { version = "^0.10", features = ["console"] }
+hex = "^0.4"
+sha1 = "^0.10"
+sha2 = "^0.10"
+test-case = "^3"
+thiserror = "^1"
+uuid = { version = "^1", features = ["serde"] }
+wasm-bindgen = "^0.2"
+unsigned-varint = "^0.7"
 
 [dev-dependencies]
 fs_extra = { workspace = true }
+lazy_static = { workspace = true }
 tokio = { workspace = true }
-serial_test = "2.0.0"
-async-std = { version = "1.11", features = ["attributes"] }
-base64 = "0.21.2"
-hex-literal = "0.4.1"
-lazy_static.workspace = true
-gloo = { version = "0.10.0", features = ["console"] }
+
+async-std = { version = "^1", features = ["attributes"] }
+base64 = "^0.21"
+gloo = { version = "^0.10", features = ["console"] }
+hex-literal = "^0.4"
+serial_test = "^2"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [features]
-# Access to banyan api 
 banyan-api = []

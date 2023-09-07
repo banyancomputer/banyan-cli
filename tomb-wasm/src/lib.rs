@@ -1,13 +1,15 @@
 //! This crate contains modules which are compiled to WASM
-#![warn(rust_2018_idioms)]
-/// Expose Errors
+
 mod error;
-/// Mount implementation
 pub mod mount;
-/// Banyan API
 pub mod types;
-/// Misc utilities
 pub mod utils;
+
+mod wasm_bucket;
+mod wasm_bucket_key;
+
+pub use wasm_bucket::WasmBucket;
+pub use wasm_bucket_key::WasmBucketKey;
 
 use std::convert::From;
 use std::convert::TryFrom;
@@ -17,7 +19,7 @@ use gloo::console::log;
 use js_sys::Array;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
-use web_sys::CryptoKey;
+use web_sys::{CryptoKey, CryptoKeyPair};
 
 use tomb_common::banyan_api::client::{Client, Credentials};
 use tomb_common::banyan_api::models::account::Account;
@@ -26,31 +28,44 @@ use tomb_common::banyan_api::models::{
     bucket_key::*,
 };
 use tomb_crypt::prelude::*;
-use web_sys::CryptoKeyPair;
 
 use crate::error::TombWasmError;
 use crate::mount::WasmMount;
 use crate::types::*;
-use crate::utils::{set_panic_hook, JsResult};
+use crate::utils::*;
+
+pub type TombResult<T> = Result<T, js_sys::Error>;
 
 #[wasm_bindgen]
 pub struct TombWasm(pub(crate) Client);
 
-#[wasm_bindgen]
 /// TombWasm exposes the functionality of Tomb in a WASM module
+#[wasm_bindgen]
 impl TombWasm {
+    fn client(&mut self) -> &mut Client {
+        &mut self.0
+    }
+
     // Note: Have to include this here so we can read the API key from the JS CryptoKey
     #[wasm_bindgen(constructor)]
     /// Create a new TombWasm instance
     /// # Arguments
+    ///
     /// * `web_signing_key` - The CryptoKeyPair to use for signing requests
     /// * `account_id` - The id of the account to use
     /// * `api_endpoint` - The API endpoint to use
+    ///
     /// # Returns
+    ///
     /// A new TombWasm instance
+    ///
     /// Don't call it from multiple threads in parallel!
     pub fn new(web_signing_key: CryptoKeyPair, account_id: String, api_endpoint: String) -> Self {
+        #[cfg(feature = "console_error_panic_hook")]
         set_panic_hook();
+
+        // todo: this method needs to return a Result type but that would currently change the
+        // external API so I'm leaving this one alone for now
 
         log!("tomb-wasm: new()");
 
@@ -66,10 +81,6 @@ impl TombWasm {
 
         Self(banyan_client)
     }
-
-    fn client(&mut self) -> &mut Client {
-        &mut self.0
-    }
 }
 
 impl From<Client> for TombWasm {
@@ -84,42 +95,29 @@ impl TombWasm {
      * Top level API Interface
      */
 
-    /// Get the Total Usage for the current account, accounting for all buckets
-    /// # Returns
-    /// The total storage used by the account, in bytes
+    /// Get the total consume storage space for the current account in bytes
     #[wasm_bindgen(js_name = getUsage)]
-    pub async fn get_usage(&mut self) -> JsResult<u64> {
-        log!("tomb-wasm: get_usage");
+    pub async fn get_usage(&mut self) -> TombResult<u64> {
         Account::usage(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to retrieve usage: {err}")).into())
     }
 
-    /// Get the Usage limit for the current account
-    /// # Returns
-    /// The storage limit for the account in bytes (this should be 5 TiB)
+    /// Get the current usage limit for the current account in bytes
     #[wasm_bindgen(js_name = getUsageLimit)]
-    pub async fn get_usage_limit(&mut self) -> JsResult<u64> {
-        log!("tomb-wasm: get_usage_limit");
-
+    pub async fn get_usage_limit(&mut self) -> TombResult<u64> {
         Account::usage_limit(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to get usage limit: {err}")).into())
     }
 
     /// List the buckets for the current account
-    /// # Returns
-    /// An array of WasmBuckets
-    /// ```
     #[wasm_bindgen(js_name = listBuckets)]
-    pub async fn list_buckets(&mut self) -> JsResult<Array> {
-        log!("tomb-wasm: list_buckets()");
-
+    pub async fn list_buckets(&mut self) -> TombResult<Array> {
         let buckets = Bucket::read_all(self.client())
             .await
             .map_err(|err| TombWasmError(format!("failed to read all buckets: {err}")))?;
 
-        // Iterate over the buckets and turn them into Wasm Buckets
         buckets
             .iter()
             .map(|bucket| {
@@ -132,21 +130,25 @@ impl TombWasm {
     }
 
     /// List bucket snapshots for a bucket
+    ///
     /// # Arguments
+    ///
     /// * `bucket_id` - The id of the bucket to list snapshots for
+    ///
     /// # Returns an array WasmSnapshots
+    ///
     /// ```json
     /// [
-    /// {
-    /// "id": "uuid",
-    /// "bucket_id": "uuid",
-    /// "metadata_id": "string",
-    /// "created_at": "string",
-    /// }
+    ///   {
+    ///     "id": "ffc1dca2-5155-40be-adc6-c81eb7322fb8",
+    ///     "bucket_id": "f0c55cc7-4896-4ff3-95de-76422af271b2",
+    ///     "metadata_id": "05d063f1-1e3f-4876-8b16-aeb106af0eb0",
+    ///     "created_at": "2023-09-05T19:05:34Z"
+    ///   }
     /// ]
     /// ```
     #[wasm_bindgen(js_name = listBucketSnapshots)]
-    pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> JsResult<Array> {
+    pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> TombResult<Array> {
         log!("tomb-wasm: list_bucket_snapshots()");
         // Parse the bucket id
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
@@ -158,9 +160,9 @@ impl TombWasm {
 
         // Convert the snapshots
         snapshots
-            .iter()
+            .into_iter()
             .map(|snapshot| {
-                let wasm_snapshot = WasmSnapshot(snapshot.clone());
+                let wasm_snapshot = WasmSnapshot::new(snapshot);
                 JsValue::try_from(wasm_snapshot).map_err(|err| {
                     TombWasmError(format!("failed to convert snapshot to JsValue: {err}")).into()
                 })
@@ -183,7 +185,7 @@ impl TombWasm {
     /// ]
     /// ```
     #[wasm_bindgen(js_name = listBucketKeys)]
-    pub async fn list_bucket_keys(&mut self, bucket_id: String) -> JsResult<Array> {
+    pub async fn list_bucket_keys(&mut self, bucket_id: String) -> TombResult<Array> {
         log!("tomb-wasm: list_bucket_keys()");
         // Parse the bucket id
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
@@ -227,7 +229,7 @@ impl TombWasm {
         storage_class: String,
         bucket_type: String,
         initial_key: CryptoKey,
-    ) -> JsResult<WasmBucket> {
+    ) -> TombResult<WasmBucket> {
         log!("tomb-wasm: create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class).expect("Invalid storage class");
         let bucket_type = BucketType::from_str(&bucket_type).expect("Invalid bucket type");
@@ -251,7 +253,7 @@ impl TombWasm {
     /// # Returns
     /// The WasmBucketKey that was created
     #[wasm_bindgen(js_name = createBucketKey)]
-    pub async fn create_bucket_key(&mut self, bucket_id: String) -> JsResult<WasmBucketKey> {
+    pub async fn create_bucket_key(&mut self, bucket_id: String) -> TombResult<WasmBucketKey> {
         log!("tomb-wasm: create_bucket_key()");
         let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
 
@@ -280,7 +282,7 @@ impl TombWasm {
     /// * `bucket_id` - The id of the bucket to delete
     /// # Returns the id of the bucket that was deleted
     #[wasm_bindgen(js_name = deleteBucket)]
-    pub async fn delete_bucket(&mut self, bucket_id: String) -> JsResult<()> {
+    pub async fn delete_bucket(&mut self, bucket_id: String) -> TombResult<()> {
         log!("tomb-wasm: delete_bucket()");
 
         // Parse the bucket id
@@ -302,7 +304,7 @@ impl TombWasm {
     /// # Returns
     /// A WasmMount instance
     #[wasm_bindgen(js_name = mount)]
-    pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> JsResult<WasmMount> {
+    pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> TombResult<WasmMount> {
         log!(format!("tomb-wasm: mount / {}", &bucket_id));
 
         // Parse the bucket id
