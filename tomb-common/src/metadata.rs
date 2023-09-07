@@ -442,9 +442,7 @@ impl FsMetadata {
                     .await
                     .expect("node not found");
                 let entry = entry
-                    .ok_or(SerialError::NodeNotFound(
-                        node_path_segments.join("/"),
-                    ))
+                    .ok_or(SerialError::NodeNotFound(node_path_segments.join("/")))
                     .expect("node not found");
                 // Map the node to an FsMetadataEntry
                 let name = name.to_string();
