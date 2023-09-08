@@ -13,7 +13,6 @@ use tomb_crypt::prelude::{PrivateKey, PublicKey};
 
 pub(crate) mod keys;
 pub(crate) mod metadata;
-pub(crate) mod snapshots;
 
 /// Handle Bucket management both locally and remotely based on CLI input
 pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {

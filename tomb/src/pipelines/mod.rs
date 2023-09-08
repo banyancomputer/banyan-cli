@@ -8,7 +8,7 @@ pub mod bundle;
 pub mod configure;
 /// Pipeline Errors
 pub mod error;
-/// This module contains the decryption pipeline function, which is the main entry point for extracting previously bundleed data.
+/// This module contains the decryption pipeline function, which is the main entry point for extracting previously bundled data.
 pub mod extract;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
@@ -132,7 +132,7 @@ mod test {
         create_dir_all(extracted_dir)?;
         // Run the extracting pipeline
         extract_pipeline(bucket_specifier, extracted_dir).await?;
-        // Assert the pre-bundleed and extracted directories are identical
+        // Assert the pre-bundled and extracted directories are identical
         assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         // Teardown
         test_teardown(test_name).await
@@ -258,7 +258,7 @@ mod test {
         create_dir_all(extracted_dir)?;
         // Run the extracting pipeline
         extract_pipeline(bucket_specifier, extracted_dir).await?;
-        // Assert the pre-bundleed and extracted directories are identical
+        // Assert the pre-bundled and extracted directories are identical
         assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         Ok(())
     }
@@ -332,7 +332,7 @@ mod test {
         test_teardown(test_name).await
     }
 
-    // / Ensure that the duplicate data occupies a smaller footprint when bundleed
+    // / Ensure that the duplicate data occupies a smaller footprint when bundled
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
     #[serial]
@@ -381,14 +381,14 @@ mod test {
         // Get configs
         let global = GlobalConfig::from_disk().await?;
         // Compute the sizes of these directories
-        let bundleed_dups_size = compute_directory_size(
+        let bundled_dups_size = compute_directory_size(
             &global
                 .get_bucket_by_origin(origin_dup)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
         )? as f64;
-        let bundleed_unique_size = compute_directory_size(
+        let bundled_unique_size = compute_directory_size(
             &global
                 .get_bucket_by_origin(origin_unique)
                 .expect("bucket config does not exist for this origin")
@@ -396,9 +396,9 @@ mod test {
                 .path,
         )? as f64;
 
-        // Ensure that the size of the bundleed duplicates directory is approximately half that of the unique directory
-        println!("unique {} dup {}", bundleed_unique_size, bundleed_dups_size);
-        assert!(bundleed_unique_size / bundleed_dups_size >= 1.8);
+        // Ensure that the size of the bundled duplicates directory is approximately half that of the unique directory
+        println!("unique {} dup {}", bundled_unique_size, bundled_dups_size);
+        assert!(bundled_unique_size / bundled_dups_size >= 1.8);
 
         test_teardown(test_name_dup).await?;
         test_teardown(test_name_unique).await

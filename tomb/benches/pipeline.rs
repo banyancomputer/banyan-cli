@@ -27,9 +27,9 @@ lazy_static! {
     static ref BENCH_PATH: String = env::var("BENCH_PATH").unwrap_or_else(|_| "target/bench".to_string());
     // Path we will use to hold inputs we build for benchmarking
     static ref INPUT_PATH: String = env::var("INPUT_PATH").unwrap_or_else(|_| "target/bench/input".to_string());
-    // Path we will use to hold bundleed data we build from inputs for benchmarking
-    static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "target/bench/bundleed".to_string());
-    // Path we will use to hold extracted data we build from bundleed data for benchmarking
+    // Path we will use to hold bundled data we build from inputs for benchmarking
+    static ref PACKED_PATH: String = env::var("PACKED_PATH").unwrap_or_else(|_| "target/bench/bundled".to_string());
+    // Path we will use to hold extracted data we build from bundled data for benchmarking
     static ref UNPACKED_PATH: String = env::var("UNPACKED_PATH").unwrap_or_else(|_| "target/bench/extracted".to_string());
 
     // Test Set Generation configuration
@@ -175,7 +175,7 @@ fn populate_input_dirs() {
 /// Setup the benchmarking directories
 /// Makes sure output directories exist and are empty
 /// Makes sure the input directory exists and is populated with the desired file structures
-/// Makes sure the bundleed directory exists and is empty
+/// Makes sure the bundled directory exists and is empty
 /// Makes sure the extracted directory exists and is empty
 /// Makes sure the manifest file directory exists and is empty
 #[doc(hidden)]
@@ -183,7 +183,7 @@ fn setup_bench() {
     info!("Setting up benchmarking directories...");
     info!("-> Bench Path: {}", BENCH_PATH.as_str());
     info!("-> Input Path: {}", INPUT_PATH.as_str());
-    info!("-> Bundleed Path: {}", PACKED_PATH.as_str());
+    info!("-> Bundled Path: {}", PACKED_PATH.as_str());
     info!("-> Extracted Path: {}", UNPACKED_PATH.as_str());
 
     // Make sure the bench directory exists
@@ -204,10 +204,10 @@ fn setup_bench() {
     // Populate the input directory with the desired file structures, as needed
     populate_input_dirs();
 
-    // Make sure the bundleed directory exists and is empty
+    // Make sure the bundled directory exists and is empty
     ensure_path_exists_and_is_dir(&PathBuf::from(PACKED_PATH.as_str()))
         .map_err(|e| {
-            error!("Error creating bundleed directory: {}", e);
+            error!("Error creating bundled directory: {}", e);
             e
         })
         .unwrap();
@@ -221,14 +221,14 @@ fn setup_bench() {
         .unwrap();
 }
 
-/// Make sure the bundleed and extracted directories are empty, using the environment variables (or defaults) for the paths
+/// Make sure the bundled and extracted directories are empty, using the environment variables (or defaults) for the paths
 #[doc(hidden)]
 fn cleanup_bench() {
     info!("Cleaning up benchmarking directories...");
-    // Make sure the bundleed directory exists and is empty
+    // Make sure the bundled directory exists and is empty
     ensure_path_exists_and_is_empty_dir(&PathBuf::from(PACKED_PATH.as_str()), true)
         .map_err(|e| {
-            error!("Error creating bundleed directory: {}", e);
+            error!("Error creating bundled directory: {}", e);
             e
         })
         .unwrap();
@@ -242,19 +242,19 @@ fn cleanup_bench() {
         .unwrap();
 }
 
-/// Make sure bundleed directory is empty for bundleing
+/// Make sure bundled directory is empty for bundleing
 #[doc(hidden)]
-fn prep_bundle(bundleed_path: &Path) {
-    // Ensure the bundleed directory exists and is empty
-    ensure_path_exists_and_is_empty_dir(bundleed_path, true)
+fn prep_bundle(bundled_path: &Path) {
+    // Ensure the bundled directory exists and is empty
+    ensure_path_exists_and_is_empty_dir(bundled_path, true)
         .map_err(|e| {
-            error!("Error creating bundleed directory: {}", e);
+            error!("Error creating bundled directory: {}", e);
             e
         })
         .unwrap();
 
     // if the manifest file exists, remove it
-    let manifest_path = bundleed_path.with_file_name("manifest.json");
+    let manifest_path = bundled_path.with_file_name("manifest.json");
     if manifest_path.exists() {
         fs::remove_file(manifest_path).unwrap();
     }
@@ -276,10 +276,10 @@ fn prep_extract(extracted_path: &Path) {
 /// # Arguments
 /// * `c` - Criterion object
 /// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark
-/// * `bundleed_path` - Path to the bundleed directory to use for the benchmark. This will probably be the same as every other benchmark
+/// * `bundled_path` - Path to the bundled directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `result_path` - Path to the results directory to use for the benchmark. This will change for each benchmark
 /// * `timestamp` - Timestamp to use for the benchmark
-fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundleed_path: &Path) {
+fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundled_path: &Path) {
     // Get the filename of the input directory
     let input_name = input_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
@@ -296,7 +296,7 @@ fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundleed_path: &Path) 
     group.bench_function(bench_id, |b| {
         b.to_async(&rt).iter_batched(
             // Operation needed to make sure bundle doesn't fail
-            || prep_bundle(bundleed_path),
+            || prep_bundle(bundled_path),
             // The routine to benchmark
             |_| async {
                 bundle::pipeline(
@@ -314,19 +314,19 @@ fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundleed_path: &Path) 
     group.finish();
 }
 
-/// Benchmark extracting - relies on PACKED_PATH and MANIFEST_PATH having bundleed data!
+/// Benchmark extracting - relies on PACKED_PATH and MANIFEST_PATH having bundled data!
 /// # Arguments
 /// * `c` - Criterion object
-/// * `bundleed_path` - Path to the bundleed directory to use for the benchmark. This will probably be the same as every other benchmark
+/// * `bundled_path` - Path to the bundled directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `extracted_path` - Path to the extracted directory to use for the benchmark. This will probably be the same as every other benchmark
 /// * `manifest_path` - Path to the manifest file to use for the benchmark. This will probably be the same as every other benchmark, until need is demonstrated to keep these.
-fn extract_benchmark(c: &mut Criterion, bundleed_path: &PathBuf, extracted_path: &PathBuf) {
+fn extract_benchmark(c: &mut Criterion, bundled_path: &PathBuf, extracted_path: &PathBuf) {
     // Get the filename of the input directory
     let input_name = extracted_path.file_name().unwrap().to_str().unwrap();
     // We use the input_path + timestamp as the benchmark id
     let bench_id = BenchmarkId::new("extract", input_name.to_string());
     // Figure out how many bytes are in the input directory
-    let input_dir_size = dir::get_size(bundleed_path).unwrap();
+    let input_dir_size = dir::get_size(bundled_path).unwrap();
     // Declare a runtime for the async function
     let rt = Runtime::new().unwrap();
 
@@ -343,7 +343,7 @@ fn extract_benchmark(c: &mut Criterion, bundleed_path: &PathBuf, extracted_path:
             |_| async {
                 extract::pipeline(
                     black_box(&GlobalConfig::from_disk().await?),
-                    black_box(&BucketSpecifier::with_origin(bundleed_path)),
+                    black_box(&BucketSpecifier::with_origin(bundled_path)),
                     black_box(extracted_path),
                 )
                 .await
@@ -365,8 +365,8 @@ fn pipeline_benchmark(c: &mut Criterion) {
 
     // Where we will store our input sets
     let root_input_path = PathBuf::from(INPUT_PATH.as_str());
-    // Where we will store our bundleed data
-    let bundleed_path = PathBuf::from(PACKED_PATH.as_str());
+    // Where we will store our bundled data
+    let bundled_path = PathBuf::from(PACKED_PATH.as_str());
 
     // Read the input directory for the benchmark
     let root_input_dir = fs::read_dir(root_input_path).unwrap();
@@ -385,10 +385,10 @@ fn pipeline_benchmark(c: &mut Criterion) {
         extracted_path.push(entry_name.clone());
 
         // Run the bundle benchmark
-        bundle_benchmark(c, &input_path, &bundleed_path);
+        bundle_benchmark(c, &input_path, &bundled_path);
 
         // Run the extract benchmark
-        extract_benchmark(c, &bundleed_path, &extracted_path);
+        extract_benchmark(c, &bundled_path, &extracted_path);
 
         // If we have correctness testing enabled, run the correctness tests
         if *DO_CORRECTNESS_CHECK {

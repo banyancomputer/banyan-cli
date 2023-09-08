@@ -13,9 +13,9 @@ use anyhow::Result;
 /// # Arguments
 ///
 /// * `input_dir` - &Path representing the relative path of the input directory to bundle.
-/// * `output_dir` - &Path representing the relative path of where to store the bundleed data.
+/// * `output_dir` - &Path representing the relative path of where to store the bundled data.
 /// * `manifest_file` - &Path representing the relative path of where to store the manifest file.
-/// * `chunk_size` - The maximum size of a bundleed file / chunk in bytes.
+/// * `chunk_size` - The maximum size of a bundled file / chunk in bytes.
 /// * `follow_links` - Whether or not to follow symlinks when bundleing.
 ///
 /// # Return Type
