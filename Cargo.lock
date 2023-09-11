@@ -4312,6 +4312,7 @@ dependencies = [
  "fake-file",
  "fclones",
  "fs_extra",
+ "futures-util",
  "hex",
  "indicatif",
  "jwalk",
@@ -4319,6 +4320,7 @@ dependencies = [
  "log",
  "nix 0.27.1",
  "rand 0.8.5",
+ "reqwest",
  "serde",
  "serde_json",
  "serial_test",
@@ -4326,6 +4328,7 @@ dependencies = [
  "tokio",
  "tomb-common",
  "tomb-crypt",
+ "uuid",
  "wnfs",
 ]
 

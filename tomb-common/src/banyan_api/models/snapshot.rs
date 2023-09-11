@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use uuid::Uuid;
 
 use crate::banyan_api::{
@@ -17,6 +18,18 @@ pub struct Snapshot {
     pub metadata_id: Uuid,
     /// The timestamp when the snapshot was created
     pub created_at: i64,
+}
+
+impl Display for Snapshot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "\n| SNAPSHOT INFO |\nsnapshot_id:\t{}\nbucket_id:\t{}\nmetadata_id:\t{}\ncreated_at:\t{}",
+            self.id,
+            self.bucket_id,
+            self.metadata_id,
+            self.created_at
+        ))
+    }
 }
 
 impl Snapshot {

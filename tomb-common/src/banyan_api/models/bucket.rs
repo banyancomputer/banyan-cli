@@ -87,6 +87,15 @@ pub struct Bucket {
     pub storage_class: StorageClass,
 }
 
+impl Display for Bucket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "\n| REMOTE BUCKET INFO |\nname:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
+            self.name, self.id, self.r#type, self.storage_class
+        ))
+    }
+}
+
 impl Bucket {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create(
@@ -116,6 +125,7 @@ impl Bucket {
                 bucket_id: response.id,
                 approved: response.initial_bucket_key.approved,
                 pem: initial_bucket_key_pem,
+                fingerprint: response.initial_bucket_key.fingerprint,
             },
         ))
     }
@@ -200,16 +210,20 @@ impl Bucket {
 #[cfg(test)]
 
 pub mod test {
+    use tomb_crypt::prelude::PrivateKey;
+    use tomb_crypt::pretty_fingerprint;
+
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
     use crate::banyan_api::models::metadata::test::push_metadata_and_snapshot;
     use crate::banyan_api::utils::generate_bucket_key;
 
     pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ClientError> {
-        let (_, pem) = generate_bucket_key().await;
+        let (key, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
+        let fingerprint = pretty_fingerprint(&key.fingerprint().await.expect("create fingerprint"));
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),
@@ -222,6 +236,7 @@ pub mod test {
         assert_eq!(bucket.r#type, bucket_type.clone());
         assert!(bucket_key.approved);
         assert_eq!(bucket_key.pem, pem);
+        assert_eq!(bucket_key.fingerprint, fingerprint);
         assert!(bucket_key.approved);
         Ok((bucket, bucket_key))
     }

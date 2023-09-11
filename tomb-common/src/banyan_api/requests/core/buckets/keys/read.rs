@@ -23,6 +23,7 @@ pub struct ReadBucketKeyResponse {
     pub id: Uuid,
     pub approved: bool,
     pub pem: String,
+    pub fingerprint: String,
 }
 
 #[derive(Debug, Deserialize)]

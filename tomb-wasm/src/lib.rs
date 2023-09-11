@@ -1,3 +1,4 @@
+/*
 //! This crate contains modules which are compiled to WASM
 
 mod error;
@@ -363,3 +364,4 @@ impl TombWasm {
         Ok(mount)
     }
 }
+ */

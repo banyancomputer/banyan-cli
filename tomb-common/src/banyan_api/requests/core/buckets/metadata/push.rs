@@ -19,8 +19,8 @@ where
     pub bucket_id: Uuid,
 
     pub expected_data_size: u64,
-    pub metadata_cid: String,
     pub root_cid: String,
+    pub valid_keys: Vec<String>,
 
     pub metadata_stream: S,
 }
@@ -34,8 +34,8 @@ where
     pub bucket_id: Uuid,
 
     pub expected_data_size: u64,
-    pub metadata_cid: String,
     pub root_cid: String,
+    pub valid_keys: Vec<String>,
 
     pub metadata_stream: S,
 }
@@ -43,8 +43,8 @@ where
 #[derive(Debug, Serialize)]
 struct PushMetadataData {
     pub expected_data_size: u64,
-    pub metadata_cid: String,
     pub root_cid: String,
+    pub valid_keys: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,8 +82,8 @@ where
         // Create our form data
         let pbm_req = PushMetadataData {
             expected_data_size: self.expected_data_size,
-            metadata_cid: self.metadata_cid,
             root_cid: self.root_cid,
+            valid_keys: self.valid_keys,
         };
 
         // Attach the form data to the request as json
@@ -124,8 +124,8 @@ where
         // Create our form data
         let pbm_req = PushMetadataData {
             expected_data_size: self.expected_data_size,
-            metadata_cid: self.metadata_cid,
             root_cid: self.root_cid,
+            valid_keys: self.valid_keys,
         };
 
         // Serialize JSON part

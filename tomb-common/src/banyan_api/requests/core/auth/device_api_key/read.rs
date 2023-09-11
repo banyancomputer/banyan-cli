@@ -15,8 +15,8 @@ pub struct ReadAllDeviceApiKeys;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ReadDeviceApiKeyResponse {
     pub id: Uuid,
-    pub fingerprint: String,
     pub pem: String,
+    pub fingerprint: String,
 }
 
 #[derive(Debug, Deserialize)]

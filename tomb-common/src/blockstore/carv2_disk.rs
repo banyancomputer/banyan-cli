@@ -3,7 +3,7 @@ use crate::car::{v1::block::Block, v2::CarV2};
 use crate::utils::io::{get_read, get_read_write, get_write};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use serde::{de::Error as DeError, ser::Error as SerError, Deserialize, Serialize};
+use serde::{de::Error as DeError, Deserialize, Serialize};
 use std::{
     borrow::Cow,
     fs::File,
@@ -11,7 +11,7 @@ use std::{
 };
 use wnfs::libipld::{Cid, IpldCodec};
 
-/// CarV2v2 CarV2DiskBlockStore implementation using File IO
+/// CarV2DiskBlockStore implementation using File IO
 #[derive(Debug, PartialEq, Clone)]
 pub struct CarV2DiskBlockStore {
     /// CarV2 file path
@@ -109,14 +109,8 @@ impl Serialize for CarV2DiskBlockStore {
     where
         S: serde::Serializer,
     {
-        // If we successfully save ourself to disk
-        if self.to_disk().is_ok() {
-            // Serialize the Path
-            self.path.serialize(serializer)
-        } else {
-            // Create a new CarV2 Error
-            Err(SerError::custom(anyhow!("Failed to save to disk")))
-        }
+        // Serialize the Path
+        self.path.serialize(serializer)
     }
 }
 

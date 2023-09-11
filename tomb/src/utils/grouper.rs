@@ -1,4 +1,4 @@
-use crate::types::spider::{PackPipelinePlan, SpiderMetadata};
+use crate::types::spider::{BundlePipelinePlan, SpiderMetadata};
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
 use std::{
@@ -10,30 +10,30 @@ use std::{
 
 use super::custom_fclones_logger::CustomLogger;
 
-/// Creates a packing plan by grouping files from the input directory according to their similarities.
+/// Creates a bundleing plan by grouping files from the input directory according to their similarities.
 ///
 /// # Arguments
 ///
-/// * `default_pack_plan` - A reference to the default PackPlan configuration.
+/// * `default_bundle_plan` - A reference to the default BundlePlan configuration.
 /// * `input_dir` - A reference to the input directory path.
 /// * `follow_links` - A boolean indicating whether to follow symbolic links.
 /// * `seen_files` - A mutable reference to a HashSet of PathBuf containing paths of the seen files.
 ///
 /// # Returns
 ///
-/// * `Result<Vec<PackPipelinePlan>>` - A Result containing a vector of PackPipelinePlan objects
-///   representing the packing plan, or an error in case of failure.
+/// * `Result<Vec<BundlePipelinePlan>>` - A Result containing a vector of BundlePipelinePlan objects
+///   representing the bundleing plan, or an error in case of failure.
 pub fn grouper(
     input_dir: &Path,
     follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<PackPipelinePlan>> {
+) -> Result<Vec<BundlePipelinePlan>> {
     // Construct the group config
     let group_config = create_group_config(input_dir, follow_links);
 
     let file_groups = group_files(&group_config, &CustomLogger::default())?;
-    // Vector holding all the PackPipelinePlans for packing
-    let mut packing_plan = vec![];
+    // Vector holding all the BundlePipelinePlans for bundleing
+    let mut bundleing_plan = vec![];
     // go over the files- do it in groups
     for group in file_groups {
         // Create a vector to hold the SpiderMetadata for each file in this group
@@ -71,10 +71,10 @@ pub fn grouper(
             // Append the metadata
             metadatas.push(spider_metadata);
         }
-        // Push a PackPipelinePlan with this file group
-        packing_plan.push(PackPipelinePlan::FileGroup(metadatas));
+        // Push a BundlePipelinePlan with this file group
+        bundleing_plan.push(BundlePipelinePlan::FileGroup(metadatas));
     }
-    Ok(packing_plan)
+    Ok(bundleing_plan)
 }
 
 /// Private function used to construct a GroupConfig struct from the relevant command line options.

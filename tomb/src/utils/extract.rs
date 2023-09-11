@@ -6,7 +6,7 @@ use wnfs::{
     private::{PrivateForest, PrivateNode},
 };
 
-use crate::pipelines::error::PipelineError;
+use crate::pipelines::error::TombError;
 use crate::utils::wnfsio::file_to_disk;
 
 #[async_recursion(?Send)]
@@ -17,13 +17,13 @@ pub async fn process_node(
     metadata_forest: &Rc<PrivateForest>,
     content_forest: &Rc<PrivateForest>,
     node: &PrivateNode,
-    unpacked: &Path,
+    extracted: &Path,
     built_path: &Path,
 ) -> Result<()> {
     match &node {
         PrivateNode::Dir(dir) => {
             // Create the directory we are in
-            std::fs::create_dir_all(unpacked.join(built_path))?;
+            std::fs::create_dir_all(extracted.join(built_path))?;
             // Obtain a list of this Node's children
             let node_names: Vec<&String> = dir.get_entries().collect();
 
@@ -41,20 +41,23 @@ pub async fn process_node(
                         metadata_forest,
                         content_forest,
                         &node,
-                        unpacked,
+                        extracted,
                         &built_path.join(node_name),
                     )
                     .await?;
                 } else {
-                    return Err(PipelineError::FileNotFound(node_name.to_string()).into());
+                    return Err(TombError::file_missing_error(
+                        Path::new(&node_name.to_string()).to_path_buf(),
+                    )
+                    .into());
                 }
             }
         }
         PrivateNode::File(file) => {
-            // This is where the file will be unpacked no matter what
-            let file_path = &unpacked.join(built_path);
+            // This is where the file will be extracted no matter what
+            let file_path = &extracted.join(built_path);
             // Handle the PrivateFile and write its contents to disk
-            file_to_disk(file, unpacked, file_path, content_forest, content).await?;
+            file_to_disk(file, extracted, file_path, content_forest, content).await?;
         }
     }
     Ok(())

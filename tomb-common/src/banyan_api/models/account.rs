@@ -19,16 +19,16 @@ pub struct Account {
 
 impl Account {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
-    pub async fn create_fake(_client: &mut Client) -> Result<(Self, EcSignatureKey), ClientError> {
+    pub async fn create_fake(client: &mut Client) -> Result<(Self, EcSignatureKey), ClientError> {
         use crate::banyan_api::client::Credentials;
         // Create a local key pair for signing
         let (api_key, device_api_key_pem) = generate_api_key().await;
         // Associate the key material with the backend
         let response: CreateAccountResponse =
-            _client.call(CreateAccount { device_api_key_pem }).await?;
+            client.call(CreateAccount { device_api_key_pem }).await?;
 
         // Associate the returned account ID with the key material and initialize the client with these credentials
-        _client.with_credentials(Credentials {
+        client.with_credentials(Credentials {
             account_id: response.id,
             signing_key: api_key.clone(),
         });
@@ -72,7 +72,6 @@ pub mod test {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn who_am_i() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let subject = client.subject().unwrap();
@@ -84,7 +83,6 @@ pub mod test {
 
     #[tokio::test]
     #[should_panic]
-    #[ignore]
     async fn who_am_i_unauthenticated() {
         let mut client = Client::new("http://localhost:3001").unwrap();
         let _ = Account::who_am_i(&mut client).await.unwrap();
