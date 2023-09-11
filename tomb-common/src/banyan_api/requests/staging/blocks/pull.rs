@@ -1,9 +1,9 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use libipld::Cid;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
-use wnfs::libipld::Cid;
 
 use crate::banyan_api::requests::StreamableApiRequest;
 

@@ -10,7 +10,7 @@ mod test {
     use sha2::Digest;
     use std::io::{Cursor, Seek, SeekFrom};
     use std::{cell::RefCell, str::FromStr};
-    use wnfs::libipld::Cid;
+    use libipld::Cid;
 
     /// Quick Specification Reference Links:
     ///

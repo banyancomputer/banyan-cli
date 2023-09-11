@@ -1,14 +1,12 @@
 use crate::blockstore::{carv2_disk::CarV2DiskBlockStore, BlockStore, RootedBlockStore};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all};
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use wnfs::common::BlockStoreError;
-use wnfs::libipld::{Cid, IpldCodec};
+use libipld::Cid;
 
 /// CARv2 MultiCarV2DiskBlockStore across multiple CAR files using File IO
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -74,7 +72,7 @@ impl MultiCarV2DiskBlockStore {
 
 #[async_trait(?Send)]
 impl BlockStore for MultiCarV2DiskBlockStore {
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> Result<Bytes> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
             // If block is retrieved
@@ -88,7 +86,7 @@ impl BlockStore for MultiCarV2DiskBlockStore {
         Err(BlockStoreError::CIDNotFound(*cid).into())
     }
 
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn put_block(&self, bytes: impl Into<Bytes>, codec: u64) -> Result<Cid> {
         // If there is a delta
         if let Some(current_delta) = self.deltas.last() {
             let cid = current_delta.put_block(bytes, codec).await?;
@@ -121,6 +119,7 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
 mod test {
     use super::*;
     use anyhow::Result;
+    use libipld::IpldCodec;
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
@@ -142,7 +141,7 @@ mod test {
         assert_eq!(store.deltas.len(), 1);
 
         let hello_kitty = "Hello Kitty!".as_bytes().to_vec();
-        let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw).await?;
+        let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw.into()).await?;
 
         // Create a new delta
         store.add_delta()?;
@@ -151,7 +150,7 @@ mod test {
 
         let goodbye_kitty = "Goodbye Kitty!".as_bytes().to_vec();
         let goodbye_kitty_cid = store
-            .put_block(goodbye_kitty.clone(), IpldCodec::Raw)
+            .put_block(goodbye_kitty.clone(), IpldCodec::Raw.into())
             .await?;
 
         // Assert that both blocks are still retrievable, despite being in separate CAR files
@@ -184,11 +183,11 @@ mod test {
         assert_eq!(store.deltas.len(), 1);
 
         let hello_kitty = "Hello Kitty!".as_bytes().to_vec();
-        let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw).await?;
+        let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw.into()).await?;
 
         let goodbye_kitty = "Goodbye Kitty!".as_bytes().to_vec();
         let goodbye_kitty_cid = store
-            .put_block(goodbye_kitty.clone(), IpldCodec::Raw)
+            .put_block(goodbye_kitty.clone(), IpldCodec::Raw.into())
             .await?;
 
         // Assert that both blocks are still retrievable, despite being in separate CAR files

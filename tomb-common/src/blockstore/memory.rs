@@ -1,12 +1,11 @@
 use crate::blockstore::{BlockStore, RootedBlockStore};
 use anyhow::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, cell::RefCell};
-use wnfs::{
-    common::MemoryBlockStore as WnfsMemoryBlockStore,
-    libipld::{Cid, IpldCodec},
-};
+use std::cell::RefCell;
+use wnfs::common::MemoryBlockStore as WnfsMemoryBlockStore;
+use libipld::Cid;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 /// Memory implementation of a RootedBlockStore
@@ -25,12 +24,12 @@ impl MemoryBlockStore {
 #[async_trait(?Send)]
 impl BlockStore for MemoryBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> Result<Bytes> {
         self.store.get_block(cid).await
     }
 
     /// Stores an array of bytes in the block store.
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn put_block(&self, bytes: impl Into<Bytes>, codec: u64) -> Result<Cid> {
         self.store.put_block(bytes, codec).await
     }
 }
@@ -50,6 +49,7 @@ impl RootedBlockStore for MemoryBlockStore {
 mod test {
     use super::*;
     use anyhow::Result;
+    use libipld::IpldCodec;
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
 
     #[tokio::test]
@@ -64,7 +64,7 @@ mod test {
     async fn memory_rooted_blockstore() -> Result<()> {
         let store = &MemoryBlockStore::default();
         // Put a block in the store
-        let cid = store.put_block(vec![1, 2, 3], IpldCodec::Raw).await?;
+        let cid = store.put_block(vec![1, 2, 3], IpldCodec::Raw.into()).await?;
         // Set the root
         store.set_root(&cid);
         // Get the root

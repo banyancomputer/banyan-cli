@@ -2,9 +2,9 @@ use crate::car::varint::{encode_varint_u128, read_varint_u128};
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
-use wnfs::libipld::{
+use libipld::{
     multihash::{Code, MultihashDigest},
-    Cid, IpldCodec,
+    Cid,
 };
 
 /// CARv1 Data Block
@@ -21,7 +21,7 @@ pub struct Block {
 
 impl Block {
     /// Given some data, create a Cid and varint to match
-    pub fn new(content: Vec<u8>, codec: IpldCodec) -> Result<Self> {
+    pub fn new(content: Vec<u8>, codec: u64) -> Result<Self> {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
         // Represent the hash as a CID V1
@@ -96,7 +96,7 @@ mod test {
     #[allow(unused_imports)]
     use super::Block;
     #[allow(unused_imports)]
-    use wnfs::libipld::IpldCodec;
+    use libipld::IpldCodec;
 
     crate::utils::tests::streamable_tests! {
         Block:
@@ -104,7 +104,7 @@ mod test {
             // Raw bytes
             let data_example = "Hello Kitty!".as_bytes().to_vec();
             // Create new Block with these content bytes
-            Block::new(data_example, IpldCodec::Raw).expect("unable to create new Block")
+            Block::new(data_example, IpldCodec::Raw.into()).expect("unable to create new Block")
         },
     }
 }

@@ -17,6 +17,7 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 tomb-crypt = { workspace = true } 
 wnfs = { workspace = true }
+libipld ={ workspace = true }
 
 async-trait = "^0.1"
 base58 = "^0.2"

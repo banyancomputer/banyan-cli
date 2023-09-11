@@ -10,10 +10,7 @@ use std::{
     collections::BTreeMap,
     io::{Read, Seek, Write},
 };
-use wnfs::{
-    common::dagcbor,
-    libipld::{Cid, Ipld},
-};
+use libipld::{Cid, Ipld};
 
 /// CARv1 Header
 /// | 16-byte varint | n-byte DAG CBOR |
@@ -29,7 +26,7 @@ impl Header {
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
     pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self> {
         // If the IPLD is a true map and the correct keys exist within it
-        if let Ok(ipld) = dagcbor::decode(bytes) &&
+        if let Ok(ipld) = serde_json::from_slice(bytes) &&
             let Ipld::Map(map) = ipld &&
             let Some(Ipld::Integer(int)) = map.get("version") &&
             let Some(Ipld::List(roots_ipld)) = map.get("roots") {
@@ -69,7 +66,7 @@ impl Header {
         map.insert("roots".to_string(), Ipld::List(ipld_roots));
         // Construct the final IPLD
         let ipld = Ipld::Map(map);
-        dagcbor::encode(&ipld)
+        serde_json::to_vec(&ipld).map_err(anyhow::Error::new)
     }
 }
 
@@ -123,7 +120,7 @@ mod test {
         str::FromStr,
         vec,
     };
-    use wnfs::libipld::Cid;
+    use libipld::Cid;
 
     #[test]
     #[serial]

@@ -13,7 +13,8 @@ use std::{
     collections::HashMap,
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
+use wnfs::common::BlockStoreError;
+use libipld::Cid;
 
 use crate::car::v2::index::INDEX_SORTED_CODEC;
 use crate::traits::streamable::Streamable;
@@ -210,7 +211,7 @@ mod test {
         io::{Seek, SeekFrom},
         str::FromStr,
     };
-    use wnfs::libipld::{Cid, IpldCodec};
+    use libipld::{Cid, IpldCodec};
 
     #[test]
     #[serial]
@@ -318,7 +319,7 @@ mod test {
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw.into())?;
 
         // Writable version of the original file
         let mut writable_original = OpenOptions::new()
@@ -405,7 +406,7 @@ mod test {
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
+        let block = Block::new(kitty_bytes, IpldCodec::DagCbor.into())?;
         original.set_root(&block.cid);
         assert_eq!(block.cid, original.get_root().expect("failed to get root"));
         original.put_block(&block, &mut original_rw)?;

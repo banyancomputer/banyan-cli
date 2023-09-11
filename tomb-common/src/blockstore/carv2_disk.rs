@@ -3,13 +3,13 @@ use crate::car::{v1::block::Block, v2::CarV2};
 use crate::utils::io::{get_read, get_read_write, get_write};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{de::Error as DeError, Deserialize, Serialize};
 use std::{
-    borrow::Cow,
     fs::File,
     path::{Path, PathBuf},
 };
-use wnfs::libipld::{Cid, IpldCodec};
+use libipld::Cid;
 
 /// CarV2DiskBlockStore implementation using File IO
 #[derive(Debug, PartialEq, Clone)]
@@ -63,18 +63,18 @@ impl CarV2DiskBlockStore {
 
 #[async_trait(?Send)]
 impl BlockStore for CarV2DiskBlockStore {
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> Result<Bytes> {
         // Open the file in read-only mode
         let mut file = get_read(&self.path)?;
         // Perform the block read
         let block: Block = self.car.get_block(cid, &mut file)?;
         // Return its contents
-        Ok(Cow::Owned(block.content))
+        Ok(Bytes::from(block.content))
     }
 
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn put_block(&self, bytes: impl Into<Bytes>, codec: u64) -> Result<Cid> {
         // Create a block with this content
-        let block = Block::new(bytes, codec)?;
+        let block = Block::new(Into::<Bytes>::into(bytes).to_vec(), codec)?;
         // If this CID already exists in the store
         if self.get_block(&block.cid).await.is_ok() {
             // Return OK
@@ -143,7 +143,7 @@ mod test {
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
-    use wnfs::libipld::{Cid, IpldCodec};
+    use libipld::{Cid, IpldCodec};
 
     #[tokio::test]
     #[serial]
@@ -161,7 +161,7 @@ mod test {
         let path = car_test_setup(2, "indexless", "carv2blockstore_put_block")?;
         let store = CarV2DiskBlockStore::new(&path)?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw.into()).await?;
 
         let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
         assert_eq!(kitty_bytes, new_kitty_bytes);
@@ -184,7 +184,7 @@ mod test {
         // Put a block in
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = original
-            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
+            .put_block(kitty_bytes.clone(), IpldCodec::Raw.into())
             .await?;
         // Insert root
         original.set_root(&kitty_cid);

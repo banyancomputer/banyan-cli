@@ -10,7 +10,7 @@ use std::{
     fmt::Debug,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use libipld::Cid;
 
 use self::indexable::Indexable;
 use crate::car::{
@@ -134,7 +134,7 @@ impl Index<Bucket> {
 mod test {
     use super::{Bucket, Index, INDEX_SORTED_CODEC};
     use std::{collections::HashMap, str::FromStr};
-    use wnfs::libipld::Cid;
+    use libipld::Cid;
 
     /// Generate example data for Bucket
     #[allow(dead_code)]

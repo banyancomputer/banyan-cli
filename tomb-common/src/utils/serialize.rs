@@ -3,17 +3,17 @@ use anyhow::Result;
 use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;
 use wnfs::{
-    common::{dagcbor, AsyncSerialize, BlockStore},
-    libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec},
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
+    common::{AsyncSerialize, BlockStore},
+    private::{PrivateDirectory, PrivateNode, forest::hamt::HamtForest},
 };
+use libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec};
 
 /// Store a given PrivateDirectory in a given Store
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     metadata_store: &MBS,
     content_store: &CBS,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &mut Rc<HamtForest>,
+    content_forest: &mut Rc<HamtForest>,
     dir: &Rc<PrivateDirectory>,
 ) -> Result<PrivateRef> {
     // Get a seeded source of randomness
@@ -30,7 +30,7 @@ pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
 
 /// Store a given PrivateForest in a given Store
 pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
-    forest: &Rc<PrivateForest>,
+    forest: &Rc<HamtForest>,
     serializer: &SBS,
     storage: &BS,
 ) -> Result<Cid> {
@@ -49,18 +49,18 @@ pub async fn store_share_manager(
 ) -> Result<Cid> {
     let share_manager_bytes = dagcbor::encode(share_manager)?;
     let share_manager_cid = store
-        .put_block(share_manager_bytes.clone(), IpldCodec::DagCbor)
+        .put_block(share_manager_bytes.clone(), IpldCodec::DagCbor.into())
         .await?;
     Ok(share_manager_cid)
 }
 
 /// Load a given PrivateForest from a given Store
-pub async fn load_forest<BS: BlockStore>(cid: &Cid, store: &BS) -> Result<Rc<PrivateForest>> {
+pub async fn load_forest<BS: BlockStore>(cid: &Cid, store: &BS) -> Result<Rc<HamtForest>> {
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
-    let forest: Rc<PrivateForest> = Rc::new(
-        ipld_serde::from_ipld::<PrivateForest>(forest_ipld)
+    let forest: Rc<HamtForest> = Rc::new(
+        ipld_serde::from_ipld::<HamtForest>(forest_ipld)
             .expect("failed to convert IPLD to PrivateForest"),
     );
     // Return
@@ -71,7 +71,7 @@ pub async fn load_forest<BS: BlockStore>(cid: &Cid, store: &BS) -> Result<Rc<Pri
 pub async fn load_dir<BS: BlockStore>(
     store: &BS,
     private_ref: &PrivateRef,
-    metadata_forest: &Rc<PrivateForest>,
+    metadata_forest: &Rc<HamtForest>,
 ) -> Result<Rc<PrivateDirectory>> {
     // Load the PrivateDirectory from the PrivateForest
     PrivateNode::load(private_ref, metadata_forest, store)

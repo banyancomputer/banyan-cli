@@ -4,13 +4,10 @@ use rand::thread_rng;
 use std::{
     fs::create_dir_all,
     path::{Path, PathBuf},
-    rc::Rc,
+    rc::Rc, 
 };
-use wnfs::{
-    libipld::Cid,
-    namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest},
-};
+use wnfs::private::{PrivateDirectory, forest::{hamt::HamtForest, traits::PrivateForest}};
+use libipld::Cid;
 
 use crate::blockstore::memory::MemoryBlockStore;
 use crate::traits::blockstore::RootedBlockStore;
@@ -79,8 +76,8 @@ pub async fn setup_memory_test(
 ) -> Result<(
     MemoryBlockStore,
     MemoryBlockStore,
-    Rc<PrivateForest>,
-    Rc<PrivateForest>,
+    Rc<HamtForest>,
+    Rc<HamtForest>,
     Rc<PrivateDirectory>,
 )> {
     setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await
@@ -94,10 +91,11 @@ pub async fn setup_test<RBS: RootedBlockStore>(
 ) -> Result<(
     RBS,
     RBS,
-    Rc<PrivateForest>,
-    Rc<PrivateForest>,
+    Rc<HamtForest>,
+    Rc<HamtForest>,
     Rc<PrivateDirectory>,
 )> {
+    let rng = &mut thread_rng();
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 
@@ -105,18 +103,11 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     content.set_root(&Cid::default());
 
     // Hot Forest and cold Forest
-    let mut metadata_forest = Rc::new(PrivateForest::new());
-    let mut content_forest = Rc::new(PrivateForest::new());
-
-    // Rng
-    let rng = &mut thread_rng();
+    let mut metadata_forest = HamtForest::new_trusted_rc(rng);
+    let mut content_forest = HamtForest::new_trusted_rc(rng);
     // PrivateDirectory
-    let mut root_dir = Rc::new(PrivateDirectory::new(
-        Namefilter::default(),
-        Utc::now(),
-        rng,
-    ));
-
+    let mut root_dir = PrivateDirectory::new_rc(&metadata_forest.empty_name(), Utc::now(), rng);
+    
     // Open new file
     let file = root_dir
         .open_file_mut(

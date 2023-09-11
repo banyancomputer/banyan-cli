@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::HashOutput,
-    libipld::Cid,
     private::{PrivateRef, TemporalKey},
 };
+use libipld::Cid;
 
 // TODO: This should probably just be an encrypted blob. Can we extend EcEncrytionKey to work for this?
 // TODO: How can we use PrivateRefSerializable here?

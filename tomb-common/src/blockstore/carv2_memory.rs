@@ -3,9 +3,10 @@ use crate::car::v1::block::Block;
 use crate::car::v2::CarV2;
 use anyhow::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
 use std::cell::RefCell;
-use std::{borrow::Cow, io::Cursor};
-use wnfs::libipld::{Cid, IpldCodec};
+use std::io::Cursor;
+use libipld::Cid;
 
 #[derive(Debug)]
 /// CarV2 formatted memory blockstore
@@ -54,17 +55,17 @@ impl CarV2MemoryBlockStore {
 #[async_trait(?Send)]
 /// WnfsBlockStore implementation for CarV2BlockStore
 impl BlockStore for CarV2MemoryBlockStore {
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, anyhow::Error> {
+    async fn get_block(&self, cid: &Cid) -> Result<Bytes> {
         let vec = self.data.borrow();
         let mut reader = Cursor::new(&*vec);
         let block = self.car.get_block(cid, &mut reader)?;
-        Ok(Cow::Owned(block.content))
+        Ok(Bytes::from(block.content))
     }
 
-    async fn put_block(&self, content: Vec<u8>, codec: IpldCodec) -> Result<Cid, anyhow::Error> {
+    async fn put_block(&self, content: impl Into<Bytes>, codec: u64) -> Result<Cid, anyhow::Error> {
         let mut vec = self.data.borrow_mut();
         let mut writer = Cursor::new(&mut *vec);
-        let block = Block::new(content, codec)?;
+        let block = Block::new(Into::<Bytes>::into(content).to_vec(), codec)?;
         self.car.put_block(&block, &mut writer)?;
         Ok(block.cid)
     }

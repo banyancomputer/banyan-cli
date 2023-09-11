@@ -16,7 +16,8 @@ use std::{
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
+use wnfs::common::BlockStoreError;
+use libipld::Cid;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CarV1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
@@ -226,7 +227,7 @@ mod test {
         str::FromStr,
         vec,
     };
-    use wnfs::libipld::{Cid, IpldCodec};
+    use libipld::{Cid, IpldCodec};
 
     use crate::{
         car::{v1::block::Block, v2::CarV2},
@@ -308,7 +309,7 @@ mod test {
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw.into())?;
 
         // Writable version of the original file
         let mut writable_original = OpenOptions::new()
@@ -364,7 +365,7 @@ mod test {
 
         // Insert a block
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
-        let block = Block::new(kitty_bytes, IpldCodec::Raw)?;
+        let block = Block::new(kitty_bytes, IpldCodec::Raw.into())?;
 
         // Writable version of the original file
         original.put_block(&block, &mut original_rw)?;

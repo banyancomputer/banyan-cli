@@ -6,7 +6,7 @@ use tomb_crypt::pretty_fingerprint;
 use wnfs::private::PrivateRef;
 
 use std::collections::{BTreeMap, HashMap};
-use wnfs::libipld::Ipld;
+use libipld::Ipld;
 
 use crate::share::enc_ref::EncryptedPrivateRef;
 

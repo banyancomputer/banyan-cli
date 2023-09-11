@@ -1,12 +1,10 @@
 use crate::blockstore::BlockStore;
 use anyhow::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
-use wnfs::libipld::{Cid, IpldCodec};
+use std::path::{Path, PathBuf};
+use libipld::Cid;
 
 /// A disk-based blockstore that you can mutate.
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,13 +36,14 @@ impl Clone for DiskBlockStore {
 #[async_trait(?Send)]
 impl BlockStore for DiskBlockStore {
     /// Stores an array of bytes in the block store.
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn put_block(&self, bytes: impl Into<Bytes>, codec: u64) -> Result<Cid> {
         // If the parent directory doesn't already exist
         if !self.path.exists() {
             // Create the directories required to store the blocks
             std::fs::create_dir_all(&self.path).expect("failed to create all dirs");
         }
-
+        // Get the bytes
+        let bytes = Into::<Bytes>::into(bytes).to_vec();
         // Try to build the CID from the bytes and codec
         let cid = self.create_cid(&bytes, codec)?;
         let file_path = self.path.join(cid.to_string());
@@ -62,7 +61,7 @@ impl BlockStore for DiskBlockStore {
     }
 
     /// Retrieves an array of bytes from the block store with given CID.
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> Result<Bytes> {
         // Get the bytes from disk, using the given CID as the filename
         let mut file = std::fs::File::open(self.path.join(cid.to_string()))?;
         // Create a mutable vector of bytes
@@ -70,7 +69,7 @@ impl BlockStore for DiskBlockStore {
         // Read the bytes into that
         std::io::Read::read_to_end(&mut file, &mut bytes)?;
         // Return Ok status with the bytes
-        return Ok(Cow::Owned(bytes));
+        Ok(Bytes::from(bytes))
     }
 }
 

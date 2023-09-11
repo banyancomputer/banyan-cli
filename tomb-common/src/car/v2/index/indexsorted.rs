@@ -6,7 +6,7 @@ use std::{
     collections::HashMap,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::libipld::Cid;
+use libipld::Cid;
 
 /// Buckets contain a list of values
 /// | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...
