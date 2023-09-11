@@ -140,8 +140,8 @@ pub struct KeySpecifier {
 pub enum KeySubCommand {
     /// List all Keys in a Bucket
     List(BucketSpecifier),
-    /// Create a new Key for a Bucket
-    Create(BucketSpecifier),
+    /// Request Access to a Bucket if you dont already have it
+    RequestAccess(BucketSpecifier),
     /// Delete a given Key
     Delete(KeySpecifier),
     /// List the keys persisted by the remote endpoint

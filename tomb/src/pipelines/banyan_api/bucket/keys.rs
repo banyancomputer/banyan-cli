@@ -28,8 +28,8 @@ pub(crate) async fn pipeline(
                 })
                 .map_err(TombError::client_error)
         }
-        // Create a new key
-        KeySubCommand::Create(bucket_specifier) => {
+        // Request access to a bucket
+        KeySubCommand::RequestAccess(bucket_specifier) => {
             let private_key = &global.wrapping_key().await?;
             let public_key = private_key
                 .public_key()
