@@ -1,7 +1,7 @@
 use super::mapper::EncRefMapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::PrivateRef;
 
 /// Fs Share manager
@@ -47,6 +47,11 @@ impl ShareManager {
             .await?;
 
         Ok(())
+    }
+
+    /// Grab a list of the PEM strings for each Public Key recipient
+    pub fn public_fingerprints(&self) -> Vec<String> {
+        self.original_map.0.clone().into_keys().collect()
     }
 
     /// Retrieve the current_ref PrivateRef using a PrivateKey

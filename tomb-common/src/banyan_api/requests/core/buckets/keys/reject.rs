@@ -8,33 +8,25 @@ use uuid::Uuid;
 use crate::banyan_api::requests::ApiRequest;
 
 #[derive(Debug, Serialize)]
-pub struct CreateBucketKey {
+pub struct RejectBucketKey {
     pub bucket_id: Uuid,
-    pub pem: String,
-}
-
-#[derive(Debug, Serialize)]
-struct CreateBucketKeyLess {
-    pub pem: String,
+    pub id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CreateBucketKeyResponse {
+pub struct RejectBucketKeyResponse {
     pub id: Uuid,
     pub approved: bool,
-    pub fingerprint: String,
 }
 
-impl ApiRequest for CreateBucketKey {
-    type ResponseType = CreateBucketKeyResponse;
-    type ErrorType = CreateBucketKeyError;
+impl ApiRequest for RejectBucketKey {
+    type ResponseType = RejectBucketKeyResponse;
+    type ErrorType = RejectBucketKeyError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
-        let path = format!("/api/v1/buckets/{}/keys", self.bucket_id);
+        let path = format!("/api/v1/buckets/{}/keys/{}/reject", self.bucket_id, self.id);
         let full_url = base_url.join(&path).unwrap();
-        client
-            .post(full_url)
-            .json(&CreateBucketKeyLess { pem: self.pem })
+        client.post(full_url)
     }
 
     fn requires_authentication(&self) -> bool {
@@ -44,28 +36,28 @@ impl ApiRequest for CreateBucketKey {
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
-pub struct CreateBucketKeyError {
+pub struct RejectBucketKeyError {
     #[serde(rename = "error")]
-    kind: CreateBucketKeyErrorKind,
+    kind: RejectBucketKeyErrorKind,
 }
 
-impl Display for CreateBucketKeyError {
+impl Display for RejectBucketKeyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use CreateBucketKeyErrorKind::*;
+        use RejectBucketKeyErrorKind::*;
 
         let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
+            Unknown => "an unknown error occurred rejecting the bucket",
         };
 
         f.write_str(msg)
     }
 }
 
-impl Error for CreateBucketKeyError {}
+impl Error for RejectBucketKeyError {}
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum CreateBucketKeyErrorKind {
+enum RejectBucketKeyErrorKind {
     Unknown,
 }

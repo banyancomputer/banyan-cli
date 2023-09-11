@@ -1,25 +1,29 @@
 /// This module contains the add pipeline function, which is the main entry point for inserting into existing WNFS filesystems.
 pub mod add;
+/// Interfacing with the banyan api
+pub mod banyan_api;
+/// This module contains the encryption pipeline function, which is the main entry point for bundleing new data.
+pub mod bundle;
 /// This module contains configuration functions for the cli
 pub mod configure;
 /// Pipeline Errors
 pub mod error;
-/// This module contains the pack pipeline function, which is the main entry point for packing new data.
-pub mod pack;
+/// This module contains the decryption pipeline function, which is the main entry point for extracting previously bundled data.
+pub mod extract;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
-/// This module contains the unpack pipeline function, which is the main entry point for extracting previously packed data.
-pub mod unpack;
 
 #[cfg(test)]
 mod test {
-    use super::add;
+    use super::{add, error::TombError};
     use crate::{
-        pipelines::{configure, pack, remove, unpack},
+        cli::command::BucketSpecifier,
+        pipelines::{bundle, configure, extract, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
             spider::path_to_segments,
-            test::{compute_directory_size, test_setup, test_setup_structured, test_teardown},
+            test::{test_setup, test_setup_structured, test_teardown},
+            wnfsio::compute_directory_size,
         },
     };
     use tomb_common::utils::wnfsio::decompress_bytes;
@@ -33,25 +37,48 @@ mod test {
         fs::{create_dir_all, read_link, rename, symlink_metadata, File},
         io::Write,
         os::unix::fs::symlink,
-        path::PathBuf,
+        path::{Path, PathBuf},
     };
+
+    /// Simplified Bundle call function
+    async fn bundle_pipeline(bucket_specifier: &BucketSpecifier) -> Result<String, TombError> {
+        bundle::pipeline(
+            &mut GlobalConfig::from_disk().await?,
+            bucket_specifier,
+            true,
+        )
+        .await
+    }
+
+    /// Simplified Extract call function
+    async fn extract_pipeline(
+        bucket_specifier: &BucketSpecifier,
+        extracted: &Path,
+    ) -> Result<String, TombError> {
+        extract::pipeline(
+            &GlobalConfig::from_disk().await?,
+            bucket_specifier,
+            extracted,
+        )
+        .await
+    }
 
     #[tokio::test]
     #[serial]
     async fn init() -> Result<()> {
         let test_name = "init";
         // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
+        let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Deinitialize for user
         configure::deinit(origin).await?;
-        // Assert that packing fails
-        assert!(pack::pipeline(origin, true).await.is_err());
+        // Assert that bundleing fails
+        assert!(bundle_pipeline(bucket_specifier).await.is_err());
         // Initialize for this user
         configure::init(origin).await?;
         // Assert that a config exists for this bucket now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .is_some());
         // Teardown
         test_teardown(test_name).await
@@ -60,7 +87,9 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn configure_remote() -> Result<()> {
-        let address = "http://app.tomb.com.net.org:5423";
+        let address = "http://app.tomb.com.net.org:5423/";
+        configure::deinit_all().await?;
+        let _ = GlobalConfig::from_disk().await?;
         // Configure the remote endpoint
         configure::remote(address).await?;
         // Assert it was actually modified
@@ -73,38 +102,38 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn pack() -> Result<()> {
-        let test_name = "pack";
+    async fn bundle() -> Result<()> {
+        let test_name = "bundle";
         // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
+        let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize
         configure::init(origin).await?;
-        // Pack
-        pack::pipeline(origin, true).await?;
+        // Bundle
+        bundle_pipeline(bucket_specifier).await?;
         // Teardown
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn unpack() -> Result<()> {
-        let test_name = "unpack";
+    async fn extract() -> Result<()> {
+        let test_name = "extract";
         // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
+        let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize
         configure::init(origin).await?;
-        // Pack locally
-        pack::pipeline(origin, true).await?;
-        // Create a new dir to unpack in
-        let unpacked_dir = &origin
+        // Bundle locally
+        bundle_pipeline(bucket_specifier).await?;
+        // Create a new dir to extract in
+        let extracted_dir = &origin
             .parent()
             .expect("origin has no parent")
-            .join(format!("{}_unpacked", test_name));
-        create_dir_all(unpacked_dir)?;
-        // Run the unpacking pipeline
-        unpack::pipeline(origin, unpacked_dir).await?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
+            .join(format!("{}_extracted", test_name));
+        create_dir_all(extracted_dir)?;
+        // Run the extracting pipeline
+        extract_pipeline(bucket_specifier, extracted_dir).await?;
+        // Assert the pre-bundled and extracted directories are identical
+        assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         // Teardown
         test_teardown(test_name).await
     }
@@ -114,11 +143,11 @@ mod test {
     async fn add() -> Result<()> {
         let test_name = "add";
         // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
+        let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(origin).await?;
-        // Run the pack pipeline
-        pack::pipeline(origin, true).await?;
+        // Run the bundle pipeline
+        bundle_pipeline(bucket_specifier).await?;
         // This is still in the input dir. Technically we could just
         let input_file = &origin.join("hello.txt");
         // Content to be written to the file
@@ -128,22 +157,23 @@ mod test {
         // Create and write to the file
         File::create(input_file)?.write_all(&file_content)?;
         // Add the input file to the WNFS
-        add::pipeline(origin, input_file, input_file).await?;
+        add::pipeline(bucket_specifier, input_file, input_file).await?;
 
         // Now that the pipeline has run, grab all metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, dir, _) = &mut config.get_all(&wrapping_key).await?;
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Grab the file at this path
-        let file = dir
+        let file = fs
+            .root_dir
             .get_node(
                 &path_to_segments(input_file)?,
                 true,
-                metadata_forest,
+                &fs.metadata_forest,
                 &config.metadata,
             )
             .await?
@@ -152,7 +182,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(content_forest, &config.content)
+            file.get_content(&fs.content_forest, &config.content)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -168,11 +198,11 @@ mod test {
     async fn remove() -> Result<()> {
         let test_name = "remove";
         // Create the setup conditions
-        let origin = &test_setup(test_name).await?;
+        let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(origin).await?;
-        // Run the pack pipeline
-        pack::pipeline(origin, true).await?;
+        // Run the bundle pipeline
+        bundle_pipeline(bucket_specifier).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = &path_to_segments(wnfs_path)?;
@@ -180,25 +210,27 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
-        let result = dir
-            .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let result = fs
+            .root_dir
+            .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
-        remove::pipeline(origin, wnfs_path).await?;
+        remove::pipeline(bucket_specifier, wnfs_path).await?;
         // Reload metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, _, dir, _) = &mut config.get_all(&wrapping_key).await?;
-        let result = dir
-            .get_node(wnfs_segments, true, metadata_forest, &config.metadata)
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let result = fs
+            .root_dir
+            .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
@@ -209,24 +241,25 @@ mod test {
     }
 
     // Helper function for structure tests
-    async fn assert_pack_unpack(test_name: &str) -> Result<()> {
+    async fn assert_bundle_extract(test_name: &str) -> Result<()> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
+        let bucket_specifier = &BucketSpecifier::with_origin(origin);
         // Initialize
         configure::init(origin).await?;
-        // Pack locally
-        pack::pipeline(origin, true).await?;
-        // Create a new dir to unpack in
-        let unpacked_dir = &origin
+        // Bundle locally
+        bundle_pipeline(bucket_specifier).await?;
+        // Create a new dir to extract in
+        let extracted_dir = &origin
             .parent()
             .expect("origin has no parent")
-            .join("unpacked");
-        create_dir_all(unpacked_dir)?;
-        // Run the unpacking pipeline
-        unpack::pipeline(origin, unpacked_dir).await?;
-        // Assert the pre-packed and unpacked directories are identical
-        assert_paths(origin, unpacked_dir).expect("unpacked dir does not match origin");
+            .join("extracted");
+        create_dir_all(extracted_dir)?;
+        // Run the extracting pipeline
+        extract_pipeline(bucket_specifier, extracted_dir).await?;
+        // Assert the pre-bundled and extracted directories are identical
+        assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         Ok(())
     }
 
@@ -238,7 +271,7 @@ mod test {
         let test_name = "structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -248,7 +281,7 @@ mod test {
         let test_name = "structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -258,7 +291,7 @@ mod test {
         let test_name = "structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -268,7 +301,7 @@ mod test {
         let test_name = "big_file";
         let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
@@ -278,7 +311,7 @@ mod test {
     async fn deduplication_integrity() -> Result<()> {
         let test_name = "deduplication_integrity";
         // Setup the test
-        let origin = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
         let dup_origin = &origin.parent().expect("origin has no parent").join("dups");
         let original = &dup_origin.join("original");
         let duplicate = &dup_origin.join("duplicate");
@@ -295,11 +328,11 @@ mod test {
         rename(dup_origin, origin)?;
 
         // Run test
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         test_teardown(test_name).await
     }
 
-    // / Ensure that the duplicate data occupies a smaller footprint when packed
+    // / Ensure that the duplicate data occupies a smaller footprint when bundled
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
     #[serial]
@@ -342,30 +375,30 @@ mod test {
         structure.generate(unique2)?;
 
         // Run test
-        assert_pack_unpack(test_name_dup).await?;
-        assert_pack_unpack(test_name_unique).await?;
+        assert_bundle_extract(test_name_dup).await?;
+        assert_bundle_extract(test_name_unique).await?;
 
         // Get configs
         let global = GlobalConfig::from_disk().await?;
         // Compute the sizes of these directories
-        let packed_dups_size = compute_directory_size(
+        let bundled_dups_size = compute_directory_size(
             &global
-                .get_bucket(origin_dup)
+                .get_bucket_by_origin(origin_dup)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
         )? as f64;
-        let packed_unique_size = compute_directory_size(
+        let bundled_unique_size = compute_directory_size(
             &global
-                .get_bucket(origin_unique)
+                .get_bucket_by_origin(origin_unique)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
         )? as f64;
 
-        // Ensure that the size of the packed duplicates directory is approximately half that of the unique directory
-        println!("unique {} dup {}", packed_unique_size, packed_dups_size);
-        assert!(packed_unique_size / packed_dups_size >= 1.8);
+        // Ensure that the size of the bundled duplicates directory is approximately half that of the unique directory
+        println!("unique {} dup {}", bundled_unique_size, bundled_dups_size);
+        assert!(bundled_unique_size / bundled_dups_size >= 1.8);
 
         test_teardown(test_name_dup).await?;
         test_teardown(test_name_unique).await
@@ -373,13 +406,13 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_packing() -> Result<()> {
-        let test_name = "double_packing";
+    async fn double_bundleing() -> Result<()> {
+        let test_name = "double_bundleing";
         // Setup the test once
         test_setup(test_name).await?;
         // Run the test twice
-        assert_pack_unpack(test_name).await?;
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Teardown
         test_teardown(test_name).await
     }
@@ -391,7 +424,7 @@ mod test {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
-        let origin = &test_setup_structured(test_name, structure).await?;
+        let (origin, _) = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0").join("0");
@@ -409,33 +442,33 @@ mod test {
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
         // Run the test
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Write "Still there, World?" out to the same file
         File::create(&versioned_file_path)?.write_all(still_bytes)?;
         // Run the test again
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
         // Run the test again
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, current_dir, _) =
-            &mut config.get_all(&wrapping_key).await?;
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
-        let current_file = current_dir
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+        let current_file = fs
+            .root_dir
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
@@ -457,14 +490,14 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
@@ -484,14 +517,14 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut original_content_decompressed: Vec<u8> = Vec::new();
@@ -518,7 +551,7 @@ mod test {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
         // Setup the test once
-        let origin = &test_setup_structured(test_name, structure).await?;
+        let (origin, _) = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0");
@@ -532,29 +565,29 @@ mod test {
         // Write "Hello World!" out to the file; v0
         File::create(&versioned_file_path)?.write_all(hello_bytes)?;
         // Run the test
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
         // Write "Goodbye World!" out to the same file
         File::create(&versioned_file_path)?.write_all(goodbye_bytes)?;
         // Run the test again
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
 
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let (metadata_forest, content_forest, current_dir, _) =
-            &mut config.get_all(&wrapping_key).await?;
+        let fs = &mut config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];
-        let current_file = current_dir
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+        let current_file = fs
+            .root_dir
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
@@ -576,14 +609,14 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, false, metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(content_forest, &config.content)
+            .get_content(&fs.content_forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
@@ -617,7 +650,7 @@ mod test {
         let test_name = "symlinks";
 
         // Setup the test
-        let origin = &test_setup(test_name).await?;
+        let (origin, _) = &test_setup(test_name).await?;
 
         // Path in which Directory symlink will be created
         // let sym_dir_root = test_path.join("input").join("symlinks");
@@ -645,7 +678,7 @@ mod test {
         assert_eq!(file_original, read_link(file_sym)?);
 
         // Run the test on the created filesystem
-        assert_pack_unpack(test_name).await?;
+        assert_bundle_extract(test_name).await?;
 
         // Teardown
         test_teardown(test_name).await

@@ -2,7 +2,6 @@ use super::{
     error::ClientError,
     requests::{ApiRequest, StreamableApiRequest},
 };
-use anyhow::Result;
 use bytes::Bytes;
 use futures_core::stream::Stream;
 use reqwest::{
@@ -33,7 +32,7 @@ impl Debug for Credentials {
 
 impl Credentials {
     /// Create a new set of credentials
-    pub fn new(account_id: String, signing_key: EcSignatureKey) -> Result<Self> {
+    pub fn new(account_id: String, signing_key: EcSignatureKey) -> anyhow::Result<Self> {
         let account_id = Uuid::parse_str(&account_id).expect("invalid account_id");
         Ok(Self {
             account_id,
@@ -66,7 +65,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn new(remote: &str) -> Result<Self> {
+    pub fn new(remote: &str) -> anyhow::Result<Self> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
@@ -88,7 +87,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn with_remote(&mut self, remote: &str) -> Result<()> {
+    pub fn with_remote(&mut self, remote: &str) -> anyhow::Result<()> {
         self.remote = Url::parse(remote)?;
         Ok(())
     }

@@ -1,33 +1,113 @@
+use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;
+use tomb_common::banyan_api::error::ClientError;
+use uuid::Uuid;
 
-/// Pipeline errors.
-#[derive(Debug, Error)]
-pub enum PipelineError {
-    /// User simply never configured this directory
-    #[error("Directory has not been initialized")]
-    Uninitialized,
+use crate::cli::command::BucketSpecifier;
 
-    /// Missing File when searching for it during unpacking
-    #[error("File not found in Content BlockStore: {0}")]
-    FileNotFound(String),
-
-    /// io Errors
-    #[error("Error performing IO operations: {:?}", .0)]
-    IoError(std::io::Error),
-
-    /// Anyhow errors
-    #[error("ANYHOW ERROR: {:?}", .0)]
-    AnyhowError(anyhow::Error),
+/// Errors for the Tomb CLI & Native program
+#[derive(Error, Debug)]
+#[non_exhaustive]
+pub struct TombError {
+    kind: TombErrorKind,
 }
 
-impl From<std::io::Error> for PipelineError {
-    fn from(value: std::io::Error) -> Self {
-        Self::IoError(value)
+impl TombError {
+    /// Client Error
+    pub fn client_error(err: ClientError) -> Self {
+        Self {
+            kind: TombErrorKind::Client(err),
+        }
+    }
+
+    /// Unknown Bucket path
+    pub fn unknown_path(path: PathBuf) -> Self {
+        Self {
+            kind: TombErrorKind::UnknownBucket(BucketSpecifier::with_origin(&path)),
+        }
+    }
+
+    /// Unknown Bucket ID
+    pub fn unknown_id(id: Uuid) -> Self {
+        Self {
+            kind: TombErrorKind::UnknownBucket(BucketSpecifier::with_id(id)),
+        }
+    }
+
+    /// Unable to find Node in CAR
+    pub fn file_missing_error(path: PathBuf) -> Self {
+        Self {
+            kind: TombErrorKind::FileMissing(path),
+        }
+    }
+
+    /// Error performing IO operations
+    pub fn io_error(err: std::io::Error) -> Self {
+        Self {
+            kind: TombErrorKind::IoError(err),
+        }
+    }
+
+    /// Anyhow errors
+    pub fn anyhow_error(err: anyhow::Error) -> Self {
+        Self {
+            kind: TombErrorKind::AnyhowError(err),
+        }
     }
 }
 
-impl From<anyhow::Error> for PipelineError {
+/// Pipelin Error
+#[derive(Debug)]
+pub enum TombErrorKind {
+    /// Error sending Client requests
+    Client(ClientError),
+    /// User simply never configured this directory
+    UnknownBucket(BucketSpecifier),
+    /// Missing File when searching for it during extracting
+    FileMissing(PathBuf),
+    /// IO Operation Error
+    IoError(std::io::Error),
+    /// Anyhow errors
+    AnyhowError(anyhow::Error),
+}
+
+impl Display for TombError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use TombErrorKind::*;
+        let prefix = match &self.kind {
+            Client(err) => format!("client error: {err}"),
+            UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
+            FileMissing(path) => format!("missing file at path: {}", path.display()),
+            IoError(err) => format!("io error: {err}"),
+            AnyhowError(err) => format!("anyhow error: {err}"),
+        };
+
+        write!(f, "{}", prefix)?;
+
+        let mut next_err = self.source();
+        while let Some(err) = next_err {
+            write!(f, ": {err}")?;
+            next_err = err.source();
+        }
+
+        Ok(())
+    }
+}
+
+impl From<std::io::Error> for TombError {
+    fn from(value: std::io::Error) -> Self {
+        Self::io_error(value)
+    }
+}
+
+impl From<anyhow::Error> for TombError {
     fn from(value: anyhow::Error) -> Self {
-        Self::AnyhowError(value)
+        Self::anyhow_error(value)
+    }
+}
+
+impl From<ClientError> for TombError {
+    fn from(value: ClientError) -> Self {
+        Self::client_error(value)
     }
 }

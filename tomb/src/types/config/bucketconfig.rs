@@ -2,19 +2,23 @@ use anyhow::{Ok, Result};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
-    rc::Rc,
 };
 use tomb_common::{
-    blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
+    banyan_api::models::metadata::{Metadata, MetadataState},
+    blockstore::{
+        carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore,
+        RootedBlockStore,
+    },
     metadata::FsMetadata,
-    share::manager::ShareManager,
 };
 use tomb_crypt::prelude::*;
-use wnfs::private::{PrivateDirectory, PrivateForest, PrivateNodeOnPathHistory};
+use uuid::Uuid;
+use wnfs::private::PrivateNodeOnPathHistory;
 
-use crate::utils::config::xdg_data_home;
+use crate::utils::{config::xdg_data_home, wnfsio::compute_directory_size};
 
 const BUCKET_METADATA_FILE_NAME: &str = "metadata.car";
 const BUCKET_CONTENT_DIR_NAME: &str = "deltas";
@@ -44,12 +48,26 @@ pub struct BucketConfig {
     pub(crate) name: String,
     /// The filesystem that this bucket represents
     pub(crate) origin: PathBuf,
-    /// Randomly generated folder name which holds packed content and key files
+    /// Randomly generated folder name which holds bundled content and key files
     pub(crate) local_id: String,
+    /// Bucket Uuid, if this
+    pub(crate) remote_id: Option<Uuid>,
     /// BlockStore for storing metadata only
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
     pub content: MultiCarV2DiskBlockStore,
+}
+
+impl Display for BucketConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "\n| LOCAL BUCKET INFO |\nname:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{:?}",
+            self.name,
+            self.origin.display(),
+            self.local_id,
+            self.remote_id
+        ))
+    }
 }
 
 impl BucketConfig {
@@ -75,13 +93,20 @@ impl BucketConfig {
 
         // Initialize the fs metadata
         let mut fs_metadata = FsMetadata::init(wrapping_key).await?;
-        // Save our fs metadata in both of our stores
+        let public_key = wrapping_key.public_key()?;
+
+        // Save our fs to establish map
+        fs_metadata.save(&metadata, &metadata).await?;
+        // Share it with the owner of this wrapping key
+        fs_metadata.share_with(&public_key, &metadata).await?;
+        // Save our fs again
         fs_metadata.save(&metadata, &metadata).await?;
 
         Ok(Self {
             name,
             origin: origin.to_path_buf(),
             local_id,
+            remote_id: None,
             metadata,
             content,
         })
@@ -95,42 +120,14 @@ impl BucketConfig {
         Ok(())
     }
 
-    /// Shortcut for serialize::load_all
-    pub async fn get_all(
-        &self,
-        wrapping_key: &EcEncryptionKey,
-    ) -> Result<(
-        Rc<PrivateForest>,
-        Rc<PrivateForest>,
-        Rc<PrivateDirectory>,
-        ShareManager,
-    )> {
-        let fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
-        Ok((
-            fs_metadata.metadata_forest,
-            fs_metadata.content_forest,
-            fs_metadata.root_dir,
-            fs_metadata.share_manager,
-        ))
+    ///
+    pub async fn unlock_fs(&self, wrapping_key: &EcEncryptionKey) -> Result<FsMetadata> {
+        FsMetadata::unlock(wrapping_key, &self.metadata).await
     }
 
-    /// Shortcut for serialize::store_all
-    pub async fn set_all(
-        &self,
-        metadata_forest: &Rc<PrivateForest>,
-        content_forest: &Rc<PrivateForest>,
-        root_dir: &Rc<PrivateDirectory>,
-        share_manager: &ShareManager,
-    ) -> Result<()> {
-        let mut fs_metadata = FsMetadata {
-            metadata_forest: metadata_forest.clone(),
-            content_forest: content_forest.clone(),
-            root_dir: root_dir.clone(),
-            share_manager: share_manager.clone(),
-            metadata: None,
-        };
-        fs_metadata.save(&self.metadata, &self.content).await?;
-        Ok(())
+    /// Shortcut for saving a filesystem
+    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
+        fs.save(&self.metadata, &self.content).await
     }
 
     /// Shortcut for serialize::load_history
@@ -140,6 +137,25 @@ impl BucketConfig {
     ) -> Result<PrivateNodeOnPathHistory> {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
         Ok(fs_metadata.history(&self.metadata).await?)
+    }
+
+    /// Get the Metadata struct which can be used to create Metadata API requests
+    pub async fn get_metadata(&self) -> Result<Metadata> {
+        let remote_id = self
+            .remote_id
+            .ok_or(anyhow::anyhow!("remote id not found"))?;
+        let root_cid = self
+            .metadata
+            .get_root()
+            .ok_or(anyhow::anyhow!("root_cid not found"))?;
+
+        Ok(Metadata {
+            id: Uuid::new_v4(),
+            bucket_id: remote_id,
+            root_cid: root_cid.to_string(),
+            data_size: compute_directory_size(&self.content.path)? as u64,
+            state: MetadataState::Current,
+        })
     }
 }
 
@@ -171,15 +187,15 @@ mod test {
         let mut config = global.get_or_create_bucket(origin).await?;
 
         let rng = &mut thread_rng();
-        let (mut metadata_forest, mut content_forest, mut root_dir, mut share_manager) =
-            config.get_all(&global.wrapping_key().await?).await?;
+        let fs = &mut config.unlock_fs(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
-        let file = root_dir
+        let file = fs
+            .root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut metadata_forest,
+                &mut fs.metadata_forest,
                 &config.metadata,
                 rng,
             )
@@ -188,39 +204,32 @@ mod test {
         file.set_content(
             Utc::now(),
             file_content,
-            &mut content_forest,
+            &mut fs.content_forest,
             &config.content,
             rng,
         )
         .await?;
 
-        config
-            .set_all(
-                &mut metadata_forest,
-                &mut content_forest,
-                &root_dir,
-                &mut share_manager,
-            )
-            .await?;
+        config.save_fs(fs).await?;
 
         // Get structs
-        let (_new_metadata_forest, _new_content_forest, new_root_dir, _new_manager) =
-            config.get_all(&wrapping_key).await?;
+        let new_fs = &mut config.unlock_fs(&wrapping_key).await?;
 
-        assert_eq!(root_dir, new_root_dir);
+        assert_eq!(fs.root_dir, new_fs.root_dir);
 
-        let new_file = root_dir
+        let new_file = new_fs
+            .root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut metadata_forest,
+                &mut new_fs.metadata_forest,
                 &config.metadata,
                 rng,
             )
             .await?;
         let new_file_content = new_file
-            .get_content(&content_forest, &config.content)
+            .get_content(&new_fs.content_forest, &config.content)
             .await?;
 
         assert_eq!(file_content, new_file_content);

@@ -12,10 +12,10 @@ use crate::banyan_api::{
 pub struct DeviceApiKey {
     /// The unique identifier for the device api key
     pub id: Uuid,
-    /// The fingerprint of the device api key
-    pub fingerprint: String,
     /// The public key material for the device api key
     pub pem: String,
+    /// The fingerprint of the device api key
+    pub fingerprint: String,
 }
 
 impl DeviceApiKey {

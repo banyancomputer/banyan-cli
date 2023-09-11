@@ -1,19 +1,22 @@
-use crate::utils::config::xdg_config_home;
+use crate::{cli::command::BucketSpecifier, pipelines::error::TombError, utils::config::*};
 use anyhow::{anyhow, Result};
-use async_recursion::async_recursion;
+
+use tomb_common::{
+    banyan_api::client::{Client, Credentials},
+    utils::io::get_read,
+};
 use tomb_crypt::prelude::*;
+use uuid::Uuid;
 
 use super::bucketconfig::BucketConfig;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{remove_file, File},
+    env::current_dir,
+    fs::{remove_file, File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
+    str::FromStr,
 };
-
-const GLOBAL_CONFIG_FILE_NAME: &str = "config.json";
-const DEVICE_API_KEY_FILE_NAME: &str = "device_api_key.pem";
-const DEVICE_WRAPPING_KEY_FILE_NAME: &str = "wrapping_key.pem";
 
 /// Represents the Global contents of the tomb configuration file in a user's .config
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -27,28 +30,9 @@ pub struct GlobalConfig {
     /// Remote endpoint for Metadata API
     pub remote: Option<String>,
     /// Remote account id
-    pub remote_account_id: Option<String>,
-    buckets: Vec<BucketConfig>,
-}
-
-fn config_path() -> PathBuf {
-    xdg_config_home().join(GLOBAL_CONFIG_FILE_NAME)
-}
-
-fn default_api_key_path() -> PathBuf {
-    xdg_config_home().join(DEVICE_API_KEY_FILE_NAME)
-}
-
-fn default_wrapping_key_path() -> PathBuf {
-    xdg_config_home().join(DEVICE_WRAPPING_KEY_FILE_NAME)
-}
-
-fn get_read(path: &PathBuf) -> Result<File> {
-    File::open(path).map_err(anyhow::Error::new)
-}
-
-fn get_write(path: &PathBuf) -> Result<File> {
-    File::create(path).map_err(anyhow::Error::new)
+    pub remote_account_id: Option<Uuid>,
+    /// Bucket Configurations
+    pub(crate) buckets: Vec<BucketConfig>,
 }
 
 impl Default for GlobalConfig {
@@ -67,8 +51,9 @@ impl Default for GlobalConfig {
 // Self
 impl GlobalConfig {
     async fn create() -> Result<Self> {
+        // Create a default config
         let config = Self::default();
-        // Create the keys
+        // Create the key files referenced
         let _wrapping_key = new_wrapping_key(&config.wrapping_key_path).await?;
         let _api_key = new_api_key(&config.api_key_path).await?;
         // Ok
@@ -86,32 +71,87 @@ impl GlobalConfig {
     // }
 
     /// Get the wrapping key
-    pub async fn wrapping_key(self) -> Result<EcEncryptionKey> {
+    pub async fn wrapping_key(&self) -> Result<EcEncryptionKey> {
         wrapping_key(&self.wrapping_key_path).await
     }
 
     /// Get the api key
-    pub async fn api_key(self) -> Result<EcSignatureKey> {
-        api_key(&self.api_key_path).await
+    async fn api_key(&self) -> Result<EcSignatureKey> {
+        load_api_key(&self.api_key_path).await
+    }
+
+    // Get the Gredentials
+    async fn get_credentials(&self) -> Result<Credentials> {
+        if let Ok(signing_key) = self.api_key().await &&
+           let Some(account_id) = self.remote_account_id {
+            Ok(Credentials {
+                signing_key,
+                account_id
+            })
+        } else {
+            Err(anyhow!("No credentials."))
+        }
+    }
+
+    /// Get the Client data
+    pub async fn get_client(&self) -> Result<Client> {
+        // If there is already a remote endpoint
+        if let Some(remote) = &self.remote {
+            // Create a new Client
+            let mut client = Client::new(remote)?;
+            // If there are already credentials
+            if let Ok(credentials) = self.get_credentials().await {
+                // Set the credentials
+                client.with_credentials(credentials);
+            }
+            // Return the Client
+            Ok(client)
+        } else {
+            Err(anyhow!("Remote endpoint is not yet configured."))
+        }
+    }
+
+    /// Save the Client data to the config
+    pub async fn save_client(&mut self, client: Client) -> Result<()> {
+        // Update the Remote endpoint
+        self.remote = Some(client.remote.to_string());
+        // If there is a Claim
+        if let Some(token) = client.claims {
+            // Update the remote account ID
+            self.remote_account_id = Some(Uuid::from_str(token.sub()?)?);
+        }
+
+        // If the Client has an API key
+        if let Some(api_key) = client.signing_key {
+            // Save the API key to disk
+            save_api_key(&self.api_key_path, api_key).await?;
+        }
+        // Ok
+        Ok(())
     }
 
     /// Write to disk
     pub fn to_disk(&self) -> Result<()> {
-        serde_json::to_writer_pretty(get_write(&config_path())?, &self)?;
+        let writer = OpenOptions::new()
+            .create(true)
+            .append(false)
+            .truncate(true)
+            .write(true)
+            .open(config_path())?;
+
+        serde_json::to_writer_pretty(writer, &self)?;
         Ok(())
     }
 
-    // TODO: This should fail if the file does not exist
-    /// Initialize from a reader
-    #[async_recursion(?Send)]
+    /// Initialize from file on disk
     pub async fn from_disk() -> Result<Self> {
         if let Ok(file) = get_read(&config_path()) &&
            let Ok(config) = serde_json::from_reader(file) {
                 Ok(config)
         } else {
-            println!("Creating new config at {:?}", config_path());
-            Self::create().await?.to_disk()?;
-            Self::from_disk().await
+            let config = Self::create().await?;
+            config.to_disk()?;
+            Ok(config)
         }
     }
 
@@ -121,8 +161,8 @@ impl GlobalConfig {
     }
 
     /// Remove a BucketConfig for an origin
-    pub fn remove_bucket_by_origin(&mut self, origin: &Path) -> Result<()> {
-        if let Some(bucket) = self.get_bucket(origin) {
+    pub fn remove_bucket_by_specifier(&mut self, bucket_specifier: &BucketSpecifier) -> Result<()> {
+        if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) {
             // Remove bucket data
             bucket.remove_data()?;
             // Find index of bucket
@@ -167,11 +207,19 @@ impl GlobalConfig {
     }
 
     /// Find a BucketConfig by origin
-    pub fn get_bucket(&self, origin: &Path) -> Option<BucketConfig> {
+    pub fn get_bucket_by_origin(&self, origin: &Path) -> Option<BucketConfig> {
         self.buckets
             .clone()
             .into_iter()
             .find(|bucket| bucket.origin == origin)
+    }
+
+    /// Find a BucketConfig by origin
+    pub fn get_bucket_by_remote_id(&self, id: &Uuid) -> Option<BucketConfig> {
+        self.buckets
+            .clone()
+            .into_iter()
+            .find(|bucket| bucket.remote_id == Some(*id))
     }
 
     async fn create_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
@@ -182,11 +230,43 @@ impl GlobalConfig {
     }
 
     pub(crate) async fn get_or_create_bucket(&mut self, path: &Path) -> Result<BucketConfig> {
-        let existing = self.get_bucket(path);
+        let existing = self.get_bucket_by_origin(path);
         if let Some(config) = existing {
             Ok(config)
         } else {
             Ok(self.create_bucket(path).await?)
+        }
+    }
+
+    /// Get a Bucket UUID by its BucketSpecifier
+    pub(crate) fn get_bucket_id(
+        &self,
+        bucket_specifier: &BucketSpecifier,
+    ) -> Result<Uuid, TombError> {
+        if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) && let Some(id) = bucket.remote_id {
+            Ok(id)
+        }
+        else {
+            Err(anyhow!("bucket had no known remote").into())
+        }
+    }
+
+    pub(crate) fn get_bucket_by_specifier(
+        &self,
+        bucket_specifier: &BucketSpecifier,
+    ) -> Result<BucketConfig, TombError> {
+        // If we already have the ID and can find a bucket from it
+        if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
+            Ok(bucket)
+        } else {
+            // Grab an Origin
+            let origin = bucket_specifier.origin.clone().unwrap_or(current_dir().expect("unable to obtain current working directory"));
+            // Find a BucketConfig at this origin and expect it has an ID saved as well
+            if let Some(bucket) = self.get_bucket_by_origin(&origin) {
+                Ok(bucket)
+            } else {
+                Err(TombError::unknown_path(origin))
+            }
         }
     }
 }
@@ -194,8 +274,8 @@ impl GlobalConfig {
 /// Generate a new Ecdsa key to use for authentication
 /// Writes the key to the config path
 async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
-    if File::open(path).is_ok() {
-        api_key(path).await?;
+    if path.exists() {
+        load_api_key(path).await?;
     }
     let key = EcSignatureKey::generate().await?;
     let pem_bytes = key.export().await?;
@@ -204,21 +284,33 @@ async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
     Ok(key)
 }
 
-/// Read the Api key from disk
-async fn api_key(path: &PathBuf) -> Result<EcSignatureKey> {
+/// Read the API key from disk
+async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
     if let Ok(mut reader) = File::open(path) {
         let mut pem_bytes = Vec::new();
         reader.read_to_end(&mut pem_bytes)?;
         let key = EcSignatureKey::import(&pem_bytes).await?;
-        return Ok(key);
+        Ok(key)
+    } else {
+        Err(anyhow!("No api key at path"))
     }
-    Err(anyhow!("No api key at path"))
+}
+
+/// Save the API key to disk
+async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
+    if let Ok(mut writer) = File::create(path) {
+        // Write the PEM bytes
+        writer.write_all(&key.export().await?)?;
+        Ok(())
+    } else {
+        Err(anyhow!("Cannot write API key at this path"))
+    }
 }
 
 /// Generate a new Ecdh key to use for key wrapping
 /// Writes the key to the config path
 async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
-    if File::open(path).is_ok() {
+    if path.exists() {
         wrapping_key(path).await?;
     }
     let key = EcEncryptionKey::generate().await?;
@@ -332,7 +424,7 @@ mod test {
         original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
         let reconstructed_bucket = reconstructed
-            .get_bucket(origin)
+            .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
 
         // Assert equality

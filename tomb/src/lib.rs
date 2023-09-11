@@ -6,14 +6,15 @@
 #![feature(dec2flt)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
+#![deny(private_interfaces)]
 #![deny(unreachable_pub)]
 
 /* General Project Chores */
 /* Bugs */
-// TODO (amiller68 and laudiacay): Pipeline unpacks single file input to a empty directory with the same name as the file, instead of the file
+// TODO (amiller68 and laudiacay): Pipeline extracts single file input to a empty directory with the same name as the file, instead of the file
 
 /* Speculative Lifts */
-// TODO (laudiacay): Can / Should we include an option to pack chunks into a CAR file? Look into this.
+// TODO (laudiacay): Can / Should we include an option to bundle chunks into a CAR file? Look into this.
 // TODO (laudiacay) : Handle pinning threads to CPU cores (with tokio localsets and runtimes?) correctly so that disk throughput is maximized
 
 /* tomb:
@@ -45,7 +46,7 @@ extern crate log;
 
 /// This module contains the CLI
 pub mod cli;
-/// This module contains both the pack_pipeline and the unpack_pipeline, which allow the main CLI to run packing an unpacking pipelines.
+/// This module contains both the bundle_pipeline and the extract_pipeline, which allow the main CLI to run bundleing an extracting pipelines.
 pub mod pipelines;
 /// This module contains types unique to this project.
 pub mod types;

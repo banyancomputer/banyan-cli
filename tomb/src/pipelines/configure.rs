@@ -1,4 +1,4 @@
-use crate::types::config::globalconfig::GlobalConfig;
+use crate::{cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::path::Path;
 
@@ -12,7 +12,7 @@ pub async fn init(path: &Path) -> Result<()> {
 /// Remove all configuration data for a given bucket
 pub async fn deinit(path: &Path) -> Result<()> {
     let mut global = GlobalConfig::from_disk().await?;
-    global.remove_bucket_by_origin(path)?;
+    global.remove_bucket_by_specifier(&BucketSpecifier::with_origin(path))?;
     global.to_disk()
 }
 
@@ -22,8 +22,9 @@ pub async fn deinit_all() -> Result<()> {
 }
 
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
-pub async fn remote(address: &str) -> Result<()> {
+pub async fn remote(address: &str) -> Result<String> {
     let mut config = GlobalConfig::from_disk().await?;
     config.remote = Some(address.to_string());
-    config.to_disk()
+    config.to_disk()?;
+    Ok("saved remote address".to_string())
 }

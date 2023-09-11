@@ -18,8 +18,10 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 tomb-crypt = { workspace = true }
+uuid = "1.4.1"
+reqwest.workspace = true
+futures-util = "0.3.28"
 wnfs = { workspace = true }
-
 fclones = "^0.30"
 indicatif = { version = "^0.17", features = ["improved_unicode"] }
 log = "^0.4"
