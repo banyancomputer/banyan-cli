@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;
 use wnfs::{
     common::{AsyncSerialize, BlockStore},
-    private::{PrivateDirectory, PrivateNode, forest::hamt::HamtForest},
+    private::{PrivateDirectory, PrivateNode, forest::{hamt::HamtForest, traits::PrivateForest}, AccessKey},
 };
 use libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec};
 
@@ -15,17 +15,17 @@ pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     metadata_forest: &mut Rc<HamtForest>,
     content_forest: &mut Rc<HamtForest>,
     dir: &Rc<PrivateDirectory>,
-) -> Result<PrivateRef> {
+) -> Result<AccessKey> {
     // Get a seeded source of randomness
     let seed = thread_rng().gen::<[u8; 32]>();
-    let mut rng = StdRng::from_seed(seed);
+    let rng = &mut StdRng::from_seed(seed);
     // Store the PrivateDirectory in both PrivateForests
-    let metadata_ref = dir.store(metadata_forest, metadata_store, &mut rng).await?;
-    let content_ref = dir.store(content_forest, content_store, &mut rng).await?;
+    let metadata_access = dir.as_node().store(metadata_forest, metadata_store, rng).await?;
+    let content_access = dir.as_node().store(content_forest, content_store, rng).await?;
     // Assert that the PrivateRefs are the same
-    assert_eq!(metadata_ref, content_ref);
+    assert_eq!(metadata_access, content_access);
     // Return Ok
-    Ok(metadata_ref)
+    Ok(metadata_access)
 }
 
 /// Store a given PrivateForest in a given Store
@@ -47,7 +47,7 @@ pub async fn store_share_manager(
     share_manager: &ShareManager,
     store: &impl BlockStore,
 ) -> Result<Cid> {
-    let share_manager_bytes = dagcbor::encode(share_manager)?;
+    let share_manager_bytes = serde_ipld_dagcbor::to_vec(share_manager)?;
     let share_manager_cid = store
         .put_block(share_manager_bytes.clone(), IpldCodec::DagCbor.into())
         .await?;
@@ -70,11 +70,11 @@ pub async fn load_forest<BS: BlockStore>(cid: &Cid, store: &BS) -> Result<Rc<Ham
 /// Load a PrivateDirectory
 pub async fn load_dir<BS: BlockStore>(
     store: &BS,
-    private_ref: &PrivateRef,
+    access_key: &AccessKey,
     metadata_forest: &Rc<HamtForest>,
 ) -> Result<Rc<PrivateDirectory>> {
     // Load the PrivateDirectory from the PrivateForest
-    PrivateNode::load(private_ref, metadata_forest, store)
+    PrivateNode::load(access_key, metadata_forest, store, Some(metadata_forest.empty_name()))
         .await?
         .as_dir()
 }

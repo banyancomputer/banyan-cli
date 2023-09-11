@@ -2,24 +2,24 @@ use super::mapper::EncRefMapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
-use wnfs::private::PrivateRef;
+use wnfs::private::AccessKey;
 
 /// Fs Share manager
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct ShareManager {
-    /// The unencrypted original PrivateRef
-    pub original_ref: Option<PrivateRef>,
-    /// The unencrypted current_ref PrivateRef
-    pub current_ref: Option<PrivateRef>,
-    /// EncRefMapper for original PrivateRef
+    /// The unencrypted original AccessKey
+    pub original_ref: Option<AccessKey>,
+    /// The unencrypted current_access AccessKey
+    pub current_ref: Option<AccessKey>,
+    /// EncRefMapper for original AccessKey
     pub original_map: EncRefMapper,
-    /// EncRefMapper for current_ref PrivateRef
+    /// EncRefMapper for current_access AccessKey
     pub current_map: EncRefMapper,
 }
 
 impl ShareManager {
     /// Update the current_ref PrivateRef
-    pub async fn set_current_ref(&mut self, new_ref: &PrivateRef) -> Result<()> {
+    pub async fn set_current_ref(&mut self, new_ref: &AccessKey) -> Result<()> {
         // Update the PrivateRef
         self.current_ref = Some(new_ref.clone());
         self.current_map.update_ref(new_ref).await?;
@@ -27,7 +27,7 @@ impl ShareManager {
     }
 
     /// Update the original PrivateRef
-    pub async fn set_original_ref(&mut self, new_ref: &PrivateRef) -> Result<()> {
+    pub async fn set_original_ref(&mut self, new_ref: &AccessKey) -> Result<()> {
         // Update the PrivateRef
         self.original_ref = Some(new_ref.clone());
         self.original_map.update_ref(new_ref).await?;
@@ -55,12 +55,12 @@ impl ShareManager {
     }
 
     /// Retrieve the current_ref PrivateRef using a PrivateKey
-    async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<AccessKey> {
         self.current_map.recover_ref(recipient).await
     }
 
     /// Retrieve the original PrivateRef using a PrivateKey
-    async fn original_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    async fn original_ref(&self, recipient: &EcEncryptionKey) -> Result<AccessKey> {
         self.original_map.recover_ref(recipient).await
     }
 

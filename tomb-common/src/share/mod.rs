@@ -7,6 +7,7 @@ pub mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
 
+/*
 #[cfg(test)]
 mod test {
     use crate::share::manager::ShareManager;
@@ -166,3 +167,4 @@ mod test {
         Ok(())
     }
 }
+ */

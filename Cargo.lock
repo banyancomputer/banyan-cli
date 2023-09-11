@@ -4256,6 +4256,7 @@ dependencies = [
  "rand",
  "reqwest",
  "serde",
+ "serde_ipld_dagcbor",
  "serde_json",
  "serial_test",
  "sha1",

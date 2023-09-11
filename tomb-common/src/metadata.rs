@@ -282,7 +282,7 @@ impl FsMetadata {
             1_000_000,
             &[],
             true,
-            self.metadata_forest,
+            Rc::clone(&self.metadata_forest),
             store,
         )
         .await

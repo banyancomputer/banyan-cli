@@ -35,6 +35,7 @@ thiserror = "^1"
 uuid = { version = "^1", features = ["serde"] }
 wasm-bindgen = "^0.2"
 unsigned-varint = "^0.7"
+serde_ipld_dagcbor = "0.4.1"
 
 [dev-dependencies]
 fs_extra = { workspace = true }
