@@ -22,9 +22,6 @@ notice = "deny"
 # the other crate their identifier should be added to this list. It should be
 # periodically reviewed and cleaned out as fixes become available.
 ignore = [
-    # This is the time segfault, we can probably resolve it but that should be
-    # a separate issue. Ignoring it to get us to working CI baseline.
-    "RUSTSEC-2020-0071",
     # This is an unsoundness bug in atty that has been ignored for the CI baseline
     "RUSTSEC-2021-0145",
 ]
@@ -105,4 +102,4 @@ unknown-git = "deny"
 
 # Allow all crates that we have made
 [sources.allow-org]
-github = ["banyancomputer"]
+github = ["banyancomputer", "wnfs-wg"]

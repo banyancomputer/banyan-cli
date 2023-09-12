@@ -87,12 +87,14 @@ pub async fn setup_memory_test(
 }
 
 /// Setup a key test
-pub async fn setup_key_test(test_name: &str) -> Result<AccessKey> {
-    let (metadata, _, metadata_forest, _, root_dir) =
-        &mut setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await?;
+pub async fn setup_key_test() -> Result<AccessKey> {
+    let rng = &mut thread_rng();
+    let metadata = MemoryBlockStore::new();
+    let mut metadata_forest = HamtForest::new_trusted_rc(rng);
+    let root_dir = PrivateDirectory::new_rc(&metadata_forest.empty_name(), Utc::now(), rng);
     let access_key = root_dir
         .as_node()
-        .store(metadata_forest, metadata, &mut thread_rng())
+        .store(&mut metadata_forest, &metadata, rng)
         .await?;
     Ok(access_key)
 }

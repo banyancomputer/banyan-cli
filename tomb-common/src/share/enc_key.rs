@@ -86,7 +86,7 @@ mod test {
 
     #[tokio::test]
     async fn encrypt_decrypt() -> Result<()> {
-        let access_key = setup_key_test("encrypt_decrypt").await?;
+        let access_key = setup_key_test().await?;
         let private_key = EcEncryptionKey::generate().await?;
         let public_key = private_key.public_key()?;
         let encrypted = EncryptedAccessKey::encrypt_for(&access_key, &public_key).await?;

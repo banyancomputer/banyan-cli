@@ -52,7 +52,7 @@ tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "m
 
 # For local dev if needed..
 # wnfs = { path = "../rs-wnfs/wnfs" }
-wnfs = { git = "https://github.com/wnfs-wg/rs-wnfs" }
+wnfs = { git = "https://github.com/wnfs-wg/rs-wnfs", version = "^0.1.26" }
 libipld = "0.16.0"
 
 [profile.dev]

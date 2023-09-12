@@ -25,7 +25,7 @@ impl Block {
         // Compute the SHA256 hash of the bytes
         let hash = Code::Sha2_256.digest(&content);
         // Represent the hash as a CID V1
-        let cid = Cid::new_v1(codec.into(), hash);
+        let cid = Cid::new_v1(codec, hash);
         let varint = (cid.encoded_len() + content.len()) as u128;
         // Create new
         Ok(Self {

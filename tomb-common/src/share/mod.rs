@@ -28,7 +28,7 @@ mod test {
         key_manager.share_with(&public_key).await?;
 
         // Original AccessKey
-        let original = setup_key_test("put_get_original").await?;
+        let original = setup_key_test().await?;
 
         // Set the original key
         key_manager.set_original_ref(&original).await?;
@@ -56,7 +56,7 @@ mod test {
         key_manager.share_with(&public_key).await?;
 
         // current AccessKey
-        let current = setup_key_test("put_get_current").await?;
+        let current = setup_key_test().await?;
 
         // Set the current key
         key_manager.set_current_ref(&current).await?;
@@ -81,7 +81,7 @@ mod test {
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Grab temporal keys
-        let current = setup_key_test("share_with_get_current").await?;
+        let current = setup_key_test().await?;
         // Set the current key
         key_manager.set_current_ref(&current).await?;
         // Insert public key post-hoc
@@ -105,7 +105,7 @@ mod test {
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Grab temporal keys
-        let original = setup_key_test("share_with_get_original").await?;
+        let original = setup_key_test().await?;
         // Set the current key
         key_manager.set_original_ref(&original).await?;
         // Insert public key post-hoc
@@ -130,8 +130,8 @@ mod test {
         // Public Key
         let public_key = wrapping_key.public_key()?;
         // Grab temporal keys
-        let original = setup_key_test("share_with_get_both_original").await?;
-        let current = setup_key_test("share_with_get_both_current").await?;
+        let original = setup_key_test().await?;
+        let current = setup_key_test().await?;
 
         // Set the both keys
         key_manager.set_original_ref(&original).await?;
