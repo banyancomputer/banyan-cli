@@ -5,8 +5,8 @@ use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};
 use tomb_common::utils::wnfsio::decompress_bytes;
 use wnfs::{
-    common::BlockStore,
-    private::{PrivateFile, forest::hamt::HamtForest},
+    common::{libipld::Ipld, BlockStore},
+    private::{forest::hamt::HamtForest, PrivateFile},
 };
 
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
@@ -17,8 +17,9 @@ pub async fn file_to_disk(
     content_forest: &HamtForest,
     content: &impl BlockStore,
 ) -> Result<(), TombError> {
+    let metadata = file.get_metadata();
     // If this file is a symlink
-    if let Some(path) = file.symlink_origin() {
+    if let Some(Ipld::String(path)) = metadata.get("symlinked-from") {
         // Write out the symlink
         symlink(output_dir.join(path), file_path)?;
         Ok(())

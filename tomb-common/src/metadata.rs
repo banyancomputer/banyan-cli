@@ -6,15 +6,18 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::Utc;
+use libipld::{Cid, Ipld};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, rc::Rc};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{BlockStore, Metadata},
-    private::{PrivateDirectory, PrivateNode, PrivateNodeOnPathHistory, forest::{hamt::HamtForest, traits::PrivateForest}},
+    private::{
+        forest::{hamt::HamtForest, traits::PrivateForest},
+        PrivateDirectory, PrivateNode, PrivateNodeOnPathHistory,
+    },
 };
-use libipld::{Cid, Ipld};
 
 const SHARE_MANAGER_LABEL: &str = "SHARE_MANAGER";
 const METADATA_FOREST_LABEL: &str = "METADATA_FOREST";
@@ -49,7 +52,8 @@ impl FsMetadata {
         // Create a new PrivateForest for our content holding blocks
         let content_forest = HamtForest::new_trusted_rc(rng);
         // Create a new PrivateDirectory for the root of the Fs
-        let root_dir = PrivateDirectory::new_rc(&metadata_forest.empty_name(), Utc::now(), &mut thread_rng());
+        let root_dir =
+            PrivateDirectory::new_rc(&metadata_forest.empty_name(), Utc::now(), &mut thread_rng());
         // Create a new Share Manager to hold key shares
         let mut share_manager = ShareManager::default();
         // Insert the initial wrapping key into the key manager
@@ -263,7 +267,10 @@ impl FsMetadata {
     }
 
     /// Get the original root directory
-    pub async fn history(&mut self, store: &impl BlockStore) -> Result<PrivateNodeOnPathHistory<Rc<HamtForest>>> {
+    pub async fn history(
+        &mut self,
+        store: &impl BlockStore,
+    ) -> Result<PrivateNodeOnPathHistory<Rc<HamtForest>>> {
         // Get the original private ref
         let original_private_ref =
             self.share_manager

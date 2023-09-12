@@ -10,6 +10,7 @@ use self::{header::Header, index::indexable::Indexable};
 use crate::car::v1::{block::Block, CarV1};
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
+use libipld::Cid;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::{
@@ -17,7 +18,6 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
 };
 use wnfs::common::BlockStoreError;
-use libipld::Cid;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CarV1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
@@ -220,6 +220,7 @@ impl CarV2 {
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use libipld::{Cid, IpldCodec};
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
@@ -227,7 +228,6 @@ mod test {
         str::FromStr,
         vec,
     };
-    use libipld::{Cid, IpldCodec};
 
     use crate::{
         car::{v1::block::Block, v2::CarV2},

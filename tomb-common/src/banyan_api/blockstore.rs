@@ -5,8 +5,8 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::StreamExt;
-use std::cell::RefCell;
 use libipld::Cid;
+use std::cell::RefCell;
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
 #[derive(Debug, Clone)]

@@ -4,13 +4,13 @@ pub mod indexable;
 pub mod indexsorted;
 
 use anyhow::Result;
+use libipld::Cid;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::Debug,
     io::{Read, Seek, SeekFrom, Write},
 };
-use libipld::Cid;
 
 use self::indexable::Indexable;
 use crate::car::{
@@ -133,8 +133,8 @@ impl Index<Bucket> {
 #[cfg(test)]
 mod test {
     use super::{Bucket, Index, INDEX_SORTED_CODEC};
-    use std::{collections::HashMap, str::FromStr};
     use libipld::Cid;
+    use std::{collections::HashMap, str::FromStr};
 
     /// Generate example data for Bucket
     #[allow(dead_code)]

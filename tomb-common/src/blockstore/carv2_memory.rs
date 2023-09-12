@@ -4,9 +4,9 @@ use crate::car::v2::CarV2;
 use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
+use libipld::Cid;
 use std::cell::RefCell;
 use std::io::Cursor;
-use libipld::Cid;
 
 #[derive(Debug)]
 /// CarV2 formatted memory blockstore

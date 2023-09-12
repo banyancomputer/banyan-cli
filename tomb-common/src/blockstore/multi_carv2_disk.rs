@@ -2,11 +2,11 @@ use crate::blockstore::{carv2_disk::CarV2DiskBlockStore, BlockStore, RootedBlock
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use bytes::Bytes;
+use libipld::Cid;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all};
 use std::path::{Path, PathBuf};
 use wnfs::common::BlockStoreError;
-use libipld::Cid;
 
 /// CARv2 MultiCarV2DiskBlockStore across multiple CAR files using File IO
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -141,7 +141,9 @@ mod test {
         assert_eq!(store.deltas.len(), 1);
 
         let hello_kitty = "Hello Kitty!".as_bytes().to_vec();
-        let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw.into()).await?;
+        let hello_kitty_cid = store
+            .put_block(hello_kitty.clone(), IpldCodec::Raw.into())
+            .await?;
 
         // Create a new delta
         store.add_delta()?;
@@ -183,7 +185,9 @@ mod test {
         assert_eq!(store.deltas.len(), 1);
 
         let hello_kitty = "Hello Kitty!".as_bytes().to_vec();
-        let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw.into()).await?;
+        let hello_kitty_cid = store
+            .put_block(hello_kitty.clone(), IpldCodec::Raw.into())
+            .await?;
 
         let goodbye_kitty = "Goodbye Kitty!".as_bytes().to_vec();
         let goodbye_kitty_cid = store

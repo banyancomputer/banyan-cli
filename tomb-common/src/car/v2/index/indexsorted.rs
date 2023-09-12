@@ -1,12 +1,12 @@
 use crate::car::{error::CARError, v2::index::indexable::Indexable, varint::*};
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
+use libipld::Cid;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     io::{Read, Seek, SeekFrom, Write},
 };
-use libipld::Cid;
 
 /// Buckets contain a list of values
 /// | width (uint32) | count (uint64) | digest1 | digest1 offset (uint64) | digest2 | digest2 offset (uint64) ...

@@ -1,11 +1,7 @@
 use anyhow::Result;
 use async_recursion::async_recursion;
 use std::{path::Path, rc::Rc};
-use wnfs::{
-    common::BlockStore,
-    private::PrivateNode,
-    private::forest::hamt::HamtForest,
-};
+use wnfs::{common::BlockStore, private::forest::hamt::HamtForest, private::PrivateNode};
 
 use crate::pipelines::error::TombError;
 use crate::utils::wnfsio::file_to_disk;

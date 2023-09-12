@@ -1,11 +1,11 @@
 use crate::car::varint::{encode_varint_u128, read_varint_u128};
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
-use std::io::{Read, Seek, SeekFrom, Write};
 use libipld::{
     multihash::{Code, MultihashDigest},
     Cid,
 };
+use std::io::{Read, Seek, SeekFrom, Write};
 
 /// CARv1 Data Block
 /// | 19-byte varint | x-byte Cid | x-byte content |

@@ -9,8 +9,8 @@ use std::{
 };
 
 use wnfs::{
-    common::BlockStore as WnfsBlockStore,
-    private::{PrivateDirectory, PrivateFile, forest::hamt::HamtForest},
+    common::{libipld::Ipld, BlockStore as WnfsBlockStore},
+    private::{forest::hamt::HamtForest, PrivateDirectory, PrivateFile},
 };
 
 use super::spider::path_to_segments;
@@ -80,6 +80,9 @@ pub async fn process_plans(
         }
     }
 
+    // Grab the current time
+    let time = Utc::now();
+
     // First, write data which corresponds to real data
     for direct_plan in direct_plans {
         match direct_plan {
@@ -91,8 +94,6 @@ pub async fn process_plans(
                     .original_location;
                 // Turn the relative path into a vector of segments
                 let path_segments = &path_to_segments(first)?;
-                // Grab the current time
-                let time = Utc::now();
                 // Open the PrivateFile
                 let file: &mut PrivateFile = root_dir
                     .open_file_mut(path_segments, true, time, metadata_forest, metadata, rng)
@@ -117,23 +118,18 @@ pub async fn process_plans(
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
                     root_dir
-                        .mkdir(
-                            folder_segments,
-                            true,
-                            Utc::now(),
-                            metadata_forest,
-                            metadata,
-                            rng,
-                        )
+                        .mkdir(folder_segments, true, time, metadata_forest, metadata, rng)
                         .await?;
                     // Copy the file from the original path to the duplicate path
                     root_dir
-                        .cp_link(
+                        .cp(
                             path_segments,
                             dup_path_segments,
                             true,
+                            time,
                             metadata_forest,
                             metadata,
+                            rng,
                         )
                         .await?;
                 }
@@ -178,22 +174,28 @@ pub async fn process_plans(
             BundlePipelinePlan::Symlink(meta, symlink_target) => {
                 // The path where the symlink will be placed
                 let symlink_segments = path_to_segments(&meta.original_location)?;
-
-                // Link the file or folder
-                root_dir
-                    .write_symlink(
-                        symlink_target
-                            .to_str()
-                            .expect("failed to represent as string")
-                            .to_string(),
+                // Open the PrivateFile
+                let file: &mut PrivateFile = root_dir
+                    .open_file_mut(
                         &symlink_segments,
                         true,
-                        Utc::now(),
+                        time,
                         metadata_forest,
                         metadata,
                         rng,
                     )
                     .await?;
+                // Write the symlinked key value pair
+                let metadata = file.get_metadata_mut();
+                metadata.put(
+                    "symlinked-from",
+                    Ipld::String(
+                        symlink_target
+                            .to_str()
+                            .expect("failed to represent as string")
+                            .to_string(),
+                    ),
+                );
             }
             BundlePipelinePlan::Directory(_) | BundlePipelinePlan::FileGroup(_) => {
                 panic!("this is unreachable code")

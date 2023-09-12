@@ -7,6 +7,7 @@ pub mod header;
 
 // Code
 use anyhow::Result;
+use libipld::Cid;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -14,7 +15,6 @@ use std::{
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
 use wnfs::common::BlockStoreError;
-use libipld::Cid;
 
 use crate::car::v2::index::INDEX_SORTED_CODEC;
 use crate::traits::streamable::Streamable;
@@ -205,13 +205,13 @@ mod test {
         utils::tests::car_test_setup,
     };
     use anyhow::Result;
+    use libipld::{Cid, IpldCodec};
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
         io::{Seek, SeekFrom},
         str::FromStr,
     };
-    use libipld::{Cid, IpldCodec};
 
     #[test]
     #[serial]

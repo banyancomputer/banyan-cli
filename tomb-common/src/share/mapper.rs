@@ -5,8 +5,8 @@ use tomb_crypt::prelude::*;
 use tomb_crypt::pretty_fingerprint;
 use wnfs::private::AccessKey;
 
-use std::collections::{BTreeMap, HashMap};
 use libipld::Ipld;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::share::enc_key::EncryptedAccessKey;
 
@@ -67,12 +67,9 @@ impl EncryptedKeyMapper {
         let ref_string = match access_key {
             Some(access_key) => {
                 // Encrypt the access key for the recipient
-                let encrypted_access_key =
-                    EncryptedAccessKey::encrypt_for(access_key, recipient)
-                        .await
-                        .map_err(|_| {
-                            anyhow::anyhow!("could not encrypt private ref for recipient")
-                        })?;
+                let encrypted_access_key = EncryptedAccessKey::encrypt_for(access_key, recipient)
+                    .await
+                    .map_err(|_| anyhow::anyhow!("could not encrypt private ref for recipient"))?;
                 // Export the encrypted private ref to a string
                 // Insert the encrypted private ref into the map
                 serde_json::to_string(&encrypted_access_key).map_err(|_| {

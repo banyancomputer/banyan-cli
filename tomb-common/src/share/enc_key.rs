@@ -2,7 +2,7 @@ use aes_kw::KekAes256;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::*;
-use wnfs::private::{AccessKey, TemporalKey};
+use wnfs::private::AccessKey;
 
 // TODO: This should probably just be an encrypted blob. Can we extend EcEncrytionKey to work for this?
 // TODO: How can we use PrivateRefSerializable here?
@@ -31,7 +31,9 @@ impl EncryptedAccessKey {
         // Represent the entire access key as bytes
         let all_access_key_bytes = <Vec<u8>>::from(access_key);
         // Wrap with padding
-        let encrypted_access_key = aes_key.wrap_with_padding_vec(&all_access_key_bytes).expect("unable to wrap access key");
+        let encrypted_access_key = aes_key
+            .wrap_with_padding_vec(&all_access_key_bytes)
+            .expect("unable to wrap access key");
         // Wrap the temporal key in a Symmetric Key
         let symmetric_aes_key = SymmetricKey::from(*temporal_key.as_bytes());
         // Encrypt the symmetric key for the recipient key
@@ -55,9 +57,8 @@ impl EncryptedAccessKey {
             return Err(anyhow!("encrypted temporal key string is empty"));
         }
         // Get the encrypted temporal key from the string
-        let encrypted_aes_key =
-            EncryptedSymmetricKey::import(&self.encrypted_aes_key_string)
-                .expect("could not import encrypted temporal key");
+        let encrypted_aes_key = EncryptedSymmetricKey::import(&self.encrypted_aes_key_string)
+            .expect("could not import encrypted temporal key");
         // Decrypt the encrypted temporal key with the recipient key
         let temporal_key = encrypted_aes_key
             .decrypt_with(recipient_key)
@@ -68,7 +69,9 @@ impl EncryptedAccessKey {
         // Aes Key
         let aes_key = <KekAes256>::from(*temporal_key_slice);
         // Unwrap the access key
-        let all_access_key_bytes = aes_key.unwrap_with_padding_vec(&self.encrypted_access_key).expect("unable to unwrap access key");
+        let all_access_key_bytes = aes_key
+            .unwrap_with_padding_vec(&self.encrypted_access_key)
+            .expect("unable to unwrap access key");
         // Into AccessKey
         Ok(Into::<AccessKey>::into(all_access_key_bytes.as_slice()))
     }
@@ -79,7 +82,7 @@ mod test {
     use anyhow::Result;
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
 
-    use crate::{utils::tests::setup_key_test, share::enc_key::EncryptedAccessKey};
+    use crate::{share::enc_key::EncryptedAccessKey, utils::tests::setup_key_test};
 
     #[tokio::test]
     async fn encrypt_decrypt() -> Result<()> {

@@ -1,11 +1,14 @@
 use anyhow::Result;
+use libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec};
 use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;
 use wnfs::{
     common::{AsyncSerialize, BlockStore},
-    private::{PrivateDirectory, PrivateNode, forest::{hamt::HamtForest, traits::PrivateForest}, AccessKey},
+    private::{
+        forest::{hamt::HamtForest, traits::PrivateForest},
+        AccessKey, PrivateDirectory, PrivateNode,
+    },
 };
-use libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec};
 
 use crate::share::manager::ShareManager;
 
@@ -76,9 +79,14 @@ pub async fn load_dir<BS: BlockStore>(
     metadata_forest: &Rc<HamtForest>,
 ) -> Result<Rc<PrivateDirectory>> {
     // Load the PrivateDirectory from the PrivateForest
-    PrivateNode::load(access_key, metadata_forest, store, Some(metadata_forest.empty_name()))
-        .await?
-        .as_dir()
+    PrivateNode::load(
+        access_key,
+        metadata_forest,
+        store,
+        Some(metadata_forest.empty_name()),
+    )
+    .await?
+    .as_dir()
 }
 
 #[cfg(test)]
@@ -120,8 +128,14 @@ mod test {
         let (metadata, content, metadata_forest, content_forest, dir) =
             &mut setup_memory_test(test_name).await?;
 
-        let private_ref =
-            &store_dir(metadata, content, metadata_forest, content_forest, &dir.as_node()).await?;
+        let private_ref = &store_dir(
+            metadata,
+            content,
+            metadata_forest,
+            content_forest,
+            &dir.as_node(),
+        )
+        .await?;
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
         let new_metadata_forest = &load_forest(&metadata_forest_cid, metadata).await?;
         let new_dir = &mut load_dir(metadata, private_ref, new_metadata_forest).await?;

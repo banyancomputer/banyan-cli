@@ -4,13 +4,13 @@ use crate::car::{
 };
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
+use libipld::{Cid, Ipld};
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::BTreeMap,
     io::{Read, Seek, Write},
 };
-use libipld::{Cid, Ipld};
 
 /// CARv1 Header
 /// | 16-byte varint | n-byte DAG CBOR |
@@ -113,6 +113,7 @@ mod test {
 
     use super::Header;
     use anyhow::Result;
+    use libipld::Cid;
     use serial_test::serial;
     use std::{
         cell::RefCell,
@@ -122,7 +123,6 @@ mod test {
         str::FromStr,
         vec,
     };
-    use libipld::Cid;
 
     #[test]
     #[serial]

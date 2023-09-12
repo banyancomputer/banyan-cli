@@ -2,10 +2,10 @@ use crate::blockstore::{BlockStore, RootedBlockStore};
 use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
+use libipld::Cid;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use wnfs::common::MemoryBlockStore as WnfsMemoryBlockStore;
-use libipld::Cid;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 /// Memory implementation of a RootedBlockStore
@@ -64,7 +64,9 @@ mod test {
     async fn memory_rooted_blockstore() -> Result<()> {
         let store = &MemoryBlockStore::default();
         // Put a block in the store
-        let cid = store.put_block(vec![1, 2, 3], IpldCodec::Raw.into()).await?;
+        let cid = store
+            .put_block(vec![1, 2, 3], IpldCodec::Raw.into())
+            .await?;
         // Set the root
         store.set_root(&cid);
         // Get the root

@@ -7,10 +7,10 @@ mod test {
     };
     use anyhow::Result;
     use base58::ToBase58;
+    use libipld::Cid;
     use sha2::Digest;
     use std::io::{Cursor, Seek, SeekFrom};
     use std::{cell::RefCell, str::FromStr};
-    use libipld::Cid;
 
     /// Quick Specification Reference Links:
     ///

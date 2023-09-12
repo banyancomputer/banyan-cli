@@ -1,13 +1,16 @@
 use anyhow::Result;
 use chrono::Utc;
+use libipld::Cid;
 use rand::thread_rng;
 use std::{
     fs::create_dir_all,
     path::{Path, PathBuf},
-    rc::Rc, os::unix::thread, 
+    rc::Rc,
 };
-use wnfs::private::{PrivateDirectory, forest::{hamt::HamtForest, traits::PrivateForest}, AccessKey};
-use libipld::Cid;
+use wnfs::private::{
+    forest::{hamt::HamtForest, traits::PrivateForest},
+    AccessKey, PrivateDirectory,
+};
 
 use crate::blockstore::memory::MemoryBlockStore;
 use crate::traits::blockstore::RootedBlockStore;
@@ -84,11 +87,13 @@ pub async fn setup_memory_test(
 }
 
 /// Setup a key test
-pub async fn setup_key_test(
-    test_name: &str,
-) -> Result<AccessKey> {
-    let (metadata, _, metadata_forest, _, root_dir) = &mut setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await?;
-    let access_key = root_dir.as_node().store(metadata_forest, metadata, &mut thread_rng()).await?;
+pub async fn setup_key_test(test_name: &str) -> Result<AccessKey> {
+    let (metadata, _, metadata_forest, _, root_dir) =
+        &mut setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await?;
+    let access_key = root_dir
+        .as_node()
+        .store(metadata_forest, metadata, &mut thread_rng())
+        .await?;
     Ok(access_key)
 }
 
@@ -116,7 +121,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     let mut content_forest = HamtForest::new_trusted_rc(rng);
     // PrivateDirectory
     let mut root_dir = PrivateDirectory::new_rc(&metadata_forest.empty_name(), Utc::now(), rng);
-    
+
     // Open new file
     let file = root_dir
         .open_file_mut(

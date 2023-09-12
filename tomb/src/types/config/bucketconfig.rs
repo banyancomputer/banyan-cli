@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
-    path::{Path, PathBuf}, rc::Rc,
+    path::{Path, PathBuf},
+    rc::Rc,
 };
 use tomb_common::{
     banyan_api::models::metadata::{Metadata, MetadataState},
@@ -16,7 +17,7 @@ use tomb_common::{
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
-use wnfs::private::{PrivateNodeOnPathHistory, forest::hamt::HamtForest};
+use wnfs::private::{forest::hamt::HamtForest, PrivateNodeOnPathHistory};
 
 use crate::utils::{config::xdg_data_home, wnfsio::compute_directory_size};
 
