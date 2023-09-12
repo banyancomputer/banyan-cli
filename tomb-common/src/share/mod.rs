@@ -13,7 +13,6 @@ mod test {
     use anyhow::Result;
     use serial_test::serial;
     use tomb_crypt::prelude::*;
-    use wnfs::private::AccessKey;
 
     #[tokio::test]
     #[serial]

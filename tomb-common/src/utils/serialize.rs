@@ -12,19 +12,20 @@ use crate::share::manager::ShareManager;
 /// Store a given PrivateDirectory in a given Store
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     metadata_store: &MBS,
-    content_store: &CBS,
+    _content_store: &CBS,
     metadata_forest: &mut Rc<HamtForest>,
-    content_forest: &mut Rc<HamtForest>,
-    dir: &Rc<PrivateDirectory>,
+    _content_forest: &mut Rc<HamtForest>,
+    node: &PrivateNode,
 ) -> Result<AccessKey> {
     // Get a seeded source of randomness
     let seed = thread_rng().gen::<[u8; 32]>();
     let rng = &mut StdRng::from_seed(seed);
     // Store the PrivateDirectory in both PrivateForests
-    let metadata_access = dir.as_node().store(metadata_forest, metadata_store, rng).await?;
-    let content_access = dir.as_node().store(content_forest, content_store, rng).await?;
-    // Assert that the PrivateRefs are the same
-    assert_eq!(metadata_access, content_access);
+    let metadata_access = node.store(metadata_forest, metadata_store, rng).await?;
+    // let content_access = node.store(content_forest, content_store, rng).await?;
+    // // Assert that the PrivateRefs are the same
+    // assert_eq!(metadata_access, content_access);
+    // TODO these now return different access keys. Do we want to store both?
     // Return Ok
     Ok(metadata_access)
 }
@@ -120,7 +121,7 @@ mod test {
             &mut setup_memory_test(test_name).await?;
 
         let private_ref =
-            &store_dir(metadata, content, metadata_forest, content_forest, dir).await?;
+            &store_dir(metadata, content, metadata_forest, content_forest, &dir.as_node()).await?;
         let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
         let new_metadata_forest = &load_forest(&metadata_forest_cid, metadata).await?;
         let new_dir = &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
@@ -159,7 +160,7 @@ mod test {
             content,
             original_metadata_forest,
             original_content_forest,
-            original_dir,
+            &original_dir.as_node(),
         )
         .await?;
         let metadata_forest_cid =

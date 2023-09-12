@@ -80,7 +80,7 @@ impl FsMetadata {
             content_store,
             &mut self.metadata_forest,
             &mut self.content_forest,
-            &self.root_dir,
+            &self.root_dir.as_node(),
         )
         .await?;
         // Update the private ref in the share manager
