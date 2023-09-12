@@ -43,7 +43,11 @@ pub(crate) async fn pipeline(
             let expected_data_size = compute_directory_size(&config.metadata.path)? as u64;
             let bucket_id = config.remote_id.expect("no remote id");
             let root_cid = config.content.get_root().expect("no root cid").to_string();
-            let metadata_cid = config.metadata.get_root().expect("no metadata cid").to_string();
+            let metadata_cid = config
+                .metadata
+                .get_root()
+                .expect("no metadata cid")
+                .to_string();
             let metadata_stream = tokio::fs::File::open(&config.metadata.path).await?;
             // Push the Metadata
             Metadata::push(

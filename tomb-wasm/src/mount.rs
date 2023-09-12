@@ -1,6 +1,5 @@
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
-use tomb_common::blockstore::RootedBlockStore;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
@@ -8,6 +7,7 @@ use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::snapshot::Snapshot;
 use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
+use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
@@ -27,14 +27,12 @@ use crate::{TombResult, WasmBucket};
 #[wasm_bindgen]
 pub struct WasmMount {
     client: Client,
-
     bucket: Bucket,
 
-    /// Currently initialized version of Fs Metadata
     metadata: Option<Metadata>,
+    fs_metadata: Option<FsMetadata>,
 
     locked: bool,
-
     /// Whether or not a change requires a call to save
     dirty: bool,
 
@@ -43,8 +41,6 @@ pub struct WasmMount {
 
     metadata_blockstore: BlockStore,
     content_blockstore: BlockStore,
-
-    fs_metadata: Option<FsMetadata>,
 }
 
 impl WasmMount {
@@ -243,8 +239,18 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        let root_cid = &self.content_blockstore.get_root().expect("could not get root cid");
-        let metadata_cid = &self.metadata_blockstore.get_root().expect("could not get metadata cid");
+        let root_cid = &self
+            .content_blockstore
+            .get_root()
+            .expect("could not get root cid");
+        let metadata_cid = &self
+            .metadata_blockstore
+            .get_root()
+            .expect("could not get metadata cid");
+        log!(format!(
+            "\nvera: sync sanity check:\nroot:{}\nmeta:{}\n",
+            root_cid, metadata_cid
+        ));
 
         log!(
             "tomb-wasm: mount/sync()/{} - pushing metadata at version {}",
@@ -271,7 +277,11 @@ impl WasmMount {
             root_cid.to_string(),
             metadata_cid.to_string(),
             data_size,
-            vec![],
+            self.fs_metadata
+                .as_ref()
+                .expect("no fs metadata")
+                .share_manager
+                .public_fingerprints(),
             // This may lint as an error but it is not
             Cursor::new(self.metadata_blockstore.get_data()),
             &mut self.client,
@@ -279,8 +289,8 @@ impl WasmMount {
         .await
         .expect("could not push metadata");
 
-        assert_eq!(metadata.metadata_cid, metadata_cid.to_string());
         assert_eq!(metadata.root_cid, root_cid.to_string());
+        assert_eq!(metadata.metadata_cid, metadata_cid.to_string());
         let metadata_id = metadata.id;
         self.metadata = Some(metadata);
 
@@ -353,13 +363,23 @@ impl WasmMount {
             self.bucket.id,
         ));
 
-        let Some(root_cid) = self.content_blockstore.get_root() else {
-            return Err(TombWasmError(format!("unable to retrieve root CID")));
-        };
+        log!(format!("vera: metadata: {:?}", self.metadata));
+        log!(format!(
+            "vera: content_blockstore root: {:?}",
+            self.content_blockstore.get_root()
+        ));
+        log!(format!(
+            "vera: metadata_blockstore root: {:?}",
+            self.metadata_blockstore.get_root()
+        ));
+
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
             return Err(TombWasmError(format!("unable to retrieve metadata CID")));
         };
-
+        // Default to the metadata cid if its not present
+        // Remember this is the CID of the IPLD, which will be the same in both cases.
+        // TODO change this if we stop using the same CIDs in both.
+        let root_cid = self.content_blockstore.get_root().unwrap_or(metadata_cid);
 
         let metadata = self.metadata.as_ref().unwrap();
 

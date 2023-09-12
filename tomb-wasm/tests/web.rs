@@ -84,7 +84,6 @@ async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     CryptoKeyPair::from(key_pair)
 }
 
-// Succeeds!
 #[wasm_bindgen_test]
 async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
@@ -98,7 +97,6 @@ async fn get_usage() -> TombResult<()> {
 }
 
 // TODO: probably for API tests
-// Succeeds!
 #[wasm_bindgen_test]
 async fn mount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount()");
@@ -112,7 +110,6 @@ async fn mount() -> TombResult<()> {
     Ok(())
 }
 
-// Succeeds!
 #[wasm_bindgen_test]
 async fn share_with() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_share_with()");
@@ -132,7 +129,6 @@ async fn share_with() -> TombResult<()> {
     mount.share_with(wasm_bucket_key.id()).await?;
     Ok(())
 }
-
 
 #[wasm_bindgen_test]
 async fn mkdir() -> TombResult<()> {
@@ -163,7 +159,6 @@ async fn mkdir() -> TombResult<()> {
     Ok(())
 }
 
-// Succeeds!
 #[wasm_bindgen_test]
 async fn mkdir_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
@@ -198,7 +193,6 @@ async fn mkdir_remount() -> TombResult<()> {
     Ok(())
 }
 
-// Fails
 #[wasm_bindgen_test]
 async fn add() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
@@ -313,4 +307,4 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.name(), "zero-renamed.bin");
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
-} 
+}

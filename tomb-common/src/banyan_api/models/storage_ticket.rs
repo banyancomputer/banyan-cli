@@ -212,7 +212,9 @@ pub mod test {
             .await
             .expect("Failed to save fs metadata");
         let root_cid = &content_store.get_root().expect("Failed to get root cid");
-        let metadata_cid = &metadata_store.get_root().expect("Failed to get metadata cid");
+        let metadata_cid = &metadata_store
+            .get_root()
+            .expect("Failed to get metadata cid");
         let data_size = content_store.data_size();
         let metadata_bytes = metadata_store.get_data();
         let (metadata, storage_ticket) = Metadata::push(
