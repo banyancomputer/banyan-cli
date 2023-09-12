@@ -145,14 +145,20 @@ impl BucketConfig {
             .remote_id
             .ok_or(anyhow::anyhow!("remote id not found"))?;
         let root_cid = self
-            .metadata
+            .content
             .get_root()
             .ok_or(anyhow::anyhow!("root_cid not found"))?;
+
+        let metadata_cid = self
+            .metadata
+            .get_root()
+            .ok_or(anyhow::anyhow!("metadata_cid not found"))?;
 
         Ok(Metadata {
             id: Uuid::new_v4(),
             bucket_id: remote_id,
             root_cid: root_cid.to_string(),
+            metadata_cid: metadata_cid.to_string(),
             data_size: compute_directory_size(&self.content.path)? as u64,
             state: MetadataState::Current,
         })
