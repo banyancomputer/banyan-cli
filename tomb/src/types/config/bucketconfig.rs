@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, rc::Rc,
 };
 use tomb_common::{
     banyan_api::models::metadata::{Metadata, MetadataState},
@@ -16,7 +16,7 @@ use tomb_common::{
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
-use wnfs::private::PrivateNodeOnPathHistory;
+use wnfs::private::{PrivateNodeOnPathHistory, forest::hamt::HamtForest};
 
 use crate::utils::{config::xdg_data_home, wnfsio::compute_directory_size};
 
@@ -134,7 +134,7 @@ impl BucketConfig {
     pub async fn get_history(
         &self,
         wrapping_key: &EcEncryptionKey,
-    ) -> Result<PrivateNodeOnPathHistory> {
+    ) -> Result<PrivateNodeOnPathHistory<Rc<HamtForest>>> {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
         Ok(fs_metadata.history(&self.metadata).await?)
     }

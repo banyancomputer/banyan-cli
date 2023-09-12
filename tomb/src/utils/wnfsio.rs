@@ -6,7 +6,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use tomb_common::utils::wnfsio::decompress_bytes;
 use wnfs::{
     common::BlockStore,
-    private::{PrivateFile, PrivateForest},
+    private::{PrivateFile, forest::hamt::HamtForest},
 };
 
 /// Writes the decrypted and decompressed contents of a PrivateFile to a specified path
@@ -14,7 +14,7 @@ pub async fn file_to_disk(
     file: &Rc<PrivateFile>,
     output_dir: &Path,
     file_path: &Path,
-    content_forest: &PrivateForest,
+    content_forest: &HamtForest,
     content: &impl BlockStore,
 ) -> Result<(), TombError> {
     // If this file is a symlink

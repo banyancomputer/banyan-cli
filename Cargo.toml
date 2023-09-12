@@ -51,7 +51,7 @@ tokio = { version = "^1", features = ["full", "io-util", "fs"]}
 tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main", version = "^0.1" }
 
 # For local dev if needed..
-#wnfs = { path = "../rs-wnfs/wnfs" }
+# wnfs = { path = "../rs-wnfs/wnfs" }
 wnfs = { git = "https://github.com/wnfs-wg/rs-wnfs" }
 libipld = "0.16.0"
 

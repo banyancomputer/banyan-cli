@@ -3,7 +3,8 @@ use async_recursion::async_recursion;
 use std::{path::Path, rc::Rc};
 use wnfs::{
     common::BlockStore,
-    private::{PrivateForest, PrivateNode},
+    private::PrivateNode,
+    private::forest::hamt::HamtForest,
 };
 
 use crate::pipelines::error::TombError;
@@ -14,8 +15,8 @@ use crate::utils::wnfsio::file_to_disk;
 pub async fn process_node(
     metadata: &impl BlockStore,
     content: &impl BlockStore,
-    metadata_forest: &Rc<PrivateForest>,
-    content_forest: &Rc<PrivateForest>,
+    metadata_forest: &Rc<HamtForest>,
+    content_forest: &Rc<HamtForest>,
     node: &PrivateNode,
     extracted: &Path,
     built_path: &Path,

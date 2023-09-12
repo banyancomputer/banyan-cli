@@ -10,7 +10,7 @@ use std::{
 
 use wnfs::{
     common::BlockStore as WnfsBlockStore,
-    private::{PrivateDirectory, PrivateFile, PrivateForest},
+    private::{PrivateDirectory, PrivateFile, forest::hamt::HamtForest},
 };
 
 use super::spider::path_to_segments;
@@ -56,8 +56,8 @@ pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<Bundl
 pub async fn process_plans(
     metadata: &impl WnfsBlockStore,
     content: &impl WnfsBlockStore,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
+    metadata_forest: &mut Rc<HamtForest>,
+    content_forest: &mut Rc<HamtForest>,
     root_dir: &mut Rc<PrivateDirectory>,
     bundleing_plan: Vec<BundlePipelinePlan>,
     progress_bar: &ProgressBar,
