@@ -1,4 +1,4 @@
-use super::mapper::EncRefMapper;
+use super::mapper::EncryptedKeyMapper;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
@@ -11,10 +11,10 @@ pub struct ShareManager {
     pub original_ref: Option<AccessKey>,
     /// The unencrypted current_access AccessKey
     pub current_ref: Option<AccessKey>,
-    /// EncRefMapper for original AccessKey
-    pub original_map: EncRefMapper,
-    /// EncRefMapper for current_access AccessKey
-    pub current_map: EncRefMapper,
+    /// EncryptedKeyMapper for original AccessKey
+    pub original_map: EncryptedKeyMapper,
+    /// EncryptedKeyMapper for current_access AccessKey
+    pub current_map: EncryptedKeyMapper,
 }
 
 impl ShareManager {
@@ -87,7 +87,7 @@ impl<'de> Deserialize<'de> for ShareManager {
         D: serde::Deserializer<'de>,
     {
         let (current_map, original_map) =
-            <(EncRefMapper, EncRefMapper)>::deserialize(deserializer)?;
+            <(EncryptedKeyMapper, EncryptedKeyMapper)>::deserialize(deserializer)?;
         Ok(Self {
             original_ref: None,
             current_ref: None,

@@ -4,9 +4,9 @@ use rand::thread_rng;
 use std::{
     fs::create_dir_all,
     path::{Path, PathBuf},
-    rc::Rc, 
+    rc::Rc, os::unix::thread, 
 };
-use wnfs::private::{PrivateDirectory, forest::{hamt::HamtForest, traits::PrivateForest}};
+use wnfs::private::{PrivateDirectory, forest::{hamt::HamtForest, traits::PrivateForest}, AccessKey};
 use libipld::Cid;
 
 use crate::blockstore::memory::MemoryBlockStore;
@@ -81,6 +81,15 @@ pub async fn setup_memory_test(
     Rc<PrivateDirectory>,
 )> {
     setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await
+}
+
+/// Setup a key test
+pub async fn setup_key_test(
+    test_name: &str,
+) -> Result<AccessKey> {
+    let (metadata, _, metadata_forest, _, root_dir) = &mut setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await?;
+    let access_key = root_dir.as_node().store(metadata_forest, metadata, &mut thread_rng()).await?;
+    Ok(access_key)
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data

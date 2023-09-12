@@ -1,4 +1,3 @@
-use crate::share::manager::ShareManager;
 use anyhow::Result;
 use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;
@@ -7,6 +6,8 @@ use wnfs::{
     private::{PrivateDirectory, PrivateNode, forest::{hamt::HamtForest, traits::PrivateForest}, AccessKey},
 };
 use libipld::{serde as ipld_serde, Cid, Ipld, IpldCodec};
+
+use crate::share::manager::ShareManager;
 
 /// Store a given PrivateDirectory in a given Store
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(

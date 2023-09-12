@@ -8,7 +8,7 @@ use wnfs::private::AccessKey;
 use std::collections::{BTreeMap, HashMap};
 use libipld::Ipld;
 
-use crate::share::enc_ref::EncryptedAccessKey;
+use crate::share::enc_key::EncryptedAccessKey;
 
 const PUBLIC_KEY_LABEL: &str = "PUBLIC_KEY";
 const ENCRYPTED_PRIVATE_REF_LABEL: &str = "ENCRYPTED_PRIVATE_REF";
@@ -19,9 +19,9 @@ const ENCRYPTED_PRIVATE_REF_LABEL: &str = "ENCRYPTED_PRIVATE_REF";
 /// where
 ///  - ECDH_PUBLIC_KEY is the DER encoded public key bytes of an ECDH keypair
 ///  - ENC_PRIVATE_REF is an EncryptedPrivateRef shared with that public key
-pub struct EncRefMapper(pub(crate) HashMap<String, (Vec<u8>, String)>);
+pub struct EncryptedKeyMapper(pub(crate) HashMap<String, (Vec<u8>, String)>);
 
-impl EncRefMapper {
+impl EncryptedKeyMapper {
     /// Encrypt a private referece for all reciepients in the Mapper
     pub async fn update_ref(&mut self, access_key: &AccessKey) -> Result<()> {
         // For each Public Key present in the map
@@ -97,13 +97,13 @@ impl EncRefMapper {
                 .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?,
         );
         // Grab the encrypted key associated with the fingerprint
-        let (_, enc_ref_string) = match self.0.get(&fingerprint) {
+        let (_, enc_key_string) = match self.0.get(&fingerprint) {
             Some(entry) => entry,
             None => return Err(KeyError::Missing.into()),
         };
-        let enc_ref = serde_json::from_str::<EncryptedAccessKey>(enc_ref_string)
+        let enc_key = serde_json::from_str::<EncryptedAccessKey>(enc_key_string)
             .map_err(|_| anyhow::anyhow!("could not deserialize encrypted private ref"))?;
-        let private_ref = enc_ref
+        let private_ref = enc_key
             .decrypt_with(recipient)
             .await
             .map_err(|_| anyhow::anyhow!("could not decrypt private ref"))?;
@@ -111,7 +111,7 @@ impl EncRefMapper {
     }
 }
 
-impl EncRefMapper {
+impl EncryptedKeyMapper {
     pub(crate) fn to_ipld(&self) -> Ipld {
         // New Map
         let mut map = BTreeMap::<String, Ipld>::new();
@@ -133,8 +133,8 @@ impl EncRefMapper {
     }
 
     pub(crate) fn from_ipld(ipld: Ipld) -> Result<Self> {
-        // New EncRefMapper
-        let mut mapper = EncRefMapper::default();
+        // New EncryptedKeyMapper
+        let mut mapper = EncryptedKeyMapper::default();
         // If we can get the Map
         if let Ipld::Map(map) = ipld {
             // For each key value pair in the IPLD
@@ -154,7 +154,7 @@ impl EncRefMapper {
     }
 }
 
-impl Serialize for EncRefMapper {
+impl Serialize for EncryptedKeyMapper {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -163,13 +163,13 @@ impl Serialize for EncRefMapper {
     }
 }
 
-impl<'de> Deserialize<'de> for EncRefMapper {
+impl<'de> Deserialize<'de> for EncryptedKeyMapper {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         let ipld = Ipld::deserialize(deserializer)?;
-        Ok(Self::from_ipld(ipld).expect("failed to convert IPLD to EncRefMapper"))
+        Ok(Self::from_ipld(ipld).expect("failed to convert IPLD to EncryptedKeyMapper"))
     }
 }
 
@@ -184,7 +184,7 @@ mod test {
     #[tokio::test]
     async fn to_from_ipld() -> Result<()> {
         // Create new mapper
-        let mut mapper1 = EncRefMapper::default();
+        let mut mapper1 = EncryptedKeyMapper::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
         let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
@@ -193,7 +193,7 @@ mod test {
         mapper1.add_recipient(&None, &public_key).await?;
 
         let mapper1_ipld = mapper1.to_ipld();
-        let mut mapper2 = EncRefMapper::from_ipld(mapper1_ipld)?;
+        let mut mapper2 = EncryptedKeyMapper::from_ipld(mapper1_ipld)?;
         // Assert reconstruction
         assert_eq!(mapper1, mapper2);
         let temporal_key = TemporalKey([7u8; 32]);
@@ -203,7 +203,7 @@ mod test {
         mapper2.update_ref(&private_ref).await?;
 
         let mapper2_ipld = mapper2.to_ipld();
-        let mapper3 = EncRefMapper::from_ipld(mapper2_ipld)?;
+        let mapper3 = EncryptedKeyMapper::from_ipld(mapper2_ipld)?;
         // Assert reconstruction
         assert_eq!(mapper2, mapper3);
 
@@ -217,7 +217,7 @@ mod test {
     #[tokio::test]
     async fn serial_size() -> Result<()> {
         // Create new mapper
-        let mut mapper1 = EncRefMapper::default();
+        let mut mapper1 = EncryptedKeyMapper::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
         let wrapping_key = EcEncryptionKey::generate().await?;
         // Public Key
@@ -227,7 +227,7 @@ mod test {
 
         // Serialize
         let mapper1_bytes = serde_json::to_vec(&mapper1)?;
-        let mut mapper2: EncRefMapper = serde_json::from_slice(&mapper1_bytes.as_slice())?;
+        let mut mapper2: EncryptedKeyMapper = serde_json::from_slice(&mapper1_bytes.as_slice())?;
         // Assert reconstruction
         assert_eq!(mapper1, mapper2);
 
@@ -242,7 +242,7 @@ mod test {
         mapper2.update_ref(&private_ref).await?;
 
         let mapper2_bytes = serde_json::to_vec(&mapper2)?;
-        let mapper3: EncRefMapper = serde_json::from_slice(mapper2_bytes.as_slice())?;
+        let mapper3: EncryptedKeyMapper = serde_json::from_slice(mapper2_bytes.as_slice())?;
         // Assert reconstruction
         assert_eq!(mapper2, mapper3);
 
