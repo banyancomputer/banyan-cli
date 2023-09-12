@@ -1,5 +1,6 @@
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
+use tomb_common::blockstore::RootedBlockStore;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
@@ -242,20 +243,8 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        let root_cid = self
-            .fs_metadata
-            .as_ref()
-            .unwrap()
-            .root_cid(&self.metadata_blockstore)
-            .await
-            .expect("could not get root cid");
-        let metadata_cid = self
-            .fs_metadata
-            .as_ref()
-            .unwrap()
-            .metadata_cid(&self.metadata_blockstore)
-            .await
-            .expect("could not get metadata cid");
+        let root_cid = &self.content_blockstore.get_root().expect("could not get root cid");
+        let metadata_cid = &self.metadata_blockstore.get_root().expect("could not get metadata cid");
 
         log!(
             "tomb-wasm: mount/sync()/{} - pushing metadata at version {}",
@@ -282,6 +271,7 @@ impl WasmMount {
             root_cid.to_string(),
             metadata_cid.to_string(),
             data_size,
+            vec![],
             // This may lint as an error but it is not
             Cursor::new(self.metadata_blockstore.get_data()),
             &mut self.client,
@@ -363,15 +353,13 @@ impl WasmMount {
             self.bucket.id,
         ));
 
-        let metadata_cid = fs_metadata
-            .metadata_cid(&self.metadata_blockstore)
-            .await
-            .map_err(|err| TombWasmError(format!("unable to retrieve metadata CID: {err}")))?;
+        let Some(root_cid) = self.content_blockstore.get_root() else {
+            return Err(TombWasmError(format!("unable to retrieve root CID")));
+        };
+        let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
+            return Err(TombWasmError(format!("unable to retrieve metadata CID")));
+        };
 
-        let root_cid = fs_metadata
-            .root_cid(&self.metadata_blockstore)
-            .await
-            .map_err(|err| TombWasmError(format!("unable to retrieve root CID: {err}")))?;
 
         let metadata = self.metadata.as_ref().unwrap();
 

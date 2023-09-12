@@ -1,4 +1,3 @@
-/*
 //! Test suite for the Web and headless browsers.
 
 use std::convert::TryFrom;
@@ -65,6 +64,27 @@ pub async fn create_bucket(
     Ok(bucket)
 }
 
+fn random_string(length: usize) -> String {
+    use rand::{thread_rng, Rng};
+    let mut rng = thread_rng();
+    let bytes = (0..length)
+        .map(|_| rng.sample(rand::distributions::Alphanumeric))
+        .collect();
+    String::from_utf8(bytes).unwrap()
+}
+
+async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
+    let subtle = window().crypto().unwrap().subtle();
+    let params = web_sys::EcKeyGenParams::new(key_type, "P-384");
+    let usages = js_array(uses);
+    let promise = subtle
+        .generate_key_with_object(&params, true, &usages)
+        .unwrap();
+    let key_pair = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
+    CryptoKeyPair::from(key_pair)
+}
+
+// Succeeds!
 #[wasm_bindgen_test]
 async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
@@ -78,7 +98,7 @@ async fn get_usage() -> TombResult<()> {
 }
 
 // TODO: probably for API tests
-
+// Succeeds!
 #[wasm_bindgen_test]
 async fn mount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount()");
@@ -92,6 +112,7 @@ async fn mount() -> TombResult<()> {
     Ok(())
 }
 
+// Succeeds!
 #[wasm_bindgen_test]
 async fn share_with() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_share_with()");
@@ -111,6 +132,7 @@ async fn share_with() -> TombResult<()> {
     mount.share_with(wasm_bucket_key.id()).await?;
     Ok(())
 }
+
 
 #[wasm_bindgen_test]
 async fn mkdir() -> TombResult<()> {
@@ -141,6 +163,7 @@ async fn mkdir() -> TombResult<()> {
     Ok(())
 }
 
+// Succeeds!
 #[wasm_bindgen_test]
 async fn mkdir_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
@@ -175,8 +198,8 @@ async fn mkdir_remount() -> TombResult<()> {
     Ok(())
 }
 
+// Fails
 #[wasm_bindgen_test]
-#[should_panic]
 async fn add() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
@@ -290,25 +313,4 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.name(), "zero-renamed.bin");
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
-}
-
-fn random_string(length: usize) -> String {
-    use rand::{thread_rng, Rng};
-    let mut rng = thread_rng();
-    let bytes = (0..length)
-        .map(|_| rng.sample(rand::distributions::Alphanumeric))
-        .collect();
-    String::from_utf8(bytes).unwrap()
-}
-
-async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
-    let subtle = window().crypto().unwrap().subtle();
-    let params = web_sys::EcKeyGenParams::new(key_type, "P-384");
-    let usages = js_array(uses);
-    let promise = subtle
-        .generate_key_with_object(&params, true, &usages)
-        .unwrap();
-    let key_pair = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
-    CryptoKeyPair::from(key_pair)
-}
-*/
+} 

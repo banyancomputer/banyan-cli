@@ -141,6 +141,7 @@ impl Metadata {
             .multipart(PushMetadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
+                metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
                 metadata_stream,
