@@ -39,6 +39,6 @@ impl Error for CreateDeviceApiKeyError {}
 
 impl std::fmt::Display for CreateDeviceApiKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }

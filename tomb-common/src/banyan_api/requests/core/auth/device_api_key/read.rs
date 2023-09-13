@@ -75,6 +75,6 @@ impl std::fmt::Display for ReadDeviceApiKeyError {
             Unknown => "an unknown error occurred creating the account",
         };
 
-        f.write_str(msg)
+        f.write_str(&msg)
     }
 }

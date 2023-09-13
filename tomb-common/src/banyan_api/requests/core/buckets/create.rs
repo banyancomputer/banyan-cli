@@ -48,7 +48,7 @@ pub struct CreateBucketError {
 
 impl Display for CreateBucketError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }
 

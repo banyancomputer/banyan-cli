@@ -41,6 +41,6 @@ impl Error for DeleteDeviceApiKeyError {}
 
 impl std::fmt::Display for DeleteDeviceApiKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }

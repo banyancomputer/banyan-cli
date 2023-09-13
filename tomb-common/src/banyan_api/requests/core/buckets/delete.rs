@@ -37,7 +37,7 @@ pub struct DeleteBucketError {
 
 impl Display for DeleteBucketError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(self.msg)
+        f.write_str(&self.msg)
     }
 }
 
