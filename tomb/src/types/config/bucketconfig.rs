@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
-    path::{Path, PathBuf}, rc::Rc,
+    path::{Path, PathBuf},
+    rc::Rc,
 };
 use tomb_common::{
     banyan_api::models::metadata::{Metadata, MetadataState},

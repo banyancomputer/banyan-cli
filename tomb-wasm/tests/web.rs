@@ -159,8 +159,6 @@ async fn mkdir() -> TombResult<()> {
     Ok(())
 }
 
-/*
-
 #[wasm_bindgen_test]
 async fn mkdir_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
@@ -310,4 +308,3 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
-*/

@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use js_sys::{Object, Reflect};
+use libipld::Ipld;
 use wasm_bindgen::prelude::*;
 use wnfs::common::Metadata as NodeMetadata;
-use libipld::Ipld;
 
 use tomb_common::banyan_api::models::metadata::*;
 use tomb_common::banyan_api::models::snapshot::*;
