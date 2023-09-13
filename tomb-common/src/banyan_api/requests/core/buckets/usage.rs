@@ -66,7 +66,6 @@ impl ApiRequest for GetUsageLimit {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct GetUsageError {
     msg: String,
 }

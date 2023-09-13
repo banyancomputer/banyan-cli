@@ -54,27 +54,14 @@ impl ApiRequest for ReadAllDeviceApiKeys {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct ReadDeviceApiKeyError {
-    #[serde(rename = "error")]
-    kind: ReadDeviceApiKeyErrorKind,
+    msg: String,
 }
-
-#[derive(Debug, Deserialize)]
-enum ReadDeviceApiKeyErrorKind {
-    Unknown,
-}
-
-impl Error for ReadDeviceApiKeyError {}
 
 impl std::fmt::Display for ReadDeviceApiKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ReadDeviceApiKeyErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the account",
-        };
-
-        f.write_str(&msg)
+        f.write_str(&self.msg)
     }
 }
+
+impl Error for ReadDeviceApiKeyError {}

@@ -30,27 +30,14 @@ impl ApiRequest for CreateAccount {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct CreateAccountError {
-    #[serde(rename = "error")]
-    kind: CreateAccountErrorKind,
-}
-
-#[derive(Debug, Deserialize)]
-enum CreateAccountErrorKind {
-    Unknown,
+    msg: String,
 }
 
 impl Error for CreateAccountError {}
 
 impl std::fmt::Display for CreateAccountError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use CreateAccountErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the account",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }

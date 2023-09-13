@@ -34,29 +34,14 @@ impl StreamableApiRequest for PullMetadata {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct PullMetadataError {
-    #[serde(rename = "error")]
-    kind: PullMetadataErrorKind,
+    msg: String,
 }
 
 impl Display for PullMetadataError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use PullMetadataErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
 
 impl Error for PullMetadataError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum PullMetadataErrorKind {
-    Unknown,
-}

@@ -35,29 +35,14 @@ impl ApiRequest for CreateSnapshot {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct CreateSnapshotError {
-    #[serde(rename = "error")]
-    kind: CreateSnapshotErrorKind,
+    msg: String,
 }
 
 impl Display for CreateSnapshotError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use CreateSnapshotErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the snapshot",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
 
 impl Error for CreateSnapshotError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum CreateSnapshotErrorKind {
-    Unknown,
-}

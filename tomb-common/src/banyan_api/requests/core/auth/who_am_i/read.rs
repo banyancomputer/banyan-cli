@@ -28,27 +28,14 @@ impl ApiRequest for ReadWhoAmI {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct ReadWhoAmIError {
-    #[serde(rename = "error")]
-    kind: ReadWhoAmIErrorKind,
-}
-
-#[derive(Debug, Deserialize)]
-enum ReadWhoAmIErrorKind {
-    Unknown,
+    msg: String,
 }
 
 impl Error for ReadWhoAmIError {}
 
 impl std::fmt::Display for ReadWhoAmIError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ReadWhoAmIErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred reading the account",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
