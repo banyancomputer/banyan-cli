@@ -31,27 +31,14 @@ impl ApiRequest for CreateDeviceApiKey {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct CreateDeviceApiKeyError {
-    #[serde(rename = "error")]
-    kind: CreateDeviceApiKeyErrorKind,
-}
-
-#[derive(Debug, Deserialize)]
-enum CreateDeviceApiKeyErrorKind {
-    Unknown,
+    msg: String,
 }
 
 impl Error for CreateDeviceApiKeyError {}
 
 impl std::fmt::Display for CreateDeviceApiKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use CreateDeviceApiKeyErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the account",
-        };
-
-        f.write_str(msg)
+        f.write_str(self.msg)
     }
 }

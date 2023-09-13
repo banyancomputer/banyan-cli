@@ -68,25 +68,13 @@ impl ApiRequest for GetUsageLimit {
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
 pub struct GetUsageError {
-    #[serde(rename = "error")]
-    kind: GetUsageErrorKind,
-}
-
-#[derive(Debug, Deserialize)]
-enum GetUsageErrorKind {
-    Unknown,
+    msg: String,
 }
 
 impl Error for GetUsageError {}
 
 impl std::fmt::Display for GetUsageError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use GetUsageErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred reading usage",
-        };
-
-        f.write_str(msg)
+        f.write_str(self.msg)
     }
 }
