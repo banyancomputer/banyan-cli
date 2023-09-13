@@ -266,6 +266,7 @@ mod test {
         Metadata::push(
             bucket.id,
             "root_cid".to_string(),
+            "metadata_cid".to_string(),
             0,
             vec![fingerprint1, fingerprint2],
             "metadata_stream".as_bytes(),

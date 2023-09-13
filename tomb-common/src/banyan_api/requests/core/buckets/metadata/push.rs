@@ -20,6 +20,7 @@ where
 
     pub expected_data_size: u64,
     pub root_cid: String,
+    pub metadata_cid: String,
     pub valid_keys: Vec<String>,
 
     pub metadata_stream: S,
@@ -35,6 +36,7 @@ where
 
     pub expected_data_size: u64,
     pub root_cid: String,
+    pub metadata_cid: String,
     pub valid_keys: Vec<String>,
 
     pub metadata_stream: S,
@@ -44,6 +46,7 @@ where
 struct PushMetadataData {
     pub expected_data_size: u64,
     pub root_cid: String,
+    pub metadata_cid: String,
     pub valid_keys: Vec<String>,
 }
 
@@ -83,6 +86,7 @@ where
         let pbm_req = PushMetadataData {
             expected_data_size: self.expected_data_size,
             root_cid: self.root_cid,
+            metadata_cid: self.metadata_cid,
             valid_keys: self.valid_keys,
         };
 
@@ -125,6 +129,7 @@ where
         let pbm_req = PushMetadataData {
             expected_data_size: self.expected_data_size,
             root_cid: self.root_cid,
+            metadata_cid: self.metadata_cid,
             valid_keys: self.valid_keys,
         };
 

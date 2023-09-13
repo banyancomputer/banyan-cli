@@ -57,8 +57,10 @@ pub struct Metadata {
     pub id: Uuid,
     /// The unique identifier for the bucket it belongs to
     pub bucket_id: Uuid,
-    /// The CID of the root of the bucket
+    /// The CID of the Content CAR root
     pub root_cid: String,
+    /// The CID of the Metadata CAR root
+    pub metadata_cid: String,
     /// The size of the data in bytes that this metadata points to
     pub data_size: u64,
     /// The state of the metadata
@@ -81,6 +83,7 @@ impl Metadata {
     pub async fn push<S>(
         bucket_id: Uuid,
         root_cid: String,
+        metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
         metadata_stream: S,
@@ -93,6 +96,7 @@ impl Metadata {
             .multipart(PushMetadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
+                metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
                 metadata_stream,
@@ -102,6 +106,7 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid,
+            metadata_cid,
             data_size: 0,
             state: response.state,
         };
@@ -123,6 +128,7 @@ impl Metadata {
     pub async fn push<S>(
         bucket_id: Uuid,
         root_cid: String,
+        metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
         metadata_stream: S,
@@ -135,6 +141,7 @@ impl Metadata {
             .multipart(PushMetadata {
                 bucket_id,
                 root_cid: root_cid.clone(),
+                metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
                 metadata_stream,
@@ -144,6 +151,7 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid,
+            metadata_cid,
             data_size: 0,
             state: response.state,
         };
@@ -179,6 +187,7 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid: response.root_cid,
+            metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
         })
@@ -194,6 +203,7 @@ impl Metadata {
                 id: response.id,
                 bucket_id,
                 root_cid: response.root_cid,
+                metadata_cid: response.metadata_cid,
                 data_size: response.data_size as u64,
                 state: response.state,
             })
@@ -207,6 +217,7 @@ impl Metadata {
             id: response.id,
             bucket_id,
             root_cid: response.root_cid,
+            metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
         })
@@ -245,6 +256,7 @@ pub mod test {
         let (metadata, storage_ticket) = Metadata::push(
             bucket_id,
             "root_cid".to_string(),
+            "metadata_cid".to_string(),
             0,
             vec![],
             "metadata_stream".as_bytes(),

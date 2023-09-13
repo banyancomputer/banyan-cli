@@ -4292,6 +4292,7 @@ dependencies = [
  "getrandom",
  "gloo 0.8.1",
  "js-sys",
+ "libipld",
  "noosphere-car",
  "pem",
  "rand",

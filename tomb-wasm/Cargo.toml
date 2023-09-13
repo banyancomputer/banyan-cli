@@ -52,6 +52,7 @@ web-sys = { version = "^0.3", features = [
     "SubtleCrypto",
     "FileReader"
 ]}
+libipld.workspace = true
 
 [dev-dependencies]
 wasm-bindgen-test = "^0.3"
