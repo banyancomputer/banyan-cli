@@ -37,29 +37,14 @@ impl ApiRequest for RestoreSnapshot {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct RestoreSnapshotError {
-    #[serde(rename = "error")]
-    kind: RestoreSnapshotErrorKind,
+    msg: String,
 }
 
 impl Display for RestoreSnapshotError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use RestoreSnapshotErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
 
 impl Error for RestoreSnapshotError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum RestoreSnapshotErrorKind {
-    Unknown,
-}

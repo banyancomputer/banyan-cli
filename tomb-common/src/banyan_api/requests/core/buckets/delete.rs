@@ -31,29 +31,14 @@ impl ApiRequest for DeleteBucket {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct DeleteBucketError {
-    #[serde(rename = "error")]
-    kind: DeleteBucketErrorKind,
+    msg: String,
 }
 
 impl Display for DeleteBucketError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use DeleteBucketErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred deleting the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
 
 impl Error for DeleteBucketError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum DeleteBucketErrorKind {
-    Unknown,
-}

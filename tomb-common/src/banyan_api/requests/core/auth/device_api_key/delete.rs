@@ -33,27 +33,14 @@ impl ApiRequest for DeleteDeviceApiKey {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct DeleteDeviceApiKeyError {
-    #[serde(rename = "error")]
-    kind: DeleteDeviceApiKeyErrorKind,
-}
-
-#[derive(Debug, Deserialize)]
-enum DeleteDeviceApiKeyErrorKind {
-    Unknown,
+    msg: String,
 }
 
 impl Error for DeleteDeviceApiKeyError {}
 
 impl std::fmt::Display for DeleteDeviceApiKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use DeleteDeviceApiKeyErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred deleting the device api key",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }

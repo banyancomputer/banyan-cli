@@ -58,27 +58,14 @@ impl ApiRequest for ReadAllBuckets {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct ReadBucketError {
-    #[serde(rename = "error")]
-    kind: ReadBucketErrorKind,
-}
-
-#[derive(Debug, Deserialize)]
-enum ReadBucketErrorKind {
-    Unknown,
+    msg: String,
 }
 
 impl Error for ReadBucketError {}
 
 impl std::fmt::Display for ReadBucketError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use ReadBucketErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the account",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }

@@ -178,29 +178,14 @@ where
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct PushMetadataError {
-    #[serde(rename = "error")]
-    kind: PushMetadataErrorKind,
+    msg: String,
 }
 
 impl Display for PushMetadataError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use PushMetadataErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
 
 impl Error for PushMetadataError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum PushMetadataErrorKind {
-    Unknown,
-}

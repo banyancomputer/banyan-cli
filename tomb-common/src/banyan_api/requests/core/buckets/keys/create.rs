@@ -43,29 +43,14 @@ impl ApiRequest for CreateBucketKey {
 }
 
 #[derive(Debug, Deserialize)]
-#[non_exhaustive]
 pub struct CreateBucketKeyError {
-    #[serde(rename = "error")]
-    kind: CreateBucketKeyErrorKind,
+    msg: String,
 }
 
 impl Display for CreateBucketKeyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use CreateBucketKeyErrorKind::*;
-
-        let msg = match &self.kind {
-            Unknown => "an unknown error occurred creating the bucket",
-        };
-
-        f.write_str(msg)
+        f.write_str(&self.msg)
     }
 }
 
 impl Error for CreateBucketKeyError {}
-
-#[derive(Debug, Deserialize)]
-#[non_exhaustive]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum CreateBucketKeyErrorKind {
-    Unknown,
-}
