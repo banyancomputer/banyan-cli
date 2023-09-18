@@ -685,9 +685,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.4.2"
+version = "4.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a13b88d2c62ff462f88e4a121f17a82c1af05693a2f192b5c38d14de73c19f6"
+checksum = "84ed82781cea27b43c9b106a979fe450a13a31aab0500595fb3fc06616de08e6"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1246,7 +1246,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "663339239058603a3a657842111ed6986a5d84bdbff7c0b5fba93b8f70bd63b3"
 dependencies = [
  "anyhow",
- "clap 4.4.2",
+ "clap 4.4.3",
  "rand 0.8.5",
  "serde",
  "strum",
@@ -1288,7 +1288,7 @@ dependencies = [
  "byteorder",
  "bytesize",
  "chrono",
- "clap 4.4.2",
+ "clap 4.4.3",
  "console",
  "crossbeam-utils",
  "csv",
@@ -4287,7 +4287,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "chrono",
- "clap 4.4.2",
+ "clap 4.4.3",
  "criterion",
  "dir-assert",
  "env_logger",
