@@ -3,14 +3,16 @@ use crate::car::v1::block::Block;
 use crate::car::v2::CarV2;
 use anyhow::Result;
 use async_trait::async_trait;
+use serde::de::Error;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::{borrow::Cow, io::Cursor};
 use wnfs::libipld::{Cid, IpldCodec};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// CarV2 formatted memory blockstore
 pub struct CarV2MemoryBlockStore {
-    data: RefCell<Vec<u8>>,
+    data: RefCell<Cursor<Vec<u8>>>,
     car: CarV2,
 }
 
@@ -18,9 +20,9 @@ impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
     type Error = anyhow::Error;
 
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-        let mut rw = Cursor::new(&vec);
+        let mut rw = Cursor::new(vec);
         let car = CarV2::read_bytes(&mut rw)?;
-        let data = RefCell::new(vec);
+        let data = RefCell::new(rw);
         Ok(Self { data, car })
     }
 }
@@ -33,16 +35,15 @@ impl CarV2MemoryBlockStore {
         let mut rw = Cursor::new(vec);
         let car = CarV2::new(&mut rw)?;
         // Wrap the vec in a RefCell and add it to self
-        let data = RefCell::new(rw.into_inner());
+        let data = RefCell::new(rw);
         Ok(Self { data, car })
     }
 
     /// Get a reader to the data underlying the CarV2
     pub fn get_data(&self) -> Vec<u8> {
-        let mut vec = self.data.borrow_mut();
-        let mut rw = Cursor::new(&mut *vec);
-        self.car.write_bytes(&mut rw).unwrap();
-        rw.into_inner().clone()
+        let rw: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
+        self.car.write_bytes(&mut *rw).unwrap();
+        rw.clone().into_inner()
     }
 
     /// Get the size of the data underlying the CarV1
@@ -55,17 +56,15 @@ impl CarV2MemoryBlockStore {
 /// WnfsBlockStore implementation for CarV2BlockStore
 impl BlockStore for CarV2MemoryBlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, anyhow::Error> {
-        let vec = self.data.borrow();
-        let mut reader = Cursor::new(&*vec);
-        let block = self.car.get_block(cid, &mut reader)?;
+        let reader: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
+        let block = self.car.get_block(cid, reader)?;
         Ok(Cow::Owned(block.content))
     }
 
     async fn put_block(&self, content: Vec<u8>, codec: IpldCodec) -> Result<Cid, anyhow::Error> {
-        let mut vec = self.data.borrow_mut();
-        let mut writer = Cursor::new(&mut *vec);
+        let writer: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
         let block = Block::new(content, codec)?;
-        self.car.put_block(&block, &mut writer)?;
+        self.car.put_block(&block, writer)?;
         Ok(block.cid)
     }
 }
@@ -79,5 +78,82 @@ impl RootedBlockStore for CarV2MemoryBlockStore {
 
     fn set_root(&self, root: &Cid) {
         self.car.set_root(root)
+    }
+}
+
+impl Serialize for CarV2MemoryBlockStore {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.get_data().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for CarV2MemoryBlockStore {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data = <Vec<u8>>::deserialize(deserializer)?;
+        Self::try_from(data).map_err(D::Error::custom)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::blockstore::RootedBlockStore;
+    use anyhow::Result;
+    use wnfs::{
+        common::{bs_duplication_test, bs_retrieval_test, bs_serialization_test, BlockStore},
+        libipld::IpldCodec,
+    };
+
+    use super::CarV2MemoryBlockStore;
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn put_block() -> Result<()> {
+        let store = CarV2MemoryBlockStore::new()?;
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
+        let new_kitty_bytes = store.get_block(&kitty_cid).await?.to_vec();
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn from_scratch() -> Result<()> {
+        // Open
+        let original = CarV2MemoryBlockStore::new()?;
+        // Put a block in
+        let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
+        let kitty_cid = original
+            .put_block(kitty_bytes.clone(), IpldCodec::Raw)
+            .await?;
+        // Insert root
+        original.set_root(&kitty_cid);
+        // Save
+        let all_data = original.get_data();
+        // Reopen
+        let reconstructed = CarV2MemoryBlockStore::try_from(all_data)?;
+        // Ensure content is still there
+        assert_eq!(kitty_cid, original.get_root().expect("no root in CAR"));
+        assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
+        // Assert equality
+        assert_eq!(original, reconstructed);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn carv2memoryblockstore() -> Result<()> {
+        let store = &CarV2MemoryBlockStore::new()?;
+        bs_retrieval_test(store).await?;
+        bs_duplication_test(store).await?;
+        bs_serialization_test(store).await?;
+        Ok(())
     }
 }
