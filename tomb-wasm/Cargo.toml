@@ -36,7 +36,7 @@ js-sys = "^0.3"
 noosphere-car = "^0.2"
 pem = "^2"
 rc = "^0.1"
-serde-wasm-bindgen = "^0.5"
+serde-wasm-bindgen = "^0.6"
 thiserror = "^1"
 tokio-util = { version = "^0.7", features = ["compat"] }
 tomb-common = { path = "../tomb-common", version = "^1", features = ["banyan-api"] }
