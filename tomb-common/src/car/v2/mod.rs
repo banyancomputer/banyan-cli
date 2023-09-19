@@ -48,11 +48,6 @@ impl CarV2 {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
-
-        println!(
-            "reading CARv2 header from position {}",
-            r.stream_position()?
-        );
         // Load in the header
         let header = Header::read_bytes(&mut r)?;
         // Assert we're at the right spot

@@ -218,9 +218,7 @@ async fn add() -> TombResult<()> {
     Ok(())
 }
 
-/*
 #[wasm_bindgen_test]
-#[should_panic]
 async fn add_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
     let mut client = authenticated_client().await?;
@@ -239,8 +237,9 @@ async fn add_remount() -> TombResult<()> {
     let zero_content_buffer = Uint8Array::new_with_length(10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
     mount.add(add_path_array, zero_content_array_buffer).await?;
+    mount.mkdir(js_array(&["cats"]).into()).await?;
     let ls: Array = mount.ls(ls_path_array.clone()).await?;
-    assert_eq!(ls.length(), 1);
+    assert_eq!(ls.length(), 2);
 
     log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): remount() and ls()");
     let mut mount = client
@@ -248,14 +247,15 @@ async fn add_remount() -> TombResult<()> {
         .await?;
     assert_eq!(mount.locked(), false);
     let ls: Array = mount.ls(ls_path_array).await?;
-    assert_eq!(ls.length(), 1);
-    let ls_0 = ls.get(0);
+    assert_eq!(ls.length(), 2);
+    let ls_0 = ls.get(1);
     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
     assert_eq!(fs_entry.name(), "zero.bin");
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
 
+/*
 #[wasm_bindgen_test]
 #[should_panic]
 async fn add_rm() -> TombResult<()> {

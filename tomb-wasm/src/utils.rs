@@ -1,5 +1,3 @@
-
-
 /// Turn a value into a JsValue
 #[macro_export]
 macro_rules! value {

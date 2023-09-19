@@ -194,7 +194,7 @@ async fn carv2_known_1() -> TombResult<()> {
 
     println!("hex: {}", hex::encode(rw.clone().into_inner().to_vec()));
 
-    car.write_bytes(&mut rw);
+    car.write_bytes(&mut rw).expect("write car");
 
     validate_car(&rw.into_inner()).await;
 

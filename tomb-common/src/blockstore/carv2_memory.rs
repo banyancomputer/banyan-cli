@@ -162,7 +162,10 @@ mod test {
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
         // Assert equality
         assert_eq!(original.car, reconstructed.car);
-        assert_eq!(original.data.borrow().clone().into_inner(), reconstructed.data.borrow().clone().into_inner());
+        assert_eq!(
+            original.data.borrow().clone().into_inner(),
+            reconstructed.data.borrow().clone().into_inner()
+        );
         Ok(())
     }
 
