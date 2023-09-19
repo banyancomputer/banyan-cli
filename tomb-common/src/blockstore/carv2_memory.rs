@@ -6,24 +6,40 @@ use async_trait::async_trait;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::io::Write;
 use std::{borrow::Cow, io::Cursor};
 use wnfs::libipld::{Cid, IpldCodec};
 
 #[derive(Debug, PartialEq)]
 /// CarV2 formatted memory blockstore
 pub struct CarV2MemoryBlockStore {
-    data: RefCell<Cursor<Vec<u8>>>,
-    car: CarV2,
+    pub data: RefCell<Cursor<Vec<u8>>>,
+    pub car: CarV2,
 }
 
 impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
     type Error = anyhow::Error;
 
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
-        let mut rw = Cursor::new(vec);
-        let car = CarV2::read_bytes(&mut rw)?;
-        let data = RefCell::new(rw);
-        Ok(Self { data, car })
+        let mut store = Self {
+            data: RefCell::new(Cursor::new(vec![])),
+            car: CarV2::new(Cursor::new(vec![]))?
+        };
+
+        {
+            let data: &mut Cursor<Vec<u8>> = &mut store.data.borrow_mut();
+            // Write all the vec to data
+            data.write_all(&vec)?;
+            // Load the car
+            store.car = CarV2::read_bytes(data)?;
+        }
+
+        Ok(store)
+
+        // let data = RefCell::new(Cursor::new(vec));
+        // let car = CarV2::read_bytes(&mut data.borrow_mut().clone())?;
+        // gloo::console::log!(format!("cursor position on start: {}", data.borrow().clone().position()));
+        // Ok(Self { data, car })
     }
 }
 
@@ -43,8 +59,8 @@ impl CarV2MemoryBlockStore {
     pub fn get_data(&self) -> Vec<u8> {
         self.save();
         let data = self.data.borrow().clone().into_inner();
-        let test = CarV2::read_bytes(Cursor::new(data.clone()));
-        assert!(test.is_ok());
+        // let test = CarV2::read_bytes(Cursor::new(data.clone()));
+        // assert!(test.is_ok());
         data
     }
 

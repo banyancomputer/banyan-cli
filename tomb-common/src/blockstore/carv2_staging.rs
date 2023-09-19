@@ -121,7 +121,7 @@ impl StreamingCarAnalyzer {
 
     pub async fn next(&mut self) -> Result<Option<BlockMeta>, StreamingCarAnalyzerError> {
         loop {
-            println!("attempting to read state: {:?}", self.state);
+            gloo::console::log!(format!("attempting to read state: {:?}", self.state));
             match &mut self.state {
                 CarState::Pragma => {
                     if self.buffer.len() < 11 {
@@ -160,10 +160,11 @@ impl StreamingCarAnalyzer {
                         index_start_bytes[..].try_into().expect("the exact size"),
                     );
 
+                    gloo::console::log!(format!("data_size_staging: {}", data_size));
 
                     // let header = crate::car::v2::header::Header::read_bytes(&mut Cursor::new(self.buffer.split_to(40))).expect("faaiill");
 
-                    println!("read: data_size: {}", data_size);
+                    // gloo::o!("read: data_size: {}", data_size);
 
                     self.stream_offset += 40;
 
@@ -337,6 +338,9 @@ impl StreamingCarAnalyzer {
                     // We do want to make sure we at least get to the indexes...
                     if self.stream_offset >= *index_start {
                         self.state = CarState::Complete;
+                    }
+                    else {
+                        gloo::console::log!("it appears the index was empty!");
                     }
 
                     return Ok(None);

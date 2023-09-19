@@ -64,9 +64,15 @@ impl CarV1 {
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
-    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<()> {
+    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64> {
         // Save our starting point
         let carv1_start = rw.stream_position()?;
+
+        let old = Header::read_bytes(&mut rw)?;
+        gloo::console::log!(format!("OLD_HEADER: {:?}\nNEW_HEADER: {:?}", old, self.header));
+        let old_header_len = rw.stream_position()? - carv1_start;
+
+        rw.seek(SeekFrom::Start(carv1_start))?;
 
         // Write the header into a buffer
         let mut current_header_buf = Cursor::new(<Vec<u8>>::new());
@@ -74,7 +80,9 @@ impl CarV1 {
 
         // Compute data offset
         let data_offset =
-            current_header_buf.stream_len()? as i64 - *self.read_header_len.borrow() as i64;
+            current_header_buf.stream_len()? as i64 - old_header_len as i64;
+
+        gloo::console::log!(format!("the data offset is {}", data_offset));
 
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
@@ -86,6 +94,7 @@ impl CarV1 {
         }
         // Sort those offsets so the first offsets occur first
         offsets.sort();
+        gloo::console::log!(format!("the offsets to read at: {:#?}", offsets));
         // If the header got bigger
         if data_offset > 0 {
             // Sort those offsets so the final offsets occur first
@@ -107,7 +116,7 @@ impl CarV1 {
             new_index.insert(block.cid, new_offset);
         }
         {
-            let mut index = self.index.borrow_mut();
+            let index: &mut Index<Bucket> = &mut self.index.borrow_mut();
             for (cid, offset) in new_index {
                 index.insert_offset(&cid, offset);
             }
@@ -118,7 +127,16 @@ impl CarV1 {
         rw.write_all(&current_header_buf.into_inner())?;
         // Flush
         rw.flush()?;
-        Ok(())
+
+
+        let mut offsets: Vec<u64> = vec![];
+        for bucket in self.index.borrow().clone().buckets {
+            offsets.extend_from_slice(&bucket.map.clone().into_values().collect::<Vec<u64>>())
+        }
+        let max_offset = *offsets.iter().max().unwrap();
+        rw.seek(SeekFrom::Start(max_offset))?;
+        let _ = Block::read_bytes(&mut rw)?;
+        Ok(rw.stream_position()?)
     }
 
     /// Get a Block directly from the CarV1

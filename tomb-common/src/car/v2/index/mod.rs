@@ -82,6 +82,7 @@ impl Indexable for Index<Bucket> {
     }
 
     fn insert_offset(&mut self, cid: &Cid, offset: u64) -> Option<u64> {
+        gloo::console::log!(format!("inserting offset:::::: {}", offset));
         let cid_width = cid.to_bytes().len() as u32;
 
         for bucket in &mut self.buckets {

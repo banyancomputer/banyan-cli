@@ -1,4 +1,3 @@
-/*
 //! Test suite for the Web and headless browsers.
 
 use std::convert::TryFrom;
@@ -85,7 +84,6 @@ async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     CryptoKeyPair::from(key_pair)
 }
 
-/*
 #[wasm_bindgen_test]
 async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
@@ -98,6 +96,7 @@ async fn get_usage() -> TombResult<()> {
     Ok(())
 }
 
+
 // TODO: probably for API tests
 #[wasm_bindgen_test]
 async fn mount() -> TombResult<()> {
@@ -108,6 +107,7 @@ async fn mount() -> TombResult<()> {
     let mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
+    
     assert_eq!(mount.locked(), false);
     Ok(())
 }
@@ -194,7 +194,6 @@ async fn mkdir_remount() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "dir");
     Ok(())
 }
- */
 
 #[wasm_bindgen_test]
 async fn add() -> TombResult<()> {
@@ -312,5 +311,4 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
- */
  */

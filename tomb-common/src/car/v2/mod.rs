@@ -80,11 +80,12 @@ impl CarV2 {
         let data_offset = self.header.borrow().data_offset;
         // Skip to it
         rw.seek(SeekFrom::Start(data_offset))?;
-
         // Write the CarV1
-        self.car.write_bytes(&mut rw)?;
+        let data_end = self.car.write_bytes(&mut rw)?;
+        gloo::console::log!(format!("the data ended at {}", data_end));
+        rw.seek(SeekFrom::Start(data_end))?;
         // Update our data size in the Header
-        self.update_header(&mut rw)?;
+        self.update_header(data_end)?;
         // Move to index offset
         rw.seek(SeekFrom::Start(self.header.borrow().index_offset))?;
         // Write out the index
@@ -159,7 +160,7 @@ impl CarV2 {
             // Write the bytes
             block.write_bytes(&mut w)?;
             // Update the data size
-            self.update_header(&mut w)?;
+            self.update_header(w.stream_position()?)?;
             // Flush
             w.flush()?;
         }
@@ -196,13 +197,13 @@ impl CarV2 {
         Self::read_bytes(&mut rw)
     }
 
-    fn update_header<X: Seek>(&self, mut x: X) -> Result<()> {
+    fn update_header(&self, data_end: u64) -> Result<()> {
         let mut header = self.header.borrow_mut();
         // Update the data size
-        let v1_end = x.seek(SeekFrom::End(0))?;
+        // let v1_end = x.seek(SeekFrom::End(0))?;
         // Update the data size
-        header.data_size = if v1_end > PH_SIZE {
-            v1_end - PH_SIZE
+        header.data_size = if data_end > PH_SIZE {
+            data_end - PH_SIZE
         } else {
             0
         };
