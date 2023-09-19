@@ -45,6 +45,8 @@ impl CarV2 {
     pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
+
+        println!("reading CARv2 header from position {}", r.stream_position()?);
         // Load in the header
         let header = Header::read_bytes(&mut r)?;
         // Assert we're at the right spot
@@ -144,6 +146,8 @@ impl CarV2 {
             .index
             .borrow_mut()
             .insert_offset(&block.cid, next_block);
+
+        println!("writing block {} at {}", block.cid, next_block);
 
         // Move to the end
         w.seek(SeekFrom::Start(next_block))?;

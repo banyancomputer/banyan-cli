@@ -15,3 +15,4 @@ pub mod memory;
 #[cfg(not(target_arch = "wasm32"))]
 /// Multi-file CarV2 formatted BlockStore implementation
 pub mod multi_carv2_disk;
+pub mod carv2_staging;

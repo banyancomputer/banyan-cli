@@ -469,7 +469,7 @@ impl FsMetadata {
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Compress the data in the file
-        let content_buf = compress_vec(&content)?;
+        // let content_buf = compress_vec(content)?;
         // Turn the relative path into a vector of segments
         let time = Utc::now();
         let rng = &mut thread_rng();
@@ -488,7 +488,7 @@ impl FsMetadata {
         // Set file contents
         file.set_content(
             time,
-            content_buf.as_slice(),
+            content.as_slice(),
             &mut self.content_forest,
             content_store,
             rng,
@@ -548,7 +548,7 @@ impl FsMetadata {
                 let content = file
                     .get_content(&self.content_forest, content_store)
                     .await?;
-                let content = decompress_vec(&content)?;
+                // let content = decompress_vec(&content)?;
                 Ok(content)
             }
             _ => Err(SerialError::NodeNotFound(path_segments.join("/")).into()),
@@ -642,6 +642,28 @@ mod test {
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let metadata = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
         let _build_details = metadata.build_details(metadata_store).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn add_read() -> Result<()> {
+        let metadata_store = &mut MemoryBlockStore::default();
+        let content_store = &mut MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+
+        let path = vec!["cat.txt".to_string()];
+        let content = "hello kitty".as_bytes().to_vec();
+        // Add a new file
+        fs_metadata.add(path.clone(), content.clone(), metadata_store, content_store).await?;
+        // Add a new file
+        let file = fs_metadata.get_node(path, content_store).await?.expect("no node").as_file()?;
+        let new_content = file.get_content(&fs_metadata.content_forest, content_store).await?;
+        assert_eq!(content, new_content);
+
+
+
         Ok(())
     }
 }

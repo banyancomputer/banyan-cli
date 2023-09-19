@@ -38,7 +38,12 @@ impl Block {
     /// Read the Varint and Cid from stream only
     pub fn start_read<R: Read + Seek>(mut r: R) -> Result<(u128, Cid)> {
         // Read the varint
+        let var_start = r.stream_position()?;
         let varint = read_varint_u128(&mut r)?;
+        let var_end = r.stream_position()?;
+
+        println!("var_len: {}", var_end as i64 - var_start as i64);
+
         let cid_start = r.stream_position()?;
         // Read the CID with no Multibase
         if let Ok(cid) = Cid::read_bytes(&mut r) {

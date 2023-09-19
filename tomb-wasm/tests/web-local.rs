@@ -30,7 +30,6 @@ fn js_array(values: &[&str]) -> JsValue {
     JsValue::from(js_array)
 }
 
-/*
 #[wasm_bindgen_test]
 async fn fs_test() -> TombResult<()> {
     log!("tomb_wasm_test: fs_test()");
@@ -47,18 +46,47 @@ async fn fs_test() -> TombResult<()> {
     // Assert none present
     assert!(entries.is_empty());
     // Add a new file
-    fs_metadata.add(vec!["cat.txt".to_string()], "hello kitty".as_bytes().to_vec(), metadata_store, content_store).await.expect("add");
+    let content = "hello kitty".as_bytes().to_vec();
+    fs_metadata.add(vec!["cat.txt".to_string()], content.clone(), metadata_store, content_store).await.expect("add");
     // List files again
     let entries = fs_metadata.ls(vec![], metadata_store).await.expect("ls2");
     assert_eq!(entries.len(), 1);
     let file = fs_metadata.get_node(vec![entries[0].name.clone()], metadata_store).await.expect("get_node").expect("none found");
-    let content = file.as_file().expect("not a file").get_content(&fs_metadata.content_forest, content_store).await.expect("get content");
+    let new_content = file.as_file().expect("not a file").get_content(&fs_metadata.content_forest, content_store).await.expect("get content");
     let string = String::from_utf8_lossy(&content).to_string();
-    log!(format!("here is the entry's reconstructed data: {:?}", string));
+    assert_eq!(content, new_content);
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+async fn fs_mount() -> TombResult<()> {
+    log!("tomb_wasm_test: fs_test()");
+    let key = EcEncryptionKey::generate().await?;
+    let mut fs_metadata = FsMetadata::init(&key)
+            .await
+            .expect("could not init fs metadata");
+    
+    // Create a new blockstores
+    let metadata_store = &mut CarV2MemoryBlockStore::new().expect("unable to create new blockstore");
+    let content_store = &mut CarV2MemoryBlockStore::new().expect("unable to create new blockstore");
+    // List files
+    let entries = fs_metadata.ls(vec![], metadata_store).await.expect("ls1");
+    // Assert none present
+    assert!(entries.is_empty());
+    // Add a new file
+    let content = "hello kitty".as_bytes().to_vec();
+    fs_metadata.add(vec!["cat.txt".to_string()], content.clone(), metadata_store, content_store).await.expect("add");
+    // List files again
+    let entries = fs_metadata.ls(vec![], metadata_store).await.expect("ls2");
+    assert_eq!(entries.len(), 1);
+    let file = fs_metadata.get_node(vec![entries[0].name.clone()], metadata_store).await.expect("get_node").expect("none found");
+    let new_content = file.as_file().expect("not a file").get_content(&fs_metadata.content_forest, content_store).await.expect("get content");
+    let string = String::from_utf8_lossy(&content).to_string();
+    assert_eq!(content, new_content);
+
 
     Ok(())
 }
- */
 
 #[wasm_bindgen_test]
 async fn bs_test() -> TombResult<()> {

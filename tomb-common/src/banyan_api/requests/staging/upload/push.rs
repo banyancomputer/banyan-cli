@@ -10,10 +10,10 @@ use uuid::Uuid;
 use crate::banyan_api::requests::ApiRequest;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct PushContent<S>
 where
-    reqwest::Body: From<S>,
+        reqwest::Body: From<S>,
 {
     pub host_url: String,
     pub metadata_id: Uuid,
@@ -21,7 +21,7 @@ where
 }
 
 #[cfg(target_arch = "wasm32")]
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct PushContent<S>
 where
     S: Read,
@@ -53,8 +53,8 @@ fn generate_boundary() -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl<S> ApiRequest for PushContent<S>
-where
-    reqwest::Body: From<S>,
+    where
+        reqwest::Body: From<S>,
 {
     type ResponseType = PushContentResponse;
     type ErrorType = PushContentError;
@@ -133,7 +133,7 @@ where
             .read_to_end(&mut buffer)
             .expect("Failed to read metadata stream to bytes");
         multipart_body.extend(&buffer);
-
+        
         multipart_body.extend(b"\r\n");
 
         multipart_body.extend(format!("--{}--\r\n", boundary).as_bytes()); // Closing boundary

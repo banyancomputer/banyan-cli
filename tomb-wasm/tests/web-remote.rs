@@ -1,4 +1,4 @@
-/*
+
 //! Test suite for the Web and headless browsers.
 
 use std::convert::TryFrom;
@@ -85,6 +85,7 @@ async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     CryptoKeyPair::from(key_pair)
 }
 
+/*
 #[wasm_bindgen_test]
 async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
@@ -193,6 +194,7 @@ async fn mkdir_remount() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "dir");
     Ok(())
 }
+ */
 
 #[wasm_bindgen_test]
 async fn add() -> TombResult<()> {
@@ -218,6 +220,7 @@ async fn add() -> TombResult<()> {
     Ok(())
 }
 
+/*
 #[wasm_bindgen_test]
 #[should_panic]
 async fn add_remount() -> TombResult<()> {

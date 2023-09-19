@@ -24,6 +24,7 @@ pub(crate) fn read_varint_u64<R: Read + Seek>(r: &mut R) -> Result<u64> {
     let mut buf = encode::u64_buffer();
     // Read from stream
     let _ = r.read(&mut buf)?;
+    // println!("buf was read")
     // Decode
     let (result, remaining) = decode::u64(&buf)?;
     // Rewind

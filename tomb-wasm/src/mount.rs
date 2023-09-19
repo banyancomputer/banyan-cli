@@ -1,5 +1,7 @@
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
+use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
+use tomb_common::car::v2::CarV2;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
@@ -11,7 +13,6 @@ use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
-
 use crate::log;
 
 // TODO: This should be a config
@@ -309,10 +310,44 @@ impl WasmMount {
                         TombWasmError(format!("unable to register storage ticket: {err}"))
                     })?;
 
-                let content = Cursor::new(self.metadata_blockstore.get_data());
+                let content = self.metadata_blockstore.get_data();
+
+                log!("successfully able to get the data!");
+
+                let body = Cursor::new(content.clone());
+
+                let car2 = CarV2::read_bytes(Cursor::new(content.clone())).expect("unable to ensure veracity of car");
+                log!(format!("verified integrity of CAR data before upload: {:?}", car2));
+
+                let mut car_staging = StreamingCarAnalyzer::new();
+                
+                // Add chunks
+                for chunk in content.chunks(20) {
+                    car_staging.add_chunk(chunk.to_owned());
+                }
+
+                loop {
+                    match car_staging.next().await {
+                        Ok(Some(block_meta)) => {
+                            log!(format!("block_meta: {:?}", block_meta))
+                        },
+                        Ok(None) => {
+                            log!(format!("block_meta: call succeeded but none found"));
+                            break;
+                        },
+                        Err(err) => {
+                            log!(format!("block_meta: analyzer err: {}", err));
+                            break;
+                        },
+                    }
+                }
+
+                assert_eq!(car_staging.seen_bytes(), content.len() as u64);
+                // log!(format!("car_staging report: {:?}", car_staging.report()));
+                
                 storage_ticket
                     .clone()
-                    .upload_content(metadata_id, content, &mut self.client)
+                    .upload_content(metadata_id, body, &mut self.client)
                     .await
                     .map_err(|err| {
                         TombWasmError(format!(
@@ -850,4 +885,23 @@ impl WasmMount {
 
         Ok(())
     }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::TombResult;
+    use gloo::console::log;
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    async fn test() -> TombResult<()> {
+        log!("tomb_wasm_test: test()");
+
+
+
+        Ok(())
+    }
+    
 }
