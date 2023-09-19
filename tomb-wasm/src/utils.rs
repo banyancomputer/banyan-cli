@@ -1,4 +1,4 @@
-use tomb_common::blockstore::{carv2_memory::CarV2MemoryBlockStore, carv2_staging::StreamingCarAnalyzer};
+use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
 
 /// Turn a value into a JsValue
 #[macro_export]
@@ -23,18 +23,18 @@ pub async fn validate_car(data: &Vec<u8>) {
         match car_stream.next().await {
             Ok(Some(meta)) => {
                 gloo::console::log!(format!("meta: {:?}", meta));
-            },
+            }
             Ok(None) => {
                 gloo::console::log!(format!("none!"));
                 break;
-            },
+            }
             Err(err) => {
                 gloo::console::log!(format!("error!: {}", err));
                 break;
             }
         }
     }
-    
+
     let report = car_stream.report().expect("report");
 
     println!("report: {:?}", report);

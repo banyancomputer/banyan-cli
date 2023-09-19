@@ -1,7 +1,5 @@
-use std::io::Cursor;
-use blake3::Hasher;
-use bytes::{BufMut, Bytes, BytesMut};
-use crate::car::{varint::read_varint_u64, Streamable, v1::block};
+use crate::car::Streamable;
+use bytes::{Bytes, BytesMut};
 use libipld::Cid;
 
 const CAR_HEADER_UPPER_LIMIT: u64 = 16 * 1024 * 1024; // Limit car headers to 16MiB
@@ -42,7 +40,7 @@ enum CarState {
         data_start: u64,
         data_end: u64,
         index_start: u64,
-    }, 
+    },
     Block {
         // advances to each block until we reach data_end
         block_start: u64,
@@ -78,6 +76,12 @@ pub struct StreamingCarAnalyzer {
     stream_offset: u64,
 
     hasher: blake3::Hasher,
+}
+
+impl Default for StreamingCarAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StreamingCarAnalyzer {
@@ -142,7 +146,10 @@ impl StreamingCarAnalyzer {
                         return Ok(None);
                     }
 
-                    println!("reading CARv2 header from position {} (staging)", self.stream_offset);
+                    println!(
+                        "reading CARv2 header from position {} (staging)",
+                        self.stream_offset
+                    );
 
                     let _capability_bytes = self.buffer.split_to(16);
 
@@ -296,24 +303,37 @@ impl StreamingCarAnalyzer {
 
                     let cid = match Cid::read_bytes(&self.buffer[..]) {
                         Ok(cid) => {
-                            gloo::console::log!(format!("read_staging: successfully read cid: {}", cid));
+                            gloo::console::log!(format!(
+                                "read_staging: successfully read cid: {}",
+                                cid
+                            ));
                             cid
-                        },
+                        }
                         Err(err) => {
-                            gloo::console::log!(format!("read_staging: failed to read cid! {}", err));
+                            gloo::console::log!(format!(
+                                "read_staging: failed to read cid! {}",
+                                err
+                            ));
                             // tracing::error!("uploaded car file contained an invalid CID: {err}");
-                            return Err(StreamingCarAnalyzerError::InvalidBlockCid(self.stream_offset));
+                            return Err(StreamingCarAnalyzerError::InvalidBlockCid(
+                                self.stream_offset,
+                            ));
                         }
                     };
 
-                    gloo::console::log!(format!("read_staging: that cid had len {}", cid.encoded_len()));
-
+                    gloo::console::log!(format!(
+                        "read_staging: that cid had len {}",
+                        cid.encoded_len()
+                    ));
 
                     // let remaining_block_bytes = varint - cid_length;
                     let _ = self.buffer.split_to(varint as usize);
                     self.stream_offset += varint;
 
-                    gloo::console::log!(format!("read_staging: finished reading a block at {}", self.stream_offset));
+                    gloo::console::log!(format!(
+                        "read_staging: finished reading a block at {}",
+                        self.stream_offset
+                    ));
 
                     // This might be the end of all data, we'll check once we reach the block_start
                     // offset
@@ -338,8 +358,7 @@ impl StreamingCarAnalyzer {
                     // We do want to make sure we at least get to the indexes...
                     if self.stream_offset >= *index_start {
                         self.state = CarState::Complete;
-                    }
-                    else {
+                    } else {
                         gloo::console::log!("it appears the index was empty!");
                     }
 
@@ -365,7 +384,6 @@ impl StreamingCarAnalyzer {
         self.stream_offset
     }
 }
-
 
 #[derive(Debug, thiserror::Error)]
 pub enum StreamingCarAnalyzerError {
@@ -441,12 +459,12 @@ fn try_read_varint_u64(buf: &[u8]) -> Result<Option<(u64, u64)>, StreamingCarAna
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Seek};
     use std::io::Read;
+    use std::{fs::File, io::Seek};
 
     use crate::car::v1::block::Block;
-    use crate::car::v2::CarV2;
     use crate::car::v2::fixture::test::build_full_car;
+    use crate::car::v2::CarV2;
     use crate::utils::tests::car_test_setup;
 
     use super::*;
@@ -656,22 +674,20 @@ mod tests {
             match car_stream.next().await {
                 Ok(Some(meta)) => {
                     println!("meta: {:?}", meta);
-                },
+                }
                 Ok(None) => {
                     break;
-                },
+                }
                 Err(_) => {
                     break;
                 }
             }
         }
-        
+
         let report = car_stream.report()?;
 
         println!("report: {:?}", report);
 
         Ok(())
     }
-
-
 }

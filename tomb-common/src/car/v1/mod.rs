@@ -69,7 +69,10 @@ impl CarV1 {
         let carv1_start = rw.stream_position()?;
 
         let old = Header::read_bytes(&mut rw)?;
-        gloo::console::log!(format!("OLD_HEADER: {:?}\nNEW_HEADER: {:?}", old, self.header));
+        gloo::console::log!(format!(
+            "OLD_HEADER: {:?}\nNEW_HEADER: {:?}",
+            old, self.header
+        ));
         let old_header_len = rw.stream_position()? - carv1_start;
 
         rw.seek(SeekFrom::Start(carv1_start))?;
@@ -79,8 +82,7 @@ impl CarV1 {
         self.header.write_bytes(&mut current_header_buf)?;
 
         // Compute data offset
-        let data_offset =
-            current_header_buf.stream_len()? as i64 - old_header_len as i64;
+        let data_offset = current_header_buf.stream_len()? as i64 - old_header_len as i64;
 
         gloo::console::log!(format!("the data offset is {}", data_offset));
 
@@ -127,7 +129,6 @@ impl CarV1 {
         rw.write_all(&current_header_buf.into_inner())?;
         // Flush
         rw.flush()?;
-
 
         let mut offsets: Vec<u64> = vec![];
         for bucket in self.index.borrow().clone().buckets {

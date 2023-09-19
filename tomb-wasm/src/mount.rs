@@ -1,7 +1,6 @@
+use crate::log;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
-use tomb_common::blockstore::carv2_staging::{StreamingCarAnalyzer, self};
-use tomb_common::car::v2::CarV2;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
@@ -9,11 +8,12 @@ use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::snapshot::Snapshot;
 use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
+use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
 use tomb_common::blockstore::RootedBlockStore;
+use tomb_common::car::v2::CarV2;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
-use crate::log;
 
 // TODO: This should be a config
 const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
@@ -319,11 +319,15 @@ impl WasmMount {
 
                 let body = Cursor::new(content.clone());
 
-                let car2 = CarV2::read_bytes(Cursor::new(content.clone())).expect("unable to ensure veracity of car");
-                log!(format!("verified integrity of CAR data before upload: {:?}", car2));
+                let car2 = CarV2::read_bytes(Cursor::new(content.clone()))
+                    .expect("unable to ensure veracity of car");
+                log!(format!(
+                    "verified integrity of CAR data before upload: {:?}",
+                    car2
+                ));
 
                 let mut car_staging = StreamingCarAnalyzer::new();
-                
+
                 // Add chunks
                 for chunk in content.chunks(20) {
                     car_staging.add_chunk(chunk.to_owned());
@@ -333,22 +337,26 @@ impl WasmMount {
                     match car_staging.next().await {
                         Ok(Some(block_meta)) => {
                             log!(format!("block_meta: {:?}", block_meta))
-                        },
+                        }
                         Ok(None) => {
                             log!(format!("block_meta: call succeeded but none found"));
                             break;
-                        },
+                        }
                         Err(err) => {
                             log!(format!("block_meta: analyzer err: {}", err));
                             break;
-                        },
+                        }
                     }
                 }
 
-                log!(format!("seen: {}, content: {}", car_staging.seen_bytes(), content.len() as u64));
+                log!(format!(
+                    "seen: {}, content: {}",
+                    car_staging.seen_bytes(),
+                    content.len() as u64
+                ));
                 assert_eq!(car_staging.seen_bytes(), content.len() as u64);
                 // log!(format!("car_staging report: {:?}", car_staging.report()));
-                
+
                 storage_ticket
                     .clone()
                     .upload_content(metadata_id, body, &mut self.client)
@@ -633,10 +641,8 @@ impl WasmMount {
         self.dirty = true;
         self.append = true;
 
-
         // let mut analyzer = StreamingCarAnalyzer::new();
-        // for chunk in 
-
+        // for chunk in
 
         self.sync().await.expect("could not sync");
 
@@ -909,9 +915,6 @@ mod test {
     async fn test() -> TombResult<()> {
         log!("tomb_wasm_test: test()");
 
-
-
         Ok(())
     }
-    
 }

@@ -8,8 +8,8 @@ pub mod index;
 // Code
 use self::{header::Header, index::indexable::Indexable};
 use crate::car::v1::{block::Block, CarV1};
-use crate::car::v2::index::Index;
 use crate::car::v2::index::indexsorted::Bucket;
+use crate::car::v2::index::Index;
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,10 @@ impl CarV2 {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
 
-        println!("reading CARv2 header from position {}", r.stream_position()?);
+        println!(
+            "reading CARv2 header from position {}",
+            r.stream_position()?
+        );
         // Load in the header
         let header = Header::read_bytes(&mut r)?;
         // Assert we're at the right spot
@@ -146,12 +149,11 @@ impl CarV2 {
         let next_block = header.data_offset + header.data_size;
 
         // Grab index
-        let index: &mut Index<Bucket>  = &mut self.car.index.borrow_mut();
+        let index: &mut Index<Bucket> = &mut self.car.index.borrow_mut();
         // If the index does not contain the Cid
         if index.get_offset(&block.cid).is_none() {
             // Insert offset
-            index
-                .insert_offset(&block.cid, next_block);
+            index.insert_offset(&block.cid, next_block);
             //
             println!("writing block {} at {}", block.cid, next_block);
             gloo::console::log!(format!("writing block {} at {}", block.cid, next_block));

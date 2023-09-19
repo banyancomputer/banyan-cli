@@ -1,8 +1,6 @@
 use crate::{
-    blockstore::RootedBlockStore,
-    share::manager::ShareManager,
-    utils::error::SerialError,
-    utils::{serialize::*, wnfsio::*},
+    blockstore::RootedBlockStore, share::manager::ShareManager, utils::error::SerialError,
+    utils::serialize::*,
 };
 use anyhow::Result;
 use chrono::Utc;
@@ -651,18 +649,25 @@ mod test {
         let metadata_store = &mut MemoryBlockStore::default();
         let content_store = &mut MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
-        let mut fs_metadata = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
         let path = vec!["cat.txt".to_string()];
         let content = "hello kitty".as_bytes().to_vec();
         // Add a new file
-        fs_metadata.add(path.clone(), content.clone(), metadata_store, content_store).await?;
+        fs_metadata
+            .add(path.clone(), content.clone(), metadata_store, content_store)
+            .await?;
         // Add a new file
-        let file = fs_metadata.get_node(path, content_store).await?.expect("no node").as_file()?;
-        let new_content = file.get_content(&fs_metadata.content_forest, content_store).await?;
+        let file = fs_metadata
+            .get_node(path, content_store)
+            .await?
+            .expect("no node")
+            .as_file()?;
+        let new_content = file
+            .get_content(&fs_metadata.content_forest, content_store)
+            .await?;
         assert_eq!(content, new_content);
-
-
 
         Ok(())
     }

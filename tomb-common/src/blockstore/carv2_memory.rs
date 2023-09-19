@@ -23,7 +23,7 @@ impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
         let mut store = Self {
             data: RefCell::new(Cursor::new(vec![])),
-            car: CarV2::new(Cursor::new(vec![]))?
+            car: CarV2::new(Cursor::new(vec![]))?,
         };
 
         {

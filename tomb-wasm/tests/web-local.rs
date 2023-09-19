@@ -1,11 +1,11 @@
 use core::panic;
-use std::cell::RefCell;
-use std::io::{Cursor, Seek};
-use std::{convert::TryFrom, fs};
 use gloo::console::log;
 use gloo::utils::window;
 use js_sys::{Array, Reflect, Uint8Array};
 use rand::thread_rng;
+use std::cell::RefCell;
+use std::io::{Cursor, Seek};
+use std::{convert::TryFrom, fs};
 use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
 use tomb_common::car::v1::block::Block;
 use tomb_common::car::v2::CarV2;
@@ -19,15 +19,15 @@ use web_sys::{CryptoKey, CryptoKeyPair};
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::account::Account;
 
-use tomb_wasm::types::WasmFsMetadataEntry;
-use tomb_common::metadata::FsMetadata;
+use chrono::Utc;
+use std::rc::Rc;
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore;
+use tomb_common::metadata::FsMetadata;
+use tomb_wasm::types::WasmFsMetadataEntry;
 use tomb_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey};
 use wnfs::libipld::{Cid, IpldCodec};
-use wnfs::private::{PrivateDirectory, PrivateForest};
 use wnfs::namefilter::Namefilter;
-use std::rc::Rc;
-use chrono::Utc;
+use wnfs::private::{PrivateDirectory, PrivateForest};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -47,7 +47,7 @@ async fn fs_test() -> TombResult<()> {
     let mut fs_metadata = FsMetadata::init(&key)
             .await
             .expect("could not init fs metadata");
-    
+
     // Create a new blockstores
     let metadata_store = &mut CarV2MemoryBlockStore::new().expect("unable to create new blockstore");
     let content_store = &mut CarV2MemoryBlockStore::new().expect("unable to create new blockstore");
@@ -75,7 +75,7 @@ async fn fs_mount() -> TombResult<()> {
     let mut fs_metadata = FsMetadata::init(&key)
             .await
             .expect("could not init fs metadata");
-    
+
     // Create a new blockstores
     let metadata_store = &mut CarV2MemoryBlockStore::new().expect("unable to create new blockstore");
     let content_store = &mut CarV2MemoryBlockStore::new().expect("unable to create new blockstore");
@@ -157,12 +157,12 @@ async fn fs_known() -> TombResult<()> {
     fs_metadata.add(vec!["dog.txt".to_string()], "hello puppy!".as_bytes().to_vec(), metadata_store, content_store).await.expect("add");
     // Save
     fs_metadata.save(metadata_store, content_store).await.expect("save");
-    
+
     // let rw = &mut Cursor::new(<Vec<u8>>::new());
-    
+
     validate_car(metadata_store).await.expect("validate metadata");
     validate_car(content_store).await.expect("validate content");
-    
+
     Ok(())
 }
 */
@@ -233,7 +233,7 @@ async fn carv2_known_2() -> TombResult<()> {
     // let new_car = CarV2::read_bytes(&mut Cursor::new(data.clone())).expect("read_car2");
     // let metadata_store = CarV2MemoryBlockStore { data: RefCell::new(Cursor::new(data.clone())), car: new_car};
     gloo::console::log!(format!("new_car2header: {:?}", metadata_store.car.header.clone()));
-    
+
     // let new_data = metada/ta_store.data.borrow().clone().into_inner();
     // assert_eq!(data, new_data);
 
@@ -245,7 +245,7 @@ async fn carv2_known_2() -> TombResult<()> {
     gloo::console::log!(format!("dupe_header: {:?}", dupe_header));
 
     validate_car(&metadata_store.get_data()).await;
-    
+
     // validate_car(content_store).await.expect("validate content");
 
     gloo::console::log!("DONE WITH carv2_known_2");

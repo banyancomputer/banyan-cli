@@ -96,7 +96,6 @@ async fn get_usage() -> TombResult<()> {
     Ok(())
 }
 
-
 // TODO: probably for API tests
 #[wasm_bindgen_test]
 async fn mount() -> TombResult<()> {
@@ -107,7 +106,7 @@ async fn mount() -> TombResult<()> {
     let mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    
+
     assert_eq!(mount.locked(), false);
     Ok(())
 }
