@@ -1,4 +1,5 @@
 use crate::log;
+use crate::utils::validate_car;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::convert::TryFrom;
@@ -8,7 +9,6 @@ use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::snapshot::Snapshot;
 use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
-use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
 use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::car::v2::CarV2;
 use tomb_common::metadata::FsMetadata;
@@ -326,36 +326,7 @@ impl WasmMount {
                     car2
                 ));
 
-                let mut car_staging = StreamingCarAnalyzer::new();
-
-                // Add chunks
-                for chunk in content.chunks(20) {
-                    car_staging.add_chunk(chunk.to_owned());
-                }
-
-                loop {
-                    match car_staging.next().await {
-                        Ok(Some(block_meta)) => {
-                            log!(format!("block_meta: {:?}", block_meta))
-                        }
-                        Ok(None) => {
-                            log!(format!("block_meta: call succeeded but none found"));
-                            break;
-                        }
-                        Err(err) => {
-                            log!(format!("block_meta: analyzer err: {}", err));
-                            break;
-                        }
-                    }
-                }
-
-                log!(format!(
-                    "seen: {}, content: {}",
-                    car_staging.seen_bytes(),
-                    content.len() as u64
-                ));
-                assert_eq!(car_staging.seen_bytes(), content.len() as u64);
-                // log!(format!("car_staging report: {:?}", car_staging.report()));
+                validate_car(&content.clone());
 
                 storage_ticket
                     .clone()

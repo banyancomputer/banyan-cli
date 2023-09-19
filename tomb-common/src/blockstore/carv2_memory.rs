@@ -35,11 +35,6 @@ impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
         }
 
         Ok(store)
-
-        // let data = RefCell::new(Cursor::new(vec));
-        // let car = CarV2::read_bytes(&mut data.borrow_mut().clone())?;
-        // gloo::console::log!(format!("cursor position on start: {}", data.borrow().clone().position()));
-        // Ok(Self { data, car })
     }
 }
 
@@ -166,7 +161,8 @@ mod test {
         assert_eq!(kitty_cid, original.get_root().expect("no root in CAR"));
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
         // Assert equality
-        assert_eq!(original, reconstructed);
+        assert_eq!(original.car, reconstructed.car);
+        assert_eq!(original.data.borrow().clone().into_inner(), reconstructed.data.borrow().clone().into_inner());
         Ok(())
     }
 

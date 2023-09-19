@@ -6,7 +6,6 @@ use rand::thread_rng;
 use std::cell::RefCell;
 use std::io::{Cursor, Seek};
 use std::{convert::TryFrom, fs};
-use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
 use tomb_common::car::v1::block::Block;
 use tomb_common::car::v2::CarV2;
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};

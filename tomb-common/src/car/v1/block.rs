@@ -81,7 +81,6 @@ impl Streamable for Block {
         assert_eq!(self.varint, (cid_buf.len() + self.content.len()) as u128);
         // Write all bytes
         w.write_all(&encode_varint_u128(self.varint))?;
-        gloo::console::log!(format!("the varint of this block is {}", self.varint));
         w.write_all(&cid_buf)?;
         w.write_all(&self.content)?;
         // Flush

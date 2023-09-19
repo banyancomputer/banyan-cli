@@ -85,7 +85,6 @@ impl CarV2 {
         rw.seek(SeekFrom::Start(data_offset))?;
         // Write the CarV1
         let data_end = self.car.write_bytes(&mut rw)?;
-        gloo::console::log!(format!("the data ended at {}", data_end));
         rw.seek(SeekFrom::Start(data_end))?;
         // Update our data size in the Header
         self.update_header(data_end)?;
@@ -154,9 +153,6 @@ impl CarV2 {
         if index.get_offset(&block.cid).is_none() {
             // Insert offset
             index.insert_offset(&block.cid, next_block);
-            //
-            println!("writing block {} at {}", block.cid, next_block);
-            gloo::console::log!(format!("writing block {} at {}", block.cid, next_block));
             // Move to the end
             w.seek(SeekFrom::Start(next_block))?;
             // Write the bytes

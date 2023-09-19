@@ -125,7 +125,6 @@ impl StreamingCarAnalyzer {
 
     pub async fn next(&mut self) -> Result<Option<BlockMeta>, StreamingCarAnalyzerError> {
         loop {
-            gloo::console::log!(format!("attempting to read state: {:?}", self.state));
             match &mut self.state {
                 CarState::Pragma => {
                     if self.buffer.len() < 11 {
@@ -222,8 +221,6 @@ impl StreamingCarAnalyzer {
                         None => return Ok(None),
                     };
 
-                    gloo::console::log!(format!("staging_read: IPLD length is {}", hdr_len));
-
                     if hdr_len >= CAR_HEADER_UPPER_LIMIT {
                         return Err(StreamingCarAnalyzerError::HeaderSegmentSizeExceeded(
                             hdr_len,
@@ -266,9 +263,6 @@ impl StreamingCarAnalyzer {
                     //     }
                     // }
                     */
-                    if self.stream_offset > block_start {
-                        gloo::console::log!("kill me!!!!!");
-                    }
 
                     if block_start >= *data_end {
                         self.state = CarState::Indexes {
@@ -286,8 +280,6 @@ impl StreamingCarAnalyzer {
                         }
                         None => return Ok(None),
                     };
-
-                    gloo::console::log!(format!("read_staging: this block has varint {}", varint));
 
                     println!("read_staging: block cid_start: {}", self.stream_offset);
 
