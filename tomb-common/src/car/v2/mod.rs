@@ -8,6 +8,8 @@ pub mod index;
 // Code
 use self::{header::Header, index::indexable::Indexable};
 use crate::car::v1::{block::Block, CarV1};
+use crate::car::v2::index::Index;
+use crate::car::v2::index::indexsorted::Bucket;
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -30,7 +32,8 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 /// Reading / writing a CarV2 from a Byte Stream
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct CarV2 {
-    pub(crate) header: RefCell<Header>,
+    /// The header
+    pub header: RefCell<Header>,
     /// The CarV1 internal to the CarV2
     pub car: CarV1, // Note that the index is actually stored internally to the CarV1 struct
 }
@@ -141,22 +144,25 @@ impl CarV2 {
         // Determine offset of the next block
         let next_block = header.data_offset + header.data_size;
 
-        // If there is a V2Index
-        self.car
-            .index
-            .borrow_mut()
-            .insert_offset(&block.cid, next_block);
-
-        println!("writing block {} at {}", block.cid, next_block);
-
-        // Move to the end
-        w.seek(SeekFrom::Start(next_block))?;
-        // Write the bytes
-        block.write_bytes(&mut w)?;
-        // Update the data size
-        self.update_header(&mut w)?;
-        // Flush
-        w.flush()?;
+        // Grab index
+        let index: &mut Index<Bucket>  = &mut self.car.index.borrow_mut();
+        // If the index does not contain the Cid
+        if index.get_offset(&block.cid).is_none() {
+            // Insert offset
+            index
+                .insert_offset(&block.cid, next_block);
+            //
+            println!("writing block {} at {}", block.cid, next_block);
+            gloo::console::log!(format!("writing block {} at {}", block.cid, next_block));
+            // Move to the end
+            w.seek(SeekFrom::Start(next_block))?;
+            // Write the bytes
+            block.write_bytes(&mut w)?;
+            // Update the data size
+            self.update_header(&mut w)?;
+            // Flush
+            w.flush()?;
+        }
         // Return Ok
         Ok(())
     }

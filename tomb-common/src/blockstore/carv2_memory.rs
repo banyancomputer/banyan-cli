@@ -41,22 +41,21 @@ impl CarV2MemoryBlockStore {
 
     /// Get a reader to the data underlying the CarV2
     pub fn get_data(&self) -> Vec<u8> {
-        {
-            let rw: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
-            self.car.write_bytes(&mut *rw).unwrap();
-        }
+        self.save();
         let data = self.data.borrow().clone().into_inner();
-
         let test = CarV2::read_bytes(Cursor::new(data.clone()));
         assert!(test.is_ok());
-        
-
         data
     }
 
     /// Get the size of the data underlying the CarV1
     pub fn data_size(&self) -> u64 {
         self.car.data_size()
+    }
+
+    pub fn save(&self) {
+        let rw: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
+        self.car.write_bytes(rw).unwrap();
     }
 }
 

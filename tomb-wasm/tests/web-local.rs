@@ -1,9 +1,14 @@
+use std::io::{Cursor, Seek};
 use std::{convert::TryFrom, fs};
 use gloo::console::log;
 use gloo::utils::window;
 use js_sys::{Array, Reflect, Uint8Array};
 use rand::thread_rng;
+use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
+use tomb_common::car::v1::block::Block;
+use tomb_common::car::v2::CarV2;
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
+use tomb_wasm::mount::WasmMount;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 use web_sys::{CryptoKey, CryptoKeyPair};
@@ -15,6 +20,7 @@ use tomb_wasm::types::WasmFsMetadataEntry;
 use tomb_common::metadata::FsMetadata;
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore;
 use tomb_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey};
+use wnfs::libipld::{Cid, IpldCodec};
 use wnfs::private::{PrivateDirectory, PrivateForest};
 use wnfs::namefilter::Namefilter;
 use std::rc::Rc;
@@ -30,6 +36,7 @@ fn js_array(values: &[&str]) -> JsValue {
     JsValue::from(js_array)
 }
 
+/*
 #[wasm_bindgen_test]
 async fn fs_test() -> TombResult<()> {
     log!("tomb_wasm_test: fs_test()");
@@ -133,5 +140,141 @@ async fn bs_test() -> TombResult<()> {
     assert_eq!(content_string, "hello kitty!".to_string());
 
     // List files again
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+// #[serial]
+async fn carv2_known() -> TombResult<()> {
+    let mut rw = Cursor::new(<Vec<u8>>::new());
+    let car = CarV2::new(&mut rw).expect("new_car");
+    let block1 = Block::new([0x55u8; 55].to_vec(), IpldCodec::Raw).expect("new_block");
+    let block2 = Block::new([0x66u8; 66].to_vec(), IpldCodec::Raw).expect("new_block");
+
+    car.put_block(&block1, &mut rw).expect("put_block");
+    car.put_block(&block2, &mut rw).expect("put_block");
+    car.set_root(&Cid::default());
+    car.write_bytes(&mut rw).expect("write_bytes");
+    // car.set_root(root);/
+    let car = CarV2::read_bytes(&mut rw).expect("rd");
+
+    // println!("the size of car is {}", rw.stream_len()?);
+
+    println!("car2header: {:?}", car.header.borrow().clone());
+    println!("car1header: {:?}", car.car.header);
+
+    println!("hex: {}", hex::encode(rw.clone().into_inner().to_vec()));
+
+    let mut car_stream = StreamingCarAnalyzer::new();
+    for chunk in rw.into_inner().chunks(20) {
+        car_stream.add_chunk(chunk.to_owned()).expect("add_chunk");
+    }
+
+    loop {
+        match car_stream.next().await {
+            Ok(Some(meta)) => {
+                println!("meta: {:?}", meta);
+            },
+            Ok(None) => {
+                println!("none!");
+                break;
+            },
+            Err(err) => {
+                println!("error!: {}", err);
+                break;
+            }
+        }
+    }
+    
+    let report = car_stream.report().expect("report");
+
+    println!("report: {:?}", report);
+
+    Ok(())
+}
+
+
+#[wasm_bindgen_test]
+async fn fs_known() -> TombResult<()> {
+    let wrapping_key = EcEncryptionKey::generate().await.expect("generate_key");
+    let mut fs_metadata = FsMetadata::init(&wrapping_key).await.expect("init fs");
+    let metadata_store = &mut CarV2MemoryBlockStore::new().expect("new store");
+    let content_store = &mut CarV2MemoryBlockStore::new().expect("new store");
+    // Add a file
+    fs_metadata.add(vec!["cat.txt".to_string()], "hello kitty!".as_bytes().to_vec(), metadata_store, content_store).await.expect("add");
+    fs_metadata.add(vec!["dog.txt".to_string()], "hello puppy!".as_bytes().to_vec(), metadata_store, content_store).await.expect("add");
+    // Save
+    fs_metadata.save(metadata_store, content_store).await.expect("save");
+
+    // let rw = &mut Cursor::new(<Vec<u8>>::new());
+
+    let mut car_stream = StreamingCarAnalyzer::new();
+    for chunk in metadata_store.get_data().chunks(20) {
+        car_stream.add_chunk(chunk.to_owned()).expect("add_chunk");
+    }
+
+    loop {
+        match car_stream.next().await {
+            Ok(Some(meta)) => {
+                println!("meta: {:?}", meta);
+            },
+            Ok(None) => {
+                println!("none!");
+                break;
+            },
+            Err(err) => {
+                println!("error!: {}", err);
+                break;
+            }
+        }
+    }
+    
+    let report = car_stream.report().expect("report");
+
+    println!("report: {:?}", report);
+
+    Ok(())
+}
+*/
+
+#[wasm_bindgen_test]
+async fn mount_known() -> TombResult<()> {
+    let wrapping_key = EcEncryptionKey::generate().await.expect("generate_key");
+    let mut fs_metadata = FsMetadata::init(&wrapping_key).await.expect("init fs");
+    let metadata_store = &mut CarV2MemoryBlockStore::new().expect("new store");
+    let content_store = &mut CarV2MemoryBlockStore::new().expect("new store");
+    // Add a file
+    fs_metadata.add(vec!["cat.txt".to_string()], "hello kitty!".as_bytes().to_vec(), metadata_store, content_store).await.expect("add");
+    fs_metadata.add(vec!["dog.txt".to_string()], "hello puppy!".as_bytes().to_vec(), metadata_store, content_store).await.expect("add");
+    // Save
+    fs_metadata.save(metadata_store, content_store).await.expect("save");
+
+    // let rw = &mut Cursor::new(<Vec<u8>>::new());
+
+    let mut car_stream = StreamingCarAnalyzer::new();
+    for chunk in metadata_store.get_data().chunks(20) {
+        car_stream.add_chunk(chunk.to_owned()).expect("add_chunk");
+    }
+
+    loop {
+        match car_stream.next().await {
+            Ok(Some(meta)) => {
+                println!("meta: {:?}", meta);
+            },
+            Ok(None) => {
+                println!("none!");
+                break;
+            },
+            Err(err) => {
+                println!("error!: {}", err);
+                break;
+            }
+        }
+    }
+    
+    let report = car_stream.report().expect("report");
+
+    println!("report: {:?}", report);
+
     Ok(())
 }

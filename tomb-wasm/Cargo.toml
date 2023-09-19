@@ -52,6 +52,7 @@ web-sys = { version = "^0.3", features = [
     "SubtleCrypto",
     "FileReader"
 ]}
+hex = "0.4.3"
 
 [dev-dependencies]
 wasm-bindgen-test = "^0.3"

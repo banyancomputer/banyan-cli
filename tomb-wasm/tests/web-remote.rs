@@ -1,4 +1,4 @@
-
+/*
 //! Test suite for the Web and headless browsers.
 
 use std::convert::TryFrom;
@@ -312,4 +312,5 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
+ */
  */

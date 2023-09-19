@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
-use tomb_common::blockstore::carv2_staging::StreamingCarAnalyzer;
+use tomb_common::blockstore::carv2_staging::{StreamingCarAnalyzer, self};
 use tomb_common::car::v2::CarV2;
 use std::convert::TryFrom;
 use std::io::Cursor;
@@ -240,6 +240,9 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
+        self.metadata_blockstore.save();
+        self.content_blockstore.save();
+
         let root_cid = &self
             .content_blockstore
             .get_root()
@@ -342,6 +345,7 @@ impl WasmMount {
                     }
                 }
 
+                log!(format!("seen: {}, content: {}", car_staging.seen_bytes(), content.len() as u64));
                 assert_eq!(car_staging.seen_bytes(), content.len() as u64);
                 // log!(format!("car_staging report: {:?}", car_staging.report()));
                 
@@ -628,6 +632,12 @@ impl WasmMount {
         );
         self.dirty = true;
         self.append = true;
+
+
+        // let mut analyzer = StreamingCarAnalyzer::new();
+        // for chunk in 
+
+
         self.sync().await.expect("could not sync");
 
         // Ok

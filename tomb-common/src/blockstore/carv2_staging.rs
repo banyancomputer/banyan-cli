@@ -1,7 +1,7 @@
 use std::io::Cursor;
 use blake3::Hasher;
 use bytes::{BufMut, Bytes, BytesMut};
-use crate::car::{varint::read_varint_u64, Streamable};
+use crate::car::{varint::read_varint_u64, Streamable, v1::block};
 use libipld::Cid;
 
 const CAR_HEADER_UPPER_LIMIT: u64 = 16 * 1024 * 1024; // Limit car headers to 16MiB
@@ -42,16 +42,12 @@ enum CarState {
         data_start: u64,
         data_end: u64,
         index_start: u64,
-
-        header_length: Option<u64>,
-    },
+    }, 
     Block {
         // advances to each block until we reach data_end
         block_start: u64,
         data_end: u64,
         index_start: u64,
-
-        block_length: Option<u64>,
     },
     Indexes {
         index_start: u64,
@@ -184,14 +180,13 @@ impl StreamingCarAnalyzer {
                         data_start,
                         data_end,
                         index_start,
-                        header_length: None,
+                        // header_length: None,
                     };
                 }
                 CarState::CarV1Header {
                     data_start,
                     data_end,
                     index_start,
-                    ref mut header_length,
                 } => {
                     let data_start = *data_start;
 
@@ -209,22 +204,17 @@ impl StreamingCarAnalyzer {
                         }
                     }
 
-                    let hdr_len = match header_length {
-                        Some(l) => *l,
-                        None => match try_read_varint_u64(&self.buffer[..])? {
-                            Some((length, bytes_read)) => {
-                                *header_length = Some(length);
+                    let hdr_len = match try_read_varint_u64(&self.buffer[..])? {
+                        Some((length, bytes_read)) => {
+                            self.stream_offset += bytes_read;
+                            let _ = self.buffer.split_to(bytes_read as usize);
 
-                                self.stream_offset += bytes_read;
-                                let _ = self.buffer.split_to(bytes_read as usize);
-
-                                length
-                            }
-                            None => return Ok(None),
-                        },
+                            length
+                        }
+                        None => return Ok(None),
                     };
 
-                    println!("header_length: {hdr_len}");
+                    gloo::console::log!(format!("staging_read: IPLD length is {}", hdr_len));
 
                     if hdr_len >= CAR_HEADER_UPPER_LIMIT {
                         return Err(StreamingCarAnalyzerError::HeaderSegmentSizeExceeded(
@@ -235,13 +225,14 @@ impl StreamingCarAnalyzer {
                     // todo: decode dag-cbor inside of block
                     // todo: parse out expected roots and record them... can skip for now
 
+                    let _ = self.buffer.split_to(hdr_len as usize);
+                    self.stream_offset += hdr_len;
+
                     // into the blocks!
                     self.state = CarState::Block {
-                        block_start: self.stream_offset + hdr_len,
+                        block_start: self.stream_offset,
                         data_end: *data_end,
                         index_start: *index_start,
-
-                        block_length: None,
                     };
                     println!("onto the blocks!");
                 }
@@ -249,25 +240,29 @@ impl StreamingCarAnalyzer {
                     block_start,
                     data_end,
                     index_start,
-                    ref mut block_length,
                 } => {
                     let block_start = *block_start;
 
-                    // Skip any left over data and padding until we reach our goal
-                    if self.stream_offset < block_start {
-                        let skippable_bytes = block_start - self.stream_offset; // 171 - 72 = 99
-                        let available_bytes = self.buffer.len() as u64; //
+                    /*
+                    // // Skip any left over data and padding until we reach our goal
+                    // if self.stream_offset < block_start {
+                    //     let skippable_bytes = block_start - self.stream_offset; // 171 - 72 = 99
+                    //     let available_bytes = self.buffer.len() as u64; //
 
-                        let skipped_byte_count = available_bytes.min(skippable_bytes);
-                        let _ = self.buffer.split_to(skipped_byte_count as usize);
-                        self.stream_offset += skipped_byte_count;
+                    //     let skipped_byte_count = available_bytes.min(skippable_bytes);
+                    //     let _ = self.buffer.split_to(skipped_byte_count as usize);
+                    //     self.stream_offset += skipped_byte_count;
 
-                        if self.stream_offset != block_start {
-                            return Ok(None);
-                        }
+                    //     if self.stream_offset != block_start {
+                    //         return Ok(None);
+                    //     }
+                    // }
+                    */
+                    if self.stream_offset > block_start {
+                        gloo::console::log!("kill me!!!!!");
                     }
 
-                    if block_start == *data_end {
+                    if block_start >= *data_end {
                         self.state = CarState::Indexes {
                             index_start: *index_start,
                         };
@@ -275,70 +270,62 @@ impl StreamingCarAnalyzer {
                         continue;
                     }
 
-                    println!("read: block varint_start: {}", self.stream_offset);
-
-                    let blk_len = match block_length {
-                        Some(bl) => *bl,
-                        None => match try_read_varint_u64(&self.buffer[..])? {
-                            Some((length, bytes_read)) => {
-                                *block_length = Some(length);
-
-                                self.stream_offset += bytes_read;
-
-                                let _ = self.buffer.split_to(bytes_read as usize);
-
-                                length
-                            }
-                            None => return Ok(None),
-                        },
+                    let varint = match try_read_varint_u64(&self.buffer[..])? {
+                        Some((length, bytes_read)) => {
+                            self.stream_offset += bytes_read;
+                            let _ = self.buffer.split_to(bytes_read as usize);
+                            length
+                        }
+                        None => return Ok(None),
                     };
 
-                    // We would need to pass this through our state if we want to do streaming
-                    // parsing on the block contents, but since we don't we can use the current
-                    // stream offset as a proxy for "just after the block length" we can avoid
-                    // storing it in state.
-                    let length_varint_len = self.stream_offset - block_start;
+                    gloo::console::log!(format!("read_staging: this block has varint {}", varint));
 
-                    println!("read: block cid_start: {}", self.stream_offset);
+                    println!("read_staging: block cid_start: {}", self.stream_offset);
 
                     // 64-bytes is the longest reasonable CID we're going to care about it. We're
                     // going to wait until we have that much then try and decode the CID from
                     // there. The edge case here is if the total block length (CID included) is
                     // less than 64-bytes we'll just wait for the entire block. The CID has to be
                     // included and we'll decode it from there just as neatly.
-                    let minimum_cid_blocks = blk_len.min(64) as usize;
+                    let minimum_cid_blocks = varint.min(64) as usize;
                     if self.buffer.len() < minimum_cid_blocks {
                         return Ok(None);
                     }
 
                     let cid = match Cid::read_bytes(&self.buffer[..]) {
                         Ok(cid) => {
-                            println!("read: read cid! {}", self.stream_offset);
+                            gloo::console::log!(format!("read_staging: successfully read cid: {}", cid));
                             cid
                         },
                         Err(err) => {
-                            println!("read: failed to read cid! {}", err);
+                            gloo::console::log!(format!("read_staging: failed to read cid! {}", err));
                             // tracing::error!("uploaded car file contained an invalid CID: {err}");
                             return Err(StreamingCarAnalyzerError::InvalidBlockCid(self.stream_offset));
                         }
                     };
-                    let cid_length = cid.encoded_len() as u64;
 
-                    println!("read: block data_start: {}", self.stream_offset);
+                    gloo::console::log!(format!("read_staging: that cid had len {}", cid.encoded_len()));
+
+
+                    // let remaining_block_bytes = varint - cid_length;
+                    let _ = self.buffer.split_to(varint as usize);
+                    self.stream_offset += varint;
+
+                    gloo::console::log!(format!("read_staging: finished reading a block at {}", self.stream_offset));
 
                     // This might be the end of all data, we'll check once we reach the block_start
                     // offset
                     self.state = CarState::Block {
-                        block_start: block_start + length_varint_len + blk_len,
+                        block_start: self.stream_offset,
                         data_end: *data_end,
                         index_start: *index_start,
-                        block_length: None,
                     };
 
                     return Ok(Some(BlockMeta {
                         cid,
-                        offset: block_start + length_varint_len + cid_length,
-                        length: blk_len - cid_length,
+                        offset: block_start,
+                        length: varint,
                     }));
                 }
                 CarState::Indexes { index_start } => {
@@ -559,7 +546,6 @@ mod tests {
             data_start: 71,
             data_end: 71 + data_length,
             index_start: 285,
-            header_length: None,
         };
 
         assert!(sca.next().await.expect("still valid").is_none()); // no blocks yet
@@ -594,7 +580,6 @@ mod tests {
             block_start: 171,
             data_end: 71 + data_length,
             index_start: 71 + data_length + 20,
-            block_length: None,
         };
         assert_eq!(sca.state, first_block);
         assert_eq!(sca.buffer.len(), 0);
@@ -632,7 +617,6 @@ mod tests {
                 block_start: 265,
                 data_end: 265,
                 index_start: 285,
-                block_length: None
             }
         );
         assert_eq!(sca.stream_offset, 172); // we've read the length & CID but haven't advanced the stream
@@ -686,52 +670,4 @@ mod tests {
     }
 
 
-    #[tokio::test]
-    // #[serial]
-    async fn carv2_known() -> Result<()> {
-        let mut rw = Cursor::new(<Vec<u8>>::new());
-        let car = CarV2::new(&mut rw)?;
-        let block1 = Block::new([0x55u8; 55].to_vec(), IpldCodec::Raw)?;
-        let block2 = Block::new([0x66u8; 66].to_vec(), IpldCodec::Raw)?;
-
-        car.put_block(&block1, &mut rw)?;
-        car.put_block(&block2, &mut rw)?;
-        car.write_bytes(&mut rw)?;
-        // car.set_root(root);/
-        let car = CarV2::read_bytes(&mut rw)?;
-
-        println!("the size of car is {}", rw.stream_len()?);
-
-        println!("car2header: {:?}", car.header.borrow().clone());
-        println!("car1header: {:?}", car.car.header);
-
-        println!("hex: {}", hex::encode(rw.clone().into_inner().to_vec()));
-
-        let mut car_stream = StreamingCarAnalyzer::new();
-        for chunk in rw.into_inner().chunks(20) {
-            car_stream.add_chunk(chunk.to_owned())?;
-        }
-
-        loop {
-            match car_stream.next().await {
-                Ok(Some(meta)) => {
-                    println!("meta: {:?}", meta);
-                },
-                Ok(None) => {
-                    println!("none!");
-                    break;
-                },
-                Err(err) => {
-                    println!("error!: {}", err);
-                    break;
-                }
-            }
-        }
-        
-        let report = car_stream.report()?;
-
-        println!("report: {:?}", report);
-
-        Ok(())
-    }
 }
