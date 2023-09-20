@@ -682,6 +682,7 @@ impl WasmMount {
                 from_path_segments,
                 to_path_segments,
                 &self.metadata_blockstore,
+                &self.content_blockstore,
             )
             .await
             .expect("could not mv");

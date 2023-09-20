@@ -6,7 +6,7 @@ use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, os::unix::thread, rc::Rc};
+use std::{collections::BTreeMap, rc::Rc};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{BlockStore, Metadata},
@@ -566,7 +566,7 @@ impl FsMetadata {
             )
             .await
         } else {
-            return Err(SerialError::NodeNotFound(path_segments.join("/")).into());
+            Err(SerialError::NodeNotFound(path_segments.join("/")).into())
         }
     }
 
