@@ -466,8 +466,6 @@ impl FsMetadata {
         metadata_store: &impl RootedBlockStore,
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
-        // Compress the data in the file
-        // let content_buf = compress_vec(content)?;
         // Turn the relative path into a vector of segments
         let time = Utc::now();
         let rng = &mut thread_rng();
@@ -546,7 +544,6 @@ impl FsMetadata {
                 let content = file
                     .get_content(&self.content_forest, content_store)
                     .await?;
-                // let content = decompress_vec(&content)?;
                 Ok(content)
             }
             _ => Err(SerialError::NodeNotFound(path_segments.join("/")).into()),

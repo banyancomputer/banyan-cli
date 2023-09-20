@@ -33,7 +33,7 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct CarV2 {
     /// The header
-    pub header: RefCell<Header>,
+    pub(crate) header: RefCell<Header>,
     /// The CarV1 internal to the CarV2
     pub car: CarV1, // Note that the index is actually stored internally to the CarV1 struct
 }
@@ -192,8 +192,6 @@ impl CarV2 {
 
     fn update_header(&self, data_end: u64) -> Result<()> {
         let mut header = self.header.borrow_mut();
-        // Update the data size
-        // let v1_end = x.seek(SeekFrom::End(0))?;
         // Update the data size
         header.data_size = if data_end > PH_SIZE {
             data_end - PH_SIZE

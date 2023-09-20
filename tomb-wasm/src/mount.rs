@@ -238,9 +238,6 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        self.metadata_blockstore.save();
-        self.content_blockstore.save();
-
         let root_cid = &self
             .content_blockstore
             .get_root()
@@ -582,9 +579,6 @@ impl WasmMount {
         self.dirty = true;
         self.append = true;
 
-        // let mut analyzer = StreamingCarAnalyzer::new();
-        // for chunk in
-
         self.sync().await.expect("could not sync");
 
         // Ok
@@ -839,22 +833,6 @@ impl WasmMount {
             .restore(&mut self.client)
             .await
             .expect("could not restore snapshot");
-
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::TombResult;
-    use gloo::console::log;
-    use wasm_bindgen_test::*;
-
-    wasm_bindgen_test_configure!(run_in_browser);
-
-    #[wasm_bindgen_test]
-    async fn test() -> TombResult<()> {
-        log!("tomb_wasm_test: test()");
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod test {
+mod test {
     use crate::car::v2::CarV2;
     use crate::car::{
         v1::header::Header,
@@ -352,7 +352,7 @@ pub mod test {
     }
 
     /// Construct fixture
-    pub fn build_full_car() -> Vec<u8> {
+    fn build_full_car() -> Vec<u8> {
         // We're going to cheat and pre-generate all the data we need before we start generating the
         // actual CAR file
         let mut all_car_bytes: Vec<u8> = Vec::new();

@@ -146,17 +146,10 @@ mod test {
         let test_name = "cli_configure_remote";
         // Setup test
         let (origin, _) = &test_setup(test_name).await?;
-
         // Initialize
         run(cmd_create(origin)).await?;
-
         // Configure remote endpoint
         run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
-
-        // Load the modified Manifest
-        // let _manifest = manifest_from_disk(&input_dir.join(".tomb"))?;
-        // Expect that the remote endpoint was successfully updated
-        // assert_eq!(manifest.cold_remote.addr, "http://127.0.0.1:5001");
         // Teardown test
         test_teardown(test_name).await
     }

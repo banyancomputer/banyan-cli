@@ -652,8 +652,6 @@ mod test {
         // Setup the test
         let (origin, _) = &test_setup(test_name).await?;
 
-        // Path in which Directory symlink will be created
-        // let sym_dir_root = test_path.join("input").join("symlinks");
         // Path in which File symlink will be created
         let sym_file_root = origin.join("0");
 
