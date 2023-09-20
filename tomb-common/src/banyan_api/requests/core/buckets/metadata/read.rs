@@ -33,6 +33,7 @@ pub struct ReadMetadataResponse {
     pub state: MetadataState,
     pub created_at: i64,
     pub updated_at: i64,
+    pub snapshot_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]

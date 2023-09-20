@@ -77,29 +77,26 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
 }
 
 #[wasm_bindgen]
-pub struct WasmSnapshot(Snapshot);
+pub struct WasmSnapshot(pub(crate) Snapshot);
 
 #[wasm_bindgen]
 impl WasmSnapshot {
+    #[wasm_bindgen(getter)]
     pub fn id(&self) -> String {
         self.0.id.to_string()
     }
 
-    #[wasm_bindgen(js_name = "bucketId")]
+    #[wasm_bindgen(getter = bucketId)]
     pub fn bucket_id(&self) -> String {
         self.0.bucket_id.to_string()
     }
 
-    #[wasm_bindgen(js_name = "metadataId")]
+    #[wasm_bindgen(getter = metadataId)]
     pub fn metadata_id(&self) -> String {
         self.0.metadata_id.to_string()
     }
 
-    pub(crate) fn new(snapshot: Snapshot) -> Self {
-        Self(snapshot)
-    }
-
-    #[wasm_bindgen(js_name = "dataSize")]
+    #[wasm_bindgen(getter = createdAt)]
     pub fn created_at(&self) -> i64 {
         self.0.created_at
     }
@@ -230,56 +227,24 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
 }
 
 /// A wrapper around a bucket metadata
+#[wasm_bindgen]
 pub struct WasmBucketMetadata(pub(crate) Metadata);
 
-impl TryFrom<WasmBucketMetadata> for JsValue {
-    type Error = js_sys::Error;
+/// Getters
+#[wasm_bindgen]
+impl WasmBucketMetadata {
+    #[wasm_bindgen(getter)]
+    pub fn id(&self) -> String {
+        self.0.id.to_string()
+    }
 
-    fn try_from(bucket_metadata: WasmBucketMetadata) -> Result<Self, Self::Error> {
-        let object = Object::new();
+    #[wasm_bindgen(getter = bucketId)]
+    pub fn bucket_id(&self) -> String {
+        self.0.bucket_id.to_string()
+    }
 
-        Reflect::set(
-            &object,
-            &value!("id"),
-            &value!(bucket_metadata.0.id.to_string()),
-        )
-        .expect("we know this is an object");
-
-        Reflect::set(
-            &object,
-            &value!("bucket_id"),
-            &value!(bucket_metadata.0.bucket_id.to_string()),
-        )
-        .expect("we know this is an object");
-
-        Reflect::set(
-            &object,
-            &value!("root_cid"),
-            &value!(bucket_metadata.0.root_cid),
-        )
-        .expect("we know this is an object");
-
-        Reflect::set(
-            &object,
-            &value!("metadata_cid"),
-            &value!(bucket_metadata.0.metadata_cid),
-        )
-        .expect("we know this is an object");
-
-        Reflect::set(
-            &object,
-            &value!("data_size"),
-            &value!(bucket_metadata.0.data_size),
-        )
-        .expect("we know this is an object");
-
-        Reflect::set(
-            &object,
-            &value!("state"),
-            &value!(bucket_metadata.0.state.to_string()),
-        )
-        .expect("we know this is an object");
-
-        Ok(value!(object))
+    #[wasm_bindgen(getter = snapshotId)]
+    pub fn snapshot_id(&self) -> String {
+        self.0.snapshot_id.expect("no snapshot").to_string()
     }
 }
