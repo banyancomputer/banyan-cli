@@ -6,7 +6,7 @@ use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, rc::Rc, os::unix::thread};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{BlockStore, Metadata},
@@ -550,6 +550,28 @@ impl FsMetadata {
         }
     }
 
+    /// Write data do a specific node
+    pub async fn write(
+        &mut self,
+        path_segments: Vec<String>,
+        metadata_store: &impl RootedBlockStore,
+        content_store: &impl BlockStore,
+        content: Vec<u8>,
+    ) -> Result<()> {
+        let time = Utc::now();
+        let rng = &mut thread_rng();
+        match self.root_dir.open_file_mut(&path_segments, true, time, &mut self.metadata_forest, metadata_store, rng).await {
+            Ok(file) => {
+                file
+                    .set_content(Utc::now(), content.as_slice(), &mut self.content_forest, content_store, &mut thread_rng())
+                    .await
+            },
+            Err(_) => {
+                return Err(SerialError::NodeNotFound(path_segments.join("/")).into());
+            },
+        }
+    }
+
     /// Get a node from the Fs
     pub async fn get_node(
         &mut self,
@@ -649,22 +671,101 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let path = vec!["cat.txt".to_string()];
-        let content = "hello kitty".as_bytes().to_vec();
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(path.clone(), content.clone(), metadata_store, content_store)
+            .add(cat_path.clone(), kitty_bytes.clone(), metadata_store, content_store)
             .await?;
+
+        let new_kitty_bytes = fs_metadata.read(cat_path.clone(), metadata_store, content_store).await?;
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn add_rm_read() -> Result<()> {
+        let metadata_store = &mut MemoryBlockStore::default();
+        let content_store = &mut MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
-        let file = fs_metadata
-            .get_node(path, content_store)
-            .await?
-            .expect("no node")
-            .as_file()?;
-        let new_content = file
-            .get_content(&fs_metadata.content_forest, content_store)
+        fs_metadata
+            .add(cat_path.clone(), kitty_bytes.clone(), metadata_store, content_store)
             .await?;
-        assert_eq!(content, new_content);
+
+        // Remove
+        fs_metadata.rm(cat_path.clone(), metadata_store).await?;
+
+        let result = fs_metadata.read(cat_path.clone(), metadata_store, content_store).await;
+        assert!(result.is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn add_write_read() -> Result<()> {
+        let metadata_store = &mut MemoryBlockStore::default();
+        let content_store = &mut MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
+        // Add a new file
+        fs_metadata
+            .add(cat_path.clone(), kitty_bytes.clone(), metadata_store, content_store)
+            .await?;
+
+        let new_kitty_bytes = fs_metadata.read(cat_path.clone(), metadata_store, content_store).await?;
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+        let puppy_bytes = "hello puppy".as_bytes().to_vec();
+        // Replace existing content 
+        fs_metadata.write(cat_path.clone(), metadata_store, content_store, puppy_bytes.clone()).await?;
+
+        let new_puppy_bytes = fs_metadata.read(cat_path.clone(), metadata_store, content_store).await?;
+        assert_eq!(puppy_bytes, new_puppy_bytes);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn all_functions() -> Result<()> {
+        let metadata_store = &mut MemoryBlockStore::default();
+        let content_store = &mut MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
+        // Add a new file
+        fs_metadata
+            .add(cat_path.clone(), kitty_bytes.clone(), metadata_store, content_store)
+            .await?;
+
+        let new_kitty_bytes = fs_metadata.read(cat_path.clone(), metadata_store, content_store).await?;
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        let dog_path = vec!["dog.txt".to_string()];
+        let puppy_bytes = "hello puppy".as_bytes().to_vec();
+        
+        // Move cat.txt to dog.txt
+        fs_metadata.mv(cat_path.clone(), dog_path.clone(), metadata_store).await?;
+        // Replace existing content 
+        fs_metadata.write(dog_path.clone(), metadata_store, content_store, puppy_bytes.clone()).await?;
+
+        let new_puppy_bytes = fs_metadata.read(dog_path.clone(), metadata_store, content_store).await?;
+        assert_eq!(puppy_bytes, new_puppy_bytes);
 
         Ok(())
     }
