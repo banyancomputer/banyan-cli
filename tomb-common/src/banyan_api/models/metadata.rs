@@ -242,6 +242,7 @@ impl Metadata {
             id: response.id,
             bucket_id: self.bucket_id,
             metadata_id: self.id,
+            size: self.data_size,
             created_at: response.created_at,
         })
     }

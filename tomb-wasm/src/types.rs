@@ -96,6 +96,11 @@ impl WasmSnapshot {
         self.0.metadata_id.to_string()
     }
 
+    #[wasm_bindgen(getter)]
+    pub fn size(&self) -> u64 {
+        self.0.size
+    }
+
     #[wasm_bindgen(getter = createdAt)]
     pub fn created_at(&self) -> i64 {
         self.0.created_at
