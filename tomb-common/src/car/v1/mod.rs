@@ -28,29 +28,22 @@ pub struct CarV1 {
     pub header: Header,
     /// The CARv1 Index
     pub index: RefCell<Index<Bucket>>,
-    /// The length of the CARv1 Header when read in
-    pub(crate) read_header_len: RefCell<u64>,
 }
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
     pub fn read_bytes<R: Read + Seek>(index_offset: Option<u64>, mut r: R) -> Result<Self> {
-        // Track the part of the stream where the V1Header starts
-        let header_start = r.stream_position()?;
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
         // End of the header
         let header_end = r.stream_position()?;
-        // Determine the length of the header that we just read
-        let read_header_len = RefCell::new(header_end - header_start);
         // If we're in a CARv2
         if let Some(index_offset) = index_offset &&
         r.seek(SeekFrom::Start(index_offset)).is_ok() &&
             let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
             return Ok(Self {
                 header,
-                index: RefCell::new(index),
-                read_header_len,
+                index: RefCell::new(index)
             })
         }
 
@@ -59,23 +52,24 @@ impl CarV1 {
         Ok(Self {
             header,
             index: RefCell::new(index),
-            read_header_len,
         })
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
-    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<()> {
+    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64> {
         // Save our starting point
         let carv1_start = rw.stream_position()?;
-
-        // Write the header into a buffer
+        // Read the old header
+        Header::read_bytes(&mut rw)?;
+        // Determine how much was read
+        let old_header_len = rw.stream_position()? - carv1_start;
+        // Seek back to the start
+        rw.seek(SeekFrom::Start(carv1_start))?;
+        // Write the current header into a buffer
         let mut current_header_buf = Cursor::new(<Vec<u8>>::new());
         self.header.write_bytes(&mut current_header_buf)?;
-
         // Compute data offset
-        let data_offset =
-            current_header_buf.stream_len()? as i64 - *self.read_header_len.borrow() as i64;
-
+        let data_offset = current_header_buf.stream_len()? as i64 - old_header_len as i64;
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
         // Grab all offsets
@@ -107,7 +101,7 @@ impl CarV1 {
             new_index.insert(block.cid, new_offset);
         }
         {
-            let mut index = self.index.borrow_mut();
+            let index: &mut Index<Bucket> = &mut self.index.borrow_mut();
             for (cid, offset) in new_index {
                 index.insert_offset(&cid, offset);
             }
@@ -118,7 +112,17 @@ impl CarV1 {
         rw.write_all(&current_header_buf.into_inner())?;
         // Flush
         rw.flush()?;
-        Ok(())
+
+        let mut offsets: Vec<u64> = vec![];
+        for bucket in self.index.borrow().clone().buckets {
+            offsets.extend_from_slice(&bucket.map.clone().into_values().collect::<Vec<u64>>())
+        }
+
+        if let Some(max_offset) = offsets.iter().max() {
+            rw.seek(SeekFrom::Start(*max_offset))?;
+            let _ = Block::read_bytes(&mut rw)?;
+        }
+        Ok(rw.stream_position()?)
     }
 
     /// Get a Block directly from the CarV1
@@ -181,13 +185,8 @@ impl CarV1 {
         header
             .write_bytes(&mut buf)
             .expect("failed to write header as bytes");
-
-        // Header length
-        let hlen = buf.stream_len().expect("cant get stream len in header");
-
         Self {
             header,
-            read_header_len: RefCell::new(hlen),
             index: RefCell::new(Index {
                 codec: INDEX_SORTED_CODEC,
                 buckets: vec![],

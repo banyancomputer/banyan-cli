@@ -1,3 +1,4 @@
+use crate::log;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::convert::TryFrom;
@@ -11,8 +12,6 @@ use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
-
-use crate::log;
 
 // TODO: This should be a config
 const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
@@ -247,11 +246,6 @@ impl WasmMount {
             .metadata_blockstore
             .get_root()
             .expect("could not get metadata cid");
-        log!(format!(
-            "\nvera: sync sanity check:\nroot:{}\nmeta:{}\n",
-            root_cid, metadata_cid
-        ));
-
         log!(
             "tomb-wasm: mount/sync()/{} - pushing metadata at version {}",
             self.bucket.id.to_string(),
@@ -309,7 +303,9 @@ impl WasmMount {
                         TombWasmError(format!("unable to register storage ticket: {err}"))
                     })?;
 
-                let content = Cursor::new(self.metadata_blockstore.get_data());
+                // Get content
+                let content = Cursor::new(self.content_blockstore.get_data());
+
                 storage_ticket
                     .clone()
                     .upload_content(metadata_id, content, &mut self.client)
@@ -362,19 +358,8 @@ impl WasmMount {
             "tomb-wasm: mount/unlock()/{} - checking versioning",
             self.bucket.id,
         ));
-
-        log!(format!("vera: metadata: {:?}", self.metadata));
-        log!(format!(
-            "vera: content_blockstore root: {:?}",
-            self.content_blockstore.get_root()
-        ));
-        log!(format!(
-            "vera: metadata_blockstore root: {:?}",
-            self.metadata_blockstore.get_root()
-        ));
-
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
-            return Err(TombWasmError(format!("unable to retrieve metadata CID")));
+            return Err(TombWasmError("unable to retrieve metadata CID".to_string()));
         };
         // Default to the metadata cid if its not present
         // Remember this is the CID of the IPLD, which will be the same in both cases.
@@ -593,6 +578,7 @@ impl WasmMount {
         );
         self.dirty = true;
         self.append = true;
+
         self.sync().await.expect("could not sync");
 
         // Ok

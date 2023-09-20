@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::banyan_api::requests::ApiRequest;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct PushContent<S>
 where
     reqwest::Body: From<S>,
@@ -21,7 +21,7 @@ where
 }
 
 #[cfg(target_arch = "wasm32")]
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct PushContent<S>
 where
     S: Read,

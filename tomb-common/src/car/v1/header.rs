@@ -4,6 +4,7 @@ use crate::car::{
 };
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
+
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -103,6 +104,8 @@ impl Streamable for Header {
         let mut ipld_buf: Vec<u8> = vec![0; ipld_len as usize];
         // Read that IPLD in as DAGCBOR bytes
         r.read_exact(&mut ipld_buf)?;
+        // Assert
+        assert_eq!(ipld_buf.len() as u64, ipld_len);
         // Reconstruct this object from those IPLD bytes
         Self::from_ipld_bytes(&ipld_buf)
     }

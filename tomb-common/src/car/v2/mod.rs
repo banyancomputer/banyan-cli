@@ -8,6 +8,8 @@ pub mod index;
 // Code
 use self::{header::Header, index::indexable::Indexable};
 use crate::car::v1::{block::Block, CarV1};
+use crate::car::v2::index::indexsorted::Bucket;
+use crate::car::v2::index::Index;
 use crate::traits::streamable::Streamable;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -30,6 +32,7 @@ pub(crate) const PRAGMA: [u8; PRAGMA_SIZE] = [
 /// Reading / writing a CarV2 from a Byte Stream
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct CarV2 {
+    /// The header
     pub(crate) header: RefCell<Header>,
     /// The CarV1 internal to the CarV2
     pub car: CarV1, // Note that the index is actually stored internally to the CarV1 struct
@@ -75,11 +78,11 @@ impl CarV2 {
         let data_offset = self.header.borrow().data_offset;
         // Skip to it
         rw.seek(SeekFrom::Start(data_offset))?;
-
         // Write the CarV1
-        self.car.write_bytes(&mut rw)?;
+        let data_end = self.car.write_bytes(&mut rw)?;
+        rw.seek(SeekFrom::Start(data_end))?;
         // Update our data size in the Header
-        self.update_header(&mut rw)?;
+        self.update_header(data_end)?;
         // Move to index offset
         rw.seek(SeekFrom::Start(self.header.borrow().index_offset))?;
         // Write out the index
@@ -139,20 +142,21 @@ impl CarV2 {
         // Determine offset of the next block
         let next_block = header.data_offset + header.data_size;
 
-        // If there is a V2Index
-        self.car
-            .index
-            .borrow_mut()
-            .insert_offset(&block.cid, next_block);
-
-        // Move to the end
-        w.seek(SeekFrom::Start(next_block))?;
-        // Write the bytes
-        block.write_bytes(&mut w)?;
-        // Update the data size
-        self.update_header(&mut w)?;
-        // Flush
-        w.flush()?;
+        // Grab index
+        let index: &mut Index<Bucket> = &mut self.car.index.borrow_mut();
+        // If the index does not contain the Cid
+        if index.get_offset(&block.cid).is_none() {
+            // Insert offset
+            index.insert_offset(&block.cid, next_block);
+            // Move to the end
+            w.seek(SeekFrom::Start(next_block))?;
+            // Write the bytes
+            block.write_bytes(&mut w)?;
+            // Update the data size
+            self.update_header(w.stream_position()?)?;
+            // Flush
+            w.flush()?;
+        }
         // Return Ok
         Ok(())
     }
@@ -186,13 +190,11 @@ impl CarV2 {
         Self::read_bytes(&mut rw)
     }
 
-    fn update_header<X: Seek>(&self, mut x: X) -> Result<()> {
+    fn update_header(&self, data_end: u64) -> Result<()> {
         let mut header = self.header.borrow_mut();
         // Update the data size
-        let v1_end = x.seek(SeekFrom::End(0))?;
-        // Update the data size
-        header.data_size = if v1_end > PH_SIZE {
-            v1_end - PH_SIZE
+        header.data_size = if data_end > PH_SIZE {
+            data_end - PH_SIZE
         } else {
             0
         };
