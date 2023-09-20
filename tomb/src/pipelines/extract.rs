@@ -37,13 +37,11 @@ pub async fn pipeline(
 
     // Run extraction on the base level with an empty built path
     process_node(
+        fs,
         metadata,
         content,
-        &fs.metadata_forest,
-        &fs.content_forest,
-        &fs.root_dir.as_node(),
         extracted,
-        Path::new(""),
+        Path::new("/"),
     )
     .await?;
 

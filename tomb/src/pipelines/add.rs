@@ -36,7 +36,7 @@ pub async fn pipeline(
             &path_to_segments(wnfs_path)?,
             true,
             time,
-            &mut fs.metadata_forest,
+            &mut fs.forest,
             &config.metadata,
             rng,
         )
@@ -46,7 +46,7 @@ pub async fn pipeline(
     file.set_content(
         time,
         content_buf.as_slice(),
-        &mut fs.content_forest,
+        &mut fs.forest,
         &config.content,
         rng,
     )

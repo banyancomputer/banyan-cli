@@ -80,7 +80,6 @@ pub async fn setup_memory_test(
     MemoryBlockStore,
     MemoryBlockStore,
     Rc<PrivateForest>,
-    Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
     setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await
@@ -95,7 +94,6 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     RBS,
     RBS,
     Rc<PrivateForest>,
-    Rc<PrivateForest>,
     Rc<PrivateDirectory>,
 )> {
     let origin: PathBuf = Path::new("test").join(test_name);
@@ -105,8 +103,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     content.set_root(&Cid::default());
 
     // Hot Forest and cold Forest
-    let mut metadata_forest = Rc::new(PrivateForest::new());
-    let mut content_forest = Rc::new(PrivateForest::new());
+    let mut forest = Rc::new(PrivateForest::new());
 
     // Rng
     let rng = &mut thread_rng();
@@ -123,7 +120,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
             &["cats".to_string()],
             true,
             Utc::now(),
-            &mut metadata_forest,
+            &mut forest,
             &metadata,
             rng,
         )
@@ -133,13 +130,13 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     file.set_content(
         Utc::now(),
         "Hello Kitty!".as_bytes(),
-        &mut content_forest,
+        &mut forest,
         &content,
         rng,
     )
     .await?;
 
-    Ok((metadata, content, metadata_forest, content_forest, root_dir))
+    Ok((metadata, content, forest, root_dir))
 }
 
 /// Delete the temporary directory

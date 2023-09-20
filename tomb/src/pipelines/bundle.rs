@@ -39,12 +39,10 @@ pub async fn pipeline(
 
     // Process all of the BundlePipelinePlans
     process_plans(
+        fs,
+        bundleing_plan,
         &config.metadata,
         &config.content,
-        &mut fs.metadata_forest,
-        &mut fs.content_forest,
-        &mut fs.root_dir,
-        bundleing_plan,
         progress_bar,
     )
     .await?;

@@ -23,7 +23,7 @@ pub async fn pipeline(
         .rm(
             &path_to_segments(wnfs_path)?,
             true,
-            &fs.metadata_forest,
+            &fs.forest,
             &config.metadata,
         )
         .await?;

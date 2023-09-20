@@ -598,7 +598,7 @@ impl WasmMount {
         &mut self,
         path_segments: Array,
         _version: Option<String>,
-    ) -> TombResult<ArrayBuffer> {
+    ) -> TombResult<Uint8Array> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -635,7 +635,7 @@ impl WasmMount {
 
         let bytes = vec.into_boxed_slice();
         let array = Uint8Array::from(&bytes[..]);
-        Ok(array.buffer())
+        Ok(array)
     }
 
     // TODO: Get metadata on node
@@ -681,7 +681,6 @@ impl WasmMount {
             .mv(
                 from_path_segments,
                 to_path_segments,
-                &self.metadata_blockstore,
                 &self.content_blockstore,
             )
             .await

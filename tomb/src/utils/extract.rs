@@ -1,63 +1,69 @@
 use anyhow::Result;
 use async_recursion::async_recursion;
-use std::{path::Path, rc::Rc};
+use tomb_common::{metadata::FsMetadata, blockstore::RootedBlockStore};
+use std::{path::Path, rc::Rc, fs::File, io::Write};
 use wnfs::{
     common::BlockStore,
     private::{PrivateForest, PrivateNode},
 };
 
 use crate::pipelines::error::TombError;
-use crate::utils::wnfsio::file_to_disk;
+
+use super::spider::path_to_segments;
 
 #[async_recursion(?Send)]
 /// Recursively reconstruct each file and directory from the WNFS to disk
 pub async fn process_node(
-    metadata: &impl BlockStore,
-    content: &impl BlockStore,
-    metadata_forest: &Rc<PrivateForest>,
-    content_forest: &Rc<PrivateForest>,
-    node: &PrivateNode,
+    fs: &mut FsMetadata,
+    metadata_store: &impl RootedBlockStore,
+    content_store: &impl RootedBlockStore,
     extracted: &Path,
     built_path: &Path,
 ) -> Result<()> {
-    match &node {
-        PrivateNode::Dir(dir) => {
+    match fs.get_node(path_to_segments(built_path)?, metadata_store).await {
+        Ok(Some(PrivateNode::Dir(dir))) => {
+            println!("{} was a dir", built_path.display());
             // Create the directory we are in
             std::fs::create_dir_all(extracted.join(built_path))?;
             // Obtain a list of this Node's children
             let node_names: Vec<&String> = dir.get_entries().collect();
-
             // For each of those children
             for node_name in node_names {
-                // Fetch the Node with the given name
-                if let Ok(Some(node)) = dir
-                    .lookup_node(node_name, true, metadata_forest, metadata)
-                    .await
-                {
-                    // Recurse with newly found node and await
-                    process_node(
-                        metadata,
-                        content,
-                        metadata_forest,
-                        content_forest,
-                        &node,
-                        extracted,
-                        &built_path.join(node_name),
-                    )
-                    .await?;
-                } else {
-                    return Err(TombError::file_missing_error(
-                        Path::new(&node_name.to_string()).to_path_buf(),
-                    )
-                    .into());
-                }
+                // Full path of the node in question
+                let built_path = &built_path.join(node_name);
+                // Process that node, too
+                process_node(fs, metadata_store, content_store, extracted, built_path).await?;
             }
-        }
-        PrivateNode::File(file) => {
-            // This is where the file will be extracted no matter what
+        },
+        Ok(Some(PrivateNode::File(file))) => {
+            println!("{} was a file", built_path.display());
             let file_path = &extracted.join(built_path);
-            // Handle the PrivateFile and write its contents to disk
-            file_to_disk(file, extracted, file_path, content_forest, content).await?;
+            // This is where the file will be extracted no matter what
+            if let Ok(content) = fs.read(path_to_segments(&built_path)?, metadata_store, content_store).await {
+                // // If this file is a symlink
+                // if let Some(path) = file.symlink_origin() {
+                //     println!("file was symlink :3");
+                //     // Write out the symlink
+                //     symlink(output_dir.join(path), file_path)?;
+                //     Ok(())
+                // }
+                // If this is a real file, try to read in the content
+                println!("file was contented :3");
+                // Create the file at the desired location
+                let mut output_file = File::create(file_path)?;
+                // Write out the content to disk
+                output_file.write_all(&content)?;
+            }
+            else {
+                // return Err(TombError::file_missing_error(file_path.to_path_buf()))
+                return Err(anyhow::anyhow!("file missing error"))
+            }
+        },
+        Ok(None) => {
+            // return Err(TombError::file_missing_error(built_path.to_path_buf()).into());
+        }
+        Err(err) => {
+            return Err(anyhow::anyhow!("rrro!!"));
         }
     }
     Ok(())

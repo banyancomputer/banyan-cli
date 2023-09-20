@@ -201,7 +201,7 @@ mod test {
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut fs.metadata_forest,
+                &mut fs.forest,
                 &config.metadata,
                 rng,
             )
@@ -210,7 +210,7 @@ mod test {
         file.set_content(
             Utc::now(),
             file_content,
-            &mut fs.content_forest,
+            &mut fs.forest,
             &config.content,
             rng,
         )
@@ -229,13 +229,13 @@ mod test {
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut new_fs.metadata_forest,
+                &mut new_fs.forest,
                 &config.metadata,
                 rng,
             )
             .await?;
         let new_file_content = new_file
-            .get_content(&new_fs.content_forest, &config.content)
+            .get_content(&new_fs.forest, &config.content)
             .await?;
 
         assert_eq!(file_content, new_file_content);
