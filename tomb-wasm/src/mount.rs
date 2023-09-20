@@ -1,5 +1,4 @@
 use crate::log;
-use crate::utils::validate_car;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::convert::TryFrom;
@@ -10,7 +9,6 @@ use tomb_common::banyan_api::models::snapshot::Snapshot;
 use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
 use tomb_common::blockstore::RootedBlockStore;
-use tomb_common::car::v2::CarV2;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
@@ -251,11 +249,6 @@ impl WasmMount {
             .metadata_blockstore
             .get_root()
             .expect("could not get metadata cid");
-        log!(format!(
-            "\nvera: sync sanity check:\nroot:{}\nmeta:{}\n",
-            root_cid, metadata_cid
-        ));
-
         log!(
             "tomb-wasm: mount/sync()/{} - pushing metadata at version {}",
             self.bucket.id.to_string(),
@@ -313,24 +306,12 @@ impl WasmMount {
                         TombWasmError(format!("unable to register storage ticket: {err}"))
                     })?;
 
-                let content = self.metadata_blockstore.get_data();
-
-                log!("successfully able to get the data!");
-
-                let body = Cursor::new(content.clone());
-
-                let car2 = CarV2::read_bytes(Cursor::new(content.clone()))
-                    .expect("unable to ensure veracity of car");
-                log!(format!(
-                    "verified integrity of CAR data before upload: {:?}",
-                    car2
-                ));
-
-                validate_car(&content.clone());
+                // Get content
+                let content = Cursor::new(self.content_blockstore.get_data());
 
                 storage_ticket
                     .clone()
-                    .upload_content(metadata_id, body, &mut self.client)
+                    .upload_content(metadata_id, content, &mut self.client)
                     .await
                     .map_err(|err| {
                         TombWasmError(format!(
@@ -380,17 +361,6 @@ impl WasmMount {
             "tomb-wasm: mount/unlock()/{} - checking versioning",
             self.bucket.id,
         ));
-
-        log!(format!("vera: metadata: {:?}", self.metadata));
-        log!(format!(
-            "vera: content_blockstore root: {:?}",
-            self.content_blockstore.get_root()
-        ));
-        log!(format!(
-            "vera: metadata_blockstore root: {:?}",
-            self.metadata_blockstore.get_root()
-        ));
-
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
             return Err(TombWasmError(format!("unable to retrieve metadata CID")));
         };

@@ -107,7 +107,7 @@ async fn mount() -> TombResult<()> {
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
 
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     Ok(())
 }
 
@@ -117,16 +117,13 @@ async fn share_with() -> TombResult<()> {
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
-    let wasm_bucket_key: WasmBucketKey = client
-        .create_bucket_key(bucket.id().to_string())
-        .await?
-        .into();
+    let wasm_bucket_key: WasmBucketKey = client.create_bucket_key(bucket.id().to_string()).await?;
     assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
-    assert_eq!(wasm_bucket_key.approved(), false);
+    assert!(!wasm_bucket_key.approved());
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     mount.share_with(wasm_bucket_key.id()).await?;
     Ok(())
 }
@@ -142,7 +139,7 @@ async fn mkdir() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
 
     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
     mount.mkdir(mkdir_path_array).await?;
@@ -171,7 +168,7 @@ async fn mkdir_remount() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
 
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): mkdir() and ls()");
     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
@@ -184,7 +181,7 @@ async fn mkdir_remount() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     let ls: Array = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 1);
     let ls_0 = ls.get(0);
@@ -203,7 +200,7 @@ async fn add() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     let add_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
@@ -229,7 +226,7 @@ async fn add_remount() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
 
     log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): add() and ls()");
     let add_path_array: Array = js_array(&["zero.bin"]).into();
@@ -245,7 +242,7 @@ async fn add_remount() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     let ls: Array = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 2);
     let ls_0 = ls.get(1);
@@ -255,9 +252,7 @@ async fn add_remount() -> TombResult<()> {
     Ok(())
 }
 
-/*
 #[wasm_bindgen_test]
-#[should_panic]
 async fn add_rm() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_rm()");
     let mut client = authenticated_client().await?;
@@ -266,7 +261,7 @@ async fn add_rm() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     let add_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
@@ -282,7 +277,6 @@ async fn add_rm() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
-#[should_panic]
 async fn add_mv() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_mv()");
     let mut client = authenticated_client().await?;
@@ -291,7 +285,7 @@ async fn add_mv() -> TombResult<()> {
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
-    assert_eq!(mount.locked(), false);
+    assert!(!mount.locked());
     let add_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
@@ -310,4 +304,3 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
- */

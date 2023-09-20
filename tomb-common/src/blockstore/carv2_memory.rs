@@ -13,8 +13,8 @@ use wnfs::libipld::{Cid, IpldCodec};
 #[derive(Debug, PartialEq)]
 /// CarV2 formatted memory blockstore
 pub struct CarV2MemoryBlockStore {
-    pub data: RefCell<Cursor<Vec<u8>>>,
-    pub car: CarV2,
+    data: RefCell<Cursor<Vec<u8>>>,
+    car: CarV2,
 }
 
 impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
@@ -42,21 +42,11 @@ impl CarV2MemoryBlockStore {
     /// Create a new CarV2BlockStore from a readable stream
     pub fn new() -> Result<Self> {
         // Read data
-        let vec = Vec::new();
-        let mut rw = Cursor::new(vec);
+        let mut rw = Cursor::new(<Vec<u8>>::new());
         let car = CarV2::new(&mut rw)?;
         // Wrap the vec in a RefCell and add it to self
         let data = RefCell::new(rw);
         Ok(Self { data, car })
-    }
-
-    /// Get a reader to the data underlying the CarV2
-    pub fn get_data(&self) -> Vec<u8> {
-        self.save();
-        let data = self.data.borrow().clone().into_inner();
-        // let test = CarV2::read_bytes(Cursor::new(data.clone()));
-        // assert!(test.is_ok());
-        data
     }
 
     /// Get the size of the data underlying the CarV1
@@ -64,9 +54,16 @@ impl CarV2MemoryBlockStore {
         self.car.data_size()
     }
 
+    /// Manually save the data to the cursor in place
     pub fn save(&self) {
         let rw: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
         self.car.write_bytes(rw).unwrap();
+    }
+
+    /// Get a reader to the data underlying the CarV2
+    pub fn get_data(&self) -> Vec<u8> {
+        self.save();
+        self.data.borrow().clone().into_inner()
     }
 }
 
