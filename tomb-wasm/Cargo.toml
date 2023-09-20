@@ -23,6 +23,7 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 tomb-crypt = { workspace = true }
 wnfs = { workspace = true }
+blake3 = { workspace = true }
 
 # Crate dependencies
 async-trait = "^0.1"
