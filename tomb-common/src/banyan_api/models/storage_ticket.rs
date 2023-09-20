@@ -137,7 +137,12 @@ pub mod test {
         let content_hash = hasher.finalize().to_string();
         storage_ticket
             .clone()
-            .upload_content(metadata.id, content_store.get_data(), content_hash,&mut client)
+            .upload_content(
+                metadata.id,
+                content_store.get_data(),
+                content_hash,
+                &mut client,
+            )
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client
