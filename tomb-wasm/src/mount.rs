@@ -305,10 +305,14 @@ impl WasmMount {
 
                 // Get content
                 let content = Cursor::new(self.content_blockstore.get_data());
+                // Hash the content
+                let mut hasher = blake3::Hasher::new();
+                hasher.update(&self.content_blockstore.get_data());
+                let content_hash = hasher.finalize().to_string();
 
                 storage_ticket
                     .clone()
-                    .upload_content(metadata_id, content, &mut self.client)
+                    .upload_content(metadata_id, content, content_hash, &mut self.client)
                     .await
                     .map_err(|err| {
                         TombWasmError(format!(

@@ -34,6 +34,7 @@ keywords = [
 
 [workspace.dependencies]
 anyhow = { version = "^1", features = ["backtrace"] }
+blake3 = "^1"
 chrono = { version = "^0.4", default-features = false, features = ["clock", "std"] }
 clap = { version = "^4", features = ["derive"] }
 criterion = { version = "^0.4", features = ["async_tokio"] }
