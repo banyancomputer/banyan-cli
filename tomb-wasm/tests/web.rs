@@ -303,31 +303,31 @@ async fn add_rm() -> TombResult<()> {
     Ok(())
 }
 
-// #[wasm_bindgen_test]
-// async fn add_mv() -> TombResult<()> {
-//     log!("tomb_wasm_test: create_bucket_mount_add_mv()");
-//     let mut client = authenticated_client().await?;
-//     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
-//     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
-//     let mut mount = client
-//         .mount(bucket.id().to_string(), web_encryption_key_pair)
-//         .await?;
-//     assert!(!mount.locked());
-//     let add_path_array: Array = js_array(&["zero.bin"]).into();
-//     let ls_path_array: Array = js_array(&[]).into();
-//     let zero_content_buffer = Uint8Array::new_with_length(10);
-//     let zero_content_array_buffer = zero_content_buffer.buffer();
-//     mount.add(add_path_array, zero_content_array_buffer).await?;
-//     let ls: Array = mount.ls(ls_path_array.clone()).await?;
-//     assert_eq!(ls.length(), 1);
-//     let mv_from_path_array: Array = js_array(&["zero.bin"]).into();
-//     let mv_to_path_array: Array = js_array(&["zero-renamed.bin"]).into();
-//     mount.mv(mv_from_path_array, mv_to_path_array).await?;
-//     let ls: Array = mount.ls(ls_path_array).await?;
-//     assert_eq!(ls.length(), 1);
-//     let ls_0 = ls.get(0);
-//     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-//     assert_eq!(fs_entry.name(), "zero-renamed.bin");
-//     assert_eq!(fs_entry.entry_type(), "file");
-//     Ok(())
-// }
+#[wasm_bindgen_test]
+async fn add_mv() -> TombResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_add_mv()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert!(!mount.locked());
+    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let ls_path_array: Array = js_array(&[]).into();
+    let zero_content_buffer = Uint8Array::new_with_length(10);
+    let zero_content_array_buffer = zero_content_buffer.buffer();
+    mount.add(add_path_array, zero_content_array_buffer).await?;
+    let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    assert_eq!(ls.length(), 1);
+    let mv_from_path_array: Array = js_array(&["zero.bin"]).into();
+    let mv_to_path_array: Array = js_array(&["zero-renamed.bin"]).into();
+    mount.mv(mv_from_path_array, mv_to_path_array).await?;
+    let ls: Array = mount.ls(ls_path_array).await?;
+    assert_eq!(ls.length(), 1);
+    let ls_0 = ls.get(0);
+    let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    assert_eq!(fs_entry.name(), "zero-renamed.bin");
+    assert_eq!(fs_entry.entry_type(), "file");
+    Ok(())
+}
