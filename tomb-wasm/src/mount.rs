@@ -17,7 +17,7 @@ use wasm_bindgen::prelude::*;
 const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
 
 use crate::error::TombWasmError;
-use crate::types::{WasmFsMetadataEntry, WasmSnapshot, WasmBucketMetadata};
+use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
 use crate::{TombResult, WasmBucket};
 
 /// Mount point for a Bucket in WASM
@@ -819,12 +819,8 @@ impl WasmMount {
             "tomb-wasm: mount/is_snapshotted/{}",
             self.bucket.id.to_string()
         );
-        // Get the bucket
         let metadata = self.metadata.as_ref().expect("missing metadata");
-        match metadata.snapshot_id {
-            Some(_) => true,
-            None => false,
-        }
+        metadata.snapshot_id.is_some()
     }
 
     /// Snapshot a mounted bucket
@@ -836,7 +832,6 @@ impl WasmMount {
     #[wasm_bindgen(js_name = snapshot)]
     pub async fn snapshot(&mut self) -> TombResult<WasmSnapshot> {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
-        // Get the bucket
         let metadata = self.metadata.as_mut().expect("missing metadata");
         let snapshot = metadata
             .snapshot(&mut self.client)

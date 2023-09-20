@@ -111,7 +111,7 @@ impl Metadata {
             metadata_cid,
             data_size: 0,
             state: response.state,
-            snapshot_id: None
+            snapshot_id: None,
         };
         match response.storage_host {
             None => Ok((metadata, None)),
@@ -157,7 +157,7 @@ impl Metadata {
             metadata_cid,
             data_size: 0,
             state: response.state,
-            snapshot_id: None
+            snapshot_id: None,
         };
         match response.storage_host {
             None => Ok((metadata, None)),
@@ -194,7 +194,7 @@ impl Metadata {
             metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
-            snapshot_id: response.snapshot_id
+            snapshot_id: response.snapshot_id,
         })
     }
 
@@ -211,7 +211,7 @@ impl Metadata {
                 metadata_cid: response.metadata_cid,
                 data_size: response.data_size as u64,
                 state: response.state,
-                snapshot_id: response.snapshot_id
+                snapshot_id: response.snapshot_id,
             })
             .collect())
     }
@@ -226,7 +226,7 @@ impl Metadata {
             metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
-            snapshot_id: response.snapshot_id
+            snapshot_id: response.snapshot_id,
         })
     }
 

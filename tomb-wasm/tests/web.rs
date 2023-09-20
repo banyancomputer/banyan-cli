@@ -142,7 +142,10 @@ async fn snapshot() -> TombResult<()> {
     let snapshot = mount.snapshot().await?;
     assert!(mount.has_snapshot());
     assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
-    assert_eq!(snapshot.metadata_id(), mount.metadata().expect("metadata").id().to_string());
+    assert_eq!(
+        snapshot.metadata_id(),
+        mount.metadata().expect("metadata").id().to_string()
+    );
 
     let mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
