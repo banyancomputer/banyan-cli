@@ -359,7 +359,7 @@ impl WasmMount {
             self.bucket.id,
         ));
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
-            return Err(TombWasmError(format!("unable to retrieve metadata CID")));
+            return Err(TombWasmError("unable to retrieve metadata CID".to_string()));
         };
         // Default to the metadata cid if its not present
         // Remember this is the CID of the IPLD, which will be the same in both cases.
