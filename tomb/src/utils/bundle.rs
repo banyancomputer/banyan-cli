@@ -2,8 +2,9 @@ use anyhow::Result;
 use indicatif::ProgressBar;
 use std::{
     collections::HashSet,
+    fs::File,
+    io::Read,
     path::{Path, PathBuf},
-    fs::File, io::Read,
 };
 
 use super::spider::path_to_segments;
@@ -11,7 +12,7 @@ use crate::{
     types::spider::BundlePipelinePlan,
     utils::{grouper::grouper, spider},
 };
-use tomb_common::{metadata::FsMetadata, blockstore::RootedBlockStore};
+use tomb_common::{blockstore::RootedBlockStore, metadata::FsMetadata};
 
 /// Create BundlePipelinePlans from an origin dir
 pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<BundlePipelinePlan>> {
@@ -85,7 +86,8 @@ pub async fn process_plans(
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
                 // Add the file contents
-                fs.add(path_segments, content, metadata_store, content_store).await?;
+                fs.add(path_segments, content, metadata_store, content_store)
+                    .await?;
 
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
@@ -96,8 +98,7 @@ pub async fn process_plans(
                     let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
                     // Create that folder
                     fs.mkdir(folder_segments.to_vec(), metadata_store).await?;
-                    
-                    
+
                     // TODO CP LINK DEDUPLICATION
                     // // Copy the file from the original path to the duplicate path
                     // root_dir
@@ -116,7 +117,11 @@ pub async fn process_plans(
                 // Turn the canonicalized path into a vector of segments
                 let path_segments = path_to_segments(&meta.original_location)?;
                 // If the directory does not exist
-                if fs.get_node(path_segments.clone(), metadata_store).await.is_err() {
+                if fs
+                    .get_node(path_segments.clone(), metadata_store)
+                    .await
+                    .is_err()
+                {
                     // Create the subdirectory
                     fs.mkdir(path_segments, metadata_store).await?;
                 }
@@ -134,8 +139,6 @@ pub async fn process_plans(
             BundlePipelinePlan::Symlink(meta, _symlink_target) => {
                 // The path where the symlink will be placed
                 let _symlink_segments = path_to_segments(&meta.original_location)?;
-
-
 
                 // // Link the file or folder
                 // root_dir

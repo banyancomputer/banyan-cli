@@ -36,14 +36,7 @@ pub async fn pipeline(
     );
 
     // Run extraction on the base level with an empty built path
-    process_node(
-        fs,
-        metadata,
-        content,
-        extracted,
-        Path::new("/"),
-    )
-    .await?;
+    process_node(fs, metadata, content, extracted, Path::new("")).await?;
 
     Ok(format!(
         "successfully extracted data into {}",

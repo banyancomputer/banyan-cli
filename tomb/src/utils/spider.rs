@@ -119,11 +119,7 @@ pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
         .map(|s| s.to_string())
         .collect();
 
-    // if path_segments.len() == 1 {
-    //     let mut tmp = vec!["".to_string()];
-    //     tmp.extend(path_segments);
-    //     path_segments = tmp;
-    // }
+    println!("path_segments: {:?}", path_segments);
 
     Ok(path_segments)
 }
