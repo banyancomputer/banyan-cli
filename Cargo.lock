@@ -4319,6 +4319,7 @@ name = "tomb-common"
 version = "1.1.0"
 dependencies = [
  "anyhow",
+ "async-recursion",
  "async-std",
  "async-trait",
  "base58",

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::io::{BufReader, Read, Write};
+use std::{io::{BufReader, Read, Write}, path::Path};
 
 #[derive(Debug, Clone)]
 /// Wrapper for compression information
@@ -105,4 +105,22 @@ pub fn decompress_vec(buf: &[u8]) -> Result<Vec<u8>> {
     decompress_bytes(reader, &mut decompressed)?;
     // Return compressed bytes
     Ok(decompressed)
+}
+
+/// Converts a PathBuf into a vector of path segments for use in WNFS.
+pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
+    let path = path
+        .to_path_buf()
+        .into_os_string()
+        .into_string()
+        .map_err(|_| wnfs::error::FsError::InvalidPath)?;
+    let path_segments: Vec<String> = path
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+
+    println!("path_segments: {:?}", path_segments);
+
+    Ok(path_segments)
 }

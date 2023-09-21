@@ -2,13 +2,12 @@ use std::path::Path;
 
 use super::error::TombError;
 use crate::{
-    cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig,
-    utils::spider::path_to_segments,
+    cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig
 };
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
-use tomb_common::utils::wnfsio::compress_file;
+use tomb_common::utils::wnfsio::{compress_file, path_to_segments};
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(

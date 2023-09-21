@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path, process::Command, rc::Rc};
+use std::{path::Path, process::Command};
 
 use anyhow::Result;
 use indicatif::{ProgressBar, ProgressStyle};

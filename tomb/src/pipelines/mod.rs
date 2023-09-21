@@ -21,12 +21,11 @@ mod test {
         pipelines::{bundle, configure, extract, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
-            spider::path_to_segments,
             test::{test_setup, test_setup_structured, test_teardown},
             wnfsio::compute_directory_size,
         },
     };
-    use tomb_common::utils::wnfsio::decompress_bytes;
+    use tomb_common::utils::wnfsio::{decompress_bytes, path_to_segments};
 
     use anyhow::Result;
     use dir_assert::assert_paths;

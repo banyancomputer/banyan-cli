@@ -1,9 +1,9 @@
 use super::error::TombError;
 use crate::{
     cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig,
-    utils::spider::path_to_segments,
 };
 use anyhow::Result;
+use tomb_common::utils::wnfsio::path_to_segments;
 use std::path::Path;
 
 /// The pipeline for removing an individual file from a WNFS

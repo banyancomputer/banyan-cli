@@ -27,6 +27,7 @@ impl<M: BlockStore, D: BlockStore> BlockStore for DoubleSplitStore<'_, M, D> {
 }
 
 impl<'a, M: BlockStore, D: BlockStore> DoubleSplitStore<'a, M, D> {
+    /// Create a new split BlockStore
     pub fn new(primary: &'a M, secondary: &'a D) -> Self {
         Self { primary, secondary }
     }

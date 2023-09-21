@@ -6,13 +6,11 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
 };
-
-use super::spider::path_to_segments;
 use crate::{
     types::spider::BundlePipelinePlan,
     utils::{grouper::grouper, spider},
 };
-use tomb_common::{blockstore::RootedBlockStore, metadata::FsMetadata};
+use tomb_common::{blockstore::RootedBlockStore, metadata::FsMetadata, utils::wnfsio::path_to_segments};
 
 /// Create BundlePipelinePlans from an origin dir
 pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<BundlePipelinePlan>> {

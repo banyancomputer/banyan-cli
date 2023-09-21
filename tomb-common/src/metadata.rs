@@ -1,14 +1,15 @@
 use crate::{
     blockstore::{split::DoubleSplitStore, RootedBlockStore},
     share::manager::ShareManager,
-    utils::error::SerialError,
+    utils::{error::SerialError, wnfsio::path_to_segments},
     utils::serialize::*,
 };
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, rc::Rc, path::Path};
+use std::{collections::BTreeMap, rc::Rc, path::{Path, PathBuf}};
+use async_recursion::async_recursion;
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{BlockStore, Metadata},
@@ -575,6 +576,41 @@ impl FsMetadata {
             Err(_) => Err(SerialError::NodeNotFound(path_segments.join("/")).into()),
         }
     }
+
+    /// Get all nodes under the root directory
+    pub async fn get_all_nodes(&self, metadata_store: &impl RootedBlockStore) -> Result<Vec<(PrivateNode, PathBuf)>> {
+        self.get_all_children(Path::new("").to_path_buf(), metadata_store).await
+    }
+
+    #[async_recursion(?Send)]
+    async fn get_all_children(&self, path: PathBuf, metadata_store: &impl RootedBlockStore) -> Result<Vec<(PrivateNode, PathBuf)>> {
+        let segments = &path_to_segments(&path)?;
+        let node = if segments.is_empty() { Some(self.root_dir.as_node()) } else {
+            self.root_dir.get_node(segments, true, &self.forest, metadata_store).await?
+        };
+
+        if let Some(PrivateNode::File(file)) = node {
+            return Ok(vec![(file.as_node(), path.to_path_buf())]);
+        }
+
+        if let Some(PrivateNode::Dir(dir)) = node {
+            // Accumulate a list
+            let mut children = vec![];
+            // List the names of all children
+            let node_names = dir.ls(&vec![], true, &self.forest, metadata_store).await?;
+            // For each node name returned by the LS
+            for (node_name, _) in node_names {
+                println!("getting all children of {}", node_name);
+                // Get this child's children, extend the list
+                children.extend_from_slice(self.get_all_children(path.join(node_name), metadata_store).await?.as_slice());
+            }
+            return Ok(children);
+        }
+
+        println!("node was none or error");
+        Ok(vec![])
+    }
+
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
