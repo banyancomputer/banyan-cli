@@ -10,7 +10,7 @@ use std::{
 
 use super::custom_fclones_logger::CustomLogger;
 
-/// Creates a bundleing plan by grouping files from the input directory according to their similarities.
+/// Creates a bundling plan by grouping files from the input directory according to their similarities.
 ///
 /// # Arguments
 ///
@@ -22,7 +22,7 @@ use super::custom_fclones_logger::CustomLogger;
 /// # Returns
 ///
 /// * `Result<Vec<BundlePipelinePlan>>` - A Result containing a vector of BundlePipelinePlan objects
-///   representing the bundleing plan, or an error in case of failure.
+///   representing the bundling plan, or an error in case of failure.
 pub fn grouper(
     input_dir: &Path,
     follow_links: bool,
@@ -32,8 +32,8 @@ pub fn grouper(
     let group_config = create_group_config(input_dir, follow_links);
 
     let file_groups = group_files(&group_config, &CustomLogger::default())?;
-    // Vector holding all the BundlePipelinePlans for bundleing
-    let mut bundleing_plan = vec![];
+    // Vector holding all the BundlePipelinePlans for bundling
+    let mut bundling_plan = vec![];
     // go over the files- do it in groups
     for group in file_groups {
         // Create a vector to hold the SpiderMetadata for each file in this group
@@ -72,9 +72,9 @@ pub fn grouper(
             metadatas.push(spider_metadata);
         }
         // Push a BundlePipelinePlan with this file group
-        bundleing_plan.push(BundlePipelinePlan::FileGroup(metadatas));
+        bundling_plan.push(BundlePipelinePlan::FileGroup(metadatas));
     }
-    Ok(bundleing_plan)
+    Ok(bundling_plan)
 }
 
 /// Private function used to construct a GroupConfig struct from the relevant command line options.

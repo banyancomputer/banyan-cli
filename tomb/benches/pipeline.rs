@@ -242,7 +242,7 @@ fn cleanup_bench() {
         .unwrap();
 }
 
-/// Make sure bundled directory is empty for bundleing
+/// Make sure bundled directory is empty for bundling
 #[doc(hidden)]
 fn prep_bundle(bundled_path: &Path) {
     // Ensure the bundled directory exists and is empty
@@ -272,7 +272,7 @@ fn prep_extract(extracted_path: &Path) {
         .unwrap();
 }
 
-/// Benchmark bundleing - relies on input_path being populated!
+/// Benchmark bundling - relies on input_path being populated!
 /// # Arguments
 /// * `c` - Criterion object
 /// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark

@@ -18,14 +18,14 @@ use tomb_common::{blockstore::RootedBlockStore, metadata::FsMetadata};
 pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<BundlePipelinePlan>> {
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
-    // Vector holding all the BundlePipelinePlans for bundleing
-    let mut bundleing_plan: Vec<BundlePipelinePlan> = vec![];
+    // Vector holding all the BundlePipelinePlans for bundling
+    let mut bundling_plan: Vec<BundlePipelinePlan> = vec![];
 
     info!("🔍 Deduplicating the filesystem at {}", origin.display());
     // Group the filesystem provided to detect duplicates
     let group_plans = grouper(origin, follow_links, &mut seen_files)?;
-    // Extend the bundleing plan
-    bundleing_plan.extend(group_plans);
+    // Extend the bundling plan
+    bundling_plan.extend(group_plans);
 
     // TODO fix setting follow_links / do it right
     info!(
@@ -35,15 +35,15 @@ pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<Bundl
 
     // Spider the filesystem provided to include directories and symlinks
     let spidered_files = spider::spider(origin, follow_links, &mut seen_files).await?;
-    // Extend the bundleing plan
-    bundleing_plan.extend(spidered_files);
+    // Extend the bundling plan
+    bundling_plan.extend(spidered_files);
 
     info!(
         "💾 Total number of files to bundle: {}",
-        bundleing_plan.len()
+        bundling_plan.len()
     );
 
-    Ok(bundleing_plan)
+    Ok(bundling_plan)
 }
 
 /// Given a set of BundlePipelinePlans and required structs, process each
@@ -58,7 +58,7 @@ pub async fn process_plans(
     let mut direct_plans: Vec<BundlePipelinePlan> = Vec::new();
     let mut symlink_plans: Vec<BundlePipelinePlan> = Vec::new();
 
-    // Sort the bundleing plans into plans which correspond to real data and those which are symlinks
+    // Sort the bundling plans into plans which correspond to real data and those which are symlinks
     for bundle_pipeline_plan in bundling_plan {
         match bundle_pipeline_plan.clone() {
             BundlePipelinePlan::FileGroup(_) | BundlePipelinePlan::Directory(_) => {

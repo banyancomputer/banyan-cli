@@ -2,7 +2,7 @@
 pub mod add;
 /// Interfacing with the banyan api
 pub mod banyan_api;
-/// This module contains the encryption pipeline function, which is the main entry point for bundleing new data.
+/// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod bundle;
 /// This module contains configuration functions for the cli
 pub mod configure;
@@ -71,7 +71,7 @@ mod test {
         let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Deinitialize for user
         configure::deinit(origin).await?;
-        // Assert that bundleing fails
+        // Assert that bundling fails
         assert!(bundle_pipeline(bucket_specifier).await.is_err());
         // Initialize for this user
         configure::init(origin).await?;
@@ -406,8 +406,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_bundleing() -> Result<()> {
-        let test_name = "double_bundleing";
+    async fn double_bundling() -> Result<()> {
+        let test_name = "double_bundling";
         // Setup the test once
         test_setup(test_name).await?;
         // Run the test twice
