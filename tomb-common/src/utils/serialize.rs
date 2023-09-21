@@ -142,11 +142,11 @@ mod test {
 
         // Get the content
         let original_content = original_file.get_content(original_forest, content).await?;
-        let private_ref = &store_dir(metadata, content, original_forest, original_dir).await?;
+        let private_ref = store_dir(metadata, content, original_forest, original_dir).await?;
         let forest_cid = store_forest(original_forest, metadata, metadata).await?;
 
         let new_forest = &mut load_forest(&forest_cid, metadata).await?;
-        let new_dir = &mut load_dir(metadata, private_ref, new_forest).await?;
+        let new_dir = &mut load_dir(metadata, &private_ref, new_forest).await?;
         // Assert equality
         assert_eq!(original_dir, new_dir);
 

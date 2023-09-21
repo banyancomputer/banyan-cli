@@ -204,16 +204,16 @@ pub mod test {
         let mut fs_metadata = FsMetadata::init(&key)
             .await
             .expect("Failed to create fs metadata");
-        let mkdir_path_segments = &vec!["test".to_string(), "path".to_string()];
-        let add_path_segments = &vec!["test".to_string(), "path".to_string(), "file".to_string()];
+        let mkdir_path_segments = vec!["test".to_string(), "path".to_string()];
+        let add_path_segments = vec!["test".to_string(), "path".to_string(), "file".to_string()];
         let file_content = "test".as_bytes().to_vec();
         fs_metadata
-            .mkdir(mkdir_path_segments, &metadata_store)
+            .mkdir(&mkdir_path_segments, &metadata_store)
             .await
             .expect("Failed to create directory");
         fs_metadata
             .write(
-                add_path_segments,
+                &add_path_segments,
                 &metadata_store,
                 &content_store,
                 file_content,

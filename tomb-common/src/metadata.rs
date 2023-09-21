@@ -136,9 +136,9 @@ impl FsMetadata {
         );
 
         // Put the map into BlockStores
-        let root = &Ipld::Map(root_map.clone());
-        let root_cid_1 = metadata_store.put_serializable(root).await?;
-        let root_cid_2 = content_store.put_serializable(root).await?;
+        let root = Ipld::Map(root_map.clone());
+        let root_cid_1 = metadata_store.put_serializable(&root).await?;
+        let root_cid_2 = content_store.put_serializable(&root).await?;
         assert_eq!(root_cid_1, root_cid_2);
 
         metadata_store.set_root(&root_cid_1);
@@ -232,9 +232,9 @@ impl FsMetadata {
 
         self.metadata = Some(metadata.clone());
         // Get the CID of the metadata map
-        let metadata = &Ipld::Map(metadata);
+        let metadata = Ipld::Map(metadata);
         // Put the metadata IPLD Map into BlockStores
-        let metadata_cid = store.put_serializable(metadata).await?;
+        let metadata_cid = store.put_serializable(&metadata).await?;
         // Update the root CID
         store.set_root(&metadata_cid);
         // Update the metadata
@@ -692,15 +692,20 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = &vec!["cat.txt".to_string()];
+        let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
+            .write(
+                &cat_path,
+                metadata_store,
+                content_store,
+                kitty_bytes.clone(),
+            )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path, metadata_store, content_store)
+            .read(&cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -716,15 +721,20 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = &vec!["cat.txt".to_string()];
+        let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = vec![0u8; 1024 * 1024 * 10];
         // Add a new file
         fs_metadata
-            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
+            .write(
+                &cat_path,
+                metadata_store,
+                content_store,
+                kitty_bytes.clone(),
+            )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path, metadata_store, content_store)
+            .read(&cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -740,18 +750,23 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = &vec!["cat.txt".to_string()];
+        let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
+            .write(
+                &cat_path,
+                metadata_store,
+                content_store,
+                kitty_bytes.clone(),
+            )
             .await?;
 
         // Remove
-        fs_metadata.rm(cat_path, metadata_store).await?;
+        fs_metadata.rm(&cat_path, metadata_store).await?;
 
         let result = fs_metadata
-            .read(cat_path, metadata_store, content_store)
+            .read(&cat_path, metadata_store, content_store)
             .await;
         assert!(result.is_err());
 
@@ -767,25 +782,35 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = &vec!["cat.txt".to_string()];
+        let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
+            .write(
+                &cat_path,
+                metadata_store,
+                content_store,
+                kitty_bytes.clone(),
+            )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path, metadata_store, content_store)
+            .read(&cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
         // Replace existing content
         fs_metadata
-            .write(cat_path, metadata_store, content_store, puppy_bytes.clone())
+            .write(
+                &cat_path,
+                metadata_store,
+                content_store,
+                puppy_bytes.clone(),
+            )
             .await?;
 
         let new_puppy_bytes = fs_metadata
-            .read(cat_path, metadata_store, content_store)
+            .read(&cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(puppy_bytes, new_puppy_bytes);
 
@@ -801,30 +826,40 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = &vec!["cat.txt".to_string()];
+        let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
+            .write(
+                &cat_path,
+                metadata_store,
+                content_store,
+                kitty_bytes.clone(),
+            )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path, metadata_store, content_store)
+            .read(&cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
-        let dog_path = &vec!["dog.txt".to_string()];
+        let dog_path = vec!["dog.txt".to_string()];
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
-        fs_metadata.mv(cat_path, dog_path, content_store).await?;
+        fs_metadata.mv(&cat_path, &dog_path, content_store).await?;
         // Replace existing content
         fs_metadata
-            .write(dog_path, metadata_store, content_store, puppy_bytes.clone())
+            .write(
+                &dog_path,
+                metadata_store,
+                content_store,
+                puppy_bytes.clone(),
+            )
             .await?;
 
         let new_puppy_bytes = fs_metadata
-            .read(dog_path, metadata_store, content_store)
+            .read(&dog_path, metadata_store, content_store)
             .await?;
         assert_eq!(puppy_bytes, new_puppy_bytes);
 
