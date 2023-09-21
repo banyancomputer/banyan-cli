@@ -26,7 +26,8 @@ fn js_array(values: &[&str]) -> JsValue {
 }
 
 pub async fn authenticated_client() -> TombResult<TombWasm> {
-    let mut client = Client::new("http://127.0.0.1:3001").expect("client creation failed");
+    let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002")
+        .expect("client creation failed");
 
     let (account, _signing_key) = Account::create_fake(&mut client)
         .await

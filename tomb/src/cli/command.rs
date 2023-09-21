@@ -7,7 +7,13 @@ use uuid::Uuid;
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
     /// Set the remote endpoint where Buckets are synced to / from
-    SetRemote {
+    SetRemoteCore {
+        /// Server address
+        #[arg(short, long)]
+        address: String,
+    },
+    /// Set the remote endpoint where Buckets are synced to / from
+    SetRemoteData {
         /// Server address
         #[arg(short, long)]
         address: String,

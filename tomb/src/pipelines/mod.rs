@@ -90,10 +90,10 @@ mod test {
         configure::deinit_all().await?;
         let _ = GlobalConfig::from_disk().await?;
         // Configure the remote endpoint
-        configure::remote(address).await?;
+        configure::remote_core(address).await?;
         // Assert it was actually modified
         assert_eq!(
-            GlobalConfig::from_disk().await?.remote,
+            GlobalConfig::from_disk().await?.remote_core,
             Some(address.to_string())
         );
         Ok(())

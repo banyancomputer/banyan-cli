@@ -13,9 +13,6 @@ use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
 
-// TODO: This should be a config
-const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
-
 use crate::error::TombWasmError;
 use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
 use crate::{TombResult, WasmBucket};
@@ -628,7 +625,7 @@ impl WasmMount {
 
         let mut banyan_api_blockstore_client = self.client.clone();
         banyan_api_blockstore_client
-            .with_remote(BLOCKSTORE_API_HOST)
+            .with_remote(self.client.remote_data.as_str())
             .expect("could not create blockstore client");
         let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
 
