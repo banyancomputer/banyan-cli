@@ -13,7 +13,8 @@ use command::Command;
 pub async fn run(command: Command) -> Result<()> {
     // Determine the command being executed run appropriate subcommand
     let result: Result<String, anyhow::Error> = match command {
-        Command::SetRemote { address } => configure::remote(&address).await,
+        Command::SetRemoteCore { address } => configure::remote_core(&address).await,
+        Command::SetRemoteData { address } => configure::remote_data(&address).await,
         Command::Auth { subcommand } => auth::pipeline(subcommand).await,
         Command::Buckets { subcommand } => bucket::pipeline(subcommand).await,
     };
@@ -41,7 +42,7 @@ mod test {
     use std::{fs::create_dir, path::Path};
 
     fn cmd_configure_remote(address: &str) -> Command {
-        Command::SetRemote {
+        Command::SetRemoteCore {
             address: address.to_string(),
         }
     }

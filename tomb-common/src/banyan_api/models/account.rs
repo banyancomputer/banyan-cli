@@ -66,7 +66,7 @@ pub mod test {
     use crate::banyan_api::client::Client;
 
     pub async fn authenticated_client() -> Client {
-        let mut client = Client::new("http://localhost:3001").unwrap();
+        let mut client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
         let _ = Account::create_fake(&mut client).await.unwrap();
         client
     }
@@ -84,7 +84,7 @@ pub mod test {
     #[tokio::test]
     #[should_panic]
     async fn who_am_i_unauthenticated() {
-        let mut client = Client::new("http://localhost:3001").unwrap();
+        let mut client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
         let _ = Account::who_am_i(&mut client).await.unwrap();
     }
 

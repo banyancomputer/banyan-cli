@@ -47,8 +47,10 @@ const AUDIENCE: &str = "banyan-platform";
 #[derive(Debug, Clone)]
 /// Client for interacting with our API
 pub struct Client {
-    /// Base URL
-    pub remote: Url,
+    /// Base URL for interacting with core service
+    pub remote_core: Url,
+    /// Base URL for pulling data
+    pub remote_data: Url,
     /// Bearer auth
     pub claims: Option<ApiToken>,
     /// Credentials for signing
@@ -65,7 +67,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn new(remote: &str) -> anyhow::Result<Self> {
+    pub fn new(remote_core: &str, remote_data: &str) -> anyhow::Result<Self> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
@@ -74,7 +76,8 @@ impl Client {
             .unwrap();
 
         Ok(Self {
-            remote: Url::parse(remote)?,
+            remote_core: Url::parse(remote_core)?,
+            remote_data: Url::parse(remote_data)?,
             claims: None,
             signing_key: None,
             bearer_token: None,
@@ -88,7 +91,7 @@ impl Client {
     /// # Returns
     /// * `Self` - The client
     pub fn with_remote(&mut self, remote: &str) -> anyhow::Result<()> {
-        self.remote = Url::parse(remote)?;
+        self.remote_core = Url::parse(remote)?;
         Ok(())
     }
 
@@ -168,7 +171,7 @@ impl Client {
         request: T,
     ) -> Result<T::ResponseType, ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
+        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);
@@ -204,7 +207,7 @@ impl Client {
     /// Call a method that implements ApiRequest
     pub async fn call_no_content<T: ApiRequest>(&mut self, request: T) -> Result<(), ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
+        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);
@@ -241,7 +244,7 @@ impl Client {
         request: T,
     ) -> Result<T::ResponseType, ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
+        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);
@@ -280,7 +283,7 @@ impl Client {
         request: T,
     ) -> Result<(), ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
+        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);
@@ -360,7 +363,7 @@ impl Client {
         request: T,
     ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
+        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);

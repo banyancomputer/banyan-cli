@@ -46,7 +46,7 @@ extern crate log;
 
 /// This module contains the CLI
 pub mod cli;
-/// This module contains both the bundle_pipeline and the extract_pipeline, which allow the main CLI to run bundleing an extracting pipelines.
+/// This module contains both the bundle_pipeline and the extract_pipeline, which allow the main CLI to run bundling an extracting pipelines.
 pub mod pipelines;
 /// This module contains types unique to this project.
 pub mod types;

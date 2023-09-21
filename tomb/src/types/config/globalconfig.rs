@@ -28,7 +28,9 @@ pub struct GlobalConfig {
     /// Location of api key on disk in PEM format
     pub api_key_path: PathBuf,
     /// Remote endpoint for Metadata API
-    pub remote: Option<String>,
+    pub remote_core: Option<String>,
+    /// Remote endpoint for Metadata API upload
+    pub remote_data: Option<String>,
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
     /// Bucket Configurations
@@ -39,7 +41,8 @@ impl Default for GlobalConfig {
     fn default() -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            remote: None,
+            remote_core: None,
+            remote_data: None,
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
             remote_account_id: None,
@@ -96,9 +99,9 @@ impl GlobalConfig {
     /// Get the Client data
     pub async fn get_client(&self) -> Result<Client> {
         // If there is already a remote endpoint
-        if let Some(remote) = &self.remote {
+        if let Some(remote_core) = &self.remote_core && let Some(remote_data) = &self.remote_data {
             // Create a new Client
-            let mut client = Client::new(remote)?;
+            let mut client = Client::new(remote_core, remote_data)?;
             // If there are already credentials
             if let Ok(credentials) = self.get_credentials().await {
                 // Set the credentials
@@ -113,8 +116,9 @@ impl GlobalConfig {
 
     /// Save the Client data to the config
     pub async fn save_client(&mut self, client: Client) -> Result<()> {
-        // Update the Remote endpoint
-        self.remote = Some(client.remote.to_string());
+        // Update the Remote endpoints
+        self.remote_core = Some(client.remote_core.to_string());
+        self.remote_data = Some(client.remote_data.to_string());
         // If there is a Claim
         if let Some(token) = client.claims {
             // Update the remote account ID

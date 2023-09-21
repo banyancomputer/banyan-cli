@@ -53,14 +53,20 @@ impl TombWasm {
     ///
     /// * `web_signing_key` - The CryptoKeyPair to use for signing requests
     /// * `account_id` - The id of the account to use
-    /// * `api_endpoint` - The API endpoint to use
+    /// * `core_endpoint` - The API endpoint to use for core
+    /// * `data_endpoint` - The API endpoint to use for data
     ///
     /// # Returns
     ///
     /// A new TombWasm instance
     ///
     /// Don't call it from multiple threads in parallel!
-    pub fn new(web_signing_key: CryptoKeyPair, account_id: String, api_endpoint: String) -> Self {
+    pub fn new(
+        web_signing_key: CryptoKeyPair,
+        account_id: String,
+        core_endpoint: String,
+        data_endpoint: String,
+    ) -> Self {
         #[cfg(feature = "console_error_panic_hook")]
         set_panic_hook();
 
@@ -69,7 +75,7 @@ impl TombWasm {
 
         log!("tomb-wasm: new()");
 
-        let mut banyan_client = Client::new(&api_endpoint).unwrap();
+        let mut banyan_client = Client::new(&core_endpoint, &data_endpoint).unwrap();
 
         let signing_key = EcSignatureKey::from(web_signing_key);
         let account_id = Uuid::parse_str(&account_id).unwrap();

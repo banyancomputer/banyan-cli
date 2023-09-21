@@ -2,7 +2,7 @@
 pub mod add;
 /// Interfacing with the banyan api
 pub mod banyan_api;
-/// This module contains the encryption pipeline function, which is the main entry point for bundleing new data.
+/// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod bundle;
 /// This module contains configuration functions for the cli
 pub mod configure;
@@ -21,12 +21,11 @@ mod test {
         pipelines::{bundle, configure, extract, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
-            spider::path_to_segments,
             test::{test_setup, test_setup_structured, test_teardown},
             wnfsio::compute_directory_size,
         },
     };
-    use tomb_common::utils::wnfsio::decompress_bytes;
+    use tomb_common::utils::wnfsio::{decompress_bytes, path_to_segments};
 
     use anyhow::Result;
     use dir_assert::assert_paths;
@@ -71,7 +70,7 @@ mod test {
         let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Deinitialize for user
         configure::deinit(origin).await?;
-        // Assert that bundleing fails
+        // Assert that bundling fails
         assert!(bundle_pipeline(bucket_specifier).await.is_err());
         // Initialize for this user
         configure::init(origin).await?;
@@ -91,10 +90,10 @@ mod test {
         configure::deinit_all().await?;
         let _ = GlobalConfig::from_disk().await?;
         // Configure the remote endpoint
-        configure::remote(address).await?;
+        configure::remote_core(address).await?;
         // Assert it was actually modified
         assert_eq!(
-            GlobalConfig::from_disk().await?.remote,
+            GlobalConfig::from_disk().await?.remote_core,
             Some(address.to_string())
         );
         Ok(())
@@ -165,7 +164,7 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = fs
@@ -173,7 +172,7 @@ mod test {
             .get_node(
                 &path_to_segments(input_file)?,
                 true,
-                &fs.metadata_forest,
+                &fs.forest,
                 &config.metadata,
             )
             .await?
@@ -182,7 +181,7 @@ mod test {
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
-            file.get_content(&fs.content_forest, &config.content)
+            file.get_content(&fs.forest, &config.content)
                 .await?
                 .as_slice(),
             &mut loaded_file_content,
@@ -205,17 +204,17 @@ mod test {
         bundle_pipeline(bucket_specifier).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
-        let wnfs_segments = &path_to_segments(wnfs_path)?;
+        let wnfs_segments = path_to_segments(wnfs_path)?;
         // Load metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
         let result = fs
             .root_dir
-            .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
+            .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
@@ -227,10 +226,10 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
         let result = fs
             .root_dir
-            .get_node(wnfs_segments, true, &fs.metadata_forest, &config.metadata)
+            .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
@@ -250,6 +249,7 @@ mod test {
         configure::init(origin).await?;
         // Bundle locally
         bundle_pipeline(bucket_specifier).await?;
+        println!("finished bundling...");
         // Create a new dir to extract in
         let extracted_dir = &origin
             .parent()
@@ -406,8 +406,8 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_bundleing() -> Result<()> {
-        let test_name = "double_bundleing";
+    async fn double_bundling() -> Result<()> {
+        let test_name = "double_bundling";
         // Setup the test once
         test_setup(test_name).await?;
         // Run the test twice
@@ -457,18 +457,18 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
         let current_file = fs
             .root_dir
-            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
-            .get_content(&fs.content_forest, &config.content)
+            .get_content(&fs.forest, &config.content)
             .await?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
@@ -490,14 +490,14 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&fs.content_forest, &config.content)
+            .get_content(&fs.forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut previous_content_decompressed: Vec<u8> = Vec::new();
@@ -517,14 +517,14 @@ mod test {
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
-            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
-            .get_content(&fs.content_forest, &config.content)
+            .get_content(&fs.forest, &config.content)
             .await
             .expect("failed to retrieve file content");
         let mut original_content_decompressed: Vec<u8> = Vec::new();
@@ -576,26 +576,21 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];
         let current_file = fs
             .root_dir
-            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
         let current_content = current_file
-            .get_content(&fs.content_forest, &config.content)
+            .get_content(&fs.forest, &config.content)
             .await?;
-        let mut current_content_decompressed: Vec<u8> = Vec::new();
-        decompress_bytes(
-            current_content.as_slice(),
-            &mut current_content_decompressed,
-        )?;
         // Assert that the current version of the file was retrieved correctly
-        assert_eq!(goodbye_bytes, current_content_decompressed);
+        assert_eq!(goodbye_bytes, current_content);
 
         // Now grab history
         let mut iterator = config.get_history(&wrapping_key).await?;
@@ -609,24 +604,19 @@ mod test {
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
-            .get_node(&path_segments, false, &fs.metadata_forest, &config.metadata)
+            .get_node(&path_segments, false, &fs.forest, &config.metadata)
             .await?
             .expect("node does not exist in WNFS PrivateDirectory")
             .as_file()?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
-            .get_content(&fs.content_forest, &config.content)
+            .get_content(&fs.forest, &config.content)
             .await
             .expect("failed to retrieve file content");
-        let mut previous_content_decompressed: Vec<u8> = Vec::new();
-        decompress_bytes(
-            previous_content.as_slice(),
-            &mut previous_content_decompressed,
-        )?;
 
         // Assert that the previous version of the file was retrieved correctly
-        assert_eq!(previous_content_decompressed, hello_bytes);
+        assert_eq!(previous_content, hello_bytes);
 
         // pull off the last, empty version
         let _empty_dir = iterator

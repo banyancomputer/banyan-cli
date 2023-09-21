@@ -21,10 +21,6 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     // Obtain the Client
     let client: &mut Option<Client> = &mut global.get_client().await.ok();
 
-    // if let Some(client) = client {
-
-    // }
-
     // Process the command
     let result: Result<String, TombError> = match command {
         // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
@@ -33,16 +29,16 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let public_key = private_key.public_key()?;
             let pem = String::from_utf8(public_key.export().await?)?;
 
-            let origin = &origin.unwrap_or(current_dir()?);
+            let origin = origin.unwrap_or(current_dir()?);
 
             // If this bucket already exists both locally and remotely
-            if let Some(bucket) = global.get_bucket_by_origin(origin) && let Some(remote_id) = bucket.remote_id && let Some(client) = client && Bucket::read(client, remote_id).await.is_ok() {
+            if let Some(bucket) = global.get_bucket_by_origin(&origin) && let Some(remote_id) = bucket.remote_id && let Some(client) = client && Bucket::read(client, remote_id).await.is_ok() {
                 // If we are able to read the bucket
                 return Err(anyhow!("Bucket already exists at this origin and is persisted remotely"));
             }
 
             // Initialize in the configs
-            let mut config = global.get_or_create_bucket(origin).await?;
+            let mut config = global.get_or_create_bucket(&origin).await?;
 
             // Update the config globally
             global

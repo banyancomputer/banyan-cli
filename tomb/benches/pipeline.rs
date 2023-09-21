@@ -163,11 +163,8 @@ fn populate_input_dirs() {
     for (i, entry) in desired_paths.into_iter().enumerate() {
         // If the path does not exist, then we need to generate the desired files
         if !entry.exists() {
-            // Get the desired structure
-            #[allow(unused_mut)]
-            let mut desired_structure = &desired_structures[i];
             // Generate the desired files
-            desired_structure.generate(&entry).unwrap();
+            desired_structures[i].generate(&entry).unwrap();
         }
     }
 }
@@ -242,7 +239,7 @@ fn cleanup_bench() {
         .unwrap();
 }
 
-/// Make sure bundled directory is empty for bundleing
+/// Make sure bundled directory is empty for bundling
 #[doc(hidden)]
 fn prep_bundle(bundled_path: &Path) {
     // Ensure the bundled directory exists and is empty
@@ -272,7 +269,7 @@ fn prep_extract(extracted_path: &Path) {
         .unwrap();
 }
 
-/// Benchmark bundleing - relies on input_path being populated!
+/// Benchmark bundling - relies on input_path being populated!
 /// # Arguments
 /// * `c` - Criterion object
 /// * `input_path` - Path to the input directory to use for the benchmark. This will change for each benchmark

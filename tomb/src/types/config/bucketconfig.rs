@@ -184,18 +184,18 @@ mod test {
     #[serial]
     async fn get_set_get_all() -> Result<()> {
         let test_name = "config_set_get_all";
-        let origin = &Path::new("test").join(test_name);
+        let origin = Path::new("test").join(test_name);
         if origin.exists() {
-            remove_dir_all(origin)?;
+            remove_dir_all(&origin)?;
         }
-        create_dir_all(origin)?;
+        create_dir_all(&origin)?;
 
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
-        let mut config = global.get_or_create_bucket(origin).await?;
+        let mut config = global.get_or_create_bucket(&origin).await?;
 
-        let rng = &mut thread_rng();
-        let fs = &mut config.unlock_fs(&global.wrapping_key().await?).await?;
+        let mut rng = thread_rng();
+        let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
         let file = fs
             .root_dir
@@ -203,25 +203,25 @@ mod test {
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut fs.metadata_forest,
+                &mut fs.forest,
                 &config.metadata,
-                rng,
+                &mut rng,
             )
             .await?;
         let file_content = "this is a cat image".as_bytes();
         file.set_content(
             Utc::now(),
             file_content,
-            &mut fs.content_forest,
+            &mut fs.forest,
             &config.content,
-            rng,
+            &mut rng,
         )
         .await?;
 
-        config.save_fs(fs).await?;
+        config.save_fs(&mut fs).await?;
 
         // Get structs
-        let new_fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let mut new_fs = config.unlock_fs(&wrapping_key).await?;
 
         assert_eq!(fs.root_dir, new_fs.root_dir);
 
@@ -231,13 +231,13 @@ mod test {
                 &["cat.png".to_string()],
                 true,
                 Utc::now(),
-                &mut new_fs.metadata_forest,
+                &mut new_fs.forest,
                 &config.metadata,
-                rng,
+                &mut rng,
             )
             .await?;
         let new_file_content = new_file
-            .get_content(&new_fs.content_forest, &config.content)
+            .get_content(&new_fs.forest, &config.content)
             .await?;
 
         assert_eq!(file_content, new_file_content);

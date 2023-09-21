@@ -1,14 +1,11 @@
 use std::path::Path;
 
 use super::error::TombError;
-use crate::{
-    cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig,
-    utils::spider::path_to_segments,
-};
+use crate::{cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
-use tomb_common::utils::wnfsio::compress_file;
+use tomb_common::utils::wnfsio::{compress_file, path_to_segments};
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(
@@ -23,22 +20,22 @@ pub async fn pipeline(
     // Bucket config
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
     // Get structs
-    let fs = &mut config.unlock_fs(&wrapping_key).await?;
+    let mut fs = config.unlock_fs(&wrapping_key).await?;
 
     // Compress the data in the file
     let content_buf = compress_file(input_file)?;
     // Turn the relative path into a vector of segments
     let time = Utc::now();
-    let rng = &mut thread_rng();
+    let mut rng = thread_rng();
     let file = fs
         .root_dir
         .open_file_mut(
             &path_to_segments(wnfs_path)?,
             true,
             time,
-            &mut fs.metadata_forest,
+            &mut fs.forest,
             &config.metadata,
-            rng,
+            &mut rng,
         )
         .await?;
 
@@ -46,14 +43,14 @@ pub async fn pipeline(
     file.set_content(
         time,
         content_buf.as_slice(),
-        &mut fs.content_forest,
+        &mut fs.forest,
         &config.content,
-        rng,
+        &mut rng,
     )
     .await?;
 
     // Store all the updated information, now that we've written the file
-    config.save_fs(fs).await?;
+    config.save_fs(&mut fs).await?;
 
     // Update global
     global.update_config(&config)?;

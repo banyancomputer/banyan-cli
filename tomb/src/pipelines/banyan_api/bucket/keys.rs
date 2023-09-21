@@ -30,7 +30,7 @@ pub(crate) async fn pipeline(
         }
         // Request access to a bucket
         KeySubCommand::RequestAccess(bucket_specifier) => {
-            let private_key = &global.wrapping_key().await?;
+            let private_key = global.wrapping_key().await?;
             let public_key = private_key
                 .public_key()
                 .map_err(ClientError::crypto_error)?;
@@ -45,7 +45,7 @@ pub(crate) async fn pipeline(
 
             // Get Bucket
             let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
-            let mut fs = FsMetadata::unlock(private_key, &bucket.metadata).await?;
+            let mut fs = FsMetadata::unlock(&private_key, &bucket.metadata).await?;
             fs.share_with(&public_key, &bucket.metadata).await?;
             fs.save(&bucket.metadata, &bucket.metadata).await?;
 

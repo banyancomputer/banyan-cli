@@ -13,9 +13,6 @@ use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
 
-// TODO: This should be a config
-const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
-
 use crate::error::TombWasmError;
 use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
 use crate::{TombResult, WasmBucket};
@@ -238,11 +235,11 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        let root_cid = &self
+        let root_cid = self
             .content_blockstore
             .get_root()
             .expect("could not get root cid");
-        let metadata_cid = &self
+        let metadata_cid = self
             .metadata_blockstore
             .get_root()
             .expect("could not get metadata cid");
@@ -466,7 +463,7 @@ impl WasmMount {
             .fs_metadata
             .as_ref()
             .unwrap()
-            .ls(path_segments, &self.metadata_blockstore)
+            .ls(&path_segments, &self.metadata_blockstore)
             .await
             .map_err(|err| TombWasmError(format!("could not list directory entries: {err}")))?;
 
@@ -524,7 +521,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .mkdir(path_segments, &self.metadata_blockstore)
+            .mkdir(&path_segments, &self.metadata_blockstore)
             .await
             .expect("could not mkdir");
 
@@ -539,17 +536,17 @@ impl WasmMount {
         Ok(())
     }
 
-    /// Add a file
+    /// Write a file
     /// # Arguments
-    /// * `path_segments` - The path to add to (as an Array)
-    /// * `content_buffer` - The content to add (as an ArrayBuffer)
+    /// * `path_segments` - The path to write to (as an Array)
+    /// * `content_buffer` - The content to write (as an ArrayBuffer)
     /// # Returns
     /// Promise<void> in js speak
     /// # Errors
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not add` - If the add fails
     /// * `Could not sync` - If the sync fails
-    pub async fn add(
+    pub async fn write(
         &mut self,
         path_segments: Array,
         content_buffer: ArrayBuffer,
@@ -575,11 +572,11 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .add(
-                path_segments,
-                content,
+            .write(
+                &path_segments,
                 &self.metadata_blockstore,
                 &self.content_blockstore,
+                content,
             )
             .await
             .expect("could not add");
@@ -609,7 +606,7 @@ impl WasmMount {
         &mut self,
         path_segments: Array,
         _version: Option<String>,
-    ) -> TombResult<ArrayBuffer> {
+    ) -> TombResult<Uint8Array> {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -628,7 +625,7 @@ impl WasmMount {
 
         let mut banyan_api_blockstore_client = self.client.clone();
         banyan_api_blockstore_client
-            .with_remote(BLOCKSTORE_API_HOST)
+            .with_remote(self.client.remote_data.as_str())
             .expect("could not create blockstore client");
         let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
 
@@ -637,7 +634,7 @@ impl WasmMount {
             .as_mut()
             .unwrap()
             .read(
-                path_segments,
+                &path_segments,
                 &self.metadata_blockstore,
                 &banyan_api_blockstore,
             )
@@ -646,7 +643,7 @@ impl WasmMount {
 
         let bytes = vec.into_boxed_slice();
         let array = Uint8Array::from(&bytes[..]);
-        Ok(array.buffer())
+        Ok(array)
     }
 
     // TODO: Get metadata on node
@@ -690,9 +687,9 @@ impl WasmMount {
             .as_mut()
             .unwrap()
             .mv(
-                from_path_segments,
-                to_path_segments,
-                &self.metadata_blockstore,
+                &from_path_segments,
+                &to_path_segments,
+                &self.content_blockstore,
             )
             .await
             .expect("could not mv");
@@ -726,7 +723,7 @@ impl WasmMount {
         log!(
             "tomb-wasm: mount/rm/{}/{}",
             self.bucket.id.to_string(),
-            &path_segments.join("/")
+            path_segments.join("/")
         );
 
         if self.locked() {
@@ -736,7 +733,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .rm(path_segments, &self.metadata_blockstore)
+            .rm(&path_segments, &self.metadata_blockstore)
             .await
             .expect("could not rm");
 
@@ -777,12 +774,12 @@ impl WasmMount {
             .await
             .expect("could not read bucket key");
 
-        let recipient_key = &bucket_key.pem;
+        let recipient_key = bucket_key.pem;
         log!(
             "tomb-wasm: mount/share_with/{} - importing key",
             recipient_key.clone()
         );
-        let recipient_key = &EcPublicEncryptionKey::import(recipient_key.as_bytes())
+        let recipient_key = EcPublicEncryptionKey::import(recipient_key.as_bytes())
             .await
             .expect("could not import key");
 
@@ -793,7 +790,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .share_with(recipient_key, &self.metadata_blockstore)
+            .share_with(&recipient_key, &self.metadata_blockstore)
             .await
             .expect("could not share with");
 

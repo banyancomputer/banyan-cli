@@ -12,16 +12,15 @@ use wnfs::{
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     metadata_store: &MBS,
     content_store: &CBS,
-    metadata_forest: &mut Rc<PrivateForest>,
-    content_forest: &mut Rc<PrivateForest>,
+    forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
 ) -> Result<PrivateRef> {
     // Get a seeded source of randomness
     let seed = thread_rng().gen::<[u8; 32]>();
     let mut rng = StdRng::from_seed(seed);
     // Store the PrivateDirectory in both PrivateForests
-    let metadata_ref = dir.store(metadata_forest, metadata_store, &mut rng).await?;
-    let content_ref = dir.store(content_forest, content_store, &mut rng).await?;
+    let metadata_ref = dir.store(forest, metadata_store, &mut rng).await?;
+    let content_ref = dir.store(forest, content_store, &mut rng).await?;
     // Assert that the PrivateRefs are the same
     assert_eq!(metadata_ref, content_ref);
     // Return Ok
@@ -71,10 +70,10 @@ pub async fn load_forest<BS: BlockStore>(cid: &Cid, store: &BS) -> Result<Rc<Pri
 pub async fn load_dir<BS: BlockStore>(
     store: &BS,
     private_ref: &PrivateRef,
-    metadata_forest: &Rc<PrivateForest>,
+    forest: &Rc<PrivateForest>,
 ) -> Result<Rc<PrivateDirectory>> {
     // Load the PrivateDirectory from the PrivateForest
-    PrivateNode::load(private_ref, metadata_forest, store)
+    PrivateNode::load(private_ref, forest, store)
         .await?
         .as_dir()
 }
@@ -91,20 +90,14 @@ mod test {
     async fn forest() -> Result<()> {
         let test_name = "forest";
         // Start er up!
-        let (metadata, _, metadata_forest, _, _) = &mut setup_memory_test(test_name).await?;
+        let (metadata, _, forest, _) = &mut setup_memory_test(test_name).await?;
 
         // Store and load
-        let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
-        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, metadata).await?;
+        let forest_cid = store_forest(forest, metadata, metadata).await?;
+        let new_forest = load_forest(&forest_cid, metadata).await?;
 
         // Assert equality
-        assert_eq!(
-            new_metadata_forest
-                .diff(metadata_forest, metadata)
-                .await?
-                .len(),
-            0
-        );
+        assert_eq!(new_forest.diff(forest, metadata).await?.len(), 0);
 
         // Teardown
         teardown_test(test_name).await
@@ -115,16 +108,14 @@ mod test {
     async fn dir_object() -> Result<()> {
         let test_name = "dir_object";
         // Start er up!
-        let (metadata, content, metadata_forest, content_forest, dir) =
-            &mut setup_memory_test(test_name).await?;
+        let (metadata, content, forest, dir) = &mut setup_memory_test(test_name).await?;
 
-        let private_ref =
-            &store_dir(metadata, content, metadata_forest, content_forest, dir).await?;
-        let metadata_forest_cid = store_forest(metadata_forest, metadata, metadata).await?;
-        let new_metadata_forest = &load_forest(&metadata_forest_cid, metadata).await?;
-        let new_dir = &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
+        let private_ref = &store_dir(metadata, content, forest, dir).await?;
+        let forest_cid = store_forest(forest, metadata, metadata).await?;
+        let new_forest = &load_forest(&forest_cid, metadata).await?;
+        let mut new_dir = load_dir(metadata, private_ref, new_forest).await?;
         // Assert equality
-        assert_eq!(dir, new_dir);
+        assert_eq!(dir, &mut new_dir);
         // Teardown
         teardown_test(test_name).await
     }
@@ -134,7 +125,7 @@ mod test {
     async fn dir_content() -> Result<()> {
         let test_name = "dir_content";
         // Start er up!
-        let (metadata, content, original_metadata_forest, original_content_forest, original_dir) =
+        let (metadata, content, original_forest, original_dir) =
             &mut setup_memory_test(test_name).await?;
 
         // Grab the original file
@@ -143,44 +134,34 @@ mod test {
                 &["cats".to_string()],
                 true,
                 Utc::now(),
-                original_metadata_forest,
+                original_forest,
                 metadata,
                 &mut thread_rng(),
             )
             .await?;
 
         // Get the content
-        let original_content = original_file
-            .get_content(original_content_forest, content)
-            .await?;
-        let private_ref = &store_dir(
-            metadata,
-            content,
-            original_metadata_forest,
-            original_content_forest,
-            original_dir,
-        )
-        .await?;
-        let metadata_forest_cid =
-            store_forest(original_metadata_forest, metadata, metadata).await?;
+        let original_content = original_file.get_content(original_forest, content).await?;
+        let private_ref = store_dir(metadata, content, original_forest, original_dir).await?;
+        let forest_cid = store_forest(original_forest, metadata, metadata).await?;
 
-        let new_metadata_forest = &mut load_forest(&metadata_forest_cid, metadata).await?;
-        let new_dir = &mut load_dir(metadata, private_ref, new_metadata_forest).await?;
+        let mut new_forest = load_forest(&forest_cid, metadata).await?;
+        let mut new_dir = load_dir(metadata, &private_ref, &new_forest).await?;
         // Assert equality
-        assert_eq!(original_dir, new_dir);
+        assert_eq!(original_dir, &mut new_dir);
 
         let file = new_dir
             .open_file_mut(
                 &["cats".to_string()],
                 true,
                 Utc::now(),
-                new_metadata_forest,
+                &mut new_forest,
                 metadata,
                 &mut thread_rng(),
             )
             .await?;
         // Get the content
-        let new_content = file.get_content(original_content_forest, content).await?;
+        let new_content = file.get_content(original_forest, content).await?;
 
         assert_eq!(original_content, new_content);
 
