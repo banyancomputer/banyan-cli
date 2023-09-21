@@ -141,7 +141,7 @@ mod test {
             .await?;
 
         // Get the content
-        let original_content = original_file.get_content(&original_forest, content).await?;
+        let original_content = original_file.get_content(original_forest, content).await?;
         let private_ref = &store_dir(metadata, content, original_forest, original_dir).await?;
         let forest_cid = store_forest(original_forest, metadata, metadata).await?;
 

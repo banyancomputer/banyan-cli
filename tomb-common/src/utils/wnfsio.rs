@@ -1,5 +1,8 @@
 use anyhow::Result;
-use std::{io::{BufReader, Read, Write}, path::Path};
+use std::{
+    io::{BufReader, Read, Write},
+    path::Path,
+};
 
 #[derive(Debug, Clone)]
 /// Wrapper for compression information

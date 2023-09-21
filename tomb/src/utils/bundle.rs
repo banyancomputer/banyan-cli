@@ -1,3 +1,7 @@
+use crate::{
+    types::spider::BundlePipelinePlan,
+    utils::{grouper::grouper, spider},
+};
 use anyhow::Result;
 use indicatif::ProgressBar;
 use std::{
@@ -6,11 +10,9 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
 };
-use crate::{
-    types::spider::BundlePipelinePlan,
-    utils::{grouper::grouper, spider},
+use tomb_common::{
+    blockstore::RootedBlockStore, metadata::FsMetadata, utils::wnfsio::path_to_segments,
 };
-use tomb_common::{blockstore::RootedBlockStore, metadata::FsMetadata, utils::wnfsio::path_to_segments};
 
 /// Create BundlePipelinePlans from an origin dir
 pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<BundlePipelinePlan>> {
@@ -96,7 +98,8 @@ pub async fn process_plans(
                     let dup_path_segments = &path_to_segments(dup)?;
                     // Copy
                     println!("running cp...");
-                    fs.cp(path_segments, dup_path_segments, metadata_store).await?;
+                    fs.cp(path_segments, dup_path_segments, metadata_store)
+                        .await?;
                     println!("finished running cp...");
                 }
             }
@@ -105,11 +108,7 @@ pub async fn process_plans(
                 // Turn the canonicalized path into a vector of segments
                 let path_segments = &path_to_segments(&meta.original_location)?;
                 // If the directory does not exist
-                if fs
-                    .get_node(path_segments, metadata_store)
-                    .await
-                    .is_err()
-                {
+                if fs.get_node(path_segments, metadata_store).await.is_err() {
                     // Create the subdirectory
                     fs.mkdir(path_segments, metadata_store).await?;
                 }
@@ -128,7 +127,8 @@ pub async fn process_plans(
                 // The path where the symlink will be placed
                 let symlink_segments = path_to_segments(&meta.original_location)?;
                 // Symlink it
-                fs.symlink(&symlink_target, &symlink_segments, metadata_store).await?;
+                fs.symlink(&symlink_target, &symlink_segments, metadata_store)
+                    .await?;
             }
             BundlePipelinePlan::Directory(_) | BundlePipelinePlan::FileGroup(_) => {
                 panic!("this is unreachable code")

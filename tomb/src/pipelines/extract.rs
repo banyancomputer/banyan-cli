@@ -1,9 +1,9 @@
 use super::error::TombError;
 use crate::{cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
+use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
 use tomb_common::utils::wnfsio::path_to_segments;
 use wnfs::private::PrivateNode;
-use std::{path::Path, os::unix::fs::symlink, fs::File, io::Write};
 
 /// Given the manifest file and a destination for our extracted data, run the extracting pipeline
 /// on the data referenced in the manifest.
@@ -39,17 +39,19 @@ pub async fn pipeline(
             PrivateNode::Dir(_) => {
                 // Create the directory
                 std::fs::create_dir_all(extracted.join(path))?;
-            },
+            }
             PrivateNode::File(file) => {
                 let built_path = extracted.join(path.clone());
                 // If we can read the content from the file node
-                if let Ok(content) = fs.read(&path_to_segments(&path)?, metadata_store, content_store).await {
+                if let Ok(content) = fs
+                    .read(&path_to_segments(&path)?, metadata_store, content_store)
+                    .await
+                {
                     // If this file is a symlink
                     if let Some(origin) = file.symlink_origin() {
                         // Write out the symlink
                         symlink(origin, built_path)?;
-                    }
-                    else {
+                    } else {
                         // If the parent does not yet exist
                         if let Some(parent) = built_path.parent() && !parent.exists() {
                             // Create the directories
@@ -61,9 +63,10 @@ pub async fn pipeline(
                         // Write out the content to disk
                         output_file.write_all(&content)?;
                     }
-                }
-                else {
-                    return Err(TombError::anyhow_error(anyhow::anyhow!("file missing error")));
+                } else {
+                    return Err(TombError::anyhow_error(anyhow::anyhow!(
+                        "file missing error"
+                    )));
                 }
             }
         }

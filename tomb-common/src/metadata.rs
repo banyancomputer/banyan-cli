@@ -1,15 +1,19 @@
 use crate::{
     blockstore::{split::DoubleSplitStore, RootedBlockStore},
     share::manager::ShareManager,
-    utils::{error::SerialError, wnfsio::path_to_segments},
     utils::serialize::*,
+    utils::{error::SerialError, wnfsio::path_to_segments},
 };
 use anyhow::Result;
+use async_recursion::async_recursion;
 use chrono::Utc;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, rc::Rc, path::{Path, PathBuf}};
-use async_recursion::async_recursion;
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{BlockStore, Metadata},
@@ -311,13 +315,13 @@ impl FsMetadata {
     /// Make a new directory in the Fs. Store in our metadata store
     pub async fn mkdir(
         &mut self,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
             .root_dir
-            .get_node(&path_segments, true, &self.forest, metadata_store)
+            .get_node(path_segments, true, &self.forest, metadata_store)
             .await;
 
         if let Ok(node) = result && node.is_some() {}
@@ -326,7 +330,7 @@ impl FsMetadata {
             // Create the subdirectory
             self.root_dir
                 .mkdir(
-                    &path_segments,
+                    path_segments,
                     true,
                     Utc::now(),
                     &self.forest,
@@ -341,12 +345,12 @@ impl FsMetadata {
     /// Ls the root directory at the path provided
     pub async fn ls(
         &self,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         store: &impl RootedBlockStore,
     ) -> Result<Vec<FsMetadataEntry>> {
         let fetched_entries = self
             .root_dir
-            .ls(&path_segments, true, &self.forest, store)
+            .ls(path_segments, true, &self.forest, store)
             .await?;
 
         let mut transformed_entries = Vec::with_capacity(fetched_entries.len());
@@ -398,14 +402,14 @@ impl FsMetadata {
     /// Mv a node to a new location
     pub async fn mv(
         &mut self,
-        src_path_segments: &Vec<String>,
-        dest_path_segments: &Vec<String>,
+        src_path_segments: &[String],
+        dest_path_segments: &[String],
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
         self.root_dir
             .basic_mv(
-                &src_path_segments,
-                &dest_path_segments,
+                src_path_segments,
+                dest_path_segments,
                 true,
                 Utc::now(),
                 &mut self.forest,
@@ -419,35 +423,56 @@ impl FsMetadata {
     /// Cp a file to a new location while deduplicating
     pub async fn cp(
         &mut self,
-        src_path_segments: &Vec<String>,
-        dest_path_segments: &Vec<String>,
+        src_path_segments: &[String],
+        dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Get the path of the parent
         let folder_segments = &dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
         // Make directory at parent
-        self.mkdir(&folder_segments, metadata_store).await?;
+        self.mkdir(folder_segments, metadata_store).await?;
         // Copy and Link
-        self.root_dir.cp_link(&src_path_segments, &dest_path_segments, true, &mut self.forest, metadata_store).await
+        self.root_dir
+            .cp_link(
+                src_path_segments,
+                dest_path_segments,
+                true,
+                &mut self.forest,
+                metadata_store,
+            )
+            .await
     }
 
     /// Write a symlink
     pub async fn symlink(
         &mut self,
         target: &Path,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Represent the target as a String
-        let target_string = target.to_str().expect("failed to represent Path as str").to_string();
+        let target_string = target
+            .to_str()
+            .expect("failed to represent Path as str")
+            .to_string();
         // Write the symlink
-        self.root_dir.write_symlink(target_string, path_segments, true, Utc::now(), &mut self.forest, metadata_store, &mut thread_rng()).await
+        self.root_dir
+            .write_symlink(
+                target_string,
+                path_segments,
+                true,
+                Utc::now(),
+                &self.forest,
+                metadata_store,
+                &mut thread_rng(),
+            )
+            .await
     }
 
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn add(
         &mut self,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         content: Vec<u8>,
         metadata_store: &impl RootedBlockStore,
         content_store: &impl RootedBlockStore,
@@ -458,7 +483,7 @@ impl FsMetadata {
         let file = self
             .root_dir
             .open_file_mut(
-                &path_segments,
+                path_segments,
                 true,
                 time,
                 &mut self.forest,
@@ -484,12 +509,12 @@ impl FsMetadata {
     /// Rm a file or directory
     pub async fn rm(
         &mut self,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Create the subdirectory
         self.root_dir
-            .rm(&path_segments, true, &self.forest, store)
+            .rm(path_segments, true, &self.forest, store)
             .await
             .map(|_| ())
             .map_err(|_| SerialError::NodeNotFound(path_segments.join("/")).into())
@@ -498,17 +523,17 @@ impl FsMetadata {
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn read(
         &mut self,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
     ) -> Result<Vec<u8>> {
         // Compress the data in the file
         let result = self
-        .root_dir
-        .get_node(&path_segments, true, &self.forest, metadata_store)
-        .await
+            .root_dir
+            .get_node(path_segments, true, &self.forest, metadata_store)
+            .await
             .expect("node not found");
-        
+
         // Split store
         let split_store = DoubleSplitStore::new(metadata_store, content_store);
 
@@ -560,7 +585,7 @@ impl FsMetadata {
     /// Get a node from the Fs
     pub async fn get_node(
         &mut self,
-        path_segments: &Vec<String>,
+        path_segments: &[String],
         store: &impl RootedBlockStore,
     ) -> Result<Option<PrivateNode>> {
         // Search through the PrivateDirectory for a Node that matches the path provided
@@ -575,15 +600,27 @@ impl FsMetadata {
     }
 
     /// Get all nodes under the root directory
-    pub async fn get_all_nodes(&self, metadata_store: &impl RootedBlockStore) -> Result<Vec<(PrivateNode, PathBuf)>> {
-        self.get_all_children(Path::new("").to_path_buf(), metadata_store).await
+    pub async fn get_all_nodes(
+        &self,
+        metadata_store: &impl RootedBlockStore,
+    ) -> Result<Vec<(PrivateNode, PathBuf)>> {
+        self.get_all_children(Path::new("").to_path_buf(), metadata_store)
+            .await
     }
 
     #[async_recursion(?Send)]
-    async fn get_all_children(&self, path: PathBuf, metadata_store: &impl RootedBlockStore) -> Result<Vec<(PrivateNode, PathBuf)>> {
+    async fn get_all_children(
+        &self,
+        path: PathBuf,
+        metadata_store: &impl RootedBlockStore,
+    ) -> Result<Vec<(PrivateNode, PathBuf)>> {
         let segments = &path_to_segments(&path)?;
-        let node = if segments.is_empty() { Some(self.root_dir.as_node()) } else {
-            self.root_dir.get_node(segments, true, &self.forest, metadata_store).await?
+        let node = if segments.is_empty() {
+            Some(self.root_dir.as_node())
+        } else {
+            self.root_dir
+                .get_node(segments, true, &self.forest, metadata_store)
+                .await?
         };
 
         if let Some(PrivateNode::File(file)) = node {
@@ -594,12 +631,16 @@ impl FsMetadata {
             // Accumulate a list
             let mut children = vec![];
             // List the names of all children
-            let node_names = dir.ls(&vec![], true, &self.forest, metadata_store).await?;
+            let node_names = dir.ls(&[], true, &self.forest, metadata_store).await?;
             // For each node name returned by the LS
             for (node_name, _) in node_names {
                 println!("getting all children of {}", node_name);
                 // Get this child's children, extend the list
-                children.extend_from_slice(self.get_all_children(path.join(node_name), metadata_store).await?.as_slice());
+                children.extend_from_slice(
+                    self.get_all_children(path.join(node_name), metadata_store)
+                        .await?
+                        .as_slice(),
+                );
             }
             return Ok(children);
         }
@@ -607,7 +648,6 @@ impl FsMetadata {
         println!("node was none or error");
         Ok(vec![])
     }
-
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -695,12 +735,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(
-                cat_path,
-                kitty_bytes.clone(),
-                metadata_store,
-                content_store,
-            )
+            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -724,12 +759,7 @@ mod test {
         let kitty_bytes = vec![0u8; 1024 * 1024 * 10];
         // Add a new file
         fs_metadata
-            .add(
-                cat_path,
-                kitty_bytes.clone(),
-                metadata_store,
-                content_store,
-            )
+            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -753,12 +783,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(
-                cat_path,
-                kitty_bytes.clone(),
-                metadata_store,
-                content_store,
-            )
+            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
             .await?;
 
         // Remove
@@ -785,12 +810,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(
-                cat_path,
-                kitty_bytes.clone(),
-                metadata_store,
-                content_store,
-            )
+            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -829,12 +849,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(
-                cat_path,
-                kitty_bytes.clone(),
-                metadata_store,
-                content_store,
-            )
+            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -846,9 +861,7 @@ mod test {
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
-        fs_metadata
-            .mv(cat_path, dog_path, content_store)
-            .await?;
+        fs_metadata.mv(cat_path, dog_path, content_store).await?;
         // Replace existing content
         fs_metadata
             .write(
