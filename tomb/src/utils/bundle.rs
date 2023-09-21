@@ -92,8 +92,7 @@ pub async fn process_plans(
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
                     // Grab the original location
-                    let dup = &meta.original_location;
-                    let dup_path_segments = path_to_segments(dup)?;
+                    let dup_path_segments = path_to_segments(&meta.original_location)?;
                     // Copy
                     fs.cp(&path_segments, &dup_path_segments, metadata_store)
                         .await?;

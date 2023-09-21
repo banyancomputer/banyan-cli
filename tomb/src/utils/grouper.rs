@@ -49,12 +49,10 @@ pub fn grouper(
             // Insert that path into the list of seen paths
             seen_files.insert(canonicalized_path.clone());
 
-            // Construct the original root and relative path
-            let original_root = &group_config.base_dir;
             // Construct the original location relative to the root
             let original_location = file
                 .path
-                .strip_prefix(original_root)
+                .strip_prefix(&group_config.base_dir)
                 .expect("failed to strip prefix")
                 .to_path_buf();
 

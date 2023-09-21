@@ -33,7 +33,7 @@ pub async fn pipeline(
     let bundling_plan = create_plans(&config.origin, follow_links).await?;
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = &get_progress_bar(bundling_plan.len() as u64)?;
+    let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
     // Create a new delta for this bundling operation
     config.content.add_delta()?;
 
@@ -43,7 +43,7 @@ pub async fn pipeline(
         bundling_plan,
         &config.metadata,
         &config.content,
-        progress_bar,
+        &progress_bar,
     )
     .await?;
 

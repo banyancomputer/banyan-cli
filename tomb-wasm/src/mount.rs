@@ -235,11 +235,11 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        let root_cid = &self
+        let root_cid = self
             .content_blockstore
             .get_root()
             .expect("could not get root cid");
-        let metadata_cid = &self
+        let metadata_cid = self
             .metadata_blockstore
             .get_root()
             .expect("could not get metadata cid");
@@ -434,7 +434,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     pub async fn ls(&mut self, path_segments: Array) -> TombResult<Array> {
         // Read the array as a Vec<String>
-        let path_segments = &path_segments
+        let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -463,7 +463,7 @@ impl WasmMount {
             .fs_metadata
             .as_ref()
             .unwrap()
-            .ls(path_segments, &self.metadata_blockstore)
+            .ls(&path_segments, &self.metadata_blockstore)
             .await
             .map_err(|err| TombWasmError(format!("could not list directory entries: {err}")))?;
 
@@ -498,7 +498,7 @@ impl WasmMount {
     /// * `Could not sync` - If the sync fails
     pub async fn mkdir(&mut self, path_segments: Array) -> TombResult<()> {
         // Read the array as a Vec<String>
-        let path_segments = &path_segments
+        let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -521,7 +521,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .mkdir(path_segments, &self.metadata_blockstore)
+            .mkdir(&path_segments, &self.metadata_blockstore)
             .await
             .expect("could not mkdir");
 
@@ -552,7 +552,7 @@ impl WasmMount {
         content_buffer: ArrayBuffer,
     ) -> TombResult<()> {
         // Read the array as a Vec<String>
-        let path_segments = &path_segments
+        let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -573,7 +573,7 @@ impl WasmMount {
             .as_mut()
             .unwrap()
             .write(
-                path_segments,
+                &path_segments,
                 &self.metadata_blockstore,
                 &self.content_blockstore,
                 content,
@@ -608,7 +608,7 @@ impl WasmMount {
         _version: Option<String>,
     ) -> TombResult<Uint8Array> {
         // Read the array as a Vec<String>
-        let path_segments = &path_segments
+        let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -634,7 +634,7 @@ impl WasmMount {
             .as_mut()
             .unwrap()
             .read(
-                path_segments,
+                &path_segments,
                 &self.metadata_blockstore,
                 &banyan_api_blockstore,
             )
@@ -663,11 +663,11 @@ impl WasmMount {
         from_path_segments: Array,
         to_path_segments: Array,
     ) -> TombResult<()> {
-        let from_path_segments = &from_path_segments
+        let from_path_segments = from_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
-        let to_path_segments = &to_path_segments
+        let to_path_segments = to_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -687,8 +687,8 @@ impl WasmMount {
             .as_mut()
             .unwrap()
             .mv(
-                from_path_segments,
-                to_path_segments,
+                &from_path_segments,
+                &to_path_segments,
                 &self.content_blockstore,
             )
             .await
@@ -715,7 +715,7 @@ impl WasmMount {
     /// * `Could not rm` - If the rm fails
     /// * `Could not sync` - If the sync fails
     pub async fn rm(&mut self, path_segments: Array) -> TombResult<()> {
-        let path_segments = &path_segments
+        let path_segments = path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -733,7 +733,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .rm(path_segments, &self.metadata_blockstore)
+            .rm(&path_segments, &self.metadata_blockstore)
             .await
             .expect("could not rm");
 
@@ -774,12 +774,12 @@ impl WasmMount {
             .await
             .expect("could not read bucket key");
 
-        let recipient_key = &bucket_key.pem;
+        let recipient_key = bucket_key.pem;
         log!(
             "tomb-wasm: mount/share_with/{} - importing key",
             recipient_key.clone()
         );
-        let recipient_key = &EcPublicEncryptionKey::import(recipient_key.as_bytes())
+        let recipient_key = EcPublicEncryptionKey::import(recipient_key.as_bytes())
             .await
             .expect("could not import key");
 
@@ -790,7 +790,7 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .share_with(recipient_key, &self.metadata_blockstore)
+            .share_with(&recipient_key, &self.metadata_blockstore)
             .await
             .expect("could not share with");
 

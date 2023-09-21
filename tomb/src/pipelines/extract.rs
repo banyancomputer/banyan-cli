@@ -26,15 +26,13 @@ pub async fn pipeline(
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
     // Load metadata
     let mut fs = config.unlock_fs(&wrapping_key).await?;
-    let metadata_store = &config.metadata;
-    let content_store = &config.content;
 
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         extracted.display()
     );
     // For each node path tuple in the FS Metadata
-    for (node, path) in fs.get_all_nodes(metadata_store).await? {
+    for (node, path) in fs.get_all_nodes(&config.metadata).await? {
         match node {
             PrivateNode::Dir(_) => {
                 // Create the directory
@@ -44,7 +42,7 @@ pub async fn pipeline(
                 let built_path = extracted.join(path.clone());
                 // If we can read the content from the file node
                 if let Ok(content) = fs
-                    .read(&path_to_segments(&path)?, metadata_store, content_store)
+                    .read(&path_to_segments(&path)?, &config.metadata, &config.content)
                     .await
                 {
                     // If this file is a symlink

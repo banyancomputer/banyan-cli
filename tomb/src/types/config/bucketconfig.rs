@@ -184,15 +184,15 @@ mod test {
     #[serial]
     async fn get_set_get_all() -> Result<()> {
         let test_name = "config_set_get_all";
-        let origin = &Path::new("test").join(test_name);
+        let origin = Path::new("test").join(test_name);
         if origin.exists() {
-            remove_dir_all(origin)?;
+            remove_dir_all(&origin)?;
         }
-        create_dir_all(origin)?;
+        create_dir_all(&origin)?;
 
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
-        let mut config = global.get_or_create_bucket(origin).await?;
+        let mut config = global.get_or_create_bucket(&origin).await?;
 
         let mut rng = thread_rng();
         let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;
