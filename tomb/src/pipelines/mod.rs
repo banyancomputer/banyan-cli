@@ -249,6 +249,7 @@ mod test {
         configure::init(origin).await?;
         // Bundle locally
         bundle_pipeline(bucket_specifier).await?;
+        println!("finished bundling...");
         // Create a new dir to extract in
         let extracted_dir = &origin
             .parent()

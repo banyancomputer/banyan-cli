@@ -84,7 +84,6 @@ async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
     CryptoKeyPair::from(key_pair)
 }
 
-/*
 #[wasm_bindgen_test]
 async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
@@ -216,7 +215,6 @@ async fn add() -> TombResult<()> {
     Ok(())
 }
 
- */
 #[wasm_bindgen_test]
 async fn add_read() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
@@ -247,7 +245,6 @@ async fn add_read() -> TombResult<()> {
     Ok(())
 }
 
-/*
 #[wasm_bindgen_test]
 async fn add_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
@@ -337,4 +334,3 @@ async fn add_mv() -> TombResult<()> {
     assert_eq!(fs_entry.entry_type(), "file");
     Ok(())
 }
- */

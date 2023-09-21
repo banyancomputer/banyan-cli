@@ -425,11 +425,8 @@ impl FsMetadata {
     ) -> Result<()> {
         // Get the path of the parent
         let folder_segments = &dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
-        // If getting the directory yields an error
-        if self.get_node(folder_segments, metadata_store).await.is_err() {
-            // Make a directory there
-            self.mkdir(folder_segments, metadata_store).await?;
-        }
+        // Make directory at parent
+        self.mkdir(&folder_segments, metadata_store).await?;
         // Copy and Link
         self.root_dir.cp_link(&src_path_segments, &dest_path_segments, true, &mut self.forest, metadata_store).await
     }
