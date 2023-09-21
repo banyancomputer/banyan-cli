@@ -86,30 +86,16 @@ pub async fn process_plans(
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
                 // Add the file contents
-                fs.add(path_segments, content, metadata_store, content_store)
+                fs.add(path_segments.clone(), content, metadata_store, content_store)
                     .await?;
 
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
                     // Grab the original location
                     let dup = &meta.original_location;
-                    let dup_path_segments = &path_to_segments(dup)?;
-                    // Remove the final element to represent the folder path
-                    let folder_segments = &dup_path_segments[..&dup_path_segments.len() - 1];
-                    // Create that folder
-                    fs.mkdir(folder_segments.to_vec(), metadata_store).await?;
-
-                    // TODO CP LINK DEDUPLICATION
-                    // // Copy the file from the original path to the duplicate path
-                    // root_dir
-                    //     .cp_link(
-                    //         path_segments,
-                    //         dup_path_segments,
-                    //         true,
-                    //         forest,
-                    //         metadata_store,
-                    //     )
-                    //     .await?;
+                    let dup_path_segments = path_to_segments(dup)?;
+                    // Copy
+                    fs.cp(path_segments.clone(), dup_path_segments, metadata_store).await?;
                 }
             }
             // If this is a directory or symlink
@@ -136,25 +122,11 @@ pub async fn process_plans(
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
         match symlink_plan {
-            BundlePipelinePlan::Symlink(meta, _symlink_target) => {
+            BundlePipelinePlan::Symlink(meta, symlink_target) => {
                 // The path where the symlink will be placed
-                let _symlink_segments = path_to_segments(&meta.original_location)?;
-
-                // // Link the file or folder
-                // root_dir
-                //     .write_symlink(
-                //         symlink_target
-                //             .to_str()
-                //             .expect("failed to represent as string")
-                //             .to_string(),
-                //         &symlink_segments,
-                //         true,
-                //         Utc::now(),
-                //         forest,
-                //         metadata_store,
-                //         rng,
-                //     )
-                //     .await?;
+                let symlink_segments = path_to_segments(&meta.original_location)?;
+                // Symlink it
+                fs.symlink(&symlink_target, &symlink_segments, metadata_store).await?;
             }
             BundlePipelinePlan::Directory(_) | BundlePipelinePlan::FileGroup(_) => {
                 panic!("this is unreachable code")

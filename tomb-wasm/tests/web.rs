@@ -231,7 +231,9 @@ async fn add_read() -> TombResult<()> {
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(1024 * 1024 * 10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
-    mount.add(add_path_array.clone(), zero_content_array_buffer.clone()).await?;
+    mount
+        .add(add_path_array.clone(), zero_content_array_buffer.clone())
+        .await?;
     let ls: Array = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 1);
     let ls_0 = ls.get(0);

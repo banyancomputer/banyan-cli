@@ -97,13 +97,7 @@ mod test {
         let new_forest = &mut load_forest(&forest_cid, metadata).await?;
 
         // Assert equality
-        assert_eq!(
-            new_forest
-                .diff(forest, metadata)
-                .await?
-                .len(),
-            0
-        );
+        assert_eq!(new_forest.diff(forest, metadata).await?.len(), 0);
 
         // Teardown
         teardown_test(test_name).await
@@ -116,8 +110,7 @@ mod test {
         // Start er up!
         let (metadata, content, forest, dir) = &mut setup_memory_test(test_name).await?;
 
-        let private_ref =
-            &store_dir(metadata, content, forest, dir).await?;
+        let private_ref = &store_dir(metadata, content, forest, dir).await?;
         let forest_cid = store_forest(forest, metadata, metadata).await?;
         let new_forest = &load_forest(&forest_cid, metadata).await?;
         let new_dir = &mut load_dir(metadata, private_ref, new_forest).await?;
@@ -148,18 +141,9 @@ mod test {
             .await?;
 
         // Get the content
-        let original_content = original_file
-            .get_content(&original_forest, content)
-            .await?;
-        let private_ref = &store_dir(
-            metadata,
-            content,
-            original_forest,
-            original_dir,
-        )
-        .await?;
-        let forest_cid =
-            store_forest(original_forest, metadata, metadata).await?;
+        let original_content = original_file.get_content(&original_forest, content).await?;
+        let private_ref = &store_dir(metadata, content, original_forest, original_dir).await?;
+        let forest_cid = store_forest(original_forest, metadata, metadata).await?;
 
         let new_forest = &mut load_forest(&forest_cid, metadata).await?;
         let new_dir = &mut load_dir(metadata, private_ref, new_forest).await?;

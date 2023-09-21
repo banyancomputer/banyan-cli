@@ -1,11 +1,8 @@
 use anyhow::Result;
 use async_recursion::async_recursion;
-use std::{fs::File, io::Write, path::Path, rc::Rc};
+use std::{fs::File, io::Write, path::Path, os::unix::fs::symlink};
 use tomb_common::{blockstore::RootedBlockStore, metadata::FsMetadata};
-use wnfs::{
-    common::BlockStore,
-    private::{PrivateForest, PrivateNode},
-};
+use wnfs::private::PrivateNode;
 
 use crate::pipelines::error::TombError;
 
@@ -42,7 +39,7 @@ pub async fn process_node(
                 process_node(fs, metadata_store, content_store, extracted, built_path).await?;
             }
         }
-        Ok(Some(PrivateNode::File(_))) => {
+        Ok(Some(PrivateNode::File(file))) => {
             println!("{} was a file", built_path.display());
             let file_path = &extracted.join(built_path);
             // This is where the file will be extracted no matter what
@@ -54,19 +51,20 @@ pub async fn process_node(
                 )
                 .await
             {
-                // // If this file is a symlink
-                // if let Some(path) = file.symlink_origin() {
-                //     println!("file was symlink :3");
-                //     // Write out the symlink
-                //     symlink(output_dir.join(path), file_path)?;
-                //     Ok(())
-                // }
-                // If this is a real file, try to read in the content
-                println!("file was contented :3");
-                // Create the file at the desired location
-                let mut output_file = File::create(file_path)?;
-                // Write out the content to disk
-                output_file.write_all(&content)?;
+                // If this file is a symlink
+                if let Some(path) = file.symlink_origin() {
+                    println!("file was symlink :3");
+                    // Write out the symlink
+                    symlink(path, file_path)?;
+                }
+                else {
+                    // If this is a real file, try to read in the content
+                    println!("file was contented :3");
+                    // Create the file at the desired location
+                    let mut output_file = File::create(file_path)?;
+                    // Write out the content to disk
+                    output_file.write_all(&content)?;
+                }
             } else {
                 // return Err(TombError::file_missing_error(file_path.to_path_buf()))
                 return Err(anyhow::anyhow!("file missing error"));
@@ -75,8 +73,8 @@ pub async fn process_node(
         Ok(None) => {
             return Err(TombError::file_missing_error(built_path.to_path_buf()).into());
         }
-        Err(err) => {
-            return Err(anyhow::anyhow!("rrro!!"));
+        Err(_) => {
+            return Err(anyhow::anyhow!("Error getting node!"));
         }
     }
     Ok(())

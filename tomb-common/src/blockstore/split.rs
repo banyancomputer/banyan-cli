@@ -1,5 +1,8 @@
-use wnfs::{common::BlockStore, libipld::{Cid, IpldCodec}};
 use std::borrow::Cow;
+use wnfs::{
+    common::BlockStore,
+    libipld::{Cid, IpldCodec},
+};
 
 /// Blockstore built over two
 #[derive(Debug)]

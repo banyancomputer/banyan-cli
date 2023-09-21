@@ -90,12 +90,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     test_name: &str,
     metadata: RBS,
     content: RBS,
-) -> Result<(
-    RBS,
-    RBS,
-    Rc<PrivateForest>,
-    Rc<PrivateDirectory>,
-)> {
+) -> Result<(RBS, RBS, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 

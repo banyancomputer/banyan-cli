@@ -1,12 +1,14 @@
 use crate::{
-    blockstore::{RootedBlockStore, split::DoubleSplitStore}, share::manager::ShareManager, utils::error::SerialError,
+    blockstore::{split::DoubleSplitStore, RootedBlockStore},
+    share::manager::ShareManager,
+    utils::error::SerialError,
     utils::serialize::*,
 };
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, rc::Rc};
+use std::{collections::BTreeMap, rc::Rc, path::Path};
 use tomb_crypt::prelude::*;
 use wnfs::{
     common::{BlockStore, Metadata},
@@ -93,10 +95,8 @@ impl FsMetadata {
 
         // TODO: Can we get away with merging these somehow?
         // Put the forests in the store
-        let forest_cid =
-            store_forest(&self.forest, metadata_store, metadata_store).await?;
-        let _forest_cid =
-            store_forest(&self.forest, metadata_store, content_store).await?;
+        let forest_cid = store_forest(&self.forest, metadata_store, metadata_store).await?;
+        let _forest_cid = store_forest(&self.forest, metadata_store, content_store).await?;
         assert_eq!(forest_cid, _forest_cid);
 
         // Put the share manager in the store
@@ -108,10 +108,7 @@ impl FsMetadata {
         // Construct a new map for the forests
         let mut root_map = BTreeMap::new();
         // Link our Private Forests
-        root_map.insert(
-            FOREST_LABEL.to_string(),
-            Ipld::Link(forest_cid),
-        );
+        root_map.insert(FOREST_LABEL.to_string(), Ipld::Link(forest_cid));
 
         // Link our forests
         // Link our share manager
@@ -172,9 +169,7 @@ impl FsMetadata {
         // Get the forest CID
         let forest_cid = match root_map.get(FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
-            _ => {
-                return Err(SerialError::MissingMetadata(FOREST_LABEL.to_string()).into())
-            }
+            _ => return Err(SerialError::MissingMetadata(FOREST_LABEL.to_string()).into()),
         };
         // Get the share manager CID
         let share_manager_cid = match root_map.get(SHARE_MANAGER_LABEL) {
@@ -252,8 +247,7 @@ impl FsMetadata {
                     "original private ref".to_string(),
                 ))?;
         // Get the original root directory
-        let original_root_dir =
-            load_dir(store, original_private_ref, &self.forest).await?;
+        let original_root_dir = load_dir(store, original_private_ref, &self.forest).await?;
         // Get the history
         PrivateNodeOnPathHistory::of(
             self.root_dir.clone(),
@@ -317,12 +311,12 @@ impl FsMetadata {
     pub async fn mkdir(
         &mut self,
         path_segments: Vec<String>,
-        store: &impl RootedBlockStore,
+        metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
             .root_dir
-            .get_node(&path_segments, true, &self.forest, store)
+            .get_node(&path_segments, true, &self.forest, metadata_store)
             .await;
 
         if let Ok(node) = result && node.is_some() {}
@@ -335,7 +329,7 @@ impl FsMetadata {
                     true,
                     Utc::now(),
                     &self.forest,
-                    store,
+                    metadata_store,
                     &mut thread_rng(),
                 )
                 .await?;
@@ -400,20 +394,56 @@ impl FsMetadata {
         Ok(transformed_entries)
     }
 
-    /// Mv
+    /// Mv a node to a new location
     pub async fn mv(
         &mut self,
         src_path_segments: Vec<String>,
         dest_path_segments: Vec<String>,
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
-        self.root_dir.basic_mv(&src_path_segments, &dest_path_segments, true, Utc::now(), &mut self.forest, content_store, &mut thread_rng()).await
-        .map_err(|_| {
-            SerialError::NodeNotFound(
-                src_path_segments.join("/"),
+        self.root_dir
+            .basic_mv(
+                &src_path_segments,
+                &dest_path_segments,
+                true,
+                Utc::now(),
+                &mut self.forest,
+                content_store,
+                &mut thread_rng(),
             )
-            .into()
-        })
+            .await
+            .map_err(|_| SerialError::NodeNotFound(src_path_segments.join("/")).into())
+    }
+
+    /// Cp a file to a new location while deduplicating
+    pub async fn cp(
+        &mut self,
+        src_path_segments: Vec<String>,
+        dest_path_segments: Vec<String>,
+        metadata_store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        // Get the path of the parent
+        let folder_segments = dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
+        // If getting the directory yields an error
+        if self.get_node(folder_segments.clone(), metadata_store).await.is_err() {
+            // Make a directory there
+            self.mkdir(folder_segments.clone(), metadata_store).await?;
+        }
+        // Copy and Link
+        self.root_dir.cp_link(&src_path_segments, &dest_path_segments, true, &mut self.forest, metadata_store).await
+    }
+
+    /// Write a symlink
+    pub async fn symlink(
+        &mut self,
+        target: &Path,
+        path_segments: &Vec<String>,
+        metadata_store: &impl RootedBlockStore,
+    ) -> Result<()> {
+        // Represent the target as a String
+        let target_string = target.to_str().expect("failed to represent Path as str").to_string();
+        // Write the symlink
+        self.root_dir.write_symlink(target_string, path_segments, true, Utc::now(), &mut self.forest, metadata_store, &mut thread_rng()).await
     }
 
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
@@ -474,19 +504,19 @@ impl FsMetadata {
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
     ) -> Result<Vec<u8>> {
-        // let split_store = DoubleSplitStore::new(metadata_store, content_store);
         // Compress the data in the file
         let result = self
-            .root_dir
-            .get_node(&path_segments, true, &self.forest, metadata_store)
-            .await
+        .root_dir
+        .get_node(&path_segments, true, &self.forest, metadata_store)
+        .await
             .expect("node not found");
+        
+        // Split store
+        let split_store = DoubleSplitStore::new(metadata_store, content_store);
 
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            let content = file
-                .get_content(&self.forest, content_store)
-                .await?;
+            let content = file.get_content(&self.forest, &split_store).await?;
             Ok(content)
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
@@ -784,11 +814,7 @@ mod test {
 
         // Move cat.txt to dog.txt
         fs_metadata
-            .mv(
-                cat_path.clone(),
-                dog_path.clone(),
-                content_store,
-            )
+            .mv(cat_path.clone(), dog_path.clone(), content_store)
             .await?;
         // Replace existing content
         fs_metadata
