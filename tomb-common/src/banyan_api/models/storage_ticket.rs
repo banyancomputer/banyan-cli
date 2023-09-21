@@ -250,7 +250,7 @@ pub mod test {
             metadata_store,
             content_store,
             fs_metadata,
-            add_path_segments.to_vec(),
+            add_path_segments,
         ))
     }
 }
