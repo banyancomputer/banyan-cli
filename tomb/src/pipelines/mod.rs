@@ -589,13 +589,8 @@ mod test {
         let current_content = current_file
             .get_content(&fs.forest, &config.content)
             .await?;
-        let mut current_content_decompressed: Vec<u8> = Vec::new();
-        decompress_bytes(
-            current_content.as_slice(),
-            &mut current_content_decompressed,
-        )?;
         // Assert that the current version of the file was retrieved correctly
-        assert_eq!(goodbye_bytes, current_content_decompressed);
+        assert_eq!(goodbye_bytes, current_content);
 
         // Now grab history
         let mut iterator = config.get_history(&wrapping_key).await?;
@@ -619,14 +614,9 @@ mod test {
             .get_content(&fs.forest, &config.content)
             .await
             .expect("failed to retrieve file content");
-        let mut previous_content_decompressed: Vec<u8> = Vec::new();
-        decompress_bytes(
-            previous_content.as_slice(),
-            &mut previous_content_decompressed,
-        )?;
 
         // Assert that the previous version of the file was retrieved correctly
-        assert_eq!(previous_content_decompressed, hello_bytes);
+        assert_eq!(previous_content, hello_bytes);
 
         // pull off the last, empty version
         let _empty_dir = iterator
