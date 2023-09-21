@@ -64,8 +64,9 @@ impl<'de> Deserialize<'de> for Header {
     where
         D: serde::Deserializer<'de>,
     {
-        let header_bytes = &mut Cursor::new(<Vec<u8>>::deserialize(deserializer)?);
-        let new_header = Self::read_bytes(header_bytes).expect("failed to read header as bytes");
+        let mut header_bytes = Cursor::new(<Vec<u8>>::deserialize(deserializer)?);
+        let new_header =
+            Self::read_bytes(&mut header_bytes).expect("failed to read header as bytes");
         Ok(new_header)
     }
 }

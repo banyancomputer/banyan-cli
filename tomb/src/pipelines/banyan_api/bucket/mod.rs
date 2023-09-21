@@ -21,10 +21,6 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     // Obtain the Client
     let client: &mut Option<Client> = &mut global.get_client().await.ok();
 
-    // if let Some(client) = client {
-
-    // }
-
     // Process the command
     let result: Result<String, TombError> = match command {
         // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail

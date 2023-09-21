@@ -27,7 +27,7 @@ pub async fn pipeline(
 ) -> Result<String, TombError> {
     let wrapping_key = global.wrapping_key().await?;
     let mut config = global.get_bucket_by_specifier(bucket_specifier)?;
-    let fs = &mut config.unlock_fs(&wrapping_key).await?;
+    let mut fs = config.unlock_fs(&wrapping_key).await?;
 
     // Create bundling plan
     let bundling_plan = create_plans(&config.origin, follow_links).await?;
@@ -39,7 +39,7 @@ pub async fn pipeline(
 
     // Process all of the BundlePipelinePlans
     process_plans(
-        fs,
+        &mut fs,
         bundling_plan,
         &config.metadata,
         &config.content,
@@ -47,7 +47,7 @@ pub async fn pipeline(
     )
     .await?;
 
-    config.save_fs(fs).await?;
+    config.save_fs(&mut fs).await?;
 
     global.update_config(&config)?;
     global.to_disk()?;

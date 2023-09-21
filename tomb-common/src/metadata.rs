@@ -518,7 +518,7 @@ impl FsMetadata {
         content: Vec<u8>,
     ) -> Result<()> {
         let time = Utc::now();
-        let rng = &mut thread_rng();
+        let mut rng = thread_rng();
         let result = self
             .root_dir
             .open_file_mut(
@@ -527,7 +527,7 @@ impl FsMetadata {
                 time,
                 &mut self.forest,
                 metadata_store,
-                rng,
+                &mut rng,
             )
             .await;
 
@@ -654,43 +654,43 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn init_save_unlock() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
-        let _ = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+        let _ = _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn history() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
-        let mut metadata = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
-        let _history = metadata.history(metadata_store).await?;
+        let mut metadata = _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
+        let _history = metadata.history(&metadata_store).await?;
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn build_details() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
-        let metadata = _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
-        let _build_details = metadata.build_details(metadata_store).await?;
+        let metadata = _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
+        let _build_details = metadata.build_details(&metadata_store).await?;
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn add_read() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let mut fs_metadata =
-            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
 
         let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
@@ -698,14 +698,14 @@ mod test {
         fs_metadata
             .write(
                 &cat_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 kitty_bytes.clone(),
             )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(&cat_path, metadata_store, content_store)
+            .read(&cat_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -715,11 +715,11 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn add_read_large() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let mut fs_metadata =
-            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
 
         let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = vec![0u8; 1024 * 1024 * 10];
@@ -727,14 +727,14 @@ mod test {
         fs_metadata
             .write(
                 &cat_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 kitty_bytes.clone(),
             )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(&cat_path, metadata_store, content_store)
+            .read(&cat_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -744,11 +744,11 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn add_rm_read() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let mut fs_metadata =
-            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
 
         let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
@@ -756,17 +756,17 @@ mod test {
         fs_metadata
             .write(
                 &cat_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 kitty_bytes.clone(),
             )
             .await?;
 
         // Remove
-        fs_metadata.rm(&cat_path, metadata_store).await?;
+        fs_metadata.rm(&cat_path, &metadata_store).await?;
 
         let result = fs_metadata
-            .read(&cat_path, metadata_store, content_store)
+            .read(&cat_path, &metadata_store, &content_store)
             .await;
         assert!(result.is_err());
 
@@ -776,11 +776,11 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn add_write_read() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let mut fs_metadata =
-            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
 
         let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
@@ -788,14 +788,14 @@ mod test {
         fs_metadata
             .write(
                 &cat_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 kitty_bytes.clone(),
             )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(&cat_path, metadata_store, content_store)
+            .read(&cat_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
@@ -803,14 +803,14 @@ mod test {
         fs_metadata
             .write(
                 &cat_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 puppy_bytes.clone(),
             )
             .await?;
 
         let new_puppy_bytes = fs_metadata
-            .read(&cat_path, metadata_store, content_store)
+            .read(&cat_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(puppy_bytes, new_puppy_bytes);
 
@@ -820,11 +820,11 @@ mod test {
     #[tokio::test]
     #[serial]
     async fn all_functions() -> Result<()> {
-        let metadata_store = &mut MemoryBlockStore::default();
-        let content_store = &mut MemoryBlockStore::default();
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
         let mut fs_metadata =
-            _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
 
         let cat_path = vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
@@ -832,14 +832,14 @@ mod test {
         fs_metadata
             .write(
                 &cat_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 kitty_bytes.clone(),
             )
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(&cat_path, metadata_store, content_store)
+            .read(&cat_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -847,19 +847,19 @@ mod test {
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
-        fs_metadata.mv(&cat_path, &dog_path, content_store).await?;
+        fs_metadata.mv(&cat_path, &dog_path, &content_store).await?;
         // Replace existing content
         fs_metadata
             .write(
                 &dog_path,
-                metadata_store,
-                content_store,
+                &metadata_store,
+                &content_store,
                 puppy_bytes.clone(),
             )
             .await?;
 
         let new_puppy_bytes = fs_metadata
-            .read(&dog_path, metadata_store, content_store)
+            .read(&dog_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(puppy_bytes, new_puppy_bytes);
 

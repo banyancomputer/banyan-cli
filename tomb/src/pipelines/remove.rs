@@ -15,7 +15,7 @@ pub async fn pipeline(
     // Bucket config
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
 
-    let fs = &mut config.unlock_fs(&wrapping_key).await?;
+    let mut fs = config.unlock_fs(&wrapping_key).await?;
     // Attempt to remove the node
     fs.root_dir
         .rm(
@@ -27,7 +27,7 @@ pub async fn pipeline(
         .await?;
 
     // Store all the updated information, now that we've written the file
-    config.save_fs(fs).await?;
+    config.save_fs(&mut fs).await?;
 
     // Update global
     global.update_config(&config)?;

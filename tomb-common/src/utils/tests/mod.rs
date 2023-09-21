@@ -101,12 +101,12 @@ pub async fn setup_test<RBS: RootedBlockStore>(
     let mut forest = Rc::new(PrivateForest::new());
 
     // Rng
-    let rng = &mut thread_rng();
+    let mut rng = thread_rng();
     // PrivateDirectory
     let mut root_dir = Rc::new(PrivateDirectory::new(
         Namefilter::default(),
         Utc::now(),
-        rng,
+        &mut rng,
     ));
 
     // Open new file
@@ -117,7 +117,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
             Utc::now(),
             &mut forest,
             &metadata,
-            rng,
+            &mut rng,
         )
         .await?;
 
@@ -127,7 +127,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
         "Hello Kitty!".as_bytes(),
         &mut forest,
         &content,
-        rng,
+        &mut rng,
     )
     .await?;
 

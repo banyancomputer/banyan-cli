@@ -164,7 +164,7 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
 
         // Grab the file at this path
         let file = fs
@@ -211,7 +211,7 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
         let result = fs
             .root_dir
             .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
@@ -226,7 +226,7 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
         let result = fs
             .root_dir
             .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
@@ -457,7 +457,7 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string(), "0".to_string()];
@@ -576,7 +576,7 @@ mod test {
         let config = global
             .get_bucket_by_origin(origin)
             .expect("bucket config does not exist for this origin");
-        let fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let fs = config.unlock_fs(&wrapping_key).await?;
 
         // Describe path of the PrivateFile relative to the root directory
         let path_segments: Vec<String> = vec!["0".to_string()];

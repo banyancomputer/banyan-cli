@@ -94,7 +94,7 @@ mod test {
 
         // Store and load
         let forest_cid = store_forest(forest, metadata, metadata).await?;
-        let new_forest = &mut load_forest(&forest_cid, metadata).await?;
+        let new_forest = load_forest(&forest_cid, metadata).await?;
 
         // Assert equality
         assert_eq!(new_forest.diff(forest, metadata).await?.len(), 0);
@@ -113,9 +113,9 @@ mod test {
         let private_ref = &store_dir(metadata, content, forest, dir).await?;
         let forest_cid = store_forest(forest, metadata, metadata).await?;
         let new_forest = &load_forest(&forest_cid, metadata).await?;
-        let new_dir = &mut load_dir(metadata, private_ref, new_forest).await?;
+        let mut new_dir = load_dir(metadata, private_ref, new_forest).await?;
         // Assert equality
-        assert_eq!(dir, new_dir);
+        assert_eq!(dir, &mut new_dir);
         // Teardown
         teardown_test(test_name).await
     }
@@ -145,17 +145,17 @@ mod test {
         let private_ref = store_dir(metadata, content, original_forest, original_dir).await?;
         let forest_cid = store_forest(original_forest, metadata, metadata).await?;
 
-        let new_forest = &mut load_forest(&forest_cid, metadata).await?;
-        let new_dir = &mut load_dir(metadata, &private_ref, new_forest).await?;
+        let mut new_forest = load_forest(&forest_cid, metadata).await?;
+        let mut new_dir = load_dir(metadata, &private_ref, &new_forest).await?;
         // Assert equality
-        assert_eq!(original_dir, new_dir);
+        assert_eq!(original_dir, &mut new_dir);
 
         let file = new_dir
             .open_file_mut(
                 &["cats".to_string()],
                 true,
                 Utc::now(),
-                new_forest,
+                &mut new_forest,
                 metadata,
                 &mut thread_rng(),
             )

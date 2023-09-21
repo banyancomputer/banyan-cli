@@ -25,7 +25,7 @@ pub async fn pipeline(
     let wrapping_key = global.clone().wrapping_key().await?;
     let config = global.get_bucket_by_specifier(bucket_specifier)?;
     // Load metadata
-    let fs = &mut config.unlock_fs(&wrapping_key).await?;
+    let mut fs = config.unlock_fs(&wrapping_key).await?;
     let metadata_store = &config.metadata;
     let content_store = &config.content;
 

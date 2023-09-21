@@ -194,8 +194,8 @@ mod test {
         let wrapping_key = global.clone().wrapping_key().await?;
         let mut config = global.get_or_create_bucket(origin).await?;
 
-        let rng = &mut thread_rng();
-        let fs = &mut config.unlock_fs(&global.wrapping_key().await?).await?;
+        let mut rng = thread_rng();
+        let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;
         let file = fs
             .root_dir
@@ -205,7 +205,7 @@ mod test {
                 Utc::now(),
                 &mut fs.forest,
                 &config.metadata,
-                rng,
+                &mut rng,
             )
             .await?;
         let file_content = "this is a cat image".as_bytes();
@@ -214,14 +214,14 @@ mod test {
             file_content,
             &mut fs.forest,
             &config.content,
-            rng,
+            &mut rng,
         )
         .await?;
 
-        config.save_fs(fs).await?;
+        config.save_fs(&mut fs).await?;
 
         // Get structs
-        let new_fs = &mut config.unlock_fs(&wrapping_key).await?;
+        let mut new_fs = config.unlock_fs(&wrapping_key).await?;
 
         assert_eq!(fs.root_dir, new_fs.root_dir);
 
@@ -233,7 +233,7 @@ mod test {
                 Utc::now(),
                 &mut new_fs.forest,
                 &config.metadata,
-                rng,
+                &mut rng,
             )
             .await?;
         let new_file_content = new_file
