@@ -212,11 +212,11 @@ pub mod test {
             .await
             .expect("Failed to create directory");
         fs_metadata
-            .add(
+            .write(
                 add_path_segments,
-                file_content,
                 &metadata_store,
                 &content_store,
+                file_content,
             )
             .await
             .expect("Failed to add file");

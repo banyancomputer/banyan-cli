@@ -219,7 +219,7 @@ async fn mkdir_remount() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn add() -> TombResult<()> {
+async fn write() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -228,11 +228,13 @@ async fn add() -> TombResult<()> {
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert!(!mount.locked());
-    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let write_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
-    mount.add(add_path_array, zero_content_array_buffer).await?;
+    mount
+        .write(write_path_array, zero_content_array_buffer)
+        .await?;
     let ls: Array = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 1);
     let ls_0 = ls.get(0);
@@ -243,7 +245,7 @@ async fn add() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn add_read() -> TombResult<()> {
+async fn write_read() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
@@ -252,12 +254,12 @@ async fn add_read() -> TombResult<()> {
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert!(!mount.locked());
-    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let write_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(1024 * 1024 * 10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
     mount
-        .add(add_path_array.clone(), zero_content_array_buffer.clone())
+        .write(write_path_array.clone(), zero_content_array_buffer.clone())
         .await?;
     let ls: Array = mount.ls(ls_path_array).await?;
     assert_eq!(ls.length(), 1);
@@ -265,7 +267,7 @@ async fn add_read() -> TombResult<()> {
     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
     assert_eq!(fs_entry.name(), "zero.bin");
     assert_eq!(fs_entry.entry_type(), "file");
-    let new_bytes = mount.read_bytes(add_path_array, None).await?.to_vec();
+    let new_bytes = mount.read_bytes(write_path_array, None).await?.to_vec();
     // Assert successful reconstruction
     assert_eq!(new_bytes, zero_content_buffer.to_vec());
 
@@ -273,29 +275,31 @@ async fn add_read() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn add_remount() -> TombResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls()");
+async fn write_remount() -> TombResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
 
-    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): create_bucket()");
+    log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): create_bucket()");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
         .await?;
     assert!(!mount.locked());
 
-    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): add() and ls()");
-    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): write() and ls()");
+    let write_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
-    mount.add(add_path_array, zero_content_array_buffer).await?;
+    mount
+        .write(write_path_array, zero_content_array_buffer)
+        .await?;
     mount.mkdir(js_array(&["cats"]).into()).await?;
     let ls: Array = mount.ls(ls_path_array.clone()).await?;
     assert_eq!(ls.length(), 2);
 
-    log!("tomb_wasm_test: create_bucket_mount_add_ls_remount_ls(): remount() and ls()");
+    log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): remount() and ls()");
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
@@ -310,8 +314,8 @@ async fn add_remount() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn add_rm() -> TombResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount_add_rm()");
+async fn write_rm() -> TombResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_write_rm()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
@@ -319,11 +323,13 @@ async fn add_rm() -> TombResult<()> {
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert!(!mount.locked());
-    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let write_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
-    mount.add(add_path_array, zero_content_array_buffer).await?;
+    mount
+        .write(write_path_array, zero_content_array_buffer)
+        .await?;
     let ls: Array = mount.ls(ls_path_array.clone()).await?;
     assert_eq!(ls.length(), 1);
     let rm_path_array: Array = js_array(&["zero.bin"]).into();
@@ -334,8 +340,8 @@ async fn add_rm() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
-async fn add_mv() -> TombResult<()> {
-    log!("tomb_wasm_test: create_bucket_mount_add_mv()");
+async fn write_mv() -> TombResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_write_mv()");
     let mut client = authenticated_client().await?;
     let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
@@ -343,11 +349,13 @@ async fn add_mv() -> TombResult<()> {
         .mount(bucket.id().to_string(), web_encryption_key_pair)
         .await?;
     assert!(!mount.locked());
-    let add_path_array: Array = js_array(&["zero.bin"]).into();
+    let write_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
     let zero_content_buffer = Uint8Array::new_with_length(10);
     let zero_content_array_buffer = zero_content_buffer.buffer();
-    mount.add(add_path_array, zero_content_array_buffer).await?;
+    mount
+        .write(write_path_array, zero_content_array_buffer)
+        .await?;
     let ls: Array = mount.ls(ls_path_array.clone()).await?;
     assert_eq!(ls.length(), 1);
     let mv_from_path_array: Array = js_array(&["zero.bin"]).into();

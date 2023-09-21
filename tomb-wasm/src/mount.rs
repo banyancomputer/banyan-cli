@@ -539,17 +539,17 @@ impl WasmMount {
         Ok(())
     }
 
-    /// Add a file
+    /// Write a file
     /// # Arguments
-    /// * `path_segments` - The path to add to (as an Array)
-    /// * `content_buffer` - The content to add (as an ArrayBuffer)
+    /// * `path_segments` - The path to write to (as an Array)
+    /// * `content_buffer` - The content to write (as an ArrayBuffer)
     /// # Returns
     /// Promise<void> in js speak
     /// # Errors
     /// * `Bucket is locked` - If the bucket is locked
     /// * `Could not add` - If the add fails
     /// * `Could not sync` - If the sync fails
-    pub async fn add(
+    pub async fn write(
         &mut self,
         path_segments: Array,
         content_buffer: ArrayBuffer,
@@ -575,11 +575,11 @@ impl WasmMount {
         self.fs_metadata
             .as_mut()
             .unwrap()
-            .add(
+            .write(
                 path_segments,
-                content,
                 &self.metadata_blockstore,
                 &self.content_blockstore,
+                content,
             )
             .await
             .expect("could not add");

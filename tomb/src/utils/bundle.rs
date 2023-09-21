@@ -80,33 +80,33 @@ pub async fn process_plans(
                     .expect("no metadatas present")
                     .original_location;
                 // Turn the relative path into a vector of segments
-                let path_segments = &path_to_segments(first)?;
+                let path_segments = path_to_segments(first)?;
                 // Load the file from disk
                 let mut file = File::open(&metadatas.get(0).expect("no paths").canonicalized_path)?;
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
                 // Add the file contents
-                fs.add(path_segments, content, metadata_store, content_store)
+                fs.write(&path_segments, metadata_store, content_store, content)
                     .await?;
 
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
                     // Grab the original location
                     let dup = &meta.original_location;
-                    let dup_path_segments = &path_to_segments(dup)?;
+                    let dup_path_segments = path_to_segments(dup)?;
                     // Copy
-                    fs.cp(path_segments, dup_path_segments, metadata_store)
+                    fs.cp(&path_segments, &dup_path_segments, metadata_store)
                         .await?;
                 }
             }
             // If this is a directory or symlink
             BundlePipelinePlan::Directory(meta) => {
                 // Turn the canonicalized path into a vector of segments
-                let path_segments = &path_to_segments(&meta.original_location)?;
+                let path_segments = path_to_segments(&meta.original_location)?;
                 // If the directory does not exist
-                if fs.get_node(path_segments, metadata_store).await.is_err() {
+                if fs.get_node(&path_segments, metadata_store).await.is_err() {
                     // Create the subdirectory
-                    fs.mkdir(path_segments, metadata_store).await?;
+                    fs.mkdir(&path_segments, metadata_store).await?;
                 }
             }
             BundlePipelinePlan::Symlink(_, _) => panic!("this is unreachable code"),

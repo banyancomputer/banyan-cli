@@ -100,26 +100,26 @@ impl FsMetadata {
 
         // TODO: Can we get away with merging these somehow?
         // Put the forests in the store
-        let forest_cid = store_forest(&self.forest, metadata_store, metadata_store).await?;
-        let _forest_cid = store_forest(&self.forest, metadata_store, content_store).await?;
-        assert_eq!(forest_cid, _forest_cid);
+        let forest_cid_1 = store_forest(&self.forest, metadata_store, metadata_store).await?;
+        let forest_cid_2 = store_forest(&self.forest, metadata_store, content_store).await?;
+        assert_eq!(forest_cid_1, forest_cid_2);
 
         // Put the share manager in the store
-        let share_manager_cid = store_share_manager(&self.share_manager, metadata_store).await?;
-        let _share_manager_cid = store_share_manager(&self.share_manager, content_store).await?;
-        assert_eq!(share_manager_cid, _share_manager_cid);
+        let share_manager_cid_1 = store_share_manager(&self.share_manager, metadata_store).await?;
+        let share_manager_cid_2 = store_share_manager(&self.share_manager, content_store).await?;
+        assert_eq!(share_manager_cid_1, share_manager_cid_2);
 
         // Now for some linking magic
         // Construct a new map for the forests
         let mut root_map = BTreeMap::new();
         // Link our Private Forests
-        root_map.insert(FOREST_LABEL.to_string(), Ipld::Link(forest_cid));
+        root_map.insert(FOREST_LABEL.to_string(), Ipld::Link(forest_cid_1));
 
         // Link our forests
         // Link our share manager
         root_map.insert(
             SHARE_MANAGER_LABEL.to_string(),
-            Ipld::Link(share_manager_cid),
+            Ipld::Link(share_manager_cid_1),
         );
         // Link our build metadata
         root_map.insert(
@@ -137,21 +137,21 @@ impl FsMetadata {
 
         // Put the map into BlockStores
         let root = &Ipld::Map(root_map.clone());
-        let root_cid = metadata_store.put_serializable(root).await?;
-        let _root_cid = content_store.put_serializable(root).await?;
-        assert_eq!(root_cid, _root_cid);
+        let root_cid_1 = metadata_store.put_serializable(root).await?;
+        let root_cid_2 = content_store.put_serializable(root).await?;
+        assert_eq!(root_cid_1, root_cid_2);
 
-        metadata_store.set_root(&root_cid);
-        content_store.set_root(&root_cid);
+        metadata_store.set_root(&root_cid_1);
+        content_store.set_root(&root_cid_1);
 
-        let _root_cid = metadata_store
+        let root_cid_3 = metadata_store
             .get_root()
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
-        assert_eq!(root_cid, _root_cid);
-        let _root_cid = content_store
+        assert_eq!(root_cid_1, root_cid_3);
+        let root_cid_4 = content_store
             .get_root()
             .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
-        assert_eq!(root_cid, _root_cid);
+        assert_eq!(root_cid_1, root_cid_4);
 
         self.metadata = Some(root_map);
 
@@ -469,43 +469,6 @@ impl FsMetadata {
             .await
     }
 
-    /// Add a Vector of bytes as a new file in the Fs. Store in our content store
-    pub async fn add(
-        &mut self,
-        path_segments: &[String],
-        content: Vec<u8>,
-        metadata_store: &impl RootedBlockStore,
-        content_store: &impl RootedBlockStore,
-    ) -> Result<()> {
-        // Turn the relative path into a vector of segments
-        let time = Utc::now();
-        let rng = &mut thread_rng();
-        let file = self
-            .root_dir
-            .open_file_mut(
-                path_segments,
-                true,
-                time,
-                &mut self.forest,
-                metadata_store,
-                rng,
-            )
-            .await?;
-
-        // Set file contents
-        file.set_content(
-            time,
-            content.as_slice(),
-            &mut self.forest,
-            content_store,
-            rng,
-        )
-        .await?;
-
-        // Ok
-        Ok(())
-    }
-
     /// Rm a file or directory
     pub async fn rm(
         &mut self,
@@ -549,7 +512,7 @@ impl FsMetadata {
     /// Write data do a specific node
     pub async fn write(
         &mut self,
-        path_segments: Vec<String>,
+        path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
         content: Vec<u8>,
@@ -559,7 +522,7 @@ impl FsMetadata {
         let result = self
             .root_dir
             .open_file_mut(
-                &path_segments,
+                path_segments,
                 true,
                 time,
                 &mut self.forest,
@@ -614,12 +577,12 @@ impl FsMetadata {
         path: PathBuf,
         metadata_store: &impl RootedBlockStore,
     ) -> Result<Vec<(PrivateNode, PathBuf)>> {
-        let segments = &path_to_segments(&path)?;
+        let segments = path_to_segments(&path)?;
         let node = if segments.is_empty() {
             Some(self.root_dir.as_node())
         } else {
             self.root_dir
-                .get_node(segments, true, &self.forest, metadata_store)
+                .get_node(&segments, true, &self.forest, metadata_store)
                 .await?
         };
 
@@ -733,7 +696,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
+            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -757,7 +720,7 @@ mod test {
         let kitty_bytes = vec![0u8; 1024 * 1024 * 10];
         // Add a new file
         fs_metadata
-            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
+            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -781,7 +744,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
+            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
             .await?;
 
         // Remove
@@ -808,7 +771,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
+            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -818,12 +781,7 @@ mod test {
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
         // Replace existing content
         fs_metadata
-            .write(
-                cat_path.clone(),
-                metadata_store,
-                content_store,
-                puppy_bytes.clone(),
-            )
+            .write(cat_path, metadata_store, content_store, puppy_bytes.clone())
             .await?;
 
         let new_puppy_bytes = fs_metadata
@@ -847,7 +805,7 @@ mod test {
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
-            .add(cat_path, kitty_bytes.clone(), metadata_store, content_store)
+            .write(cat_path, metadata_store, content_store, kitty_bytes.clone())
             .await?;
 
         let new_kitty_bytes = fs_metadata
@@ -862,12 +820,7 @@ mod test {
         fs_metadata.mv(cat_path, dog_path, content_store).await?;
         // Replace existing content
         fs_metadata
-            .write(
-                dog_path.clone(),
-                metadata_store,
-                content_store,
-                puppy_bytes.clone(),
-            )
+            .write(dog_path, metadata_store, content_store, puppy_bytes.clone())
             .await?;
 
         let new_puppy_bytes = fs_metadata

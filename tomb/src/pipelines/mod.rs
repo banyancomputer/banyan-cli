@@ -204,7 +204,7 @@ mod test {
         bundle_pipeline(bucket_specifier).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
-        let wnfs_segments = &path_to_segments(wnfs_path)?;
+        let wnfs_segments = path_to_segments(wnfs_path)?;
         // Load metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
@@ -214,7 +214,7 @@ mod test {
         let fs = &mut config.unlock_fs(&wrapping_key).await?;
         let result = fs
             .root_dir
-            .get_node(wnfs_segments, true, &fs.forest, &config.metadata)
+            .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
             .await?;
         // Assert the node exists presently
         assert!(result.is_some());
@@ -229,7 +229,7 @@ mod test {
         let fs = &mut config.unlock_fs(&wrapping_key).await?;
         let result = fs
             .root_dir
-            .get_node(wnfs_segments, true, &fs.forest, &config.metadata)
+            .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
             .await?;
         // Assert the node no longer exists
         assert!(result.is_none());
