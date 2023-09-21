@@ -634,7 +634,6 @@ impl FsMetadata {
             let node_names = dir.ls(&[], true, &self.forest, metadata_store).await?;
             // For each node name returned by the LS
             for (node_name, _) in node_names {
-                println!("getting all children of {}", node_name);
                 // Get this child's children, extend the list
                 children.extend_from_slice(
                     self.get_all_children(path.join(node_name), metadata_store)
@@ -645,8 +644,7 @@ impl FsMetadata {
             return Ok(children);
         }
 
-        println!("node was none or error");
-        Ok(vec![])
+        return Err(anyhow::anyhow!("invalid node"));
     }
 }
 

@@ -89,18 +89,14 @@ pub async fn process_plans(
                 fs.add(path_segments, content, metadata_store, content_store)
                     .await?;
 
-                println!("just added a node at {:?}", path_segments);
-
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
                     // Grab the original location
                     let dup = &meta.original_location;
                     let dup_path_segments = &path_to_segments(dup)?;
                     // Copy
-                    println!("running cp...");
                     fs.cp(path_segments, dup_path_segments, metadata_store)
                         .await?;
-                    println!("finished running cp...");
                 }
             }
             // If this is a directory or symlink

@@ -123,7 +123,5 @@ pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
         .map(|s| s.to_string())
         .collect();
 
-    println!("path_segments: {:?}", path_segments);
-
     Ok(path_segments)
 }
