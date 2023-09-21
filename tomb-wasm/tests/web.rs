@@ -129,6 +129,33 @@ async fn share_with() -> TombResult<()> {
 }
 
 #[wasm_bindgen_test]
+async fn snapshot() -> TombResult<()> {
+    log!("tomb_wasm_test: create_bucket_mount_snapshot()");
+    let mut client = authenticated_client().await?;
+    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
+    let mut mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .await?;
+    assert!(!mount.locked());
+    assert!(!mount.has_snapshot());
+    let snapshot = mount.snapshot().await?;
+    assert!(mount.has_snapshot());
+    assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
+    assert_eq!(
+        snapshot.metadata_id(),
+        mount.metadata().expect("metadata").id().to_string()
+    );
+
+    let mount = client
+        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .await?;
+    assert!(!mount.locked());
+    assert!(mount.has_snapshot());
+    Ok(())
+}
+
+#[wasm_bindgen_test]
 async fn mkdir() -> TombResult<()> {
     let mut client = authenticated_client().await?;
 

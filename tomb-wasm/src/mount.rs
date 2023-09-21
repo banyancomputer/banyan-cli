@@ -17,7 +17,7 @@ use wasm_bindgen::prelude::*;
 const BLOCKSTORE_API_HOST: &str = "http://127.0.0.1:3002";
 
 use crate::error::TombWasmError;
-use crate::types::{WasmFsMetadataEntry, WasmSnapshot};
+use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
 use crate::{TombResult, WasmBucket};
 
 /// Mount point for a Bucket in WASM
@@ -305,10 +305,14 @@ impl WasmMount {
 
                 // Get content
                 let content = Cursor::new(self.content_blockstore.get_data());
+                // Hash the content
+                let mut hasher = blake3::Hasher::new();
+                hasher.update(&self.content_blockstore.get_data());
+                let content_hash = hasher.finalize().to_string();
 
                 storage_ticket
                     .clone()
-                    .upload_content(metadata_id, content, &mut self.client)
+                    .upload_content(metadata_id, content, content_hash, &mut self.client)
                     .await
                     .map_err(|err| {
                         TombWasmError(format!(
@@ -394,6 +398,13 @@ impl WasmMount {
     /// Returns whether or not the bucket is locked
     pub fn locked(&self) -> bool {
         self.locked
+    }
+
+    /// Returns the Metadata for the bucket
+    pub fn metadata(&self) -> TombResult<WasmBucketMetadata> {
+        let metadata = self.metadata.as_ref().expect("no metadata");
+        let wasm_bucket_metadata = WasmBucketMetadata(metadata.clone());
+        Ok(wasm_bucket_metadata)
     }
 
     /// List the contents of the bucket at a provided path
@@ -797,6 +808,21 @@ impl WasmMount {
         Ok(())
     }
 
+    /// Return boolean indiciating whether or not the currently mounted bucket is snapshotted
+    /// # Returns
+    /// A boolean
+    /// # Errors
+    /// * "missing metadata" - If the metadata is missing
+    #[wasm_bindgen(js_name = hasSnapshot)]
+    pub fn has_snapshot(&self) -> bool {
+        log!(
+            "tomb-wasm: mount/is_snapshotted/{}",
+            self.bucket.id.to_string()
+        );
+        let metadata = self.metadata.as_ref().expect("missing metadata");
+        metadata.snapshot_id.is_some()
+    }
+
     /// Snapshot a mounted bucket
     /// # Returns
     /// A Promise<void> in js speak
@@ -804,17 +830,17 @@ impl WasmMount {
     /// * "missing metadata" - If the metadata is missing
     /// * "could not snapshot" - If the snapshot fails
     #[wasm_bindgen(js_name = snapshot)]
-    pub async fn snapshot(&mut self) -> TombResult<()> {
+    pub async fn snapshot(&mut self) -> TombResult<WasmSnapshot> {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
-        // Get the bucket
-        let metadata = self.metadata.as_ref();
-        metadata
-            .expect("missing metadata")
+        let metadata = self.metadata.as_mut().expect("missing metadata");
+        let snapshot = metadata
             .snapshot(&mut self.client)
             .await
             .expect("could not snapshot");
+        metadata.snapshot_id = Some(snapshot.id);
+        self.metadata = Some(metadata.to_owned());
         // Ok
-        Ok(())
+        Ok(WasmSnapshot::from(snapshot))
     }
 
     /// Restore a mounted bucket

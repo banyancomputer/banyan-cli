@@ -139,6 +139,7 @@ impl BucketConfig {
         Ok(fs_metadata.history(&self.metadata).await?)
     }
 
+    // TODO: wrong, you should qlready have this, or be fetching it from the server
     /// Get the Metadata struct which can be used to create Metadata API requests
     pub async fn get_metadata(&self) -> Result<Metadata> {
         let remote_id = self
@@ -161,6 +162,7 @@ impl BucketConfig {
             metadata_cid: metadata_cid.to_string(),
             data_size: compute_directory_size(&self.content.path)? as u64,
             state: MetadataState::Current,
+            snapshot_id: None,
         })
     }
 }

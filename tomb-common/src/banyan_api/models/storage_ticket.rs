@@ -61,6 +61,7 @@ impl StorageTicket {
         // TODO: This should probably be a metadata cid
         metadata_id: Uuid,
         content: S,
+        content_hash: String,
         client: &mut Client,
     ) -> Result<(), ClientError>
     where
@@ -71,6 +72,7 @@ impl StorageTicket {
                 host_url: self.host.clone(),
                 metadata_id,
                 content,
+                content_hash,
             })
             .await
     }
@@ -82,6 +84,7 @@ impl StorageTicket {
         self,
         metadata_id: Uuid,
         content: S,
+        content_hash: String,
         client: &mut Client,
     ) -> Result<(), ClientError>
     where
@@ -92,6 +95,7 @@ impl StorageTicket {
                 host_url: self.host.clone(),
                 metadata_id,
                 content,
+                content_hash,
             })
             .await
     }
@@ -127,9 +131,18 @@ pub mod test {
             add_path_segments,
         ) = setup(&mut client).await?;
         storage_ticket.clone().create_grant(&mut client).await?;
+        let mut hasher = blake3::Hasher::new();
+        let content = content_store.get_data();
+        hasher.update(&content);
+        let content_hash = hasher.finalize().to_string();
         storage_ticket
             .clone()
-            .upload_content(metadata.id, content_store.get_data(), &mut client)
+            .upload_content(
+                metadata.id,
+                content_store.get_data(),
+                content_hash,
+                &mut client,
+            )
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client

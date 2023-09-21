@@ -18,6 +18,7 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_hash: String,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -29,11 +30,13 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_hash: String,
 }
 
 #[derive(Debug, Serialize)]
 struct PushContentData {
     pub metadata_id: Uuid,
+    pub content_hash: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,6 +69,7 @@ where
         // Create our form data
         let pc_req = PushContentData {
             metadata_id: self.metadata_id,
+            content_hash: self.content_hash,
         };
 
         // Attach the form data to the request as json
@@ -106,6 +110,7 @@ where
         // Create our form data
         let pc_req = PushContentData {
             metadata_id: self.metadata_id,
+            content_hash: self.content_hash,
         };
 
         // Serialize JSON part

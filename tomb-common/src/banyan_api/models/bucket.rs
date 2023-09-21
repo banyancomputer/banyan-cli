@@ -167,6 +167,7 @@ impl Bucket {
                 id: response.id,
                 bucket_id: self.id,
                 metadata_id: response.metadata_id,
+                size: response.size,
                 created_at: response.created_at,
             })
             .collect())
@@ -185,6 +186,7 @@ impl Bucket {
                 id: response.id,
                 bucket_id,
                 metadata_id: response.metadata_id,
+                size: response.size,
                 created_at: response.created_at,
             })
             .collect())

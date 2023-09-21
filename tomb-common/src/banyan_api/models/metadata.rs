@@ -65,6 +65,8 @@ pub struct Metadata {
     pub data_size: u64,
     /// The state of the metadata
     pub state: MetadataState,
+    /// The snapshot id of the metadata (if any)
+    pub snapshot_id: Option<Uuid>,
 }
 
 impl Display for Metadata {
@@ -109,6 +111,7 @@ impl Metadata {
             metadata_cid,
             data_size: 0,
             state: response.state,
+            snapshot_id: None,
         };
         match response.storage_host {
             None => Ok((metadata, None)),
@@ -154,6 +157,7 @@ impl Metadata {
             metadata_cid,
             data_size: 0,
             state: response.state,
+            snapshot_id: None,
         };
         match response.storage_host {
             None => Ok((metadata, None)),
@@ -190,6 +194,7 @@ impl Metadata {
             metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
+            snapshot_id: response.snapshot_id,
         })
     }
 
@@ -206,6 +211,7 @@ impl Metadata {
                 metadata_cid: response.metadata_cid,
                 data_size: response.data_size as u64,
                 state: response.state,
+                snapshot_id: response.snapshot_id,
             })
             .collect())
     }
@@ -220,6 +226,7 @@ impl Metadata {
             metadata_cid: response.metadata_cid,
             data_size: response.data_size as u64,
             state: response.state,
+            snapshot_id: response.snapshot_id,
         })
     }
 
@@ -235,10 +242,10 @@ impl Metadata {
             id: response.id,
             bucket_id: self.bucket_id,
             metadata_id: self.id,
+            size: self.data_size,
             created_at: response.created_at,
         })
     }
-    // TODO: Delete
 }
 
 #[cfg(test)]
