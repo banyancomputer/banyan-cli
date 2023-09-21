@@ -310,7 +310,7 @@ impl FsMetadata {
     /// Make a new directory in the Fs. Store in our metadata store
     pub async fn mkdir(
         &mut self,
-        path_segments: Vec<String>,
+        path_segments: &Vec<String>,
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Search through the PrivateDirectory for a Node that matches the path provided
@@ -340,7 +340,7 @@ impl FsMetadata {
     /// Ls the root directory at the path provided
     pub async fn ls(
         &self,
-        path_segments: Vec<String>,
+        path_segments: &Vec<String>,
         store: &impl RootedBlockStore,
     ) -> Result<Vec<FsMetadataEntry>> {
         let fetched_entries = self
@@ -397,8 +397,8 @@ impl FsMetadata {
     /// Mv a node to a new location
     pub async fn mv(
         &mut self,
-        src_path_segments: Vec<String>,
-        dest_path_segments: Vec<String>,
+        src_path_segments: &Vec<String>,
+        dest_path_segments: &Vec<String>,
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
         self.root_dir
@@ -418,16 +418,16 @@ impl FsMetadata {
     /// Cp a file to a new location while deduplicating
     pub async fn cp(
         &mut self,
-        src_path_segments: Vec<String>,
-        dest_path_segments: Vec<String>,
+        src_path_segments: &Vec<String>,
+        dest_path_segments: &Vec<String>,
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Get the path of the parent
-        let folder_segments = dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
+        let folder_segments = &dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
         // If getting the directory yields an error
-        if self.get_node(folder_segments.clone(), metadata_store).await.is_err() {
+        if self.get_node(folder_segments, metadata_store).await.is_err() {
             // Make a directory there
-            self.mkdir(folder_segments.clone(), metadata_store).await?;
+            self.mkdir(folder_segments, metadata_store).await?;
         }
         // Copy and Link
         self.root_dir.cp_link(&src_path_segments, &dest_path_segments, true, &mut self.forest, metadata_store).await
@@ -449,7 +449,7 @@ impl FsMetadata {
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn add(
         &mut self,
-        path_segments: Vec<String>,
+        path_segments: &Vec<String>,
         content: Vec<u8>,
         metadata_store: &impl RootedBlockStore,
         content_store: &impl RootedBlockStore,
@@ -486,7 +486,7 @@ impl FsMetadata {
     /// Rm a file or directory
     pub async fn rm(
         &mut self,
-        path_segments: Vec<String>,
+        path_segments: &Vec<String>,
         store: &impl RootedBlockStore,
     ) -> Result<()> {
         // Create the subdirectory
@@ -500,7 +500,7 @@ impl FsMetadata {
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn read(
         &mut self,
-        path_segments: Vec<String>,
+        path_segments: &Vec<String>,
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
     ) -> Result<Vec<u8>> {
@@ -562,13 +562,13 @@ impl FsMetadata {
     /// Get a node from the Fs
     pub async fn get_node(
         &mut self,
-        path_segments: Vec<String>,
+        path_segments: &Vec<String>,
         store: &impl RootedBlockStore,
     ) -> Result<Option<PrivateNode>> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
             .root_dir
-            .get_node(&path_segments, true, &self.forest, store)
+            .get_node(path_segments, true, &self.forest, store)
             .await;
         match result {
             Ok(node) => Ok(node),
@@ -658,12 +658,12 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = vec!["cat.txt".to_string()];
+        let cat_path = &vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
             .add(
-                cat_path.clone(),
+                cat_path,
                 kitty_bytes.clone(),
                 metadata_store,
                 content_store,
@@ -671,7 +671,7 @@ mod test {
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path.clone(), metadata_store, content_store)
+            .read(cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -687,12 +687,12 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = vec!["cat.txt".to_string()];
+        let cat_path = &vec!["cat.txt".to_string()];
         let kitty_bytes = vec![0u8; 1024 * 1024 * 10];
         // Add a new file
         fs_metadata
             .add(
-                cat_path.clone(),
+                cat_path,
                 kitty_bytes.clone(),
                 metadata_store,
                 content_store,
@@ -700,7 +700,7 @@ mod test {
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path.clone(), metadata_store, content_store)
+            .read(cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
@@ -716,12 +716,12 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = vec!["cat.txt".to_string()];
+        let cat_path = &vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
             .add(
-                cat_path.clone(),
+                cat_path,
                 kitty_bytes.clone(),
                 metadata_store,
                 content_store,
@@ -729,10 +729,10 @@ mod test {
             .await?;
 
         // Remove
-        fs_metadata.rm(cat_path.clone(), metadata_store).await?;
+        fs_metadata.rm(cat_path, metadata_store).await?;
 
         let result = fs_metadata
-            .read(cat_path.clone(), metadata_store, content_store)
+            .read(cat_path, metadata_store, content_store)
             .await;
         assert!(result.is_err());
 
@@ -748,12 +748,12 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = vec!["cat.txt".to_string()];
+        let cat_path = &vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
             .add(
-                cat_path.clone(),
+                cat_path,
                 kitty_bytes.clone(),
                 metadata_store,
                 content_store,
@@ -761,7 +761,7 @@ mod test {
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path.clone(), metadata_store, content_store)
+            .read(cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
@@ -776,7 +776,7 @@ mod test {
             .await?;
 
         let new_puppy_bytes = fs_metadata
-            .read(cat_path.clone(), metadata_store, content_store)
+            .read(cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(puppy_bytes, new_puppy_bytes);
 
@@ -792,12 +792,12 @@ mod test {
         let mut fs_metadata =
             _init_save_unlock(wrapping_key, metadata_store, content_store).await?;
 
-        let cat_path = vec!["cat.txt".to_string()];
+        let cat_path = &vec!["cat.txt".to_string()];
         let kitty_bytes = "hello kitty".as_bytes().to_vec();
         // Add a new file
         fs_metadata
             .add(
-                cat_path.clone(),
+                cat_path,
                 kitty_bytes.clone(),
                 metadata_store,
                 content_store,
@@ -805,16 +805,16 @@ mod test {
             .await?;
 
         let new_kitty_bytes = fs_metadata
-            .read(cat_path.clone(), metadata_store, content_store)
+            .read(cat_path, metadata_store, content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
-        let dog_path = vec!["dog.txt".to_string()];
+        let dog_path = &vec!["dog.txt".to_string()];
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
         fs_metadata
-            .mv(cat_path.clone(), dog_path.clone(), content_store)
+            .mv(cat_path, dog_path, content_store)
             .await?;
         // Replace existing content
         fs_metadata
@@ -827,7 +827,7 @@ mod test {
             .await?;
 
         let new_puppy_bytes = fs_metadata
-            .read(dog_path.clone(), metadata_store, content_store)
+            .read(dog_path, metadata_store, content_store)
             .await?;
         assert_eq!(puppy_bytes, new_puppy_bytes);
 

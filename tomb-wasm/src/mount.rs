@@ -426,7 +426,7 @@ impl WasmMount {
     /// * `Bucket is locked` - If the bucket is locked
     pub async fn ls(&mut self, path_segments: Array) -> TombResult<Array> {
         // Read the array as a Vec<String>
-        let path_segments = path_segments
+        let path_segments = &path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -490,7 +490,7 @@ impl WasmMount {
     /// * `Could not sync` - If the sync fails
     pub async fn mkdir(&mut self, path_segments: Array) -> TombResult<()> {
         // Read the array as a Vec<String>
-        let path_segments = path_segments
+        let path_segments = &path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -544,7 +544,7 @@ impl WasmMount {
         content_buffer: ArrayBuffer,
     ) -> TombResult<()> {
         // Read the array as a Vec<String>
-        let path_segments = path_segments
+        let path_segments = &path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -600,7 +600,7 @@ impl WasmMount {
         _version: Option<String>,
     ) -> TombResult<Uint8Array> {
         // Read the array as a Vec<String>
-        let path_segments = path_segments
+        let path_segments = &path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -655,11 +655,11 @@ impl WasmMount {
         from_path_segments: Array,
         to_path_segments: Array,
     ) -> TombResult<()> {
-        let from_path_segments = from_path_segments
+        let from_path_segments = &from_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
-        let to_path_segments = to_path_segments
+        let to_path_segments = &to_path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -707,7 +707,7 @@ impl WasmMount {
     /// * `Could not rm` - If the rm fails
     /// * `Could not sync` - If the sync fails
     pub async fn rm(&mut self, path_segments: Array) -> TombResult<()> {
-        let path_segments = path_segments
+        let path_segments = &path_segments
             .iter()
             .map(|s| s.as_string().unwrap())
             .collect::<Vec<String>>();
@@ -715,7 +715,7 @@ impl WasmMount {
         log!(
             "tomb-wasm: mount/rm/{}/{}",
             self.bucket.id.to_string(),
-            &path_segments.join("/")
+            path_segments.join("/")
         );
 
         if self.locked() {

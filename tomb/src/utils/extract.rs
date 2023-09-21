@@ -17,7 +17,7 @@ pub async fn process_node(
     extracted: &Path,
     built_path: &Path,
 ) -> Result<()> {
-    let path_segments = path_to_segments(built_path)?;
+    let path_segments = &path_to_segments(built_path)?;
     let result = if path_segments.len() == 0 {
         Ok(Some(fs.root_dir.as_node()))
     } else {
@@ -45,7 +45,7 @@ pub async fn process_node(
             // This is where the file will be extracted no matter what
             if let Ok(content) = fs
                 .read(
-                    path_to_segments(&built_path)?,
+                    &path_to_segments(&built_path)?,
                     metadata_store,
                     content_store,
                 )

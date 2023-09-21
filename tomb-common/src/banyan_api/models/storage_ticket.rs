@@ -137,7 +137,7 @@ pub mod test {
             .expect("Failed to create blockstore client");
         let banyan_api_blockstore = BanyanApiBlockStore::from(blockstore_client);
         let bytes = fs_metadata
-            .read(add_path_segments, &metadata_store, &banyan_api_blockstore)
+            .read(&add_path_segments, &metadata_store, &banyan_api_blockstore)
             .await
             .expect("Failed to get file");
         assert_eq!(bytes, "test".as_bytes().to_vec());
@@ -191,8 +191,8 @@ pub mod test {
         let mut fs_metadata = FsMetadata::init(&key)
             .await
             .expect("Failed to create fs metadata");
-        let mkdir_path_segments = vec!["test".to_string(), "path".to_string()];
-        let add_path_segments = vec!["test".to_string(), "path".to_string(), "file".to_string()];
+        let mkdir_path_segments = &vec!["test".to_string(), "path".to_string()];
+        let add_path_segments = &vec!["test".to_string(), "path".to_string(), "file".to_string()];
         let file_content = "test".as_bytes().to_vec();
         fs_metadata
             .mkdir(mkdir_path_segments, &metadata_store)
@@ -200,7 +200,7 @@ pub mod test {
             .expect("Failed to create directory");
         fs_metadata
             .add(
-                add_path_segments.clone(),
+                add_path_segments,
                 file_content,
                 &metadata_store,
                 &content_store,
@@ -237,7 +237,7 @@ pub mod test {
             metadata_store,
             content_store,
             fs_metadata,
-            add_path_segments,
+            add_path_segments.to_vec(),
         ))
     }
 }
