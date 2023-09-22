@@ -35,10 +35,11 @@ pub enum Command {
 /// Subcommand for Authentication
 #[derive(Subcommand, Clone, Debug)]
 pub enum AuthSubCommand {
-    /// Create an account
+    /// Add Device API Key
+    RegisterDevice,
+    /// Register
+    #[cfg(feature = "fake")]
     Register,
-    /// Login to an existing account
-    Login,
     /// Ask the server who I am
     WhoAmI,
     /// Ask the server my usage

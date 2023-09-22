@@ -79,7 +79,7 @@ impl GlobalConfig {
     }
 
     /// Get the api key
-    async fn api_key(&self) -> Result<EcSignatureKey> {
+    pub async fn api_key(&self) -> Result<EcSignatureKey> {
         load_api_key(&self.api_key_path).await
     }
 

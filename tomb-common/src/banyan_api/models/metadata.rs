@@ -186,7 +186,7 @@ impl Metadata {
 
     /// Read the a specific metadata of a bucket
     pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
-        let response = client.call(ReadMetadata { bucket_id, id }).await?;
+        let response = client.call_core(ReadMetadata { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
             bucket_id,
@@ -200,7 +200,7 @@ impl Metadata {
 
     /// Read all the metadata for a bucket
     pub async fn read_all(bucket_id: Uuid, client: &mut Client) -> Result<Vec<Self>, ClientError> {
-        let response = client.call(ReadAllMetadata { bucket_id }).await?;
+        let response = client.call_core(ReadAllMetadata { bucket_id }).await?;
         Ok(response
             .0
             .into_iter()
@@ -218,7 +218,7 @@ impl Metadata {
 
     /// Read the current metadata for a bucket
     pub async fn read_current(bucket_id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
-        let response = client.call(ReadCurrentMetadata { bucket_id }).await?;
+        let response = client.call_core(ReadCurrentMetadata { bucket_id }).await?;
         Ok(Self {
             id: response.id,
             bucket_id,
@@ -233,7 +233,7 @@ impl Metadata {
     /// Snapshot the current metadata
     pub async fn snapshot(&self, client: &mut Client) -> Result<Snapshot, ClientError> {
         let response = client
-            .call(CreateSnapshot {
+            .call_core(CreateSnapshot {
                 bucket_id: self.bucket_id,
                 metadata_id: self.id,
             })

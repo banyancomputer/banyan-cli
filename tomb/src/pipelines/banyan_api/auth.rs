@@ -1,11 +1,10 @@
 use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use tomb_common::banyan_api::{
-    client::Credentials,
+    error::ClientError,
     models::account::Account,
-    requests::core::auth::fake_account::create::{CreateAccount, CreateAccountResponse},
 };
-use tomb_crypt::prelude::{EcSignatureKey, PrivateKey, PublicKey};
+use tomb_crypt::prelude::{PrivateKey, PublicKey};
 
 /// Handle Auth management both locally and remotely based on CLI input
 pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
@@ -15,15 +14,27 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
     let mut client = global.get_client().await?;
 
     // Process the command
-    let result = match command {
+    let result: Result<String, ClientError> = match command {
+        AuthSubCommand::RegisterDevice => {
+            // let device_key = EcEncryptionKey::generate().await?;
+            let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
+            // client.ca
+            let account = Account::register_device(&mut client, private_device_key).await?;
+            // Format
+            Ok(format!("registered this device to account_id: {}", account.id))
+        },
+        #[cfg(feature = "fake")]
         AuthSubCommand::Register => {
+            use tomb_crypt::prelude::{EcSignatureKey, PublicKey, EcEncryptionKey};
+            use tomb_common::{banyan_api::requests::core::auth::fake_account::create::{CreateAccountResponse, CreateFakeAccount}, client::Credentials};
+
             // Create local keys
             let api_key = EcSignatureKey::generate().await?;
             let public_api_key = api_key.public_key()?;
             let public_api_key_pem = String::from_utf8(public_api_key.export().await?)?;
             // Associate the key material with the backend
             let response: CreateAccountResponse = client
-                .call(CreateAccount {
+                .call(CreateFakeAccount {
                     device_api_key_pem: public_api_key_pem,
                 })
                 .await?;
@@ -33,9 +44,7 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             });
 
             Ok(format!("created account with id: {}", response.id))
-        }
-
-        AuthSubCommand::Login => todo!(),
+        },
         AuthSubCommand::WhoAmI => Account::who_am_i(&mut client)
             .await
             .map(|v| format!("account: {}", v.id)),

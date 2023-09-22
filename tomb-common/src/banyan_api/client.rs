@@ -169,9 +169,10 @@ impl Client {
     pub async fn call<T: ApiRequest>(
         &mut self,
         request: T,
+        base_url: &Url,
     ) -> Result<T::ResponseType, ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
+        let mut request_builder = request.build_request(base_url, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);
@@ -181,6 +182,8 @@ impl Client {
             .send()
             .await
             .map_err(ClientError::http_error)?;
+
+        println!("response.status: {}", response.status());
 
         if response.status().is_success() {
             response
@@ -202,6 +205,23 @@ impl Client {
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
             Err(ClientError::from(err))
         }
+    }
+
+    /// Call a method that implements ApiRequest on the core server
+    pub async fn call_core<T: ApiRequest>(
+        &mut self,
+        request: T,
+    ) -> Result<T::ResponseType, ClientError> {
+        self.call(request, &self.remote_core.clone()).await
+    }
+
+    /// Call a method that implements ApiRequest on the frontend
+    pub async fn call_frontend<T: ApiRequest>(
+        &mut self,
+        request: T,
+    ) -> Result<T::ResponseType, ClientError> {
+        let base_url = Url::parse("http://127.0.0.1:3000").expect("failed to parse url");
+        self.call(request, &base_url).await
     }
 
     /// Call a method that implements ApiRequest
