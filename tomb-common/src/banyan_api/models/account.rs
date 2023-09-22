@@ -1,14 +1,16 @@
+use std::str::FromStr;
 use crate::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
     requests::core::{
-        auth::{fake_account::create::*, who_am_i::read::*, device_api_key::{register::RegisterDeviceApiKey, delete::DeleteDeviceApiKey}},
+        auth::{fake_account::create::*, who_am_i::read::*},
         buckets::usage::{GetTotalUsage, GetUsageLimit},
     },
     utils::generate_api_key,
 };
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::{EcSignatureKey, EcPublicEncryptionKey, PublicKey, PrivateKey};
+use tomb_crypt::prelude::{EcSignatureKey, PublicKey, PrivateKey};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
 /// Account Definition
@@ -38,14 +40,39 @@ impl Account {
 
     /// Log in to an existing account
     pub async fn register_device(client: &mut Client, private_device_key: EcSignatureKey) -> Result<Self, ClientError> {
-        let public_device_key = private_device_key.public_key().expect("cant create public key");
+        let public_device_key = private_device_key.public_key().expect("failed to create public key");
         // Public device key in PEM format 
         let public_device_key = String::from_utf8(public_device_key.export().await.expect("cant export key")).expect("cant convert key bytes to string");
-        let response = client.call_frontend(RegisterDeviceApiKey { pem: public_device_key }).await?;
-        // Update the credentials of the client
-        client.with_credentials(Credentials { account_id: response.account_id, signing_key: private_device_key });
-        // Return the account
-        Ok(Self { id: response.account_id })
+        // Strip the public key of its new lines
+        let mut stripped_public_key = public_device_key.replace('\n', "");
+        // Strip the public key of its prefix and suffix
+        stripped_public_key = stripped_public_key
+            .strip_prefix("-----BEGIN PUBLIC KEY-----")
+            .unwrap()
+            .strip_suffix("-----END PUBLIC KEY-----")
+            .unwrap()
+            .to_string();
+        // Represent the weird b64 characters with ones that are url-valid
+        let encoded_public_key = stripped_public_key.replace('+', "-").replace('/', "_").replace('=', ".").to_string();
+        println!("the stripped public key:\n ~{}~", stripped_public_key);
+        println!("the encoded public key:\n ~{}~", encoded_public_key);
+
+        let base_url = "http://127.0.0.1:3000";
+        // https://alpha.data.banyan.computer/
+        // Open this url with firefox
+        open::with(format!("{}/api/auth/device/register?spki={}", base_url, encoded_public_key), "firefox").expect("failed to open browser");
+        
+        print!("please enter the account id:\n> ");
+        let mut account_id_string = String::new();
+        std::io::stdin().read_line(&mut account_id_string).expect("Did not enter a correct string");
+        println!("account_id_strin: {}", account_id_string);
+        let account_id = Uuid::from_str(&account_id_string.replace('\n', "")).expect("string was not a valid uuid");
+
+        // Update credentials
+        client.with_credentials(Credentials { account_id, signing_key: private_device_key });
+
+        // Ok
+        Ok(Self { id: account_id })
     }
 
     /// Get the account associated with the current credentials in the Client

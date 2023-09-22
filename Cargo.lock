@@ -4347,7 +4347,6 @@ dependencies = [
  "lazy_static",
  "log",
  "nix 0.27.1",
- "open",
  "rand 0.8.5",
  "reqwest",
  "serde",

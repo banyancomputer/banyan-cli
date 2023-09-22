@@ -4,7 +4,6 @@ use tomb_common::banyan_api::{
     error::ClientError,
     models::account::Account,
 };
-use tomb_crypt::prelude::{PrivateKey, PublicKey};
 
 /// Handle Auth management both locally and remotely based on CLI input
 pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
@@ -19,9 +18,10 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             // let device_key = EcEncryptionKey::generate().await?;
             let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
             // client.ca
-            let account = Account::register_device(&mut client, private_device_key).await?;
+            Account::register_device(&mut client, private_device_key).await?;
             // Format
-            Ok(format!("registered this device to account_id: {}", account.id))
+            // Ok(format!("registered this device to account_id: {}", account.id))
+            Ok(format!(""))
         },
         #[cfg(feature = "fake")]
         AuthSubCommand::Register => {
