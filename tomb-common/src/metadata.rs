@@ -544,7 +544,7 @@ impl FsMetadata {
             .await?;
 
             let full_path: std::path::PathBuf = path_segments.iter().collect();
-            if let Some(mime) = mime_guess::MimeGuess::from_path(&full_path).first() {
+            if let Some(mime) = mime_guess::MimeGuess::from_path(full_path).first() {
                 file.content
                     .metadata
                     .put("mime_type", Ipld::String(mime.essence_str().to_string()));
