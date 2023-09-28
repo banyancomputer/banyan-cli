@@ -52,20 +52,22 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
     fn try_from(fs_entry: WasmNodeMetadata) -> Result<Self, Self::Error> {
         let object = Object::new();
 
-        if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("created") {
+        if let Some(Ipld::Integer(i)) = fs_entry.0.0.get("created") {
             Reflect::set(&object, &JsValue::from_str("created"), &value!(*i as f64))?;
         }
 
-        if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("modified") {
+        if let Some(Ipld::Integer(i)) = fs_entry.0.0.get("modified") {
             Reflect::set(&object, &JsValue::from_str("modified"), &value!(*i as f64))?;
         }
 
-        // TODO: Remove stubs, with standard object
-        Reflect::set(
-            &object,
-            &JsValue::from_str("size"),
-            &JsValue::from_f64(1024.0),
-        )?;
+        if let Some(Ipld::String(s)) = fs_entry.0.0.get("mime_type") {
+            Reflect::set(&object, &JsValue::from_str("mime_type"), &value!(s))?;
+        }
+
+        if let Some(Ipld::Integer(i)) = fs_entry.0.0.get("size") {
+            Reflect::set(&object, &JsValue::from_str("size"), &value!(*i as f64))?;
+        }
+
         Reflect::set(
             &object,
             &JsValue::from_str("cid"),

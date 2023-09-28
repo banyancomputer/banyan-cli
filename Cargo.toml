@@ -53,7 +53,7 @@ tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "m
 
 # For local dev if needed..
 #wnfs = { path = "../rs-wnfs/wnfs" }
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", version = "0.1.20" }
+wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main" }
 
 [profile.dev]
 split-debuginfo = "unpacked"
