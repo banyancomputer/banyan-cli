@@ -60,12 +60,14 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
             Reflect::set(&object, &JsValue::from_str("modified"), &value!(*i as f64))?;
         }
 
-        // TODO: Remove stubs, with standard object
-        Reflect::set(
-            &object,
-            &JsValue::from_str("size"),
-            &JsValue::from_f64(1024.0),
-        )?;
+        if let Some(Ipld::String(s)) = fs_entry.0 .0.get("mime_type") {
+            Reflect::set(&object, &JsValue::from_str("mime_type"), &value!(s))?;
+        }
+
+        if let Some(Ipld::Integer(i)) = fs_entry.0 .0.get("size") {
+            Reflect::set(&object, &JsValue::from_str("size"), &value!(*i as f64))?;
+        }
+
         Reflect::set(
             &object,
             &JsValue::from_str("cid"),
