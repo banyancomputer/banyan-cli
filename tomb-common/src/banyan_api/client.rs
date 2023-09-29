@@ -207,7 +207,6 @@ impl Client {
         }
     }
 
-
     /// Call a method that implements ApiRequest on the core server
     // #[derive(Send)]
     pub async fn call_core<T: ApiRequest>(

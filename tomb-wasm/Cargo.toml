@@ -24,6 +24,7 @@ serde = { workspace = true }
 tomb-crypt = { workspace = true }
 wnfs = { workspace = true }
 blake3 = { workspace = true }
+uuid = { workspace = true }
 
 # Crate dependencies
 async-trait = "^0.1"
@@ -41,7 +42,6 @@ serde-wasm-bindgen = "^0.5"
 thiserror = "^1"
 tokio-util = { version = "^0.7", features = ["compat"] }
 tomb-common = { path = "../tomb-common", version = "^1", features = ["banyan-api"] }
-uuid = "^1"
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-futures = "^0.4"
 web-sys = { version = "^0.3", features = [

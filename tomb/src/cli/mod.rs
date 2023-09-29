@@ -48,7 +48,7 @@ mod test {
     }
 
     #[allow(dead_code)]
-    #[cfg(feature="fake")]
+    #[cfg(feature = "fake")]
     fn cmd_register() -> Command {
         Command::Auth {
             subcommand: AuthSubCommand::Register,

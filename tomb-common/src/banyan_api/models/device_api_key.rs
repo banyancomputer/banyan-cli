@@ -21,8 +21,9 @@ pub struct DeviceApiKey {
 impl DeviceApiKey {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create(pem: String, client: &mut Client) -> Result<Self, ClientError> {
-        let response: CreateDeviceApiKeyResponse =
-            client.call_core(CreateDeviceApiKey { pem: pem.clone() }).await?;
+        let response: CreateDeviceApiKeyResponse = client
+            .call_core(CreateDeviceApiKey { pem: pem.clone() })
+            .await?;
         Ok(Self {
             id: response.id,
             fingerprint: response.fingerprint,
@@ -57,14 +58,16 @@ impl DeviceApiKey {
 
     /// Delete the device api key from the account
     pub async fn delete(self, _client: &mut Client) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse =
-            _client.call_core(DeleteDeviceApiKey { id: self.id }).await?;
+        let response: DeleteDeviceApiKeyResponse = _client
+            .call_core(DeleteDeviceApiKey { id: self.id })
+            .await?;
         Ok(response.id.to_string())
     }
 
     /// Delete the device api key from the account by id
     pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse = client.call_core(DeleteDeviceApiKey { id }).await?;
+        let response: DeleteDeviceApiKeyResponse =
+            client.call_core(DeleteDeviceApiKey { id }).await?;
         Ok(response.id.to_string())
     }
 }

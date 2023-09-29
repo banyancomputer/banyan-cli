@@ -159,7 +159,9 @@ impl Bucket {
 
     /// Get the snapshots for the bucket
     pub async fn list_snapshots(&self, client: &mut Client) -> Result<Vec<Snapshot>, ClientError> {
-        let response = client.call_core(ReadAllSnapshots { bucket_id: self.id }).await?;
+        let response = client
+            .call_core(ReadAllSnapshots { bucket_id: self.id })
+            .await?;
         Ok(response
             .0
             .into_iter()
@@ -225,7 +227,12 @@ pub mod test {
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
-        let fingerprint = pretty_fingerprint(key.fingerprint().await.expect("create fingerprint").as_slice());
+        let fingerprint = pretty_fingerprint(
+            key.fingerprint()
+                .await
+                .expect("create fingerprint")
+                .as_slice(),
+        );
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),

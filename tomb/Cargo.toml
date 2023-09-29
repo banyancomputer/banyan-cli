@@ -18,7 +18,7 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 tomb-crypt = { workspace = true }
-uuid = "1.4.1"
+uuid = { workspace = true }
 reqwest.workspace = true
 futures-util = "0.3.28"
 wnfs = { workspace = true }

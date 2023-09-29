@@ -1,20 +1,35 @@
-use std::{str::FromStr, thread, time::Duration, sync::{Arc, Mutex}, borrow::BorrowMut, cell::RefCell};
 use crate::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
     requests::core::{
-        auth::{fake_account::create::*, who_am_i::read::*, device_api_key::regwait::start::{StartRegwait, StartRegwaitResponse}},
+        auth::{
+            device_api_key::regwait::start::{StartRegwait, StartRegwaitResponse},
+            fake_account::create::*,
+            who_am_i::read::*,
+        },
         buckets::usage::{GetTotalUsage, GetUsageLimit},
     },
     utils::generate_api_key,
 };
+use anyhow::anyhow;
 use futures::executor::block_on;
 use futures_core::Future;
 use futures_util::FutureExt;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use tokio::{time::timeout, runtime::Handle};
-use tomb_crypt::{prelude::{EcSignatureKey, PublicKey, PrivateKey}, pretty_fingerprint};
+use std::{
+    borrow::BorrowMut,
+    cell::RefCell,
+    str::FromStr,
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+use tokio::{runtime::Handle, time::timeout};
+use tomb_crypt::{
+    prelude::{EcSignatureKey, PrivateKey, PublicKey},
+    pretty_fingerprint,
+};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -44,26 +59,37 @@ impl Account {
     }
 
     /// Log in to an existing account
-    pub async fn register_device(client: &mut Client, private_device_key: EcSignatureKey) -> Result<Self, ClientError> {
-        let public_device_key = private_device_key.public_key().expect("failed to create public key");
+    pub async fn register_device(
+        client: &mut Client,
+        private_device_key: EcSignatureKey,
+    ) -> Result<Self, ClientError> {
+        let public_device_key = private_device_key
+            .public_key()
+            .expect("failed to create public key");
         // let public_device_key_fingerprint = pretty_fingerprint(&public_device_key.fingerprint().await.expect("unable to generate fingerprint"));
-        // Public device key in PEM format 
-        let public_device_key = String::from_utf8(public_device_key.export().await.expect("cant export key")).expect("cant convert key bytes to string");
+        // Public device key in PEM format
+        let public_device_key =
+            String::from_utf8(public_device_key.export().await.expect("cant export key"))
+                .expect("cant convert key bytes to string");
         // Strip the public key of its new lines
         let mut stripped_public_key = public_device_key.replace('\n', "");
         // Strip the public key of its prefix and suffix
         stripped_public_key = stripped_public_key
-        .strip_prefix("-----BEGIN PUBLIC KEY-----")
-        .unwrap()
-        .strip_suffix("-----END PUBLIC KEY-----")
-        .unwrap()
-        .to_string();
+            .strip_prefix("-----BEGIN PUBLIC KEY-----")
+            .unwrap()
+            .strip_suffix("-----END PUBLIC KEY-----")
+            .unwrap()
+            .to_string();
 
         // Represent the weird b64 characters with ones that are url-valid
-        let encoded_public_key = stripped_public_key.replace('+', "-").replace('/', "_").replace('=', ".").to_string();
+        let encoded_public_key = stripped_public_key
+            .replace('+', "-")
+            .replace('/', "_")
+            .replace('=', ".")
+            .to_string();
         println!("the stripped public key:\n ~{}~", stripped_public_key);
         println!("the encoded public key:\n ~{}~", encoded_public_key);
-        
+
         // Start a background task
 
         // Create a new object for the registration wait task
@@ -71,43 +97,52 @@ impl Account {
         // Create a base64 url encoded version of the associated nonce
         let b64_nonce = base64_url::encode(&start_regwait.nonce.to_string());
         let mut client_1 = client.clone();
-        let join_handle = tokio::task::spawn_blocking(move || { 
+        let join_handle = tokio::task::spawn_blocking(move || {
             println!("calling core...");
             let future = client_1.call_core(start_regwait);
             Handle::current().block_on(future)
         });
         println!("the join handle has been created!");
-                
+
         // Base url for the frontend
         let base_url = "http://127.0.0.1:3000";
         // Should be this in prod TODO
         // https://alpha.data.banyan.computer/
-        
+
         // Open this url with firefox
-        open::with(format!("{}/api/auth/device/register?spki={}&nonce={}", base_url, encoded_public_key, b64_nonce), "firefox").expect("failed to open browser");
-        
+        open::with(
+            format!(
+                "{}/api/auth/device/register?spki={}&nonce={}",
+                base_url, encoded_public_key, b64_nonce
+            ),
+            "firefox",
+        )
+        .expect("failed to open browser");
+
         println!("url opened!");
-    
-        // Now rejoin the future we spawned
-        let result1 = join_handle.await;
-        println!("result1: {:?}", result1);
 
-        // Now rejoin the future we spawned
-        let result2 = result1.unwrap();
-        println!("result2: {:?}", result2);
-        
-
-        // // print!("please enter the account id:\n> ");
-        // let mut account_id_string = String::new();
-        // // std::io::stdin().read_line(&mut account_id_string).expect("Did not enter a correct string");
-        // // println!("account_id_strin: {}", account_id_string);
-        // let account_id = Uuid::from_str(&account_id_string.replace('\n', "")).expect("string was not a valid uuid");
-
-        // // Update credentials
-        // client.with_credentials(Credentials { account_id, signing_key: private_device_key });
-
-        // Ok
-        Ok(Self { id: Uuid::default() })
+        // Now that the url has been opened, await the join handle
+        match join_handle.await {
+            Ok(Ok(response)) => {
+                // Update credentials
+                client.with_credentials(Credentials {
+                    account_id: response.account_id,
+                    signing_key: private_device_key,
+                });
+                // Ok
+                Ok(Self {
+                    id: response.account_id,
+                })
+            }
+            Ok(Err(err)) => {
+                println!("client error!: {}", err);
+                Err(err)
+            }
+            Err(err) => {
+                println!("join error!: {}", err);
+                todo!()
+            }
+        }
     }
 
     /// Get the account associated with the current credentials in the Client
@@ -210,5 +245,4 @@ pub mod test {
 
     //     Ok(())
     // }
-
 }

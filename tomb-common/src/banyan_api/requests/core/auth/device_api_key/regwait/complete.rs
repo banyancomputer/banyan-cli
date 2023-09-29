@@ -1,16 +1,16 @@
-use uuid::Uuid;
-use std::error::Error;
-use serde::Deserialize;
 use crate::banyan_api::requests::ApiRequest;
+use serde::Deserialize;
+use std::error::Error;
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct CompleteRegwait {
-    pub nonce: Uuid
+    pub nonce: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CompleteRegwaitResponse {
-    pub account_id: Uuid
+    pub account_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,9 +30,11 @@ impl ApiRequest for CompleteRegwait {
     type ResponseType = CompleteRegwaitResponse;
     type ErrorType = CompleteRegwaitError;
 
-    fn build_request(self, base_url: &reqwest::Url, client: &reqwest::Client) -> reqwest::RequestBuilder {
-        
-
+    fn build_request(
+        self,
+        base_url: &reqwest::Url,
+        client: &reqwest::Client,
+    ) -> reqwest::RequestBuilder {
         todo!()
     }
 

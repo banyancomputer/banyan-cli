@@ -30,7 +30,7 @@ sha1 = "^0.10"
 sha2 = "^0.10"
 test-case = "^3"
 thiserror = "^1"
-uuid = { version = "^1", features = ["serde"] }
+uuid = { workspace = true }
 wasm-bindgen = "^0.2"
 unsigned-varint = "^0.7"
 bytes = "1.5.0"

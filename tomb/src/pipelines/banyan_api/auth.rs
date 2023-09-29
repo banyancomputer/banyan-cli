@@ -1,9 +1,6 @@
 use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
-use tomb_common::banyan_api::{
-    error::ClientError,
-    models::account::Account,
-};
+use tomb_common::banyan_api::{error::ClientError, models::account::Account};
 
 /// Handle Auth management both locally and remotely based on CLI input
 pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
@@ -18,16 +15,21 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             // let device_key = EcEncryptionKey::generate().await?;
             let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
 
-            // Register the device and 
+            // Register the device and
             Account::register_device(&mut client, private_device_key).await?;
-        
+
             // Format
             Ok(format!(""))
-        },
+        }
         #[cfg(feature = "fake")]
         AuthSubCommand::Register => {
-            use tomb_crypt::prelude::{EcSignatureKey, PublicKey, EcEncryptionKey};
-            use tomb_common::{banyan_api::requests::core::auth::fake_account::create::{CreateAccountResponse, CreateFakeAccount}, client::Credentials};
+            use tomb_common::{
+                banyan_api::requests::core::auth::fake_account::create::{
+                    CreateAccountResponse, CreateFakeAccount,
+                },
+                client::Credentials,
+            };
+            use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PublicKey};
 
             // Create local keys
             let api_key = EcSignatureKey::generate().await?;
@@ -45,7 +47,7 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             });
 
             Ok(format!("created account with id: {}", response.id))
-        },
+        }
         AuthSubCommand::WhoAmI => Account::who_am_i(&mut client)
             .await
             .map(|v| format!("account: {}", v.id)),

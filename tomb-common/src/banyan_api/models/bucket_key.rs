@@ -79,7 +79,8 @@ impl BucketKey {
 
     /// Read a Bucket Key
     pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
-        let response: ReadBucketKeyResponse = client.call_core(ReadBucketKey { bucket_id, id }).await?;
+        let response: ReadBucketKeyResponse =
+            client.call_core(ReadBucketKey { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
             bucket_id,
@@ -152,8 +153,12 @@ mod test {
         let mut client = authenticated_client().await;
         let (key, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let our_fingerprint =
-            pretty_fingerprint(key.fingerprint().await.expect("cant fingerprint").as_slice());
+        let our_fingerprint = pretty_fingerprint(
+            key.fingerprint()
+                .await
+                .expect("cant fingerprint")
+                .as_slice(),
+        );
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert_eq!(our_fingerprint, bucket_key.fingerprint);
         let read_bucket_key = BucketKey::read(bucket.id, bucket_key.id, &mut client).await?;
