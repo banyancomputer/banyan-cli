@@ -16,7 +16,6 @@ pub struct CreateSnapshot {
 #[derive(Debug, Deserialize)]
 pub struct CreateSnapshotResponse {
     pub id: Uuid,
-    pub created_at: i64,
 }
 
 impl ApiRequest for CreateSnapshot {

@@ -9,7 +9,6 @@ use {
     crate::banyan_api::{
         client::Client,
         error::ClientError,
-        models::snapshot::Snapshot,
         models::storage_ticket::StorageTicket,
         requests::core::buckets::{
             metadata::{pull::*, push::*, read::*},
@@ -231,20 +230,15 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(&self, client: &mut Client) -> Result<Snapshot, ClientError> {
-        let response = client
+    pub async fn snapshot(&self, client: &mut Client) -> Result<Uuid, ClientError> {
+        let snapshot_resp = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
                 metadata_id: self.id,
             })
             .await?;
-        Ok(Snapshot {
-            id: response.id,
-            bucket_id: self.bucket_id,
-            metadata_id: self.id,
-            size: self.data_size,
-            created_at: response.created_at,
-        })
+
+        Ok(snapshot_resp.id)
     }
 }
 
