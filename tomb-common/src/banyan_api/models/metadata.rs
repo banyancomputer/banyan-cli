@@ -9,7 +9,6 @@ use {
     crate::banyan_api::{
         client::Client,
         error::ClientError,
-        models::snapshot::Snapshot,
         models::storage_ticket::StorageTicket,
         requests::core::buckets::{
             metadata::{pull::*, push::*, read::*},
@@ -231,30 +230,28 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(&self, client: &mut Client) -> Result<Snapshot, ClientError> {
-        let response = client
+    pub async fn snapshot(&self, client: &mut Client) -> Result<Uuid, ClientError> {
+        let snapshot_resp = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
                 metadata_id: self.id,
             })
             .await?;
-        Ok(Snapshot {
-            id: response.id,
-            bucket_id: self.bucket_id,
-            metadata_id: self.id,
-            size: self.data_size,
-            created_at: response.created_at,
-        })
+
+        Ok(snapshot_resp.id)
     }
 }
 
 #[cfg(test)]
 pub mod test {
-    use super::*;
+    use futures_util::stream::StreamExt;
+    use uuid::Uuid;
+
     use crate::banyan_api::models::{
         account::test::authenticated_client, bucket::test::create_bucket,
     };
-    use futures_util::stream::StreamExt;
+
+    use super::*;
 
     pub async fn push_empty_metadata(
         bucket_id: Uuid,
@@ -275,10 +272,10 @@ pub mod test {
     pub async fn push_metadata_and_snapshot(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, Option<StorageTicket>, Snapshot), ClientError> {
+    ) -> Result<(Metadata, Option<StorageTicket>, Uuid), ClientError> {
         let (metadata, storage_ticket) = push_empty_metadata(bucket_id, client).await?;
-        let snapshot = metadata.snapshot(client).await?;
-        Ok((metadata, storage_ticket, snapshot))
+        let snapshot_id = metadata.snapshot(client).await?;
+        Ok((metadata, storage_ticket, snapshot_id))
     }
     #[tokio::test]
     #[ignore]
@@ -347,10 +344,10 @@ pub mod test {
         }
         assert_eq!(data, "metadata_stream".as_bytes());
 
-        let snapshot = read_metadata.snapshot(&mut client).await?;
-        assert_eq!(snapshot.bucket_id, bucket.id);
-        assert_eq!(snapshot.metadata_id, metadata.id);
-        assert!(snapshot.created_at > 0);
+        let _snapshot_id = read_metadata.snapshot(&mut client).await?;
+        //assert_eq!(snapshot.bucket_id, bucket.id);
+        //assert_eq!(snapshot.metadata_id, metadata.id);
+        //assert!(snapshot.created_at > 0);
         Ok(())
     }
 }
