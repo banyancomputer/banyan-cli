@@ -830,7 +830,7 @@ impl WasmMount {
     pub async fn snapshot(&mut self) -> TombResult<String> {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
         let metadata = self.metadata.as_mut().ok_or_else(|| {
-            TombWasmError(format!("no metadata associated with mount to snapshot"))
+            TombWasmError("no metadata associated with mount to snapshot".to_string())
         })?;
 
         let snapshot_id = metadata
@@ -838,7 +838,7 @@ impl WasmMount {
             .await
             .map_err(|err| TombWasmError(format!("unable to take a snapshot: {err}")))?;
 
-        metadata.snapshot_id = Some(snapshot_id.clone());
+        metadata.snapshot_id = Some(snapshot_id);
         self.metadata = Some(metadata.to_owned());
 
         Ok(snapshot_id.to_string())
