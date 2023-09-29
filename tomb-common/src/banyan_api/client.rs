@@ -165,7 +165,7 @@ impl Client {
         }
     }
 
-    /// Call a method that implements ApiRequest
+    /// Call a method that implements ApiRequests
     pub async fn call<T: ApiRequest>(
         &mut self,
         request: T,
@@ -207,11 +207,14 @@ impl Client {
         }
     }
 
+
     /// Call a method that implements ApiRequest on the core server
+    // #[derive(Send)]
     pub async fn call_core<T: ApiRequest>(
         &mut self,
         request: T,
     ) -> Result<T::ResponseType, ClientError> {
+        println!("ATTENTION::: call core has started...");
         self.call(request, &self.remote_core.clone()).await
     }
 

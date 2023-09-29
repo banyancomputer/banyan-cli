@@ -4331,7 +4331,6 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
- "base64-url",
  "chrono",
  "clap 4.4.4",
  "criterion",
@@ -4370,6 +4369,7 @@ dependencies = [
  "async-trait",
  "base58",
  "base64 0.21.4",
+ "base64-url",
  "blake3",
  "bytes",
  "chrono",
@@ -4403,7 +4403,6 @@ dependencies = [
 [[package]]
 name = "tomb-crypt"
 version = "0.1.0"
-source = "git+https://github.com/banyancomputer/tomb-crypt?branch=main#12d4d6f79ffe5d26a618b0613be14706df04af33"
 dependencies = [
  "async-trait",
  "base64 0.21.4",

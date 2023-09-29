@@ -52,10 +52,11 @@ impl EncRefMapper {
     ) -> Result<()> {
         // Grab the public key's fingerprint
         let fingerprint = pretty_fingerprint(
-            &recipient
+            recipient
                 .fingerprint()
                 .await
-                .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?,
+                .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?
+                .as_slice(),
         );
         // Get the DER encoded public key bytes
         let der = recipient
@@ -91,10 +92,11 @@ impl EncRefMapper {
     pub async fn recover_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
         // Grab the fingerprint from the
         let fingerprint = pretty_fingerprint(
-            &recipient
+            recipient
                 .fingerprint()
                 .await
-                .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?,
+                .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?
+                .as_slice(),
         );
         // Grab the encrypted key associated with the fingerprint
         let (_, enc_ref_string) = match self.0.get(&fingerprint) {

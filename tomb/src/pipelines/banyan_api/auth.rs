@@ -17,10 +17,11 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
         AuthSubCommand::RegisterDevice => {
             // let device_key = EcEncryptionKey::generate().await?;
             let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
-            // client.ca
+
+            // Register the device and 
             Account::register_device(&mut client, private_device_key).await?;
+        
             // Format
-            // Ok(format!("registered this device to account_id: {}", account.id))
             Ok(format!(""))
         },
         #[cfg(feature = "fake")]

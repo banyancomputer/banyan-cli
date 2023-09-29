@@ -34,7 +34,7 @@ pub async fn run(command: Command) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use super::command::{AuthSubCommand, BucketSpecifier, BucketsSubCommand, Command};
+    use super::command::*;
     use crate::{cli::run, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::Result;
     use dir_assert::assert_paths;
@@ -48,6 +48,7 @@ mod test {
     }
 
     #[allow(dead_code)]
+    #[cfg(feature="fake")]
     fn cmd_register() -> Command {
         Command::Auth {
             subcommand: AuthSubCommand::Register,

@@ -153,7 +153,7 @@ mod test {
         let (key, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let our_fingerprint =
-            pretty_fingerprint(&key.fingerprint().await.expect("cant fingerprint"));
+            pretty_fingerprint(key.fingerprint().await.expect("cant fingerprint").as_slice());
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert_eq!(our_fingerprint, bucket_key.fingerprint);
         let read_bucket_key = BucketKey::read(bucket.id, bucket_key.id, &mut client).await?;
@@ -246,20 +246,22 @@ mod test {
         assert!(!bucket_key.approved);
 
         let fingerprint1 = pretty_fingerprint(
-            &EcPublicEncryptionKey::import(initial_bucket_key.pem.as_bytes())
+            EcPublicEncryptionKey::import(initial_bucket_key.pem.as_bytes())
                 .await
                 .unwrap()
                 .fingerprint()
                 .await
-                .unwrap(),
+                .unwrap()
+                .as_slice(),
         );
         let fingerprint2 = pretty_fingerprint(
-            &EcPublicEncryptionKey::import(bucket_key.pem.as_bytes())
+            EcPublicEncryptionKey::import(bucket_key.pem.as_bytes())
                 .await
                 .unwrap()
                 .fingerprint()
                 .await
-                .unwrap(),
+                .unwrap()
+                .as_slice(),
         );
 
         // Push metadata with the new BucketKey listed as valid

@@ -31,7 +31,6 @@ env_logger = "^0.10"
 async-trait = "^0.1"
 hex = "^0.4"
 tomb-common = { path = "../tomb-common", version = "^1", features = ["banyan-api"] }
-base64-url = "2.0.0"
 
 [dependencies.nix]
 version = "^0.27"
