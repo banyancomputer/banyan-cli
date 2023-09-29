@@ -140,7 +140,7 @@ async fn snapshot() -> TombResult<()> {
         .await?;
     assert!(!mount.locked());
     assert!(!mount.has_snapshot());
-    let snapshot_id = mount.snapshot().await?;
+    let _snapshot_id = mount.snapshot().await?;
     assert!(mount.has_snapshot());
     //assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
     //assert_eq!(
