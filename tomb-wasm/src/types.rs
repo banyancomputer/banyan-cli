@@ -98,8 +98,8 @@ impl WasmSnapshot {
     }
 
     #[wasm_bindgen(getter = createdAt)]
-    pub fn created_at(&self) -> usize {
-        self.created_at
+    pub fn created_at(&self) -> f64 {
+        self.created_at as f64
     }
 
     #[wasm_bindgen(getter)]
@@ -113,8 +113,8 @@ impl WasmSnapshot {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn size(&self) -> usize {
-        self.size
+    pub fn size(&self) -> f64 {
+        self.size as f64
     }
 }
 
