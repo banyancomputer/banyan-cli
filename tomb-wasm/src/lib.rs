@@ -168,7 +168,7 @@ impl TombWasm {
         snapshots
             .into_iter()
             .map(|snapshot| {
-                let wasm_snapshot = WasmSnapshot(snapshot);
+                let wasm_snapshot = WasmSnapshot::from(snapshot);
                 JsValue::try_from(wasm_snapshot).map_err(|err| {
                     TombWasmError(format!("failed to convert snapshot to JsValue: {err}")).into()
                 })

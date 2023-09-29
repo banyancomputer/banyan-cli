@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use js_sys::{Object, Reflect};
+use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
@@ -79,45 +80,69 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
 }
 
 #[wasm_bindgen]
-pub struct WasmSnapshot(pub(crate) Snapshot);
+pub struct WasmSnapshot {
+    id: Uuid,
+
+    bucket_id: Uuid,
+    metadata_id: Uuid,
+
+    size: usize,
+    created_at: usize,
+}
 
 #[wasm_bindgen]
 impl WasmSnapshot {
-    #[wasm_bindgen(getter)]
-    pub fn id(&self) -> String {
-        self.0.id.to_string()
-    }
-
     #[wasm_bindgen(getter = bucketId)]
     pub fn bucket_id(&self) -> String {
-        self.0.bucket_id.to_string()
+        self.bucket_id.to_string()
+    }
+
+    #[wasm_bindgen(getter = createdAt)]
+    pub fn created_at(&self) -> usize {
+        self.created_at
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn id(&self) -> String {
+        self.id.to_string()
     }
 
     #[wasm_bindgen(getter = metadataId)]
     pub fn metadata_id(&self) -> String {
-        self.0.metadata_id.to_string()
+        self.metadata_id.to_string()
     }
 
     #[wasm_bindgen(getter)]
-    pub fn size(&self) -> u64 {
-        self.0.size
-    }
-
-    #[wasm_bindgen(getter = createdAt)]
-    pub fn created_at(&self) -> i64 {
-        self.0.created_at
+    pub fn size(&self) -> usize {
+        self.size
     }
 }
 
 impl From<Snapshot> for WasmSnapshot {
     fn from(snapshot: Snapshot) -> Self {
-        Self(snapshot)
+        Self {
+            id: snapshot.id,
+
+            bucket_id: snapshot.bucket_id,
+            metadata_id: snapshot.metadata_id,
+
+            size: snapshot.size as usize,
+            created_at: snapshot.created_at as usize,
+        }
     }
 }
 
 impl From<WasmSnapshot> for Snapshot {
-    fn from(wasm_snapshot: WasmSnapshot) -> Self {
-        wasm_snapshot.0
+    fn from(snapshot: WasmSnapshot) -> Self {
+        Self {
+            id: snapshot.id,
+
+            bucket_id: snapshot.bucket_id,
+            metadata_id: snapshot.metadata_id,
+
+            size: snapshot.size as u64,
+            created_at: snapshot.created_at as i64,
+        }
     }
 }
 
