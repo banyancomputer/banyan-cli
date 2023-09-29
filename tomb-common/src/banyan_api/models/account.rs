@@ -1,4 +1,4 @@
-use std::{str::FromStr, thread, time::Duration};
+use std::{str::FromStr, thread, time::Duration, sync::{Arc, Mutex}, borrow::BorrowMut, cell::RefCell};
 use crate::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
@@ -8,6 +8,7 @@ use crate::banyan_api::{
     },
     utils::generate_api_key,
 };
+use futures::executor::block_on;
 use futures_core::Future;
 use futures_util::FutureExt;
 use reqwest::Url;
@@ -43,7 +44,7 @@ impl Account {
     }
 
     /// Log in to an existing account
-    pub async fn register_device(mut client: Client, private_device_key: EcSignatureKey) -> Result<Self, ClientError> {
+    pub async fn register_device(client: &mut Client, private_device_key: EcSignatureKey) -> Result<Self, ClientError> {
         let public_device_key = private_device_key.public_key().expect("failed to create public key");
         // let public_device_key_fingerprint = pretty_fingerprint(&public_device_key.fingerprint().await.expect("unable to generate fingerprint"));
         // Public device key in PEM format 
@@ -69,92 +70,32 @@ impl Account {
         let start_regwait = StartRegwait::new();
         // Create a base64 url encoded version of the associated nonce
         let b64_nonce = base64_url::encode(&start_regwait.nonce.to_string());
-
-        let timelimit = Duration::from_secs(5);
-
-        let future = timeout(timelimit, async move {
-            println!("calling core");
-            let response: StartRegwaitResponse = client.call_core(start_regwait).await.expect("start_regwait failed");
-            println!("finsihed calling core");
-            response
+        let mut client_1 = client.clone();
+        let join_handle = tokio::task::spawn_blocking(move || { 
+            println!("calling core...");
+            let future = client_1.call_core(start_regwait);
+            Handle::current().block_on(future)
         });
-
-        let handle: tokio::task::JoinHandle<Result<StartRegwaitResponse, tokio::time::error::Elapsed>> = tokio::spawn(async move {
-            future.await
-        });
-
-
-        // let closure = || { client.call_core(start_regwait) };
-
-        // let future = Handle::current().block_on(client.call_core(start_regwait));
-        // let handle = tokio::task::spawn(async move { 
-            
-        //     Handle::current().spawn_blocking(|| {
-        //         client.call_core(start_regwait)  
-        //     })
-        // });
-
-        // Handle::
-
-        // let handle = local.run_until(async move {
-        //     println!("i've done it!");
-        //     // let mut client_1 = client.clone();
-        //     // let future = client.call_core(start_regwait);
-        //     let future = closure();
-        //     let handle = tokio::task::spawn_local(future);
-        //     println!("got the response");
-        //     handle
-        // });
-
-        // let local_future = tokio::task::spawn_local(async move {
-        //     println!("calling core");
-        //     let response: StartRegwaitResponse = client_1.call_core(start_regwait).await.expect("start_regwait failed");
-        //     println!("finsihed calling core");
-        //     response
-        // });
-
-        // let handle = timeout(timelimit, );
-        
-        // local.run_until(async {}).await;
-        
-        // let mut rt = tokio::runtime::Runtime::new().unwrap();
-        // let local = tokio::task::LocalSet::new();
-        // let handle = local.run_until( async move {
-            //     let response = tokio::task::spawn_local(async {
-                //         println!("making request... ");
-                //         let response: StartRegwaitResponse = client_1.call_core(start_regwait).await.expect("start_regwait failed");
-                //         println!("got resp");
-                //         response
-                //     });
-                //     response
-                // });
-                
-                
+        println!("the join handle has been created!");
                 
         // Base url for the frontend
         let base_url = "http://127.0.0.1:3000";
         // Should be this in prod TODO
         // https://alpha.data.banyan.computer/
         
-
-        
-        // println!("opening url");
-        
         // Open this url with firefox
         open::with(format!("{}/api/auth/device/register?spki={}&nonce={}", base_url, encoded_public_key, b64_nonce), "firefox").expect("failed to open browser");
         
         println!("url opened!");
-        thread::sleep(Duration::SECOND);
-
-                // handle
-
+    
         // Now rejoin the future we spawned
-        let result1 = handle.await;
+        let result1 = join_handle.await;
         println!("result1: {:?}", result1);
 
         // Now rejoin the future we spawned
         let result2 = result1.unwrap();
         println!("result2: {:?}", result2);
+        
 
         // // print!("please enter the account id:\n> ");
         // let mut account_id_string = String::new();
@@ -249,7 +190,7 @@ pub mod test {
         // let public_key = private_key.public_key().unwrap();
         // let fingerprint = pretty_fingerprint(&public_key.fingerprint().await.unwrap());
 
-        let account = Account::register_device(client, private_device_key).await?;
+        let account = Account::register_device(&mut client, private_device_key).await?;
         println!("account: {:?}", account);
 
         Ok(())
