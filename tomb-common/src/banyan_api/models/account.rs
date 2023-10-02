@@ -3,7 +3,7 @@ use crate::banyan_api::{
     error::ClientError,
     requests::core::{
         auth::{
-            device_api_key::regwait::start::{StartRegwait, StartRegwaitResponse},
+            device_api_key::regwait::{Regwait, RegwaitResponse},
             fake_account::create::*,
             who_am_i::read::*,
         },
@@ -11,25 +11,9 @@ use crate::banyan_api::{
     },
     utils::generate_api_key,
 };
-use anyhow::anyhow;
-use futures::executor::block_on;
-use futures_core::Future;
-use futures_util::FutureExt;
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::BorrowMut,
-    cell::RefCell,
-    str::FromStr,
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
-use tokio::{runtime::Handle, time::timeout};
-use tomb_crypt::{
-    prelude::{EcSignatureKey, PrivateKey, PublicKey},
-    pretty_fingerprint,
-};
+use tokio::task::JoinHandle;
+use tomb_crypt::prelude::{EcSignatureKey, PrivateKey, PublicKey};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -46,7 +30,7 @@ impl Account {
         let (api_key, device_api_key_pem) = generate_api_key().await;
         // Associate the key material with the backend
         let response: CreateAccountResponse = client
-            .call_core(CreateFakeAccount { device_api_key_pem })
+            .call(CreateFakeAccount { device_api_key_pem })
             .await?;
 
         // Associate the returned account ID with the key material and initialize the client with these credentials
@@ -60,7 +44,7 @@ impl Account {
 
     /// Log in to an existing account
     pub async fn register_device(
-        client: &mut Client,
+        client: Client,
         private_device_key: EcSignatureKey,
     ) -> Result<Self, ClientError> {
         let public_device_key = private_device_key
@@ -90,19 +74,20 @@ impl Account {
         println!("the stripped public key:\n ~{}~", stripped_public_key);
         println!("the encoded public key:\n ~{}~", encoded_public_key);
 
-        // Start a background task
-
-        // Create a new object for the registration wait task
-        let start_regwait = StartRegwait::new();
-        // Create a base64 url encoded version of the associated nonce
-        let b64_nonce = base64_url::encode(&start_regwait.nonce.to_string());
+        // Create a new nonce to identify this registration
+        let nonce = Uuid::new_v4();
+        // Create a new request object with the nonce
+        let start_regwait = Regwait { nonce };
+        // Create a base64 url encoded version of the nonce
+        let b64_nonce = base64_url::encode(&nonce);
+        // Create a clone of the client to move into the handle
         let mut client_1 = client.clone();
-        let join_handle = tokio::task::spawn_blocking(move || {
-            println!("calling core...");
-            let future = client_1.call_core(start_regwait);
-            Handle::current().block_on(future)
-        });
-        println!("the join handle has been created!");
+        // Create a join handle for later use, starting the call immediately
+        let join_handle: JoinHandle<Result<RegwaitResponse, ClientError>> =
+            tokio::task::spawn(async move {
+                // Build the request
+                client_1.call(start_regwait).await
+            });
 
         // Base url for the frontend
         let base_url = "http://127.0.0.1:3000";
@@ -119,28 +104,21 @@ impl Account {
         )
         .expect("failed to open browser");
 
-        println!("url opened!");
-
         // Now that the url has been opened, await the join handle
         match join_handle.await {
             Ok(Ok(response)) => {
-                // Update credentials
-                client.with_credentials(Credentials {
-                    account_id: response.account_id,
-                    signing_key: private_device_key,
-                });
                 // Ok
                 Ok(Self {
                     id: response.account_id,
                 })
             }
             Ok(Err(err)) => {
-                println!("client error!: {}", err);
+                println!("client error on start_regwait: {}", err);
                 Err(err)
             }
             Err(err) => {
                 println!("join error!: {}", err);
-                todo!()
+                panic!("tomb errored while joining a thread")
             }
         }
     }
@@ -148,7 +126,7 @@ impl Account {
     /// Get the account associated with the current credentials in the Client
     pub async fn who_am_i(client: &mut Client) -> Result<Self, ClientError> {
         // Uhh we don't acutally need the ID for this one. There is probably a better pattern for this.
-        let response: ReadWhoAmIResponse = client.call_core(ReadWhoAmI).await?;
+        let response: ReadWhoAmIResponse = client.call(ReadWhoAmI).await?;
         Ok(Self {
             id: response.account_id,
         })
@@ -156,13 +134,13 @@ impl Account {
 
     /// Get the total usage for the account associated with the current credentials in the Client
     pub async fn usage(client: &mut Client) -> Result<u64, ClientError> {
-        let response = client.call_core(GetTotalUsage).await?;
+        let response = client.call(GetTotalUsage).await?;
         Ok(response.size as u64)
     }
 
     /// Get the usage limit for the account associated with the current credentials in the Client
     pub async fn usage_limit(client: &mut Client) -> Result<u64, ClientError> {
-        let response = client.call_core(GetUsageLimit).await?;
+        let response = client.call(GetUsageLimit).await?;
         Ok(response.size as u64)
     }
 }
@@ -220,29 +198,14 @@ pub mod test {
 
     #[tokio::test]
     async fn register_device() -> Result<(), ClientError> {
-        let mut client = unauthenticated_client().await;
+        let client = unauthenticated_client().await;
         let private_device_key = EcSignatureKey::generate().await.unwrap();
         // let public_key = private_key.public_key().unwrap();
         // let fingerprint = pretty_fingerprint(&public_key.fingerprint().await.unwrap());
 
-        let account = Account::register_device(&mut client, private_device_key).await?;
+        let account = Account::register_device(client, private_device_key).await?;
         println!("account: {:?}", account);
 
         Ok(())
     }
-
-    // #[tokio::test]
-    // async fn regwait_start() -> Result<(), ClientError> {
-    //     let mut client = unauthenticated_client().await;
-    //     let private_key = EcSignatureKey::generate().await.unwrap();
-    //     let public_key = private_key.public_key().unwrap();
-    //     let fingerprint = pretty_fingerprint(&public_key.fingerprint().await.unwrap());
-
-    //     // Call the start_regwait funtion
-    //     let response = client.call_core(StartRegwait { fingerprint }).await?;
-
-    //     println!("response: {:?}", response);
-
-    //     Ok(())
-    // }
 }

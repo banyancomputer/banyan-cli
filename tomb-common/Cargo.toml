@@ -37,6 +37,7 @@ bytes = "1.5.0"
 async-recursion = "1.0.5"
 open = "5.0.0"
 base64-url = "2.0.0"
+tokio.workspace = true
 
 [dev-dependencies]
 fs_extra = { workspace = true }

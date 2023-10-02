@@ -46,7 +46,7 @@ impl BucketKey {
         client: &mut Client,
     ) -> Result<Self, ClientError> {
         let response: CreateBucketKeyResponse = client
-            .call_core(CreateBucketKey {
+            .call(CreateBucketKey {
                 bucket_id,
                 pem: pem.clone(),
             })
@@ -63,7 +63,7 @@ impl BucketKey {
     /// Read all Bucket Keys for a bucket
     pub async fn read_all(bucket_id: Uuid, client: &mut Client) -> Result<Vec<Self>, ClientError> {
         let response: ReadAllBucketKeysResponse =
-            client.call_core(ReadAllBucketKeys { bucket_id }).await?;
+            client.call(ReadAllBucketKeys { bucket_id }).await?;
         let mut bucket_keys = Vec::new();
         for key in response.0 {
             bucket_keys.push(Self {
@@ -79,8 +79,7 @@ impl BucketKey {
 
     /// Read a Bucket Key
     pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
-        let response: ReadBucketKeyResponse =
-            client.call_core(ReadBucketKey { bucket_id, id }).await?;
+        let response: ReadBucketKeyResponse = client.call(ReadBucketKey { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
             bucket_id,
@@ -93,7 +92,7 @@ impl BucketKey {
     /// Delete a Bucket Key
     pub async fn delete(self, client: &mut Client) -> Result<String, ClientError> {
         let response = client
-            .call_core(DeleteBucketKey {
+            .call(DeleteBucketKey {
                 bucket_id: self.bucket_id,
                 id: self.id,
             })
@@ -107,7 +106,7 @@ impl BucketKey {
         id: Uuid,
         client: &mut Client,
     ) -> Result<String, ClientError> {
-        let response = client.call_core(DeleteBucketKey { bucket_id, id }).await?;
+        let response = client.call(DeleteBucketKey { bucket_id, id }).await?;
         Ok(response.id.to_string())
     }
 
@@ -118,7 +117,7 @@ impl BucketKey {
         client: &mut Client,
     ) -> Result<String, ClientError> {
         Ok(client
-            .call_core(RejectBucketKey { bucket_id, id })
+            .call(RejectBucketKey { bucket_id, id })
             .await?
             .id
             .to_string())

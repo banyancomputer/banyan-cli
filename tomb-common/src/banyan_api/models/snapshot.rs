@@ -41,7 +41,7 @@ impl Snapshot {
             bucket_id: self.bucket_id,
             snapshot_id: self.id,
         };
-        let response = client.call_core(request).await?;
+        let response = client.call(request).await?;
         Ok(response.metadata_id)
     }
     /// Get the metadata for this snapshot

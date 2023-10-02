@@ -53,3 +53,6 @@ harness = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
+
+[features]
+fake = []

@@ -1,14 +1,14 @@
 use crate::banyan_api::requests::ApiRequest;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use uuid::{Uuid, Version};
+use uuid::Uuid;
 
-#[derive(Debug, Serialize)]
-pub struct StartRegwait {
+#[derive(Debug, Serialize, Default)]
+pub struct Regwait {
     pub nonce: Uuid,
 }
 
-impl StartRegwait {
+impl Regwait {
     pub fn new() -> Self {
         Self {
             nonce: uuid::Uuid::new_v4(),
@@ -17,26 +17,26 @@ impl StartRegwait {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StartRegwaitResponse {
+pub struct RegwaitResponse {
     pub account_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StartRegwaitError {
+pub struct RegwaitError {
     msg: String,
 }
 
-impl std::fmt::Display for StartRegwaitError {
+impl std::fmt::Display for RegwaitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.msg)
     }
 }
 
-impl Error for StartRegwaitError {}
+impl Error for RegwaitError {}
 
-impl ApiRequest for StartRegwait {
-    type ResponseType = StartRegwaitResponse;
-    type ErrorType = StartRegwaitError;
+impl ApiRequest for Regwait {
+    type ResponseType = RegwaitResponse;
+    type ErrorType = RegwaitError;
 
     fn build_request(
         self,

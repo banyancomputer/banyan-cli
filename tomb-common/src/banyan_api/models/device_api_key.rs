@@ -21,9 +21,8 @@ pub struct DeviceApiKey {
 impl DeviceApiKey {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create(pem: String, client: &mut Client) -> Result<Self, ClientError> {
-        let response: CreateDeviceApiKeyResponse = client
-            .call_core(CreateDeviceApiKey { pem: pem.clone() })
-            .await?;
+        let response: CreateDeviceApiKeyResponse =
+            client.call(CreateDeviceApiKey { pem: pem.clone() }).await?;
         Ok(Self {
             id: response.id,
             fingerprint: response.fingerprint,
@@ -33,7 +32,7 @@ impl DeviceApiKey {
 
     /// Read all instances of this model or data structure.
     pub async fn read_all(client: &mut Client) -> Result<Vec<Self>, ClientError> {
-        let response: ReadAllDeviceApiKeysResponse = client.call_core(ReadAllDeviceApiKeys).await?;
+        let response: ReadAllDeviceApiKeysResponse = client.call(ReadAllDeviceApiKeys).await?;
         // Map the response to the model
         let mut device_api_keys = Vec::new();
         for device_api_key in response.0 {
@@ -48,7 +47,7 @@ impl DeviceApiKey {
 
     /// Get the account associated with the current credentials. You do not need to pass an ID for this request.
     pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ClientError> {
-        let response: ReadDeviceApiKeyResponse = client.call_core(ReadDeviceApiKey { id }).await?;
+        let response: ReadDeviceApiKeyResponse = client.call(ReadDeviceApiKey { id }).await?;
         Ok(Self {
             id: response.id,
             fingerprint: response.fingerprint,
@@ -58,16 +57,14 @@ impl DeviceApiKey {
 
     /// Delete the device api key from the account
     pub async fn delete(self, _client: &mut Client) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse = _client
-            .call_core(DeleteDeviceApiKey { id: self.id })
-            .await?;
+        let response: DeleteDeviceApiKeyResponse =
+            _client.call(DeleteDeviceApiKey { id: self.id }).await?;
         Ok(response.id.to_string())
     }
 
     /// Delete the device api key from the account by id
     pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse =
-            client.call_core(DeleteDeviceApiKey { id }).await?;
+        let response: DeleteDeviceApiKeyResponse = client.call(DeleteDeviceApiKey { id }).await?;
         Ok(response.id.to_string())
     }
 }

@@ -106,7 +106,7 @@ impl Bucket {
         client: &mut Client,
     ) -> Result<(Self, BucketKey), ClientError> {
         let response: CreateBucketResponse = client
-            .call_core(CreateBucket {
+            .call(CreateBucket {
                 name,
                 r#type,
                 initial_bucket_key_pem: initial_bucket_key_pem.clone(),
@@ -132,7 +132,7 @@ impl Bucket {
 
     /// Read all instances of this model or data structure.
     pub async fn read_all(client: &mut Client) -> Result<Vec<Self>, ClientError> {
-        let response: ReadAllBucketsResponse = client.call_core(ReadAllBuckets).await?;
+        let response: ReadAllBucketsResponse = client.call(ReadAllBuckets).await?;
         // Map the response to the model
         let mut buckets = Vec::new();
         for bucket in response.0 {
@@ -148,7 +148,7 @@ impl Bucket {
 
     /// Get the account associated with the current credentials. You do not need to pass an ID for this request.
     pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ClientError> {
-        let response: ReadBucketResponse = client.call_core(ReadBucket { id }).await?;
+        let response: ReadBucketResponse = client.call(ReadBucket { id }).await?;
         Ok(Self {
             id: response.id,
             name: response.name,
@@ -159,9 +159,7 @@ impl Bucket {
 
     /// Get the snapshots for the bucket
     pub async fn list_snapshots(&self, client: &mut Client) -> Result<Vec<Snapshot>, ClientError> {
-        let response = client
-            .call_core(ReadAllSnapshots { bucket_id: self.id })
-            .await?;
+        let response = client.call(ReadAllSnapshots { bucket_id: self.id }).await?;
         Ok(response
             .0
             .into_iter()
@@ -180,7 +178,7 @@ impl Bucket {
         client: &mut Client,
         bucket_id: Uuid,
     ) -> Result<Vec<Snapshot>, ClientError> {
-        let response = client.call_core(ReadAllSnapshots { bucket_id }).await?;
+        let response = client.call(ReadAllSnapshots { bucket_id }).await?;
         Ok(response
             .0
             .into_iter()
@@ -196,7 +194,7 @@ impl Bucket {
 
     /// Get the usage for the bucket
     pub async fn usage(&self, client: &mut Client) -> Result<usize, ClientError> {
-        let response = client.call_core(GetBucketUsage { id: self.id }).await?;
+        let response = client.call(GetBucketUsage { id: self.id }).await?;
         Ok(response.size as usize)
     }
 
