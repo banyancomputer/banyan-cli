@@ -47,22 +47,26 @@ impl Account {
         client: Client,
         private_device_key: EcSignatureKey,
     ) -> Result<Self, ClientError> {
+        // Create a public key from the
         let public_device_key = private_device_key
             .public_key()
-            .expect("failed to create public key");
-        // let public_device_key_fingerprint = pretty_fingerprint(&public_device_key.fingerprint().await.expect("unable to generate fingerprint"));
+            .map_err(ClientError::crypto_error)?;
+        // Bytes of the public device key
+        let public_device_key_bytes = public_device_key
+            .export()
+            .await
+            .map_err(ClientError::crypto_error)?;
         // Public device key in PEM format
         let public_device_key =
-            String::from_utf8(public_device_key.export().await.expect("cant export key"))
-                .expect("cant convert key bytes to string");
+            String::from_utf8(public_device_key_bytes).expect("cant convert key bytes to string");
         // Strip the public key of its new lines
         let mut stripped_public_key = public_device_key.replace('\n', "");
         // Strip the public key of its prefix and suffix
         stripped_public_key = stripped_public_key
             .strip_prefix("-----BEGIN PUBLIC KEY-----")
-            .unwrap()
+            .expect("unable to strip PEM prefix")
             .strip_suffix("-----END PUBLIC KEY-----")
-            .unwrap()
+            .expect("unable to strip PEM suffix")
             .to_string();
 
         // Represent the weird b64 characters with ones that are url-valid
@@ -71,8 +75,6 @@ impl Account {
             .replace('/', "_")
             .replace('=', ".")
             .to_string();
-        println!("the stripped public key:\n ~{}~", stripped_public_key);
-        println!("the encoded public key:\n ~{}~", encoded_public_key);
 
         // Create a new nonce to identify this registration
         let nonce = Uuid::new_v4();
@@ -112,14 +114,11 @@ impl Account {
                     id: response.account_id,
                 })
             }
-            Ok(Err(err)) => {
-                println!("client error on start_regwait: {}", err);
-                Err(err)
-            }
-            Err(err) => {
-                println!("join error!: {}", err);
-                panic!("tomb errored while joining a thread")
-            }
+            Ok(Err(err)) => Err(err),
+            Err(err) => Err(ClientError::custom_error(&format!(
+                "joining error: {}",
+                err
+            ))),
         }
     }
 

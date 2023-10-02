@@ -1,6 +1,8 @@
 use crate::{
-    cli::command::MetadataSubCommand, pipelines::error::TombError,
-    types::config::globalconfig::GlobalConfig, utils::wnfsio::compute_directory_size,
+    cli::command::MetadataSubCommand,
+    pipelines::error::TombError,
+    types::config::globalconfig::GlobalConfig,
+    utils::wnfsio::compute_directory_size,
 };
 use anyhow::anyhow;
 use futures_util::StreamExt;
@@ -17,15 +19,12 @@ pub(crate) async fn pipeline(
 ) -> Result<String, TombError> {
     match command {
         // Read an existing metadata
-        MetadataSubCommand::Read {
-            bucket_specifier,
-            metadata_id,
-        } => {
+        MetadataSubCommand::Read(metadata_specifier) => {
             // Get Bucket config
-            let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+            let config = global.get_bucket_by_specifier(&metadata_specifier.bucket_specifier)?;
             // If we can get the metadata
             if let Some(remote_id) = config.remote_id {
-                Metadata::read(remote_id, metadata_id, client)
+                Metadata::read(remote_id, metadata_specifier.metadata_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))
                     .map_err(TombError::client_error)
@@ -94,13 +93,11 @@ pub(crate) async fn pipeline(
                 .map_err(TombError::client_error)
         }
         // Pull a Metadata and replace the local copy
-        MetadataSubCommand::Pull {
-            bucket_specifier,
-            metadata_id,
-        } => {
-            let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+        MetadataSubCommand::Pull(metadata_specifier) => {
+            let config = global.get_bucket_by_specifier(&metadata_specifier.bucket_specifier)?;
             let bucket_id = config.remote_id.expect("no remote id");
-            let metadata = Metadata::read(bucket_id, metadata_id, client).await?;
+            let metadata =
+                Metadata::read(bucket_id, metadata_specifier.metadata_id, client).await?;
             let mut byte_stream = metadata.pull(client).await?;
             let mut file = tokio::fs::File::create(&config.metadata.path).await?;
 
@@ -115,13 +112,11 @@ pub(crate) async fn pipeline(
             Ok("successfully downloaded metadata".to_string())
         }
         // Take a Cold Snapshot of the remote metadata
-        MetadataSubCommand::Snapshot {
-            bucket_specifier,
-            metadata_id,
-        } => {
-            let config = global.get_bucket_by_specifier(&bucket_specifier)?;
+        MetadataSubCommand::Snapshot(metadata_specifier) => {
+            let config = global.get_bucket_by_specifier(&metadata_specifier.bucket_specifier)?;
             let bucket_id = config.remote_id.expect("no remote id");
-            let metadata = Metadata::read(bucket_id, metadata_id, client).await?;
+            let metadata =
+                Metadata::read(bucket_id, metadata_specifier.metadata_id, client).await?;
 
             metadata
                 .snapshot(client)

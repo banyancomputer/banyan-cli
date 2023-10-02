@@ -187,19 +187,21 @@ pub enum KeySubCommand {
     Reject(KeySpecifier),
 }
 
+/// Unified way of specifying a Key
+#[derive(Debug, Clone, Args)]
+pub struct MetadataSpecifier {
+    #[clap(flatten)]
+    pub(crate) bucket_specifier: BucketSpecifier,
+    /// Uuid of the Metadata
+    #[arg(short, long)]
+    pub(crate) metadata_id: Uuid,
+}
+
 /// Subcommand for Bucket Metadata
 #[derive(Subcommand, Clone, Debug)]
 pub enum MetadataSubCommand {
     /// Read an individual Metadata Id
-    Read {
-        /// Bucket in question
-        #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
-
-        /// Id of the Metadata
-        #[arg(short, long)]
-        metadata_id: Uuid,
-    },
+    Read(MetadataSpecifier),
     /// Read the currently active Metadata
     ReadCurrent(BucketSpecifier),
     /// List all Metadatas associated with Bucket
@@ -207,23 +209,7 @@ pub enum MetadataSubCommand {
     /// Upload Metadata
     Push(BucketSpecifier),
     /// Download Metadata
-    Pull {
-        /// Bucket in question
-        #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
-
-        /// Id of the Metadata
-        #[arg(short, long)]
-        metadata_id: Uuid,
-    },
+    Pull(MetadataSpecifier),
     /// Grab Snapshot
-    Snapshot {
-        /// Bucket in question
-        #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
-
-        /// Id of the Metadata
-        #[arg(short, long)]
-        metadata_id: Uuid,
-    },
+    Snapshot(MetadataSpecifier),
 }
