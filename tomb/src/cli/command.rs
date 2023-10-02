@@ -6,17 +6,11 @@ use uuid::Uuid;
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
-    /// Set the remote endpoint where Buckets are synced to / from
-    SetRemoteCore {
-        /// Server address
-        #[arg(short, long)]
-        address: String,
-    },
-    /// Set the remote endpoint where Buckets are synced to / from
-    SetRemoteData {
-        /// Server address
-        #[arg(short, long)]
-        address: String,
+    /// Set API endpoints
+    Configure {
+        /// Subcommand
+        #[clap(subcommand)]
+        subcommand: ConfigureSubCommand,
     },
     /// Login, Register, etc.
     Auth {
@@ -29,6 +23,42 @@ pub enum Command {
         /// Subcommand
         #[clap(subcommand)]
         subcommand: BucketsSubCommand,
+    },
+}
+
+/// Subcommand for getting and setting remote addresses
+#[derive(Subcommand, Clone, Debug)]
+pub enum AddressSubCommand {
+    /// Print the address as it is currently configured
+    Get,
+    /// Set the address to a new value
+    Set {
+        /// Server address
+        #[arg(short, long)]
+        address: String,
+    },
+}
+
+/// Subcommand for endpoint configuration
+#[derive(Subcommand, Clone, Debug)]
+pub enum ConfigureSubCommand {
+    /// Address of Core server
+    Core {
+        /// Server address
+        #[clap(subcommand)]
+        address: AddressSubCommand,
+    },
+    /// Address of Data server
+    Data {
+        /// Server address
+        #[clap(subcommand)]
+        address: AddressSubCommand,
+    },
+    /// Address of Frontend server
+    Frontend {
+        /// Server address
+        #[clap(subcommand)]
+        address: AddressSubCommand,
     },
 }
 

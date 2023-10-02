@@ -29,8 +29,10 @@ pub struct GlobalConfig {
     pub api_key_path: PathBuf,
     /// Remote endpoint for Metadata API
     pub remote_core: Option<String>,
-    /// Remote endpoint for Metadata API upload
+    /// Remote endpoint for Full Data API
     pub remote_data: Option<String>,
+    /// Remote endpoint for Frontend interaction
+    pub remote_frontend: Option<String>,
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
     /// Bucket Configurations
@@ -43,6 +45,7 @@ impl Default for GlobalConfig {
             version: env!("CARGO_PKG_VERSION").to_string(),
             remote_core: None,
             remote_data: None,
+            remote_frontend: None,
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
             remote_account_id: None,

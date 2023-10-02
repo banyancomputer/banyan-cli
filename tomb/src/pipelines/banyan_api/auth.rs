@@ -31,8 +31,10 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
         #[cfg(feature = "fake")]
         AuthSubCommand::Register => {
             // Additional imports
-            use tomb_common::banyan_api::requests::core::auth::fake_account::create::{CreateAccountResponse, CreateFakeAccount};
-            use tomb_crypt::prelude::{EcSignatureKey, PublicKey, PrivateKey};
+            use tomb_common::banyan_api::requests::core::auth::fake_account::create::{
+                CreateAccountResponse, CreateFakeAccount,
+            };
+            use tomb_crypt::prelude::{EcSignatureKey, PrivateKey, PublicKey};
             // Create local keys
             let api_key = EcSignatureKey::generate().await?;
             let public_api_key = api_key.public_key()?;
