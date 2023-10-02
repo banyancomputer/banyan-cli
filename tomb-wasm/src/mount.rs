@@ -827,17 +827,21 @@ impl WasmMount {
     /// * "missing metadata" - If the metadata is missing
     /// * "could not snapshot" - If the snapshot fails
     #[wasm_bindgen(js_name = snapshot)]
-    pub async fn snapshot(&mut self) -> TombResult<WasmSnapshot> {
+    pub async fn snapshot(&mut self) -> TombResult<String> {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
-        let metadata = self.metadata.as_mut().expect("missing metadata");
-        let snapshot = metadata
+        let metadata = self.metadata.as_mut().ok_or_else(|| {
+            TombWasmError("no metadata associated with mount to snapshot".to_string())
+        })?;
+
+        let snapshot_id = metadata
             .snapshot(&mut self.client)
             .await
-            .expect("could not snapshot");
-        metadata.snapshot_id = Some(snapshot.id);
+            .map_err(|err| TombWasmError(format!("unable to take a snapshot: {err}")))?;
+
+        metadata.snapshot_id = Some(snapshot_id);
         self.metadata = Some(metadata.to_owned());
-        // Ok
-        Ok(WasmSnapshot::from(snapshot))
+
+        Ok(snapshot_id.to_string())
     }
 
     /// Restore a mounted bucket

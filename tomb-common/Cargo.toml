@@ -36,6 +36,7 @@ unsigned-varint = "^0.7"
 bytes = "1.5.0"
 async-recursion = "1.0.5"
 base64-url = "2.0.0"
+mime_guess = "^2"
 
 [dev-dependencies]
 fs_extra = { workspace = true }

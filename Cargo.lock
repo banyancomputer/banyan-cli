@@ -4395,6 +4395,7 @@ dependencies = [
  "hex-literal",
  "lazy_static",
  "lz4_flex",
+ "mime_guess",
  "rand 0.8.5",
  "reqwest",
  "serde",
@@ -5067,7 +5068,7 @@ dependencies = [
 [[package]]
 name = "wnfs"
 version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#b6955f284343d418e6ae229209a2d07760c50bd7"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=main#b6955f284343d418e6ae229209a2d07760c50bd7"
 dependencies = [
  "aes-gcm",
  "aes-kw",
@@ -5097,7 +5098,7 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#b6955f284343d418e6ae229209a2d07760c50bd7"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=main#b6955f284343d418e6ae229209a2d07760c50bd7"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -5115,7 +5116,7 @@ dependencies = [
 [[package]]
 name = "wnfs-hamt"
 version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#b6955f284343d418e6ae229209a2d07760c50bd7"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=main#b6955f284343d418e6ae229209a2d07760c50bd7"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -5139,7 +5140,7 @@ dependencies = [
 [[package]]
 name = "wnfs-namefilter"
 version = "0.1.21"
-source = "git+https://github.com/banyancomputer/rs-wnfs#b6955f284343d418e6ae229209a2d07760c50bd7"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=main#b6955f284343d418e6ae229209a2d07760c50bd7"
 dependencies = [
  "anyhow",
  "async-once-cell",

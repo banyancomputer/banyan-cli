@@ -518,7 +518,9 @@ impl FsMetadata {
         content: Vec<u8>,
     ) -> Result<()> {
         let time = Utc::now();
+        let data_size = content.len();
         let mut rng = thread_rng();
+
         let result = self
             .root_dir
             .open_file_mut(
@@ -539,7 +541,20 @@ impl FsMetadata {
                 content_store,
                 &mut thread_rng(),
             )
-            .await
+            .await?;
+
+            let full_path: std::path::PathBuf = path_segments.iter().collect();
+            if let Some(mime) = mime_guess::MimeGuess::from_path(full_path).first() {
+                file.content
+                    .metadata
+                    .put("mime_type", Ipld::String(mime.essence_str().to_string()));
+            }
+
+            file.content
+                .metadata
+                .put("size", Ipld::Integer(data_size as i128));
+
+            Ok(())
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
         }
