@@ -1,8 +1,6 @@
 use crate::{
-    cli::command::MetadataSubCommand,
-    pipelines::error::TombError,
-    types::config::globalconfig::GlobalConfig,
-    utils::wnfsio::compute_directory_size,
+    cli::command::MetadataSubCommand, pipelines::error::TombError,
+    types::config::globalconfig::GlobalConfig, utils::wnfsio::compute_directory_size,
 };
 use anyhow::anyhow;
 use futures_util::StreamExt;
