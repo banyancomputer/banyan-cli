@@ -5,15 +5,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Default)]
 pub struct Regwait {
-    pub nonce: Uuid,
-}
-
-impl Regwait {
-    pub fn new() -> Self {
-        Self {
-            nonce: uuid::Uuid::new_v4(),
-        }
-    }
+    pub fingerprint: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,7 +39,7 @@ impl ApiRequest for Regwait {
         let full_url = base_url
             .join(&format!(
                 "/api/v1/auth/device_api_key/start_regwait/{}",
-                self.nonce
+                self.fingerprint
             ))
             .unwrap();
         // Run a get request

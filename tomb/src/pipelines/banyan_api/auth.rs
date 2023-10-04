@@ -5,8 +5,10 @@ use tomb_common::banyan_api::{
     client::Credentials, error::ClientError, models::account::Account,
     requests::core::auth::device_api_key::regwait::*,
 };
-use tomb_crypt::prelude::{PrivateKey, PublicKey};
-use uuid::Uuid;
+use tomb_crypt::{
+    prelude::{PrivateKey, PublicKey},
+    pretty_fingerprint,
+};
 
 /// Handle Auth management both locally and remotely based on CLI input
 pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
@@ -25,6 +27,10 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             let public_device_key = private_device_key
                 .public_key()
                 .map_err(ClientError::crypto_error)?;
+
+            // Create a fingerprint from the public key
+            let fingerprint = pretty_fingerprint(public_device_key.fingerprint().await?.as_slice());
+
             // Bytes of the public device key
             let public_device_key_bytes = public_device_key
                 .export()
@@ -34,6 +40,7 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             // Public device key in PEM format
             let public_device_key = String::from_utf8(public_device_key_bytes)
                 .expect("cant convert key bytes to string");
+
             // Strip the public key of its new lines
             let mut stripped_public_key = public_device_key.replace('\n', "");
             // Strip the public key of its prefix and suffix
@@ -50,13 +57,8 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
                 .replace('/', "_")
                 .replace('=', ".")
                 .to_string();
-
-            // Create a new nonce to identify this registration
-            let nonce = Uuid::new_v4();
             // Create a new request object with the nonce
-            let start_regwait = Regwait { nonce };
-            // Create a base64 url encoded version of the nonce
-            let b64_nonce = base64_url::encode(&nonce);
+            let start_regwait = Regwait { fingerprint };
             // Create a clone of the client to move into the handle
             let mut client_1 = client.clone();
             // Create a join handle for later use, starting the call immediately
@@ -72,13 +74,9 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             // Open this url with firefox
             open::with(
                 format!(
-                    "{}/api/auth/device/register?spki={}&nonce={}",
-                    global
-                        .clone()
-                        .remote_frontend
-                        .expect("no frontend url configured"),
-                    encoded_public_key,
-                    b64_nonce
+                    "{}/api/auth/device/register?spki={}",
+                    global.clone().remote_frontend,
+                    encoded_public_key
                 ),
                 "firefox",
             )

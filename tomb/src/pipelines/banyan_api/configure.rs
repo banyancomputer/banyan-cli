@@ -16,16 +16,14 @@ fn verify_address(address: &str) -> Result<()> {
 }
 
 /// Process an individual global configuration field
-fn process_field(field: &mut Option<String>, address: AddressSubCommand) -> Result<String> {
+fn process_field(field: &mut String, address: AddressSubCommand) -> Result<String> {
     match address {
-        AddressSubCommand::Get => Ok(field
-            .clone()
-            .unwrap_or("<< NO ADDRESS CONFIGURED >>".to_string())),
+        AddressSubCommand::Get => Ok(field.clone()),
         AddressSubCommand::Set { address } => {
             // Verify the address
             verify_address(&address)?;
             // Update the address
-            *field = Some(address);
+            *field = address;
             // Report okay
             Ok("<< CONFIGURATION UPDATED SUCCESSFULLY >>".to_string())
         }

@@ -172,9 +172,7 @@ impl Client {
     ) -> Result<T::ResponseType, ClientError> {
         // Determine if this request requires authentication
         let add_authentication = request.requires_authentication();
-        // Create the request builder
         let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
-        // If we need authentication
         if add_authentication {
             // Obtain the bearer token
             let bearer_token = self.bearer_token().await?;
