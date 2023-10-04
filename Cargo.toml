@@ -50,7 +50,6 @@ serde_json = { version = "^1", features = ["std"]}
 serde = {version= "^1", features = ["derive"]}
 tokio = { version = "^1", features = ["full", "io-util", "fs"]}
 tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "alex/rust-crypto", version = "^0.1" }
-uuid = { version = "^1", features = ["serde", "v4"] }
 
 # For local dev if needed..
 #wnfs = { path = "../rs-wnfs/wnfs" }
