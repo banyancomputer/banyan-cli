@@ -43,9 +43,9 @@ impl Default for GlobalConfig {
     fn default() -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            remote_core: "http://127.0.0.1:3001/".to_string(),
-            remote_data: "http://127.0.0.1:3002/".to_string(),
-            remote_frontend: "https://alpha.data.banyan.computer/".to_string(),
+            remote_core: "http://127.0.0.1:3001".to_string(),
+            remote_data: "http://127.0.0.1:3002".to_string(),
+            remote_frontend: "http://127.0.0.1:3000".to_string(),
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
             remote_account_id: None,

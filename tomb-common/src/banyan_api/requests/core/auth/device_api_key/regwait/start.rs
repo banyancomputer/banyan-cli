@@ -4,31 +4,31 @@ use std::error::Error;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Default)]
-pub struct Regwait {
+pub struct StartRegwait {
     pub fingerprint: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RegwaitResponse {
+pub struct StartRegwaitResponse {
     pub account_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RegwaitError {
+pub struct StartRegwaitError {
     msg: String,
 }
 
-impl std::fmt::Display for RegwaitError {
+impl std::fmt::Display for StartRegwaitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.msg)
     }
 }
 
-impl Error for RegwaitError {}
+impl Error for StartRegwaitError {}
 
-impl ApiRequest for Regwait {
-    type ResponseType = RegwaitResponse;
-    type ErrorType = RegwaitError;
+impl ApiRequest for StartRegwait {
+    type ResponseType = StartRegwaitResponse;
+    type ErrorType = StartRegwaitError;
 
     fn build_request(
         self,

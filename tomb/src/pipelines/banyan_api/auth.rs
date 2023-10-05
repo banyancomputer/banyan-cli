@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use tokio::task::JoinHandle;
@@ -5,7 +7,7 @@ use tomb_common::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
     models::account::Account,
-    requests::core::auth::device_api_key::regwait::*,
+    requests::core::auth::device_api_key::regwait::{end::*, start::*},
 };
 use tomb_crypt::{
     prelude::{EcSignatureKey, PrivateKey, PublicKey},
@@ -74,7 +76,7 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
 }
 
 async fn register_device(
-    client: Client,
+    mut client: Client,
     private_device_key: EcSignatureKey,
 ) -> Result<Credentials> {
     // Create a public key from the
@@ -83,7 +85,9 @@ async fn register_device(
         .map_err(ClientError::crypto_error)?;
 
     // Create a fingerprint from the public key
-    let fingerprint = pretty_fingerprint(public_device_key.fingerprint().await?.as_slice());
+    let fingerprint = public_device_key.fingerprint().await?;
+    println!("fingerprint bytes: {:?}", fingerprint);
+    let fingerprint = pretty_fingerprint(fingerprint.as_slice());
 
     // Bytes of the public device key
     let public_device_key_bytes = public_device_key
@@ -111,16 +115,22 @@ async fn register_device(
         .replace('/', "_")
         .replace('=', ".")
         .to_string();
+
     // Create a new request object with the nonce
-    let start_regwait = Regwait { fingerprint };
+    let start_regwait = StartRegwait {
+        fingerprint: fingerprint.clone(),
+    };
     // Create a clone of the client to move into the handle
     let mut client_1 = client.clone();
     // Create a join handle for later use, starting the call immediately
-    let join_handle: JoinHandle<Result<RegwaitResponse, ClientError>> =
-        tokio::task::spawn(async move {
+    let join_handle: JoinHandle<Result<StartRegwaitResponse, ClientError>> =
+        tokio::spawn(async move {
             // Build the request
             client_1.call(start_regwait).await
         });
+
+    // Give the core server a bit of time to start the call
+    std::thread::sleep(Duration::from_secs(3));
 
     // Should be this in prod TODO
     // https://alpha.data.banyan.computer/
@@ -137,16 +147,27 @@ async fn register_device(
     )
     .expect("failed to open browser");
 
-    let response = join_handle
-        .await
-        .map_err(anyhow::Error::new)
-        .map(|v| v.map_err(anyhow::Error::new))??;
+    // Give the server a bit of time to update the db
+    std::thread::sleep(Duration::from_secs(3));
 
-    // Update the client's credentials
-    Ok(Credentials {
-        account_id: response.account_id,
-        signing_key: private_device_key,
-    })
+    // Ask the server to pop the fingerprint from the AppState and check that it now exists in SQL db while doing so
+    match client.call_no_content(EndRegwait { fingerprint }).await {
+        // If the end call succeeded
+        Ok(_) => {
+            //
+            let start_response = join_handle
+                .await
+                .map_err(anyhow::Error::new)
+                .map(|v| v.map_err(anyhow::Error::new))??;
+
+            // Update the client's credentials
+            Ok(Credentials {
+                account_id: start_response.account_id,
+                signing_key: private_device_key,
+            })
+        }
+        Err(_) => Err(anyhow::anyhow!("end_regwait failed")),
+    }
 }
 
 #[cfg(test)]
@@ -156,11 +177,11 @@ mod test {
     use tomb_crypt::prelude::{EcSignatureKey, PrivateKey};
 
     #[tokio::test]
-    async fn register_device_test() -> Result<()> {
+    async fn register_new_device() -> Result<()> {
         let client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
         let private_device_key = EcSignatureKey::generate().await.unwrap();
-        let account = super::register_device(client, private_device_key).await?;
-        println!("account: {:?}", account);
+        let credentials = super::register_device(client, private_device_key).await?;
+        println!("credentials: {:?}", credentials);
         Ok(())
     }
 }
