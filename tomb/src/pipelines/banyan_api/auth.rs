@@ -88,6 +88,7 @@ async fn register_device(
     let fingerprint = public_device_key.fingerprint().await?;
     println!("fingerprint bytes: {:?}", fingerprint);
     let fingerprint = pretty_fingerprint(fingerprint.as_slice());
+    println!("fingerprint: {}", fingerprint.clone());
 
     // Bytes of the public device key
     let public_device_key_bytes = public_device_key
@@ -150,24 +151,18 @@ async fn register_device(
     // Give the server a bit of time to update the db
     std::thread::sleep(Duration::from_secs(3));
 
-    // Ask the server to pop the fingerprint from the AppState and check that it now exists in SQL db while doing so
-    match client.call_no_content(EndRegwait { fingerprint }).await {
-        // If the end call succeeded
-        Ok(_) => {
-            //
-            let start_response = join_handle
-                .await
-                .map_err(anyhow::Error::new)
-                .map(|v| v.map_err(anyhow::Error::new))??;
+    
+    //
+    let start_response = join_handle
+    .await
+    .map_err(anyhow::Error::new)
+    .map(|v| v.map_err(anyhow::Error::new))??;
 
-            // Update the client's credentials
-            Ok(Credentials {
-                account_id: start_response.account_id,
-                signing_key: private_device_key,
-            })
-        }
-        Err(_) => Err(anyhow::anyhow!("end_regwait failed")),
-    }
+    // Update the client's credentials
+    Ok(Credentials {
+    account_id: start_response.account_id,
+    signing_key: private_device_key,
+    })
 }
 
 #[cfg(test)]

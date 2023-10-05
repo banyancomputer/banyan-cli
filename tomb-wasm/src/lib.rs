@@ -8,6 +8,7 @@ pub mod utils;
 mod wasm_bucket;
 mod wasm_bucket_key;
 
+use tomb_common::banyan_api::requests::core::auth::device_api_key::regwait::end::EndRegwait;
 pub use wasm_bucket::WasmBucket;
 pub use wasm_bucket_key::WasmBucketKey;
 
@@ -300,6 +301,12 @@ impl TombWasm {
             .map_err(|err| TombWasmError(format!("failed to delete bucket: {err}")).into())
     }
 
+    /// End Registration waiting
+    /// 
+    #[wasm_bindgen(js_name = completeDeviceKeyRegistration)]
+    pub async fn complete_device_key_registration(&mut self, fingerprint: String) -> TombResult<()> {
+        self.client().call_no_content(EndRegwait { fingerprint }).await.map_err(|err| TombWasmError(format!("failed to complete device key registration: {err}")).into())
+    }
     /* Bucket Mounting interface */
 
     /// Mount a bucket as a File System that can be managed by the user

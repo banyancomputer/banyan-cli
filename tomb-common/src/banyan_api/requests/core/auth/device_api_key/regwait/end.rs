@@ -45,8 +45,8 @@ impl ApiRequest for EndRegwait {
     }
 
     fn requires_authentication(&self) -> bool {
-        // No auth required
-        false
+        // Auth is required - this will only be called from WASM
+        true
     }
 }
 
