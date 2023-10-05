@@ -108,17 +108,4 @@ pub mod test {
         assert_eq!(usage_limit, 5 * 1024 * 1024 * 1024 * 1024);
         Ok(())
     }
-
-    // #[tokio::test]
-    // async fn register_device() -> Result<(), ClientError> {
-    //     let client = unauthenticated_client().await;
-    //     let private_device_key = EcSignatureKey::generate().await.unwrap();
-    //     // let public_key = private_key.public_key().unwrap();
-    //     // let fingerprint = pretty_fingerprint(&public_key.fingerprint().await.unwrap());
-
-    //     let account = Account::register_device(client, private_device_key).await?;
-    //     println!("account: {:?}", account);
-
-    //     Ok(())
-    // }
 }

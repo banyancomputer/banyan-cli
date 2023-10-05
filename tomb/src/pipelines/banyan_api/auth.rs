@@ -2,11 +2,13 @@ use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalCon
 use anyhow::Result;
 use tokio::task::JoinHandle;
 use tomb_common::banyan_api::{
-    client::Credentials, error::ClientError, models::account::Account,
+    client::{Client, Credentials},
+    error::ClientError,
+    models::account::Account,
     requests::core::auth::device_api_key::regwait::*,
 };
 use tomb_crypt::{
-    prelude::{PrivateKey, PublicKey},
+    prelude::{EcSignatureKey, PrivateKey, PublicKey},
     pretty_fingerprint,
 };
 
@@ -22,84 +24,11 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
         AuthSubCommand::RegisterDevice => {
             // let device_key = EcEncryptionKey::generate().await?;
             let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
-
-            // Create a public key from the
-            let public_device_key = private_device_key
-                .public_key()
-                .map_err(ClientError::crypto_error)?;
-
-            // Create a fingerprint from the public key
-            let fingerprint = pretty_fingerprint(public_device_key.fingerprint().await?.as_slice());
-
-            // Bytes of the public device key
-            let public_device_key_bytes = public_device_key
-                .export()
-                .await
-                .map_err(ClientError::crypto_error)?;
-
-            // Public device key in PEM format
-            let public_device_key = String::from_utf8(public_device_key_bytes)
-                .expect("cant convert key bytes to string");
-
-            // Strip the public key of its new lines
-            let mut stripped_public_key = public_device_key.replace('\n', "");
-            // Strip the public key of its prefix and suffix
-            stripped_public_key = stripped_public_key
-                .strip_prefix("-----BEGIN PUBLIC KEY-----")
-                .expect("unable to strip PEM prefix")
-                .strip_suffix("-----END PUBLIC KEY-----")
-                .expect("unable to strip PEM suffix")
-                .to_string();
-
-            // Represent the weird b64 characters with ones that are url-valid
-            let encoded_public_key = stripped_public_key
-                .replace('+', "-")
-                .replace('/', "_")
-                .replace('=', ".")
-                .to_string();
-            // Create a new request object with the nonce
-            let start_regwait = Regwait { fingerprint };
-            // Create a clone of the client to move into the handle
-            let mut client_1 = client.clone();
-            // Create a join handle for later use, starting the call immediately
-            let join_handle: JoinHandle<Result<RegwaitResponse, ClientError>> =
-                tokio::task::spawn(async move {
-                    // Build the request
-                    client_1.call(start_regwait).await
-                });
-
-            // Should be this in prod TODO
-            // https://alpha.data.banyan.computer/
-
-            // Open this url with firefox
-            open::with(
-                format!(
-                    "{}/api/auth/device/register?spki={}",
-                    global.clone().remote_frontend,
-                    encoded_public_key
-                ),
-                "firefox",
-            )
-            .expect("failed to open browser");
-
-            // Now that the url has been opened, await the join handle
-            match join_handle.await {
-                Ok(Ok(response)) => {
-                    // Update the client's credentials
-                    client.with_credentials(Credentials {
-                        account_id: response.account_id,
-                        signing_key: private_device_key,
-                    });
-
-                    // Ok
-                    Ok("new device registered".to_string())
-                }
-                Ok(Err(err)) => Err(err),
-                Err(err) => Err(ClientError::custom_error(&format!(
-                    "joining error: {}",
-                    err
-                ))),
-            }
+            // Register this device key
+            let credentials = register_device(client.clone(), private_device_key).await?;
+            // Update client authentication
+            client.with_credentials(credentials);
+            Ok("account registered".to_string())
         }
         #[cfg(feature = "fake")]
         AuthSubCommand::Register => {
@@ -142,4 +71,96 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
 
     // Return
     result.map_err(anyhow::Error::new)
+}
+
+async fn register_device(
+    client: Client,
+    private_device_key: EcSignatureKey,
+) -> Result<Credentials> {
+    // Create a public key from the
+    let public_device_key = private_device_key
+        .public_key()
+        .map_err(ClientError::crypto_error)?;
+
+    // Create a fingerprint from the public key
+    let fingerprint = pretty_fingerprint(public_device_key.fingerprint().await?.as_slice());
+
+    // Bytes of the public device key
+    let public_device_key_bytes = public_device_key
+        .export()
+        .await
+        .map_err(ClientError::crypto_error)?;
+
+    // Public device key in PEM format
+    let public_device_key =
+        String::from_utf8(public_device_key_bytes).expect("cant convert key bytes to string");
+
+    // Strip the public key of its new lines
+    let mut stripped_public_key = public_device_key.replace('\n', "");
+    // Strip the public key of its prefix and suffix
+    stripped_public_key = stripped_public_key
+        .strip_prefix("-----BEGIN PUBLIC KEY-----")
+        .expect("unable to strip PEM prefix")
+        .strip_suffix("-----END PUBLIC KEY-----")
+        .expect("unable to strip PEM suffix")
+        .to_string();
+
+    // Represent the weird b64 characters with ones that are url-valid
+    let encoded_public_key = stripped_public_key
+        .replace('+', "-")
+        .replace('/', "_")
+        .replace('=', ".")
+        .to_string();
+    // Create a new request object with the nonce
+    let start_regwait = Regwait { fingerprint };
+    // Create a clone of the client to move into the handle
+    let mut client_1 = client.clone();
+    // Create a join handle for later use, starting the call immediately
+    let join_handle: JoinHandle<Result<RegwaitResponse, ClientError>> =
+        tokio::task::spawn(async move {
+            // Build the request
+            client_1.call(start_regwait).await
+        });
+
+    // Should be this in prod TODO
+    // https://alpha.data.banyan.computer/
+
+    let global = GlobalConfig::from_disk().await?;
+
+    // Open this url with firefox
+    open::with(
+        format!(
+            "{}/api/auth/device/register?spki={}",
+            global.remote_frontend, encoded_public_key
+        ),
+        "firefox",
+    )
+    .expect("failed to open browser");
+
+    let response = join_handle
+        .await
+        .map_err(anyhow::Error::new)
+        .map(|v| v.map_err(anyhow::Error::new))??;
+
+    // Update the client's credentials
+    Ok(Credentials {
+        account_id: response.account_id,
+        signing_key: private_device_key,
+    })
+}
+
+#[cfg(test)]
+mod test {
+    use anyhow::Result;
+    use tomb_common::banyan_api::client::Client;
+    use tomb_crypt::prelude::{EcSignatureKey, PrivateKey};
+
+    #[tokio::test]
+    async fn register_device_test() -> Result<()> {
+        let client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
+        let private_device_key = EcSignatureKey::generate().await.unwrap();
+        let account = super::register_device(client, private_device_key).await?;
+        println!("account: {:?}", account);
+        Ok(())
+    }
 }
