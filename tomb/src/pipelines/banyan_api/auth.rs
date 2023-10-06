@@ -151,17 +151,16 @@ async fn register_device(
     // Give the server a bit of time to update the db
     std::thread::sleep(Duration::from_secs(3));
 
-    
     //
     let start_response = join_handle
-    .await
-    .map_err(anyhow::Error::new)
-    .map(|v| v.map_err(anyhow::Error::new))??;
+        .await
+        .map_err(anyhow::Error::new)
+        .map(|v| v.map_err(anyhow::Error::new))??;
 
     // Update the client's credentials
     Ok(Credentials {
-    account_id: start_response.account_id,
-    signing_key: private_device_key,
+        account_id: start_response.account_id,
+        signing_key: private_device_key,
     })
 }
 
