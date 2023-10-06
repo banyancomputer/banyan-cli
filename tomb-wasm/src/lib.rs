@@ -8,7 +8,13 @@ pub mod utils;
 mod wasm_bucket;
 mod wasm_bucket_key;
 
+use gloo::utils::window;
+use js_sys::ArrayBuffer;
+use js_sys::JsString;
+use js_sys::Reflect;
+use js_sys::Uint8Array;
 use tomb_common::banyan_api::requests::core::auth::device_api_key::regwait::end::EndRegwait;
+use wasm_bindgen_futures::JsFuture;
 pub use wasm_bucket::WasmBucket;
 pub use wasm_bucket_key::WasmBucketKey;
 
@@ -62,7 +68,7 @@ impl TombWasm {
     /// A new TombWasm instance
     ///
     /// Don't call it from multiple threads in parallel!
-    pub fn new(
+    pub async fn new(
         web_signing_key: CryptoKeyPair,
         account_id: String,
         core_endpoint: String,
@@ -77,8 +83,8 @@ impl TombWasm {
         log!("tomb-wasm: new()");
 
         let mut banyan_client = Client::new(&core_endpoint, &data_endpoint).unwrap();
+        let signing_key = key_pair_to_signature_key(&web_signing_key).await.expect("unable to create signature key from key pair");
 
-        let signing_key = EcSignatureKey::from(web_signing_key);
         let account_id = Uuid::parse_str(&account_id).unwrap();
         let banyan_credentials = Credentials {
             account_id,
@@ -240,7 +246,7 @@ impl TombWasm {
         log!("tomb-wasm: create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class).expect("Invalid storage class");
         let bucket_type = BucketType::from_str(&bucket_type).expect("Invalid bucket type");
-        let key = EcPublicEncryptionKey::from(initial_key);
+        let key = key_to_public_encryption_key(&initial_key).await?;
         let pem_bytes = key.export().await.expect("Failed to export wrapping key");
         let pem = String::from_utf8(pem_bytes).expect("Failed to encode pem");
         // Call the API
@@ -317,7 +323,7 @@ impl TombWasm {
     /// # Returns
     /// A WasmMount instance
     #[wasm_bindgen(js_name = mount)]
-    pub async fn mount(&mut self, bucket_id: String, key: CryptoKeyPair) -> TombResult<WasmMount> {
+    pub async fn mount(&mut self, bucket_id: String, key_pair: CryptoKeyPair) -> TombResult<WasmMount> {
         log!(format!("tomb-wasm: mount / {}", &bucket_id));
 
         // Parse the bucket id
@@ -328,7 +334,7 @@ impl TombWasm {
         ));
 
         // Load the EcEncryptionKey
-        let key = EcEncryptionKey::from(key);
+        let key = key_pair_to_encryption_key(&key_pair).await?;
         log!(format!(
             "tomb-wasm: mount / {} / reading bucket",
             &bucket_id
