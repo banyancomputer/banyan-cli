@@ -43,7 +43,7 @@ impl ApiRequest for StartRegwait {
             ))
             .unwrap();
         // Run a get request
-        client.get(full_url).json(&self)
+        client.get(full_url)
     }
 
     fn requires_authentication(&self) -> bool {

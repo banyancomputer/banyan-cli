@@ -32,7 +32,6 @@ impl ApiRequest for EndRegwait {
         base_url: &reqwest::Url,
         client: &reqwest::Client,
     ) -> reqwest::RequestBuilder {
-        println!("base_url: {:?}", base_url);
         // Create the full url
         let full_url = base_url
             .join(&format!(
@@ -41,7 +40,7 @@ impl ApiRequest for EndRegwait {
             ))
             .unwrap();
         // Run a get request
-        client.get(full_url).json(&self)
+        client.get(full_url)
     }
 
     fn requires_authentication(&self) -> bool {
@@ -53,17 +52,36 @@ impl ApiRequest for EndRegwait {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::banyan_api::models::account::test::unauthenticated_client;
+    use crate::banyan_api::{
+        models::account::test::authenticated_client,
+        requests::core::auth::device_api_key::regwait::start::StartRegwait,
+    };
 
     #[tokio::test]
     async fn regwait_fail() {
-        let mut client = unauthenticated_client().await;
+        let mut client = authenticated_client().await;
+
+        let fingerprint = "fingerprint".to_string();
+
+        let mut client_1 = client.clone();
+        let handle = tokio::spawn(async move {
+            client_1
+                .call_no_content(StartRegwait {
+                    fingerprint: fingerprint.clone(),
+                })
+                .await
+        });
+
+        std::thread::sleep(std::time::Duration::from_secs(3));
+
         // Try to end the regwait on a nonexistent fingerprint
         let result = client
-            .call(EndRegwait {
+            .call_no_content(EndRegwait {
                 fingerprint: "random_nonsense_string".to_string(),
             })
             .await;
+
+        let _ = handle.await;
 
         println!("result: {:?}", result);
     }

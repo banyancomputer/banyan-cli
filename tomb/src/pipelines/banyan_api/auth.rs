@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use tokio::task::JoinHandle;
@@ -7,7 +5,7 @@ use tomb_common::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
     models::account::Account,
-    requests::core::auth::device_api_key::regwait::{end::*, start::*},
+    requests::core::auth::device_api_key::regwait::start::*,
 };
 use tomb_crypt::{
     prelude::{EcSignatureKey, PrivateKey, PublicKey},
@@ -38,7 +36,6 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
             use tomb_common::banyan_api::requests::core::auth::fake_account::create::{
                 CreateAccountResponse, CreateFakeAccount,
             };
-            use tomb_crypt::prelude::EcSignatureKey;
             // Create local keys
             let api_key = EcSignatureKey::generate().await?;
             let public_api_key = api_key.public_key()?;
@@ -76,7 +73,7 @@ pub async fn pipeline(command: AuthSubCommand) -> Result<String> {
 }
 
 async fn register_device(
-    mut client: Client,
+    client: Client,
     private_device_key: EcSignatureKey,
 ) -> Result<Credentials> {
     // Create a public key from the
@@ -130,9 +127,6 @@ async fn register_device(
             client_1.call(start_regwait).await
         });
 
-    // Give the core server a bit of time to start the call
-    std::thread::sleep(Duration::from_secs(3));
-
     // Should be this in prod TODO
     // https://alpha.data.banyan.computer/
 
@@ -141,15 +135,12 @@ async fn register_device(
     // Open this url with firefox
     open::with(
         format!(
-            "{}/api/auth/device/register?spki={}",
+            "{}/completedevicekey?spki={}",
             global.remote_frontend, encoded_public_key
         ),
         "firefox",
     )
     .expect("failed to open browser");
-
-    // Give the server a bit of time to update the db
-    std::thread::sleep(Duration::from_secs(3));
 
     //
     let start_response = join_handle
