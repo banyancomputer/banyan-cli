@@ -4416,6 +4416,7 @@ dependencies = [
 [[package]]
 name = "tomb-crypt"
 version = "0.1.0"
+source = "git+https://github.com/banyancomputer/tomb-crypt#998fbeba67ca72c8192d4af1bf08d12229361bec"
 dependencies = [
  "aes-gcm",
  "async-trait",

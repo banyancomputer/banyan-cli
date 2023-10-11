@@ -41,11 +41,25 @@ pub struct GlobalConfig {
 
 impl Default for GlobalConfig {
     fn default() -> Self {
+        #[cfg(feature = "fake")]
+        let (remote_core, remote_data, remote_frontend) = (
+            "http://127.0.0.1:3001".to_string(),
+            "http://127.0.0.1:3002".to_string(),
+            "http://127.0.0.1:3000".to_string(),
+        );
+
+        #[cfg(not(feature = "fake"))]
+        let (remote_core, remote_data, remote_frontend) = (
+            "https://api.data.banyan.computer".to_string(),
+            "https://distributor.data.banyan.computer".to_string(),
+            "https://alpha.data.banyan.computer".to_string(),
+        );
+
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            remote_core: "http://127.0.0.1:3001".to_string(),
-            remote_data: "http://127.0.0.1:3002".to_string(),
-            remote_frontend: "http://127.0.0.1:3000".to_string(),
+            remote_core,
+            remote_data,
+            remote_frontend,
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
             remote_account_id: None,

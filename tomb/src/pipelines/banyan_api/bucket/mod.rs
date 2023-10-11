@@ -32,7 +32,10 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             let origin = origin.unwrap_or(current_dir()?);
 
             // If this bucket already exists both locally and remotely
-            if let Some(bucket) = global.get_bucket_by_origin(&origin) && let Some(remote_id) = bucket.remote_id && let Some(client) = client && Bucket::read(client, remote_id).await.is_ok() {
+            if let Some(bucket) = global.get_bucket_by_origin(&origin) &&
+                let Some(remote_id) = bucket.remote_id &&
+                let Some(client) = client &&
+                Bucket::read(client, remote_id).await.is_ok() {
                 // If we are able to read the bucket
                 return Err(anyhow!("Bucket already exists at this origin and is persisted remotely"));
             }
@@ -45,10 +48,9 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                 .update_config(&config)
                 .expect("unable to update config to include local path");
 
-            // If we're online
             if let Some(client) = client {
                 // Initialize on the remote endpoint
-                Bucket::create(
+                let online_result = Bucket::create(
                     name,
                     pem,
                     BucketType::Interactive,
@@ -66,7 +68,13 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
                     // Return
                     format!("<< NEW BUCKET CREATED >>\n{bucket}\n{config}\n{key}")
                 })
-                .map_err(TombError::client_error)
+                .map_err(TombError::client_error);
+
+                if let Ok(string) = online_result {
+                    Ok(string)
+                } else {
+                    Ok(format!("<< NEW BUCKET CREATED (LOCAL ONLY) >>\n{config}"))
+                }
             } else {
                 Ok(format!("<< NEW BUCKET CREATED (LOCAL ONLY) >>\n{config}"))
             }

@@ -127,16 +127,12 @@ async fn register_device(
             client_1.call(start_regwait).await
         });
 
-    // Should be this in prod TODO
-    // https://alpha.data.banyan.computer/
-
-    let global = GlobalConfig::from_disk().await?;
-
     // Open this url with firefox
     open::with(
         format!(
             "{}/completedevicekey?spki={}",
-            global.remote_frontend, encoded_public_key
+            GlobalConfig::from_disk().await?.remote_frontend,
+            encoded_public_key
         ),
         "firefox",
     )
@@ -155,6 +151,7 @@ async fn register_device(
     })
 }
 
+#[cfg(feature = "fake")]
 #[cfg(test)]
 mod test {
     use anyhow::Result;
