@@ -173,7 +173,7 @@ impl Client {
         // Determine if this request requires authentication
         let add_authentication = request.requires_authentication();
         let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
-        
+
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);

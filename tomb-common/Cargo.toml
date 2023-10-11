@@ -35,7 +35,6 @@ wasm-bindgen = "^0.2"
 unsigned-varint = "^0.7"
 bytes = "1.5.0"
 async-recursion = "1.0.5"
-base64-url = "^2"
 mime_guess = "^2"
 
 [dev-dependencies]
@@ -45,10 +44,9 @@ tokio = { workspace = true }
 async-std = { version = "^1", features = ["attributes"] }
 serial_test = "^2"
 hex-literal = "^0.4"
-base64 = "^0.21"
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
 [features]
-banyan-api = []
+fake = []

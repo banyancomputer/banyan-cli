@@ -52,10 +52,6 @@ impl EcKeyFormat {
 
 pub async fn key_pair_to_encryption_key(key_pair: &CryptoKeyPair) -> JsResult<EcEncryptionKey> {
     let pem_bytes = export_ec_key_pem(EcKeyFormat::Pkcs8, &get_private_key(key_pair)).await?;
-    gloo::console::log!(format!(
-        "key_pair_to_encryption_key pem bytes: {:?}",
-        pem_bytes
-    ));
     Ok(EcEncryptionKey::import(&pem_bytes)
         .await
         .expect("failed to import EcEncryptionKey"))
@@ -63,10 +59,6 @@ pub async fn key_pair_to_encryption_key(key_pair: &CryptoKeyPair) -> JsResult<Ec
 
 pub async fn key_pair_to_signature_key(key_pair: &CryptoKeyPair) -> JsResult<EcSignatureKey> {
     let pem_bytes = export_ec_key_pem(EcKeyFormat::Pkcs8, &get_private_key(key_pair)).await?;
-    gloo::console::log!(format!(
-        "key_pair_to_signature_key pem bytes: {:?}",
-        pem_bytes
-    ));
     Ok(EcSignatureKey::import(&pem_bytes)
         .await
         .expect("failed to import EcSignatureKey"))

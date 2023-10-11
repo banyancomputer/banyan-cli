@@ -124,6 +124,7 @@ impl BucketKey {
     }
 }
 
+#[cfg(feature = "fake")]
 #[cfg(test)]
 mod test {
     use tomb_crypt::prelude::{EcPublicEncryptionKey, PrivateKey, PublicKey};

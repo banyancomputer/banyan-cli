@@ -50,6 +50,7 @@ impl ApiRequest for EndRegwait {
 }
 
 #[cfg(test)]
+#[cfg(feature = "fake")]
 pub mod test {
     use super::*;
     use crate::banyan_api::{

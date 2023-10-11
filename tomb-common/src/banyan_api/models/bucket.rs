@@ -210,7 +210,7 @@ impl Bucket {
 }
 
 #[cfg(test)]
-
+#[cfg(feature = "fake")]
 pub mod test {
     use tomb_crypt::prelude::PrivateKey;
     use tomb_crypt::pretty_fingerprint;
