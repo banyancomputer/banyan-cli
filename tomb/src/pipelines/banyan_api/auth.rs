@@ -1,5 +1,6 @@
 use crate::{cli::command::AuthSubCommand, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
+use base64::{engine::general_purpose, Engine as _};
 use tokio::task::JoinHandle;
 use tomb_common::banyan_api::{
     client::{Client, Credentials},
@@ -82,42 +83,11 @@ async fn register_device(
         .map_err(ClientError::crypto_error)?;
 
     // Create a fingerprint from the public key
-    let fingerprint = public_device_key.fingerprint().await?;
-    println!("fingerprint bytes: {:?}", fingerprint);
-    let fingerprint = pretty_fingerprint(fingerprint.as_slice());
-    println!("fingerprint: {}", fingerprint.clone());
-
-    // Bytes of the public device key
-    let public_device_key_bytes = public_device_key
-        .export()
-        .await
-        .map_err(ClientError::crypto_error)?;
-
-    // Public device key in PEM format
-    let public_device_key =
-        String::from_utf8(public_device_key_bytes).expect("cant convert key bytes to string");
-
-    // Strip the public key of its new lines
-    let mut stripped_public_key = public_device_key.replace('\n', "");
-    // Strip the public key of its prefix and suffix
-    stripped_public_key = stripped_public_key
-        .strip_prefix("-----BEGIN PUBLIC KEY-----")
-        .expect("unable to strip PEM prefix")
-        .strip_suffix("-----END PUBLIC KEY-----")
-        .expect("unable to strip PEM suffix")
-        .to_string();
-
-    // Represent the weird b64 characters with ones that are url-valid
-    let encoded_public_key = stripped_public_key
-        .replace('+', "-")
-        .replace('/', "_")
-        .replace('=', ".")
-        .to_string();
-
+    let fingerprint = pretty_fingerprint(public_device_key.fingerprint().await?.as_slice());
+    // URL encoded DER bytes
+    let der_url = general_purpose::URL_SAFE_NO_PAD.encode(public_device_key.export_bytes().await?);
     // Create a new request object with the nonce
-    let start_regwait = StartRegwait {
-        fingerprint: fingerprint.clone(),
-    };
+    let start_regwait = StartRegwait { fingerprint };
     // Create a clone of the client to move into the handle
     let mut client_1 = client.clone();
     // Create a join handle for later use, starting the call immediately
@@ -132,7 +102,7 @@ async fn register_device(
         format!(
             "{}/completedevicekey?spki={}",
             GlobalConfig::from_disk().await?.remote_frontend,
-            encoded_public_key
+            der_url
         ),
         "firefox",
     )
