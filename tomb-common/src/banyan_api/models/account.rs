@@ -92,7 +92,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn total_usage() -> Result<(), ClientError> {
+    async fn usage() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let usage = Account::usage(&mut client).await?;
         assert_eq!(usage, 0);
