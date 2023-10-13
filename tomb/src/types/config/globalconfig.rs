@@ -259,12 +259,14 @@ impl GlobalConfig {
         &self,
         bucket_specifier: &BucketSpecifier,
     ) -> Result<Uuid, TombError> {
+        if let Some(id) = bucket_specifier.bucket_id {
+            return Ok(id);
+        }
         if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) && let Some(id) = bucket.remote_id {
-            Ok(id)
+            return Ok(id);
         }
-        else {
-            Err(anyhow!("bucket had no known remote").into())
-        }
+        
+        Err(anyhow!("bucket had no known remote").into())
     }
 
     pub(crate) fn get_bucket_by_specifier(
@@ -273,16 +275,20 @@ impl GlobalConfig {
     ) -> Result<BucketConfig, TombError> {
         // If we already have the ID and can find a bucket from it
         if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
+            return Ok(bucket);
+        }
+
+        // if let Some(origin) = &bucket_specifier.origin && let Some(bucket) = self.get_bucket_by_origin(origin) {
+        //     return Ok(bucket);
+        // }
+
+        // Grab an Origin
+        let origin = bucket_specifier.origin.clone().unwrap_or(current_dir().expect("unable to obtain current working directory"));
+        // Find a BucketConfig at this origin and expect it has an ID saved as well
+        if let Some(bucket) = self.get_bucket_by_origin(&origin) {
             Ok(bucket)
         } else {
-            // Grab an Origin
-            let origin = bucket_specifier.origin.clone().unwrap_or(current_dir().expect("unable to obtain current working directory"));
-            // Find a BucketConfig at this origin and expect it has an ID saved as well
-            if let Some(bucket) = self.get_bucket_by_origin(&origin) {
-                Ok(bucket)
-            } else {
-                Err(TombError::unknown_path(origin))
-            }
+            Err(TombError::unknown_path(origin))
         }
     }
 }

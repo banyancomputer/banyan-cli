@@ -6,17 +6,17 @@ use uuid::Uuid;
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
-    /// Set API endpoints
-    Configure {
+    /// Manually configure remote endpoints
+    Api {
         /// Subcommand
         #[clap(subcommand)]
-        subcommand: ConfigureSubCommand,
+        subcommand: ApiSubCommand,
     },
-    /// Login, Register, etc.
-    Auth {
+    /// Account Login and Details
+    Account {
         /// Subcommand
         #[clap(subcommand)]
-        subcommand: AuthSubCommand,
+        subcommand: AccountSubCommand,
     },
     /// Bucket management
     Buckets {
@@ -29,8 +29,6 @@ pub enum Command {
 /// Subcommand for getting and setting remote addresses
 #[derive(Subcommand, Clone, Debug)]
 pub enum AddressSubCommand {
-    /// Print the address as it is currently configured
-    Get,
     /// Set the address to a new value
     Set {
         /// Server address
@@ -41,30 +39,30 @@ pub enum AddressSubCommand {
 
 /// Subcommand for endpoint configuration
 #[derive(Subcommand, Clone, Debug)]
-pub enum ConfigureSubCommand {
+pub enum ApiSubCommand {
     /// Address of Core server
     Core {
         /// Server address
         #[clap(subcommand)]
-        address: AddressSubCommand,
+        address: Option<AddressSubCommand>,
     },
     /// Address of Data server
     Data {
         /// Server address
         #[clap(subcommand)]
-        address: AddressSubCommand,
+        address: Option<AddressSubCommand>,
     },
     /// Address of Frontend server
     Frontend {
         /// Server address
         #[clap(subcommand)]
-        address: AddressSubCommand,
+        address: Option<AddressSubCommand>,
     },
 }
 
 /// Subcommand for Authentication
 #[derive(Subcommand, Clone, Debug)]
-pub enum AuthSubCommand {
+pub enum AccountSubCommand {
     /// Add Device API Key
     RegisterDevice,
     /// Register
@@ -80,12 +78,16 @@ pub enum AuthSubCommand {
 
 /// Unified way of specifying a Bucket
 #[derive(Debug, Clone, Args)]
-// #[group(required = true, multiple = false)]
+#[group(required = true, multiple = false)]
+#[clap(after_help="If no bucket is specified manually, tomb will try to use the current directory.")]
 pub struct BucketSpecifier {
     /// Bucket Id
     #[arg(short, long)]
     pub bucket_id: Option<Uuid>,
-    /// Bucket Root
+    /// Bucket name
+    #[arg(short, long)]
+    pub name: Option<String>,
+    /// Bucket Root on disk
     #[arg(short, long)]
     pub origin: Option<PathBuf>,
 }
@@ -95,6 +97,7 @@ impl BucketSpecifier {
     pub fn with_id(id: Uuid) -> Self {
         Self {
             bucket_id: Some(id),
+            name: None,
             origin: None,
         }
     }
@@ -103,7 +106,17 @@ impl BucketSpecifier {
     pub fn with_origin(path: &Path) -> Self {
         Self {
             bucket_id: None,
+            name: None,
             origin: Some(path.to_path_buf()),
+        }
+    }
+
+    /// Create a new BucketSpecifier with a Path
+    pub fn with_name(name: &str) -> Self {
+        Self {
+            bucket_id: None,
+            name: Some(name.to_string()),
+            origin: None,
         }
     }
 }

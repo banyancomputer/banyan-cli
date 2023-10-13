@@ -13,8 +13,8 @@ use command::Command;
 pub async fn run(command: Command) -> Result<()> {
     // Determine the command being executed run appropriate subcommand
     let result: Result<String, anyhow::Error> = match command {
-        Command::Configure { subcommand } => configure::pipeline(subcommand).await,
-        Command::Auth { subcommand } => auth::pipeline(subcommand).await,
+        Command::Api { subcommand } => configure::pipeline(subcommand).await,
+        Command::Account { subcommand } => auth::pipeline(subcommand).await,
         Command::Buckets { subcommand } => bucket::pipeline(subcommand).await,
     };
 
@@ -43,8 +43,8 @@ mod test {
     #[allow(dead_code)]
     #[cfg(feature = "fake")]
     fn cmd_register() -> Command {
-        Command::Auth {
-            subcommand: AuthSubCommand::Register,
+        Command::Account {
+            subcommand: AccountSubCommand::Register,
         }
     }
 
