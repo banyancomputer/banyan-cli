@@ -7,41 +7,10 @@ pub mod specifiers;
 /// Debug level
 pub mod verbosity;
 
-use crate::pipelines::banyan_api::*;
-use anyhow::Result;
-use commands::RunnableCommand;
-use commands::TombCommand;
-
-/// Based on the Command, run pipelines
-pub async fn run(command: TombCommand) -> Result<()> {
-    // Determine the command being executed run appropriate subcommand
-    let result: Result<String, anyhow::Error> = match command {
-        TombCommand::Api { command } => configure::pipeline(command).await,
-        TombCommand::Account { command } => command.run().await.map_err(anyhow::Error::new),
-        TombCommand::Buckets { command } => bucket::pipeline(command).await,
-    };
-
-    // Provide output based on that
-    match result {
-        Ok(message) => {
-            println!("{}", message);
-            Ok(())
-        }
-        Err(error) => {
-            println!("{}", error);
-            Err(error)
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::commands::*;
-    use crate::{
-        cli::{run, specifiers::*},
-        types::config::globalconfig::GlobalConfig,
-        utils::test::*,
-    };
+    use crate::{cli::specifiers::*, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::Result;
     use dir_assert::assert_paths;
     use serial_test::serial;
@@ -97,11 +66,11 @@ mod test {
         // Setup test
         let (origin, _) = &test_setup(test_name).await?;
         // Deinitialize for user
-        run(cmd_delete(origin)).await.ok();
+        cmd_delete(origin).run().await.ok();
         // Assert failure
-        assert!(run(cmd_bundle(origin)).await.is_err());
+        assert!(cmd_bundle(origin).run().await.is_err());
         // Initialization worked
-        run(cmd_create(origin)).await?;
+        cmd_create(origin).run().await?;
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
@@ -118,21 +87,21 @@ mod test {
         // Setup test
         let (origin, _) = &test_setup(test_name).await?;
         // Deinit if present
-        run(cmd_delete(origin)).await.ok();
+        cmd_delete(origin).run().await.ok();
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()
             .await?
             .get_bucket_by_origin(origin)
             .is_none());
         // Initialization worked
-        run(cmd_create(origin)).await?;
+        cmd_create(origin).run().await?;
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
             .get_bucket_by_origin(origin)
             .is_some());
         // Deinitialize the directory
-        run(cmd_delete(origin)).await?;
+        cmd_delete(origin).run().await?;
         // Assert the bucket is gone again
         assert!(GlobalConfig::from_disk()
             .await?
@@ -149,7 +118,7 @@ mod test {
         // Setup test
         let (origin, _) = &test_setup(test_name).await?;
         // Initialize
-        run(cmd_create(origin)).await?;
+        cmd_create(origin).run().await?;
         // Configure remote endpoint
         // run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
         // Teardown test
@@ -163,9 +132,9 @@ mod test {
         // Setup test
         let (origin, _) = &test_setup(test_name).await?;
         // Initialize tomb
-        run(cmd_create(origin)).await?;
+        cmd_create(origin).run().await?;
         // Run bundle and assert success
-        run(cmd_bundle(origin)).await?;
+        cmd_bundle(origin).run().await?;
         // Teardown test
         test_teardown(test_name).await
     }
@@ -177,9 +146,9 @@ mod test {
         // Setup test
         let (origin, _) = &test_setup(test_name).await?;
         // Initialize tomb
-        run(cmd_create(origin)).await?;
+        cmd_create(origin).run().await?;
         // Run bundle and assert success
-        run(cmd_bundle(origin)).await?;
+        cmd_bundle(origin).run().await?;
         // Create extracted dir
         let extracted = &origin
             .parent()
@@ -187,7 +156,7 @@ mod test {
             .join("extracted");
         create_dir(extracted).ok();
         // Run extract and assert success
-        run(cmd_extract(origin, extracted)).await?;
+        cmd_extract(origin, extracted).run().await?;
         // Assert equality
         assert_paths(origin, extracted).expect("extracted dir does not match origin");
         // Teardown test

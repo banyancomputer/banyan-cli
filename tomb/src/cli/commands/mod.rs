@@ -3,14 +3,16 @@ mod api;
 mod buckets;
 mod keys;
 mod metadata;
+mod runnable_command;
 
 pub use account::*;
 pub use api::*;
 pub use buckets::*;
 pub use keys::*;
 pub use metadata::*;
+pub use runnable_command::RunnableCommand;
 
-use crate::types::config::globalconfig::GlobalConfig;
+use crate::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig};
 use async_trait::async_trait;
 use clap::Subcommand;
 use tomb_common::banyan_api::client::Client;
@@ -38,29 +40,17 @@ pub enum TombCommand {
     },
 }
 
-/// Async function for running a command
 #[async_trait(?Send)]
-pub trait RunnableCommand<ErrorType: std::error::Error>: Subcommand {
-    /// The internal running operation
+impl RunnableCommand<TombError> for TombCommand {
     async fn run_internal(
-        &self,
+        self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, ErrorType>;
-
-    /// Run the internal command, passing a reference to a global configuration which is saved after completion
-    async fn run(&self) -> Result<String, ErrorType> {
-        // Grab global config
-        let mut global = GlobalConfig::from_disk()
-            .await
-            .expect("unable to load global config");
-        let mut client = global.get_client().await.expect("unable to load client");
-        let result = self.run_internal(&mut global, &mut client).await;
-        global
-            .save_client(client)
-            .await
-            .expect("unable to save client to config");
-        global.to_disk().expect("Unable to save global config");
-        result
+    ) -> Result<String, TombError> {
+        match self {
+            TombCommand::Api { command } => Ok(command.run_internal(global, client).await?),
+            TombCommand::Account { command } => Ok(command.run_internal(global, client).await?),
+            TombCommand::Buckets { command } => command.run_internal(global, client).await,
+        }
     }
 }

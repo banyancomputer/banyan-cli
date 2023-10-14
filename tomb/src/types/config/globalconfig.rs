@@ -125,8 +125,7 @@ impl GlobalConfig {
         if let Some(token) = client.claims {
             // Update the remote account ID
             self.remote_account_id = Some(Uuid::from_str(token.sub()?)?);
-        }
-        else {
+        } else {
             self.remote_account_id = None;
         }
 

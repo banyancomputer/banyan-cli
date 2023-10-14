@@ -1,6 +1,7 @@
 use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;
 use tomb_common::banyan_api::error::ClientError;
+use tomb_crypt::prelude::TombCryptError;
 use uuid::Uuid;
 
 use crate::cli::specifiers::BucketSpecifier;
@@ -109,5 +110,11 @@ impl From<anyhow::Error> for TombError {
 impl From<ClientError> for TombError {
     fn from(value: ClientError) -> Self {
         Self::client_error(value)
+    }
+}
+
+impl From<TombCryptError> for TombError {
+    fn from(value: TombCryptError) -> Self {
+        Self::client_error(ClientError::crypto_error(value))
     }
 }

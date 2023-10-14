@@ -37,7 +37,7 @@ pub enum AccountCommand {
 #[async_trait(?Send)]
 impl RunnableCommand<ClientError> for AccountCommand {
     async fn run_internal(
-        &self,
+        self,
         _: &mut GlobalConfig,
         client: &mut Client,
     ) -> Result<String, ClientError> {

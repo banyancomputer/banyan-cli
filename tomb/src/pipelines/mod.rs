@@ -1,7 +1,5 @@
 /// This module contains the add pipeline function, which is the main entry point for inserting into existing WNFS filesystems.
 pub mod add;
-/// Interfacing with the banyan api
-pub mod banyan_api;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod bundle;
 /// This module contains configuration functions for the cli
