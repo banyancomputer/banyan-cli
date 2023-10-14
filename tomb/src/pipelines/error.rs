@@ -3,7 +3,7 @@ use thiserror::Error;
 use tomb_common::banyan_api::error::ClientError;
 use uuid::Uuid;
 
-use crate::cli::command::BucketSpecifier;
+use crate::cli::specifiers::BucketSpecifier;
 
 /// Errors for the Tomb CLI & Native program
 #[derive(Error, Debug)]

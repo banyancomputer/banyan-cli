@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::runtime::Runtime;
 use tomb::{
-    cli::command::BucketSpecifier,
+    cli::specifiers::BucketSpecifier,
     pipelines::{bundle, extract},
     types::config::globalconfig::GlobalConfig,
 };

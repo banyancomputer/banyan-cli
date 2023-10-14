@@ -1,5 +1,5 @@
 use super::error::TombError;
-use crate::cli::command::BucketSpecifier;
+use crate::cli::specifiers::BucketSpecifier;
 use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,

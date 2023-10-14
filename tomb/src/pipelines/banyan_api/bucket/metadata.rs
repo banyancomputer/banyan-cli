@@ -1,5 +1,5 @@
 use crate::{
-    cli::command::MetadataSubCommand, pipelines::error::TombError,
+    cli::commands::MetadataSubCommand, pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig, utils::wnfsio::compute_directory_size,
 };
 use anyhow::anyhow;

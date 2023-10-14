@@ -1,4 +1,4 @@
-use crate::{cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig};
+use crate::{cli::specifiers::BucketSpecifier, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::path::Path;
 

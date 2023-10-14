@@ -2,7 +2,7 @@ use anyhow::Result;
 use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use std::{fs::remove_dir_all, path::PathBuf};
 
-use crate::{cli::command::BucketSpecifier, pipelines::configure};
+use crate::{cli::specifiers::BucketSpecifier, pipelines::configure};
 
 /// Set up temporary filesystem for test cases
 pub async fn test_setup(test_name: &str) -> Result<(PathBuf, BucketSpecifier)> {

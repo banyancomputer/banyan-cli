@@ -1,4 +1,4 @@
-use crate::{cli::command::AccountSubCommand, types::config::globalconfig::GlobalConfig};
+use crate::{cli::commands::AccountCommand, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use tokio::task::JoinHandle;
@@ -14,7 +14,7 @@ use tomb_crypt::{
 };
 
 /// Handle Auth management both locally and remotely based on CLI input
-pub async fn pipeline(command: AccountSubCommand) -> Result<String> {
+pub async fn pipeline(command: AccountCommand) -> Result<String> {
     // Grab global config
     let mut global = GlobalConfig::from_disk().await?;
     // Obtain the Client
@@ -22,7 +22,7 @@ pub async fn pipeline(command: AccountSubCommand) -> Result<String> {
 
     // Process the command
     let result: Result<String, ClientError> = match command {
-        AccountSubCommand::RegisterDevice => {
+        AccountCommand::RegisterDevice => {
             // let device_key = EcEncryptionKey::generate().await?;
             let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
             // Register this device key
@@ -32,7 +32,7 @@ pub async fn pipeline(command: AccountSubCommand) -> Result<String> {
             Ok("account registered".to_string())
         }
         #[cfg(feature = "fake")]
-        AccountSubCommand::Register => {
+        AccountCommand::Register => {
             // Additional imports
             use tomb_common::banyan_api::requests::core::auth::fake_account::create::{
                 CreateAccountResponse, CreateFakeAccount,
@@ -54,13 +54,13 @@ pub async fn pipeline(command: AccountSubCommand) -> Result<String> {
 
             Ok(format!("created account with id: {}", response.id))
         }
-        AccountSubCommand::WhoAmI => Account::who_am_i(&mut client)
+        AccountCommand::WhoAmI => Account::who_am_i(&mut client)
             .await
             .map(|v| format!("account: {}", v.id)),
-        AccountSubCommand::Usage => Account::usage(&mut client)
+        AccountCommand::Usage => Account::usage(&mut client)
             .await
             .map(|v| format!("usage: {}", v)),
-        AccountSubCommand::Limit => Account::usage_limit(&mut client)
+        AccountCommand::Limit => Account::usage_limit(&mut client)
             .await
             .map(|v| format!("usage limit: {}", v)),
     };

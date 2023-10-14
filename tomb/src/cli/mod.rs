@@ -1,21 +1,29 @@
 /// Arguments consist of Command an Verbosity
 pub mod args;
-/// Command to run
-pub mod command;
+/// Commands to run
+pub mod commands;
+/// Ways of specifying resources
+pub mod specifiers;
 /// Debug level
 pub mod verbosity;
 
 use crate::pipelines::banyan_api::*;
 use anyhow::Result;
-use command::Command;
+use commands::TombCommand;
 
 /// Based on the Command, run pipelines
-pub async fn run(command: Command) -> Result<()> {
+pub async fn run(command: TombCommand) -> Result<()> {
     // Determine the command being executed run appropriate subcommand
     let result: Result<String, anyhow::Error> = match command {
-        Command::Api { subcommand } => configure::pipeline(subcommand).await,
-        Command::Account { subcommand } => auth::pipeline(subcommand).await,
-        Command::Buckets { subcommand } => bucket::pipeline(subcommand).await,
+        TombCommand::Api {
+            command: subcommand,
+        } => configure::pipeline(subcommand).await,
+        TombCommand::Account {
+            command: subcommand,
+        } => auth::pipeline(subcommand).await,
+        TombCommand::Buckets {
+            command: subcommand,
+        } => bucket::pipeline(subcommand).await,
     };
 
     // Provide output based on that
@@ -33,8 +41,12 @@ pub async fn run(command: Command) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use super::command::*;
-    use crate::{cli::run, types::config::globalconfig::GlobalConfig, utils::test::*};
+    use super::commands::*;
+    use crate::{
+        cli::{run, specifiers::*},
+        types::config::globalconfig::GlobalConfig,
+        utils::test::*,
+    };
     use anyhow::Result;
     use dir_assert::assert_paths;
     use serial_test::serial;
@@ -42,31 +54,31 @@ mod test {
 
     #[allow(dead_code)]
     #[cfg(feature = "fake")]
-    fn cmd_register() -> Command {
-        Command::Account {
-            subcommand: AccountSubCommand::Register,
+    fn cmd_register() -> TombCommand {
+        TombCommand::Account {
+            command: AccountCommand::Register,
         }
     }
 
-    fn cmd_create(origin: &Path) -> Command {
-        Command::Buckets {
-            subcommand: BucketsSubCommand::Create {
+    fn cmd_create(origin: &Path) -> TombCommand {
+        TombCommand::Buckets {
+            command: BucketsCommand::Create {
                 name: "Bucket Name".to_string(),
                 origin: Some(origin.to_path_buf()),
             },
         }
     }
 
-    fn cmd_delete(origin: &Path) -> Command {
-        Command::Buckets {
-            subcommand: BucketsSubCommand::Delete(BucketSpecifier::with_origin(origin)),
+    fn cmd_delete(origin: &Path) -> TombCommand {
+        TombCommand::Buckets {
+            command: BucketsCommand::Delete(BucketSpecifier::with_origin(origin)),
         }
     }
 
     // Run the Bundle pipeline through the CLI
-    fn cmd_bundle(origin: &Path) -> Command {
-        Command::Buckets {
-            subcommand: BucketsSubCommand::Bundle {
+    fn cmd_bundle(origin: &Path) -> TombCommand {
+        TombCommand::Buckets {
+            command: BucketsCommand::Bundle {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
                 follow_links: true,
             },
@@ -74,9 +86,9 @@ mod test {
     }
 
     // Run the Extract pipeline through the CLI
-    fn cmd_extract(origin: &Path, extracted: &Path) -> Command {
-        Command::Buckets {
-            subcommand: BucketsSubCommand::Extract {
+    fn cmd_extract(origin: &Path, extracted: &Path) -> TombCommand {
+        TombCommand::Buckets {
+            command: BucketsCommand::Extract {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
                 output: extracted.to_path_buf(),
             },

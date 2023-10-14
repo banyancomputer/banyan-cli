@@ -1,4 +1,4 @@
-use crate::{cli::command::BucketSpecifier, pipelines::error::TombError, utils::config::*};
+use crate::{cli::specifiers::BucketSpecifier, pipelines::error::TombError, utils::config::*};
 use anyhow::{anyhow, Result};
 
 use tomb_common::{
@@ -265,7 +265,7 @@ impl GlobalConfig {
         if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) && let Some(id) = bucket.remote_id {
             return Ok(id);
         }
-        
+
         Err(anyhow!("bucket had no known remote").into())
     }
 
@@ -283,7 +283,10 @@ impl GlobalConfig {
         // }
 
         // Grab an Origin
-        let origin = bucket_specifier.origin.clone().unwrap_or(current_dir().expect("unable to obtain current working directory"));
+        let origin = bucket_specifier
+            .origin
+            .clone()
+            .unwrap_or(current_dir().expect("unable to obtain current working directory"));
         // Find a BucketConfig at this origin and expect it has an ID saved as well
         if let Some(bucket) = self.get_bucket_by_origin(&origin) {
             Ok(bucket)

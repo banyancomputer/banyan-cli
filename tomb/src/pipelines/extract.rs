@@ -1,5 +1,5 @@
 use super::error::TombError;
-use crate::{cli::command::BucketSpecifier, types::config::globalconfig::GlobalConfig};
+use crate::{cli::specifiers::BucketSpecifier, types::config::globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
 use tomb_common::utils::wnfsio::path_to_segments;

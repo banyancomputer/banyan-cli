@@ -17,7 +17,7 @@ pub mod remove;
 mod test {
     use super::{add, error::TombError};
     use crate::{
-        cli::command::BucketSpecifier,
+        cli::specifiers::BucketSpecifier,
         pipelines::{bundle, configure, extract, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{

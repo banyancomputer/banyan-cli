@@ -6,7 +6,7 @@ use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
 
 use crate::{
-    cli::command::{KeySpecifier, KeySubCommand},
+    cli::{commands::KeySubCommand, specifiers::KeySpecifier},
     pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
 };

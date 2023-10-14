@@ -1,5 +1,5 @@
 use crate::{
-    cli::command::*,
+    cli::commands::*,
     pipelines::{bundle, error::TombError, extract},
     types::config::globalconfig::GlobalConfig,
 };
@@ -15,7 +15,7 @@ pub(crate) mod keys;
 pub(crate) mod metadata;
 
 /// Handle Bucket management both locally and remotely based on CLI input
-pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
+pub async fn pipeline(command: BucketsCommand) -> Result<String> {
     // Grab global config
     let mut global = GlobalConfig::from_disk().await?;
     // Obtain the Client
@@ -24,7 +24,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
     // Process the command
     let result: Result<String, TombError> = match command {
         // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
-        BucketsSubCommand::Create { name, origin } => {
+        BucketsCommand::Create { name, origin } => {
             let private_key = global.wrapping_key().await?;
             let public_key = private_key.public_key()?;
             let pem = String::from_utf8(public_key.export().await?)?;
@@ -80,17 +80,17 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             }
         }
         // Bundle a local directory
-        BucketsSubCommand::Bundle {
+        BucketsCommand::Bundle {
             bucket_specifier,
             follow_links,
         } => bundle::pipeline(&mut global, &bucket_specifier, follow_links).await,
         // Extract a local directory
-        BucketsSubCommand::Extract {
+        BucketsCommand::Extract {
             bucket_specifier,
             output,
         } => extract::pipeline(&global, &bucket_specifier, &output).await,
         // List all Buckets tracked remotely and locally
-        BucketsSubCommand::List => {
+        BucketsCommand::List => {
             let local = global
                 .buckets
                 .iter()
@@ -115,7 +115,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             }
         }
         // Delete a Bucket
-        BucketsSubCommand::Delete(bucket_specifier) => {
+        BucketsCommand::Delete(bucket_specifier) => {
             // If we're online and there is a known bucket id with this specifier
             let remote_deletion = if let Some(client) = client && let Ok(bucket_id) = global.get_bucket_id(&bucket_specifier) {
                 Bucket::delete_by_id(client, bucket_id)
@@ -135,7 +135,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             ))
         }
         // Info about a Bucket
-        BucketsSubCommand::Info(bucket_specifier) => {
+        BucketsCommand::Info(bucket_specifier) => {
             // Local info
             let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
                 format!("{}", bucket)
@@ -161,7 +161,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             ))
         }
         // Bucket usage
-        BucketsSubCommand::Usage(bucket_specifier) => {
+        BucketsCommand::Usage(bucket_specifier) => {
             let bucket_id = global.get_bucket_id(&bucket_specifier)?;
             if let Some(client) = client {
                 Bucket::read(client, bucket_id)
@@ -175,7 +175,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             }
         }
         // Bucket Metadata
-        BucketsSubCommand::Metadata { subcommand } => {
+        BucketsCommand::Metadata { subcommand } => {
             if let Some(client) = client {
                 metadata::pipeline(&global, client, subcommand).await
             } else {
@@ -183,7 +183,7 @@ pub async fn pipeline(command: BucketsSubCommand) -> Result<String> {
             }
         }
         // Bucket Key Management
-        BucketsSubCommand::Keys { subcommand } => {
+        BucketsCommand::Keys { subcommand } => {
             if let Some(client) = client {
                 keys::pipeline(&global, client, subcommand).await
             } else {
