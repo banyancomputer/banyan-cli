@@ -49,9 +49,9 @@ impl TombError {
     }
 
     /// Anyhow errors
-    pub fn anyhow_error(err: anyhow::Error) -> Self {
+    pub fn custom_error(msg: &str) -> Self {
         Self {
-            kind: TombErrorKind::AnyhowError(err),
+            kind: TombErrorKind::CustomError(msg.to_string()),
         }
     }
 }
@@ -67,8 +67,8 @@ pub enum TombErrorKind {
     FileMissing(PathBuf),
     /// IO Operation Error
     IoError(std::io::Error),
-    /// Anyhow errors
-    AnyhowError(anyhow::Error),
+    /// Custom errors
+    CustomError(String),
 }
 
 impl Display for TombError {
@@ -79,7 +79,7 @@ impl Display for TombError {
             UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
             FileMissing(path) => format!("missing file at path: {}", path.display()),
             IoError(err) => format!("io error: {err}"),
-            AnyhowError(err) => format!("anyhow error: {err}"),
+            CustomError(err) => format!("anyhow error: {err}"),
         };
 
         write!(f, "{}", prefix)?;
@@ -102,7 +102,7 @@ impl From<std::io::Error> for TombError {
 
 impl From<anyhow::Error> for TombError {
     fn from(value: anyhow::Error) -> Self {
-        Self::anyhow_error(value)
+        Self::custom_error(&value.to_string())
     }
 }
 

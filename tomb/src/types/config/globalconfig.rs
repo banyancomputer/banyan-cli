@@ -80,16 +80,6 @@ impl GlobalConfig {
         Ok(config)
     }
 
-    // pub fn with_remote(mut self, remote: String) -> Self {
-    //     self.remote = Some(remote);
-    //     self
-    // }
-
-    // pub fn with_remote_account_id(mut self, remote_account_id: String) -> Self {
-    //     self.remote_account_id = Some(remote_account_id);
-    //     self
-    // }
-
     /// Get the wrapping key
     pub async fn wrapping_key(&self) -> Result<EcEncryptionKey> {
         wrapping_key(&self.wrapping_key_path).await
@@ -135,6 +125,9 @@ impl GlobalConfig {
         if let Some(token) = client.claims {
             // Update the remote account ID
             self.remote_account_id = Some(Uuid::from_str(token.sub()?)?);
+        }
+        else {
+            self.remote_account_id = None;
         }
 
         // If the Client has an API key

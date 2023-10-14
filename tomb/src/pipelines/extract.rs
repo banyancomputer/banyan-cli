@@ -62,9 +62,7 @@ pub async fn pipeline(
                         output_file.write_all(&content)?;
                     }
                 } else {
-                    return Err(TombError::anyhow_error(anyhow::anyhow!(
-                        "file missing error"
-                    )));
+                    return Err(TombError::custom_error("file missing error"));
                 }
             }
         }

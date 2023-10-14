@@ -9,21 +9,16 @@ pub mod verbosity;
 
 use crate::pipelines::banyan_api::*;
 use anyhow::Result;
+use commands::RunnableCommand;
 use commands::TombCommand;
 
 /// Based on the Command, run pipelines
 pub async fn run(command: TombCommand) -> Result<()> {
     // Determine the command being executed run appropriate subcommand
     let result: Result<String, anyhow::Error> = match command {
-        TombCommand::Api {
-            command: subcommand,
-        } => configure::pipeline(subcommand).await,
-        TombCommand::Account {
-            command: subcommand,
-        } => auth::pipeline(subcommand).await,
-        TombCommand::Buckets {
-            command: subcommand,
-        } => bucket::pipeline(subcommand).await,
+        TombCommand::Api { command } => configure::pipeline(command).await,
+        TombCommand::Account { command } => command.run().await.map_err(anyhow::Error::new),
+        TombCommand::Buckets { command } => bucket::pipeline(command).await,
     };
 
     // Provide output based on that
@@ -52,13 +47,13 @@ mod test {
     use serial_test::serial;
     use std::{fs::create_dir, path::Path};
 
-    #[allow(dead_code)]
-    #[cfg(feature = "fake")]
-    fn cmd_register() -> TombCommand {
-        TombCommand::Account {
-            command: AccountCommand::Register,
-        }
-    }
+    // #[allow(dead_code)]
+    // #[cfg(feature = "fake")]
+    // fn cmd_register() -> TombCommand {
+    //     TombCommand::Account {
+    //         command: AccountCommand::Register,
+    //     }
+    // }
 
     fn cmd_create(origin: &Path) -> TombCommand {
         TombCommand::Buckets {

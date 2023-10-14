@@ -33,3 +33,9 @@ pub enum AddressCommand {
         address: String,
     },
 }
+
+// #[async_trait(?Send)]
+// impl RunnableCommand<TombError> for AccountCommand {
+//     async fn run(&self) -> Result<String, TombError> {
+//     }
+// }
