@@ -1,5 +1,5 @@
 use super::RunnableCommand;
-use crate::types::config::globalconfig::GlobalConfig;
+use crate::types::config::{globalconfig::GlobalConfig, Endpoints};
 use async_trait::async_trait;
 use clap::Subcommand;
 use reqwest::Url;
@@ -26,6 +26,8 @@ pub enum ApiCommand {
         #[clap(subcommand)]
         command: Option<AddressCommand>,
     },
+    /// Return these addresses to their original values
+    Reset,
 }
 
 /// Subcommand for getting and setting remote addresses
@@ -49,15 +51,19 @@ impl RunnableCommand<anyhow::Error> for ApiCommand {
         match self {
             // Core service
             ApiCommand::Core { command: address } => {
-                process_field("CORE", &mut global.remote_core, address)
+                process_field("CORE", &mut global.endpoints.core, address)
             }
             // Data service
             ApiCommand::Data { command: address } => {
-                process_field("DATA", &mut global.remote_data, address)
+                process_field("DATA", &mut global.endpoints.data, address)
             }
             // Frontend service
             ApiCommand::Frontend { command: address } => {
-                process_field("FRONTEND", &mut global.remote_frontend, address)
+                process_field("FRONTEND", &mut global.endpoints.frontend, address)
+            }
+            ApiCommand::Reset => {
+                global.endpoints = Endpoints::default();
+                Ok("<< ENDPOINTS HAVE BEEN RESET >>".to_string())
             }
         }
     }
@@ -75,7 +81,7 @@ fn process_field(
             // Verify the address
             verify_address(&address)?;
             // Update the address
-            *field = address.to_string();
+            *field = address;
             // Report okay
             Ok("<< CONFIGURATION UPDATED SUCCESSFULLY >>".to_string())
         }

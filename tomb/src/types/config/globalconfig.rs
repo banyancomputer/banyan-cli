@@ -8,7 +8,7 @@ use tomb_common::{
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
-use super::bucketconfig::BucketConfig;
+use super::{bucketconfig::BucketConfig, Endpoints};
 use serde::{Deserialize, Serialize};
 use std::{
     env::current_dir,
@@ -27,12 +27,8 @@ pub struct GlobalConfig {
     pub wrapping_key_path: PathBuf,
     /// Location of api key on disk in PEM format
     pub api_key_path: PathBuf,
-    /// Remote endpoint for Metadata API
-    pub remote_core: String,
-    /// Remote endpoint for Full Data API
-    pub remote_data: String,
-    /// Remote endpoint for Frontend interaction
-    pub remote_frontend: String,
+    /// Remote endpoints
+    pub endpoints: Endpoints,
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
     /// Bucket Configurations
@@ -41,25 +37,9 @@ pub struct GlobalConfig {
 
 impl Default for GlobalConfig {
     fn default() -> Self {
-        #[cfg(feature = "fake")]
-        let (remote_core, remote_data, remote_frontend) = (
-            "http://127.0.0.1:3001".to_string(),
-            "http://127.0.0.1:3002".to_string(),
-            "http://127.0.0.1:3000".to_string(),
-        );
-
-        #[cfg(not(feature = "fake"))]
-        let (remote_core, remote_data, remote_frontend) = (
-            "https://api.data.banyan.computer".to_string(),
-            "https://distributor.data.banyan.computer".to_string(),
-            "https://alpha.data.banyan.computer".to_string(),
-        );
-
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            remote_core,
-            remote_data,
-            remote_frontend,
+            endpoints: Endpoints::default(),
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
             remote_account_id: None,
@@ -106,7 +86,7 @@ impl GlobalConfig {
     /// Get the Client data
     pub async fn get_client(&self) -> Result<Client> {
         // Create a new Client
-        let mut client = Client::new(&self.remote_core, &self.remote_data)?;
+        let mut client = Client::new(&self.endpoints.core, &self.endpoints.data)?;
         // If there are already credentials
         if let Ok(credentials) = self.get_credentials().await {
             // Set the credentials
@@ -119,8 +99,8 @@ impl GlobalConfig {
     /// Save the Client data to the config
     pub async fn save_client(&mut self, client: Client) -> Result<()> {
         // Update the Remote endpoints
-        self.remote_core = client.remote_core.to_string();
-        self.remote_data = client.remote_data.to_string();
+        self.endpoints.core = client.remote_core.to_string();
+        self.endpoints.data = client.remote_data.to_string();
         // If there is a Claim
         if let Some(token) = client.claims {
             // Update the remote account ID

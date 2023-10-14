@@ -91,7 +91,7 @@ mod test {
         configure::remote_core(address).await?;
         // Assert it was actually modified
         assert_eq!(
-            GlobalConfig::from_disk().await?.remote_core,
+            GlobalConfig::from_disk().await?.endpoints.core,
             address.to_string()
         );
         Ok(())

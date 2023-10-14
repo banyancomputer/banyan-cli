@@ -24,7 +24,7 @@ pub async fn deinit_all() -> Result<()> {
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
 pub async fn remote_core(address: &str) -> Result<String> {
     let mut config = GlobalConfig::from_disk().await?;
-    config.remote_core = address.to_string();
+    config.endpoints.core = address.to_string();
     config.to_disk()?;
     Ok("saved remote address".to_string())
 }
@@ -32,7 +32,7 @@ pub async fn remote_core(address: &str) -> Result<String> {
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
 pub async fn remote_data(address: &str) -> Result<String> {
     let mut config = GlobalConfig::from_disk().await?;
-    config.remote_data = address.to_string();
+    config.endpoints.data = address.to_string();
     config.to_disk()?;
     Ok("saved remote address".to_string())
 }

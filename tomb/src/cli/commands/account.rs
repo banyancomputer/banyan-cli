@@ -120,7 +120,7 @@ async fn register_device(
     open::with(
         format!(
             "{}/completedevicekey?spki={}",
-            GlobalConfig::from_disk().await?.remote_frontend,
+            GlobalConfig::from_disk().await?.endpoints.frontend,
             der_url
         ),
         "firefox",
