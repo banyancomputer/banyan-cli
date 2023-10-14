@@ -1,3 +1,4 @@
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use uuid::Uuid;
@@ -25,7 +26,8 @@ pub struct Snapshot {
 impl Display for Snapshot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n| SNAPSHOT INFO |\nsnapshot_id:\t{}\nbucket_id:\t{}\nmetadata_id:\t{}\ncreated_at:\t{}",
+            "\n{}\nsnapshot_id:\t{}\nbucket_id:\t{}\nmetadata_id:\t{}\ncreated_at:\t{}",
+            "| SNAPSHOT INFO |".yellow(),
             self.id,
             self.bucket_id,
             self.metadata_id,

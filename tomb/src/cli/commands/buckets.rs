@@ -6,6 +6,7 @@ use crate::{
 use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
 use async_trait::async_trait;
 use clap::Subcommand;
+use colored::Colorize;
 use std::{env::current_dir, path::PathBuf};
 use tomb_common::banyan_api::{
     client::Client,
@@ -16,6 +17,8 @@ use tomb_crypt::prelude::{PrivateKey, PublicKey};
 /// Subcommand for Bucket Management
 #[derive(Subcommand, Clone, Debug)]
 pub enum BucketsCommand {
+    /// List all Buckets
+    Ls,
     /// Initialize a new Bucket locally
     Create {
         /// Bucket Name
@@ -25,8 +28,8 @@ pub enum BucketsCommand {
         #[arg(short, long)]
         origin: Option<PathBuf>,
     },
-    /// Encrypt / Bundle a Bucket
-    Bundle {
+    /// Prepare a Bucket for Pushing by encrypting new data
+    Prepare {
         /// Bucket in question
         #[clap(flatten)]
         bucket_specifier: BucketSpecifier,
@@ -35,8 +38,8 @@ pub enum BucketsCommand {
         #[arg(short, long)]
         follow_links: bool,
     },
-    /// Decrypt / Extract a Bucket
-    Extract {
+    /// Reconstruct a filesystem using an encrypted Bucket
+    Restore {
         /// Bucket in question
         #[clap(flatten)]
         bucket_specifier: BucketSpecifier,
@@ -45,8 +48,10 @@ pub enum BucketsCommand {
         #[arg(short, long)]
         output: PathBuf,
     },
-    /// List all Buckets
-    List,
+    /// Push prepared Bucket data
+    Push(BucketSpecifier),
+    /// Download prepared Bucket data
+    Pull(BucketSpecifier),
     /// Delete Bucket
     Delete(BucketSpecifier),
     /// Bucket info
@@ -75,6 +80,29 @@ impl RunnableCommand<TombError> for BucketsCommand {
         client: &mut Client,
     ) -> Result<String, TombError> {
         match self {
+            // List all Buckets tracked remotely and locally
+            BucketsCommand::Ls => {
+                let local = global
+                    .buckets
+                    .iter()
+                    .fold(String::new(), |acc, bucket| format!("{acc}{bucket}"));
+
+                let remote = Bucket::read_all(client)
+                    .await
+                    .map(|buckets| {
+                        buckets
+                            .iter()
+                            .fold(String::new(), |acc, bucket| format!("{acc}{bucket}"))
+                    })
+                    .map_err(TombError::client_error)?;
+                Ok(format!(
+                    "{}{}\n\n{}{}\n",
+                    "<< REMOTE BUCKETS >>".blue(),
+                    remote,
+                    "<< LOCAL BUCKETS >>".blue(),
+                    local
+                ))
+            }
             // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
             BucketsCommand::Create { name, origin } => {
                 let private_key = global.wrapping_key().await?;
@@ -125,38 +153,23 @@ impl RunnableCommand<TombError> for BucketsCommand {
                     Ok(format!("<< NEW BUCKET CREATED (LOCAL ONLY) >>\n{config}"))
                 }
             }
-            // Bundle a local directory
-            BucketsCommand::Bundle {
+            BucketsCommand::Prepare {
                 bucket_specifier,
                 follow_links,
             } => bundle::pipeline(global, &bucket_specifier, follow_links).await,
-            // Extract a local directory
-            BucketsCommand::Extract {
+            BucketsCommand::Restore {
                 bucket_specifier,
                 output,
             } => extract::pipeline(global, &bucket_specifier, &output).await,
-            // List all Buckets tracked remotely and locally
-            BucketsCommand::List => {
-                let local = global
-                    .buckets
-                    .iter()
-                    .fold("<< LOCAL BUCKETS >>".to_string(), |acc, bucket| {
-                        format!("{acc}{bucket}")
-                    });
+            BucketsCommand::Push(bucket_specifier) => {
+                // Obtain the bucket
+                let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
 
-                let remote = Bucket::read_all(client)
-                    .await
-                    .map(|buckets| {
-                        buckets
-                            .iter()
-                            .fold("<< REMOTE BUCKETS >>".to_string(), |acc, bucket| {
-                                format!("{acc}{bucket}")
-                            })
-                    })
-                    .map_err(TombError::client_error)?;
-                Ok(format!("{}\n\n{}", remote, local))
+                todo!()
             }
-            // Delete a Bucket
+            BucketsCommand::Pull(bucket_specifier) => {
+                todo!()
+            }
             BucketsCommand::Delete(bucket_specifier) => {
                 // If we're online and there is a known bucket id with this specifier
                 let remote_deletion = if let Ok(bucket_id) = global.get_bucket_id(&bucket_specifier)
@@ -178,7 +191,6 @@ impl RunnableCommand<TombError> for BucketsCommand {
                     "<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote:\t{remote_deletion}"
                 ))
             }
-            // Info about a Bucket
             BucketsCommand::Info(bucket_specifier) => {
                 // Local info
                 let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
@@ -200,11 +212,12 @@ impl RunnableCommand<TombError> for BucketsCommand {
                 };
 
                 Ok(format!(
-                    "<< BUCKET INFO >>\nlocal:\t{}\nremote:\t{}",
-                    local, remote
+                    "{}\nlocal:\t{}\nremote:\t{}",
+                    "<< BUCKET INFO >>".blue(),
+                    local,
+                    remote
                 ))
             }
-            // Bucket usage
             BucketsCommand::Usage(bucket_specifier) => {
                 let bucket_id = global.get_bucket_id(&bucket_specifier)?;
                 Bucket::read(client, bucket_id)
@@ -214,11 +227,9 @@ impl RunnableCommand<TombError> for BucketsCommand {
                     .map(|v| format!("id:\t{}\nusage:\t{}", bucket_id, v))
                     .map_err(TombError::client_error)
             }
-            // Bucket Metadata
             BucketsCommand::Metadata { subcommand } => {
                 subcommand.run_internal(global, client).await
             }
-            // Bucket Key Management
             BucketsCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,
         }
     }

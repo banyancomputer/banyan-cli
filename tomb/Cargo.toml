@@ -33,6 +33,7 @@ hex = "^0.4"
 tomb-common = { path = "../tomb-common", version = "^1" }
 open = "^5"
 base64 = "^0.21"
+colored = "2.0.4"
 
 [dependencies.nix]
 version = "^0.27"

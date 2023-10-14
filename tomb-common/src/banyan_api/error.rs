@@ -68,7 +68,7 @@ impl Display for ClientError {
 
         let prefix = match &self.kind {
             ApiResponseError(err) => format!("api response error: {err}"),
-            AuthUnavailable => "auth unavailable".into(),
+            AuthUnavailable => format!("{}", "auth unavailable"),
             HttpClientError(_) => "http client error".into(),
             HttpResponseError(status_code) => format!("http response error: {status_code:?}"),
             ResponseFormatError(_) => "response format error".into(),
@@ -124,5 +124,11 @@ pub enum ClientErrorKind {
 impl From<anyhow::Error> for ClientError {
     fn from(value: anyhow::Error) -> Self {
         Self::custom_error(&value.to_string())
+    }
+}
+
+impl From<TombCryptError> for ClientError {
+    fn from(value: TombCryptError) -> Self {
+        Self::crypto_error(value)
     }
 }

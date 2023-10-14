@@ -1,13 +1,12 @@
-use std::fmt::Display;
-
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
 use crate::banyan_api::{
     client::Client,
     error::ClientError,
     requests::core::buckets::keys::{create::*, delete::*, read::*, reject::*},
 };
+use colored::Colorize;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 /// BucketKey Definition
@@ -32,8 +31,11 @@ impl Display for BucketKey {
             "unapproved"
         };
         f.write_fmt(format_args!(
-            "\n| KEY INFO |\nbucket_id: {}\nfingerprint: {}\nstatus: {}",
-            self.bucket_id, self.fingerprint, status
+            "\n{}\nbucket_id: {}\nfingerprint: {}\nstatus: {}",
+            "| KEY INFO |".yellow(),
+            self.bucket_id,
+            self.fingerprint,
+            status
         ))
     }
 }

@@ -1,3 +1,4 @@
+use super::RunnableCommand;
 use crate::types::config::globalconfig::GlobalConfig;
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
@@ -14,8 +15,6 @@ use tomb_crypt::{
     pretty_fingerprint,
 };
 
-use super::RunnableCommand;
-
 /// Subcommand for Authentication
 #[derive(Subcommand, Clone, Debug)]
 pub enum AccountCommand {
@@ -23,9 +22,9 @@ pub enum AccountCommand {
     RegisterDevice,
     /// Log out from this device
     Logout,
-    // /// Register
-    // #[cfg(feature = "fake")]
-    // Register,
+    /// Register
+    #[cfg(feature = "fake")]
+    Register,
     /// Ask the server who I am
     WhoAmI,
     /// Ask the server my usage
@@ -56,29 +55,31 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 client.logout();
                 Ok("successfully logged out".to_string())
             }
-            // #[cfg(feature = "fake")]
-            // AccountCommand::Register => {
-            //     // Additional imports
-            //     use tomb_common::banyan_api::requests::core::auth::fake_account::create::{
-            //         CreateAccountResponse, CreateFakeAccount,
-            //     };
-            //     // Create local keys
-            //     let api_key = EcSignatureKey::generate().await.map_err(ClientError::crypto_error).map_err(TombError::client_error);
-            //     let public_api_key = api_key.public_key()?;
-            //     let public_api_key_pem = String::from_utf8(public_api_key.export().await?)?;
-            //     // Associate the key material with the backend
-            //     let response: CreateAccountResponse = client
-            //         .call(CreateFakeAccount {
-            //             device_api_key_pem: public_api_key_pem,
-            //         })
-            //         .await?;
-            //     client.with_credentials(Credentials {
-            //         account_id: response.id,
-            //         signing_key: api_key.clone(),
-            //     });
+            #[cfg(feature = "fake")]
+            AccountCommand::Register => {
+                // Additional imports
+                use tomb_common::banyan_api::requests::core::auth::fake_account::create::{
+                    CreateAccountResponse, CreateFakeAccount,
+                };
 
-            //     Ok(format!("created account with id: {}", response.id))
-            // }
+                // Create local keys
+                let api_key = EcSignatureKey::generate().await?;
+                let public_api_key = api_key.public_key()?;
+                let public_api_key_pem = String::from_utf8(public_api_key.export().await?)
+                    .map_err(|_| ClientError::custom_error("utf8 PEM"))?;
+                // Associate the key material with the backend
+                let response: CreateAccountResponse = client
+                    .call(CreateFakeAccount {
+                        device_api_key_pem: public_api_key_pem,
+                    })
+                    .await?;
+                client.with_credentials(Credentials {
+                    account_id: response.id,
+                    signing_key: api_key.clone(),
+                });
+
+                Ok(format!("created account with id: {}", response.id))
+            }
             AccountCommand::WhoAmI => Account::who_am_i(client)
                 .await
                 .map(|v| format!("account: {}", v.id)),

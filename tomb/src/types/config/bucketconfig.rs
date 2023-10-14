@@ -1,4 +1,5 @@
 use anyhow::{Ok, Result};
+use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -61,11 +62,16 @@ pub struct BucketConfig {
 impl Display for BucketConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n| LOCAL BUCKET INFO |\nname:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{:?}",
+            "\n{}\nname:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{}\n",
+            "| LOCAL BUCKET INFO |".yellow(),
             self.name,
             self.origin.display(),
             self.local_id,
-            self.remote_id
+            if let Some(remote_id) = self.remote_id {
+                remote_id.to_string()
+            } else {
+                format!("{}", "Bucket does not exist remotely".red())
+            }
         ))
     }
 }

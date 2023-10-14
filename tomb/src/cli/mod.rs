@@ -16,13 +16,13 @@ mod test {
     use serial_test::serial;
     use std::{fs::create_dir, path::Path};
 
-    // #[allow(dead_code)]
-    // #[cfg(feature = "fake")]
-    // fn cmd_register() -> TombCommand {
-    //     TombCommand::Account {
-    //         command: AccountCommand::Register,
-    //     }
-    // }
+    #[allow(dead_code)]
+    #[cfg(feature = "fake")]
+    fn cmd_register() -> TombCommand {
+        TombCommand::Account {
+            command: AccountCommand::Register,
+        }
+    }
 
     fn cmd_create(origin: &Path) -> TombCommand {
         TombCommand::Buckets {
@@ -42,7 +42,7 @@ mod test {
     // Run the Bundle pipeline through the CLI
     fn cmd_bundle(origin: &Path) -> TombCommand {
         TombCommand::Buckets {
-            command: BucketsCommand::Bundle {
+            command: BucketsCommand::Prepare {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
                 follow_links: true,
             },
@@ -52,7 +52,7 @@ mod test {
     // Run the Extract pipeline through the CLI
     fn cmd_extract(origin: &Path, extracted: &Path) -> TombCommand {
         TombCommand::Buckets {
-            command: BucketsCommand::Extract {
+            command: BucketsCommand::Restore {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
                 output: extracted.to_path_buf(),
             },

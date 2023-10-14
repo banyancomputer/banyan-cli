@@ -1,14 +1,16 @@
-use async_trait::async_trait;
-use clap::Subcommand;
-use tomb_common::banyan_api::client::Client;
+use std::fmt::Display;
 
 use crate::types::config::globalconfig::GlobalConfig;
+use async_trait::async_trait;
+use clap::Subcommand;
+use colored::Colorize;
+use tomb_common::banyan_api::client::Client;
 
 /// Async function for running a command
 #[async_trait(?Send)]
 pub trait RunnableCommand<ErrorType>: Subcommand
 where
-    ErrorType: Into<Box<dyn std::error::Error>> + std::fmt::Debug,
+    ErrorType: Into<Box<dyn std::error::Error>> + std::fmt::Debug + Display,
 {
     /// The internal running operation
     async fn run_internal(
@@ -38,7 +40,7 @@ where
                 Ok(())
             }
             Err(error) => {
-                println!("{:?}", error);
+                println!("{}", format!("{}", error).red());
                 Err(error)
             }
         }

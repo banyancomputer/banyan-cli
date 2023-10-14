@@ -1,3 +1,4 @@
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 #[cfg(target_arch = "wasm32")]
@@ -22,8 +23,10 @@ pub struct StorageTicket {
 impl Display for StorageTicket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n| STORAGE TICKET INFO |\nhost:\t{}\nauthorization:\t{}",
-            self.host, self.authorization
+            "\n{}\nhost:\t{}\nauthorization:\t{}",
+            "| STORAGE TICKET INFO |".yellow(),
+            self.host,
+            self.authorization
         ))
     }
 }

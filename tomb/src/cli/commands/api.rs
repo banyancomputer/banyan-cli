@@ -2,6 +2,7 @@ use super::RunnableCommand;
 use crate::types::config::{globalconfig::GlobalConfig, Endpoints};
 use async_trait::async_trait;
 use clap::Subcommand;
+use colored::Colorize;
 use reqwest::Url;
 use tomb_common::banyan_api::client::Client;
 
@@ -63,7 +64,7 @@ impl RunnableCommand<anyhow::Error> for ApiCommand {
             }
             ApiCommand::Reset => {
                 global.endpoints = Endpoints::default();
-                Ok("<< ENDPOINTS HAVE BEEN RESET >>".to_string())
+                Ok(format!("{}", "<< ENDPOINTS HAVE BEEN RESET >>".green()))
             }
         }
     }
@@ -83,7 +84,10 @@ fn process_field(
             // Update the address
             *field = address;
             // Report okay
-            Ok("<< CONFIGURATION UPDATED SUCCESSFULLY >>".to_string())
+            Ok(format!(
+                "{}",
+                "<< CONFIGURATION UPDATED SUCCESSFULLY >>".green()
+            ))
         }
     }
 }

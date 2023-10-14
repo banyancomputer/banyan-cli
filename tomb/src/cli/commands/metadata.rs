@@ -56,7 +56,8 @@ impl RunnableCommand<TombError> for MetadataCommand {
             // Push metadata
             MetadataCommand::Push(bucket_specifier) => {
                 // Get info
-                let wrapping_key = global.wrapping_key().await?;
+                let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
+                    global.wrapping_key().await?;
                 let config = global.get_bucket_by_specifier(&bucket_specifier)?;
                 let fs = FsMetadata::unlock(&wrapping_key, &config.metadata).await?;
                 let valid_keys = fs.share_manager.public_fingerprints();
