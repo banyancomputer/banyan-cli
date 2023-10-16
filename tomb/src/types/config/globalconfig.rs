@@ -8,7 +8,7 @@ use tomb_common::{
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
-use super::{bucketconfig::BucketConfig, Endpoints};
+use super::{bucket::LocalBucket, Endpoints};
 use serde::{Deserialize, Serialize};
 use std::{
     env::current_dir,
@@ -32,7 +32,7 @@ pub struct GlobalConfig {
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
     /// Bucket Configurations
-    pub(crate) buckets: Vec<BucketConfig>,
+    pub(crate) buckets: Vec<LocalBucket>,
 }
 
 impl Default for GlobalConfig {
@@ -144,7 +144,7 @@ impl GlobalConfig {
     }
 
     /// Create a new BucketConfig for an origin
-    pub async fn new_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
+    pub async fn new_bucket(&mut self, origin: &Path) -> Result<LocalBucket> {
         self.get_or_create_bucket(origin).await
     }
 
@@ -181,7 +181,7 @@ impl GlobalConfig {
     }
 
     /// Update a given BucketConfig
-    pub fn update_config(&mut self, bucket: &BucketConfig) -> Result<()> {
+    pub fn update_config(&mut self, bucket: &LocalBucket) -> Result<()> {
         // Find index
         let index = self
             .buckets
@@ -195,7 +195,7 @@ impl GlobalConfig {
     }
 
     /// Find a BucketConfig by origin
-    pub fn get_bucket_by_origin(&self, origin: &Path) -> Option<BucketConfig> {
+    pub fn get_bucket_by_origin(&self, origin: &Path) -> Option<LocalBucket> {
         self.buckets
             .clone()
             .into_iter()
@@ -203,21 +203,21 @@ impl GlobalConfig {
     }
 
     /// Find a BucketConfig by origin
-    pub fn get_bucket_by_remote_id(&self, id: &Uuid) -> Option<BucketConfig> {
+    pub fn get_bucket_by_remote_id(&self, id: &Uuid) -> Option<LocalBucket> {
         self.buckets
             .clone()
             .into_iter()
             .find(|bucket| bucket.remote_id == Some(*id))
     }
 
-    async fn create_bucket(&mut self, origin: &Path) -> Result<BucketConfig> {
+    async fn create_bucket(&mut self, origin: &Path) -> Result<LocalBucket> {
         let wrapping_key = wrapping_key(&self.wrapping_key_path).await?;
-        let bucket = BucketConfig::new(origin, &wrapping_key).await?;
+        let bucket = LocalBucket::new(origin, &wrapping_key).await?;
         self.buckets.push(bucket.clone());
         Ok(bucket)
     }
 
-    pub(crate) async fn get_or_create_bucket(&mut self, path: &Path) -> Result<BucketConfig> {
+    pub(crate) async fn get_or_create_bucket(&mut self, path: &Path) -> Result<LocalBucket> {
         let existing = self.get_bucket_by_origin(path);
         if let Some(config) = existing {
             Ok(config)
@@ -244,7 +244,7 @@ impl GlobalConfig {
     pub(crate) fn get_bucket_by_specifier(
         &self,
         bucket_specifier: &BucketSpecifier,
-    ) -> Result<BucketConfig, TombError> {
+    ) -> Result<LocalBucket, TombError> {
         // If we already have the ID and can find a bucket from it
         if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
             return Ok(bucket);

@@ -1,5 +1,5 @@
 /// Bucket level configuration
-pub mod bucketconfig;
+pub mod bucket;
 /// Global level configurations
 pub mod globalconfig;
 

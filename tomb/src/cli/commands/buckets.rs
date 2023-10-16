@@ -1,12 +1,11 @@
 use crate::{
     pipelines::{bundle, error::TombError, extract},
-    types::config::globalconfig::GlobalConfig,
+    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };
 
 use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
 use async_trait::async_trait;
 use clap::Subcommand;
-use colored::Colorize;
 use std::{env::current_dir, path::PathBuf};
 use tomb_common::banyan_api::{
     client::Client,
@@ -82,26 +81,11 @@ impl RunnableCommand<TombError> for BucketsCommand {
         match self {
             // List all Buckets tracked remotely and locally
             BucketsCommand::Ls => {
-                let local = global
-                    .buckets
+                let omnis = OmniBucket::ls(global, client).await;
+                let str = omnis
                     .iter()
-                    .fold(String::new(), |acc, bucket| format!("{acc}{bucket}"));
-
-                let remote = Bucket::read_all(client)
-                    .await
-                    .map(|buckets| {
-                        buckets
-                            .iter()
-                            .fold(String::new(), |acc, bucket| format!("{acc}{bucket}"))
-                    })
-                    .map_err(TombError::client_error)?;
-                Ok(format!(
-                    "{}{}\n\n{}{}\n",
-                    "<< REMOTE BUCKETS >>".blue(),
-                    remote,
-                    "<< LOCAL BUCKETS >>".blue(),
-                    local
-                ))
+                    .fold(String::new(), |acc, bucket| format!("{acc}\n{bucket}"));
+                Ok(str)
             }
             // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
             BucketsCommand::Create { name, origin } => {
@@ -163,60 +147,20 @@ impl RunnableCommand<TombError> for BucketsCommand {
             } => extract::pipeline(global, &bucket_specifier, &output).await,
             BucketsCommand::Push(bucket_specifier) => {
                 // Obtain the bucket
-                let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
+                let _bucket = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
 
                 todo!()
             }
-            BucketsCommand::Pull(bucket_specifier) => {
+            BucketsCommand::Pull(_bucket_specifier) => {
                 todo!()
             }
             BucketsCommand::Delete(bucket_specifier) => {
-                // If we're online and there is a known bucket id with this specifier
-                let remote_deletion = if let Ok(bucket_id) = global.get_bucket_id(&bucket_specifier)
-                {
-                    Bucket::delete_by_id(client, bucket_id).await.is_ok()
-                } else {
-                    false
-                };
-
-                // Remove the bucket locally if it is known
-                let local_deletion = if global.get_bucket_by_specifier(&bucket_specifier).is_ok() {
-                    // Remove the Bucket locally
-                    global.remove_bucket_by_specifier(&bucket_specifier).is_ok()
-                } else {
-                    false
-                };
-
-                Ok(format!(
-                    "<< BUCKET DELETION >>\nlocal:\t{local_deletion}\nremote:\t{remote_deletion}"
-                ))
+                let bucket = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                bucket.delete(global, client).await
             }
             BucketsCommand::Info(bucket_specifier) => {
-                // Local info
-                let local = if let Ok(bucket) = global.get_bucket_by_specifier(&bucket_specifier) {
-                    format!("{}", bucket)
-                } else {
-                    "no known local bucket".to_string()
-                };
-
-                // If there is known remote counterpart to the Bucket
-                let remote = if let Ok(id) = global.get_bucket_id(&bucket_specifier) {
-                    match Bucket::read(client, id).await {
-                        Ok(bucket) => {
-                            format!("{bucket}")
-                        }
-                        Err(err) => format!("error: {}", err),
-                    }
-                } else {
-                    "no known remote bucket".to_string()
-                };
-
-                Ok(format!(
-                    "{}\nlocal:\t{}\nremote:\t{}",
-                    "<< BUCKET INFO >>".blue(),
-                    local,
-                    remote
-                ))
+                let bucket = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                Ok(format!("{bucket}"))
             }
             BucketsCommand::Usage(bucket_specifier) => {
                 let bucket_id = global.get_bucket_id(&bucket_specifier)?;

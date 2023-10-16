@@ -80,7 +80,7 @@ impl Display for TombError {
             UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
             FileMissing(path) => format!("missing file at path: {}", path.display()),
             IoError(err) => format!("io error: {err}"),
-            CustomError(err) => format!("{err}"),
+            CustomError(err) => err.to_string(),
         };
 
         write!(f, "{}", prefix)?;

@@ -44,13 +44,13 @@ fn bucket_content_path(name: &str) -> PathBuf {
 // TODO: This is maybe better concieved of as a Bucket
 /// Configuration for an individual Bucket / FileSystem
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct BucketConfig {
+pub struct LocalBucket {
     /// The name of this bucket
     pub(crate) name: String,
     /// The filesystem that this bucket represents
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds bundled content and key files
-    pub(crate) local_id: String,
+    local_id: String,
     /// Bucket Uuid, if this
     pub(crate) remote_id: Option<Uuid>,
     /// BlockStore for storing metadata only
@@ -59,11 +59,10 @@ pub struct BucketConfig {
     pub content: MultiCarV2DiskBlockStore,
 }
 
-impl Display for BucketConfig {
+impl Display for LocalBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n{}\nname:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{}\n",
-            "| LOCAL BUCKET INFO |".yellow(),
+            "name:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{}",
             self.name,
             self.origin.display(),
             self.local_id,
@@ -76,7 +75,7 @@ impl Display for BucketConfig {
     }
 }
 
-impl BucketConfig {
+impl LocalBucket {
     /// Given a directory, initialize a configuration for it
     pub async fn new(origin: &Path, wrapping_key: &EcEncryptionKey) -> Result<Self> {
         let name = origin
