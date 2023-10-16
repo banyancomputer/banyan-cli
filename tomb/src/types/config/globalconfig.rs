@@ -144,8 +144,8 @@ impl GlobalConfig {
     }
 
     /// Create a new BucketConfig for an origin
-    pub async fn new_bucket(&mut self, origin: &Path) -> Result<LocalBucket> {
-        self.get_or_create_bucket(origin).await
+    pub async fn new_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
+        self.get_or_create_bucket(name, origin).await
     }
 
     /// Remove a BucketConfig for an origin
@@ -210,19 +210,24 @@ impl GlobalConfig {
             .find(|bucket| bucket.remote_id == Some(*id))
     }
 
-    async fn create_bucket(&mut self, origin: &Path) -> Result<LocalBucket> {
+    async fn create_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
         let wrapping_key = wrapping_key(&self.wrapping_key_path).await?;
-        let bucket = LocalBucket::new(origin, &wrapping_key).await?;
+        let mut bucket = LocalBucket::new(origin, &wrapping_key).await?;
+        bucket.name = name.to_string();
         self.buckets.push(bucket.clone());
         Ok(bucket)
     }
 
-    pub(crate) async fn get_or_create_bucket(&mut self, path: &Path) -> Result<LocalBucket> {
-        let existing = self.get_bucket_by_origin(path);
+    pub(crate) async fn get_or_create_bucket(
+        &mut self,
+        name: &str,
+        origin: &Path,
+    ) -> Result<LocalBucket> {
+        let existing = self.get_bucket_by_origin(origin);
         if let Some(config) = existing {
             Ok(config)
         } else {
-            Ok(self.create_bucket(path).await?)
+            Ok(self.create_bucket(name, origin).await?)
         }
     }
 
@@ -415,7 +420,7 @@ mod test {
 
         // Load from disk
         let mut original = GlobalConfig::from_disk().await?;
-        let original_bucket = original.new_bucket(origin).await?;
+        let original_bucket = original.new_bucket("new", origin).await?;
 
         // Serialize to disk
         original.to_disk()?;

@@ -71,7 +71,7 @@ mod test {
         // Assert that bundling fails
         assert!(bundle_pipeline(bucket_specifier).await.is_err());
         // Initialize for this user
-        configure::init(origin).await?;
+        configure::init("init", origin).await?;
         // Assert that a config exists for this bucket now
         assert!(GlobalConfig::from_disk()
             .await?
@@ -104,7 +104,7 @@ mod test {
         // Create the setup conditions
         let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize
-        configure::init(origin).await?;
+        configure::init(test_name, origin).await?;
         // Bundle
         bundle_pipeline(bucket_specifier).await?;
         // Teardown
@@ -118,7 +118,7 @@ mod test {
         // Create the setup conditions
         let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize
-        configure::init(origin).await?;
+        configure::init(test_name, origin).await?;
         // Bundle locally
         bundle_pipeline(bucket_specifier).await?;
         // Create a new dir to extract in
@@ -142,7 +142,7 @@ mod test {
         // Create the setup conditions
         let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init(origin).await?;
+        configure::init(test_name, origin).await?;
         // Run the bundle pipeline
         bundle_pipeline(bucket_specifier).await?;
         // This is still in the input dir. Technically we could just
@@ -197,7 +197,7 @@ mod test {
         // Create the setup conditions
         let (origin, bucket_specifier) = &test_setup(test_name).await?;
         // Initialize tomb
-        configure::init(origin).await?;
+        configure::init(test_name, origin).await?;
         // Run the bundle pipeline
         bundle_pipeline(bucket_specifier).await?;
         // Write out a reference to where we expect to find this file
@@ -244,7 +244,7 @@ mod test {
         let origin = &root_path.join("input");
         let bucket_specifier = &BucketSpecifier::with_origin(origin);
         // Initialize
-        configure::init(origin).await?;
+        configure::init(test_name, origin).await?;
         // Bundle locally
         bundle_pipeline(bucket_specifier).await?;
         println!("finished bundling...");

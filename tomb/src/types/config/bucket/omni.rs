@@ -1,19 +1,30 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, path::Path};
 
 use super::LocalBucket;
 use crate::{
-    cli::specifiers::BucketSpecifier, pipelines::error::TombError,
+    cli::{
+        commands::{MetadataCommand, RunnableCommand},
+        specifiers::BucketSpecifier,
+    },
+    pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
 };
 use colored::{ColoredString, Colorize};
-use tomb_common::banyan_api::{client::Client, models::bucket::Bucket as RemoteBucket};
+use tomb_common::{
+    banyan_api::{
+        client::Client,
+        models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
+    },
+    metadata::FsMetadata,
+};
+use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
 
 ///
 #[derive(Debug, Clone)]
 pub struct OmniBucket {
-    local: Option<LocalBucket>,
-    remote: Option<RemoteBucket>,
+    pub local: Option<LocalBucket>,
+    pub remote: Option<RemoteBucket>,
 }
 
 impl OmniBucket {
@@ -78,6 +89,72 @@ impl OmniBucket {
         }
     }
 
+    /// Create a new bucket
+    pub async fn create(
+        global: &mut GlobalConfig,
+        client: &mut Client,
+        name: &str,
+        origin: &Path,
+    ) -> Result<OmniBucket, TombError> {
+        let mut omni = OmniBucket {
+            local: None,
+            remote: None,
+        };
+
+        // If this bucket already exists both locally and remotely
+        if let Some(bucket) = global.get_bucket_by_origin(origin) &&
+            let Some(remote_id) = bucket.remote_id &&
+            RemoteBucket::read(client, remote_id).await.is_ok() {
+            // If we are able to read the bucket
+            return Err(TombError::custom_error("Bucket already exists at this origin and is persisted remotely"));
+        }
+
+        // Initialize in the configs
+        let mut local = global.get_or_create_bucket(name, origin).await?;
+        global.to_disk()?;
+        local.content.add_delta()?;
+        omni.local = Some(local.clone());
+
+        let wrapping_key = global.wrapping_key().await?;
+
+        // Initialize and save metadata so that it can be pushed
+        let mut metadata = FsMetadata::init(&wrapping_key).await?;
+        metadata.save(&local.metadata, &local.content).await?;
+
+        // Update the config globally
+        global.update_config(&local)?;
+
+        let public_key = wrapping_key.public_key()?;
+        let pem = String::from_utf8(public_key.export().await?)
+            .map_err(|_| TombError::custom_error("unable to represent pem from utf8"))?;
+
+        // Initialize on the remote endpoint
+        if let Ok((remote, _)) = RemoteBucket::create(
+            name.to_string(),
+            pem,
+            BucketType::Interactive,
+            StorageClass::Hot,
+            client,
+        )
+        .await
+        {
+            // Update the bucket config id
+            local.remote_id = Some(remote.id);
+            omni.local = Some(local.clone());
+            omni.remote = Some(remote.clone());
+            // Update the config globally
+            global.update_config(&local)?;
+
+            // Attempt to push the first metadata
+            let bucket_specifier = BucketSpecifier::with_id(remote.id);
+            let command = MetadataCommand::Push(bucket_specifier);
+            let metadata_result = command.run_internal(global, client).await;
+            println!("metadata_result: {:?}", metadata_result);
+        }
+
+        Ok(omni)
+    }
+
     /// Delete an individual Bucket
     pub async fn delete(
         &self,
@@ -106,8 +183,10 @@ impl OmniBucket {
         };
 
         Ok(format!(
-            "{}\nlocal:\t{local_deletion}\nremote:\t{remote_deletion}",
-            "<< BUCKET DELETION >>".blue()
+            "{}\nlocal:\t{}\nremote:\t{}",
+            "<< BUCKET DELETION >>".blue(),
+            bool_colorized(local_deletion),
+            bool_colorized(remote_deletion)
         ))
     }
 
@@ -162,7 +241,7 @@ impl Display for OmniBucket {
 
         // If we have both present
         if let Some(local) = &self.local && let Some(remote) = &self.remote {
-            info = format!("{info}\nname:\t{}\norigin:\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
+            info = format!("{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
                 local.name,
                 local.origin.display(),
                 remote.id,

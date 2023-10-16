@@ -1,7 +1,5 @@
-use std::{fmt::Display, str::FromStr};
-
-use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::{fmt::Display, str::FromStr};
 use uuid::Uuid;
 
 use crate::banyan_api::{
@@ -91,12 +89,8 @@ pub struct Bucket {
 impl Display for Bucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n{}\nname:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}\n",
-            "| REMOTE BUCKET INFO |".yellow(),
-            self.name,
-            self.id,
-            self.r#type,
-            self.storage_class
+            "name:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
+            self.name, self.id, self.r#type, self.storage_class
         ))
     }
 }

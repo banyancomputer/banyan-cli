@@ -1,5 +1,6 @@
 use crate::{
-    pipelines::error::TombError, types::config::globalconfig::GlobalConfig,
+    pipelines::error::TombError,
+    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
     utils::wnfsio::compute_directory_size,
 };
 
@@ -58,37 +59,41 @@ impl RunnableCommand<TombError> for MetadataCommand {
                 // Get info
                 let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
                     global.wrapping_key().await?;
-                let config = global.get_bucket_by_specifier(&bucket_specifier)?;
-                let fs = FsMetadata::unlock(&wrapping_key, &config.metadata).await?;
-                let valid_keys = fs.share_manager.public_fingerprints();
-                let expected_data_size = compute_directory_size(&config.metadata.path)? as u64;
-                let bucket_id = config.remote_id.expect("no remote id");
-                let root_cid = config.content.get_root().expect("no root cid").to_string();
-                let metadata_cid = config
-                    .metadata
-                    .get_root()
-                    .expect("no metadata cid")
-                    .to_string();
-                let metadata_stream = tokio::fs::File::open(&config.metadata.path).await?;
-                // Push the Metadata
-                Metadata::push(
-                    bucket_id,
-                    root_cid,
-                    metadata_cid,
-                    expected_data_size,
-                    valid_keys,
-                    metadata_stream,
-                    client,
-                )
-                .await
-                .map(|(metadata, storage_ticket)| {
-                    let mut info = format!("\t{}", metadata);
-                    if let Some(storage_ticket) = storage_ticket {
-                        info.push_str(&format!("\n\n\t{}", storage_ticket))
-                    }
-                    info
-                })
-                .map_err(TombError::client_error)
+                let omni = OmniBucket::from_specifier(&global, client, &bucket_specifier).await;
+                if let Some(local) = omni.local {
+                    let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
+                    let valid_keys = fs.share_manager.public_fingerprints();
+                    let expected_data_size = compute_directory_size(&local.metadata.path)? as u64;
+                    let bucket_id = local.remote_id.expect("no remote id");
+                    let root_cid = local.content.get_root().expect("no root cid").to_string();
+                    let metadata_cid = local
+                        .metadata
+                        .get_root()
+                        .expect("no metadata cid")
+                        .to_string();
+                    let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
+                    // Push the Metadata
+                    Metadata::push(
+                        bucket_id,
+                        root_cid,
+                        metadata_cid,
+                        expected_data_size,
+                        valid_keys,
+                        metadata_stream,
+                        client,
+                    )
+                    .await
+                    .map(|(metadata, storage_ticket)| {
+                        let mut info = format!("\t{}", metadata);
+                        if let Some(storage_ticket) = storage_ticket {
+                            info.push_str(&format!("\n\n\t{}", storage_ticket))
+                        }
+                        info
+                    })
+                    .map_err(TombError::client_error)
+                } else {
+                    Ok("no bucket".to_string())
+                }
             }
             // Read the current Metadata
             MetadataCommand::ReadCurrent(bucket_specifier) => {

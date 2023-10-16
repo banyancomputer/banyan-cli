@@ -197,7 +197,7 @@ mod test {
 
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
-        let mut config = global.get_or_create_bucket(&origin).await?;
+        let mut config = global.get_or_create_bucket("test", &origin).await?;
 
         let mut rng = thread_rng();
         let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;
