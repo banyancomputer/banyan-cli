@@ -1,4 +1,4 @@
-use crate::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig};
+use crate::{pipelines::error::TombError, types::config::{globalconfig::GlobalConfig, bucket::OmniBucket}};
 
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;
@@ -35,7 +35,10 @@ impl RunnableCommand<TombError> for KeyCommand {
         match self {
             // List Keys
             KeyCommand::List(bucket_specifier) => {
-                BucketKey::read_all(global.get_bucket_id(&bucket_specifier)?, client)
+                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let id = omni.get_id().unwrap();
+
+                BucketKey::read_all(id, client)
                     .await
                     .map(|keys| {
                         keys.iter()
@@ -59,13 +62,14 @@ impl RunnableCommand<TombError> for KeyCommand {
                 .unwrap();
 
                 // Get Bucket
-                let bucket = global.get_bucket_by_specifier(&bucket_specifier)?;
-                let mut fs = FsMetadata::unlock(&private_key, &bucket.metadata).await?;
-                fs.share_with(&public_key, &bucket.metadata).await?;
-                fs.save(&bucket.metadata, &bucket.metadata).await?;
+                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let local = omni.local.clone().unwrap();
+                let mut fs = FsMetadata::unlock(&private_key, &local.metadata).await?;
+                fs.share_with(&public_key, &local.metadata).await?;
+                fs.save(&local.metadata, &local.metadata).await?;
 
-                if let Some(remote_id) = bucket.remote_id {
-                    BucketKey::create(remote_id, pem, client)
+                if let Some(id) = omni.get_id() {
+                    BucketKey::create(id, pem, client)
                         .await
                         .map(|key| format!("{}", key))
                         .map_err(TombError::client_error)
@@ -106,7 +110,7 @@ async fn get_key_info(
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
 ) -> anyhow::Result<(Uuid, Uuid)> {
-    let bucket_id = global.get_bucket_id(&key_specifier.bucket_specifier)?;
+    let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.bucket_specifier).await.get_id().unwrap();
     let all_keys = BucketKey::read_all(bucket_id, client).await?;
     let key_index = all_keys
         .iter()

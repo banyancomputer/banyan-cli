@@ -1,4 +1,4 @@
-use crate::{cli::specifiers::BucketSpecifier, pipelines::error::TombError, utils::config::*};
+use crate::utils::config::*;
 use anyhow::{anyhow, Result};
 
 use tomb_common::{
@@ -14,7 +14,6 @@ use super::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    env::current_dir,
     fs::{remove_file, OpenOptions},
     path::{Path, PathBuf},
     str::FromStr,
@@ -146,19 +145,17 @@ impl GlobalConfig {
     }
 
     /// Remove a BucketConfig for an origin
-    pub fn remove_bucket_by_specifier(&mut self, bucket_specifier: &BucketSpecifier) -> Result<()> {
-        if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) {
-            // Remove bucket data
-            bucket.remove_data()?;
-            // Find index of bucket
-            let index = self
-                .buckets
-                .iter()
-                .position(|b| *b == bucket)
-                .expect("cannot find index in buckets");
-            // Remove bucket config from global config
-            self.buckets.remove(index);
-        }
+    pub fn remove_bucket(&mut self, bucket: &LocalBucket) -> Result<()> {
+        // Remove bucket data
+        bucket.remove_data()?;
+        // Find index of bucket
+        let index = self
+            .buckets
+            .iter()
+            .position(|b| b == bucket)
+            .expect("cannot find index in buckets");
+        // Remove bucket config from global config
+        self.buckets.remove(index);
         Ok(())
     }
 
@@ -191,22 +188,6 @@ impl GlobalConfig {
         Ok(())
     }
 
-    /// Find a BucketConfig by origin
-    pub fn get_bucket_by_origin(&self, origin: &Path) -> Option<LocalBucket> {
-        self.buckets
-            .clone()
-            .into_iter()
-            .find(|bucket| bucket.origin == origin)
-    }
-
-    /// Find a BucketConfig by origin
-    pub fn get_bucket_by_remote_id(&self, id: &Uuid) -> Option<LocalBucket> {
-        self.buckets
-            .clone()
-            .into_iter()
-            .find(|bucket| bucket.remote_id == Some(*id))
-    }
-
     /// Create a new bucket
     async fn create_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
         let wrapping_key = self.wrapping_key().await?;
@@ -216,54 +197,17 @@ impl GlobalConfig {
         Ok(bucket)
     }
 
+    /// Get a Bucket configuration by the origin
+    pub fn get_bucket(&self, origin: &Path) -> Option<LocalBucket> {
+        self.buckets.iter().find(|bucket| bucket.origin == origin).map(|bucket| bucket.clone())
+    }
+
     /// Create a bucket if it doesn't exist, return the object either way
     pub async fn get_or_init_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
-        let existing = self.get_bucket_by_origin(origin);
-        if let Some(config) = existing {
-            Ok(config)
+        if let Some(config) = self.get_bucket(origin) {
+            Ok(config.clone())
         } else {
             Ok(self.create_bucket(name, origin).await?)
-        }
-    }
-
-    /// Get a Bucket UUID by its BucketSpecifier
-    pub(crate) fn get_bucket_id(
-        &self,
-        bucket_specifier: &BucketSpecifier,
-    ) -> Result<Uuid, TombError> {
-        if let Some(id) = bucket_specifier.bucket_id {
-            return Ok(id);
-        }
-        if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) && let Some(id) = bucket.remote_id {
-            return Ok(id);
-        }
-
-        Err(anyhow!("bucket had no known remote").into())
-    }
-
-    pub(crate) fn get_bucket_by_specifier(
-        &self,
-        bucket_specifier: &BucketSpecifier,
-    ) -> Result<LocalBucket, TombError> {
-        // If we already have the ID and can find a bucket from it
-        if let Some(id) = bucket_specifier.bucket_id && let Some(bucket) = self.get_bucket_by_remote_id(&id) {
-            return Ok(bucket);
-        }
-
-        // if let Some(origin) = &bucket_specifier.origin && let Some(bucket) = self.get_bucket_by_origin(origin) {
-        //     return Ok(bucket);
-        // }
-
-        // Grab an Origin
-        let origin = bucket_specifier
-            .origin
-            .clone()
-            .unwrap_or(current_dir().expect("unable to obtain current working directory"));
-        // Find a BucketConfig at this origin and expect it has an ID saved as well
-        if let Some(bucket) = self.get_bucket_by_origin(&origin) {
-            Ok(bucket)
-        } else {
-            Err(TombError::unknown_path(origin))
         }
     }
 }
@@ -361,7 +305,7 @@ mod test {
         original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
         let reconstructed_bucket = reconstructed
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
 
         // Assert equality

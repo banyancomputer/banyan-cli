@@ -64,7 +64,7 @@ mod test {
     async fn init() -> Result<()> {
         let test_name = "cli_init";
         // Setup test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Deinitialize for user
         cmd_delete(origin).run().await.ok();
         // Assert failure
@@ -74,7 +74,7 @@ mod test {
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .is_some());
         // Teardown test
         test_teardown(test_name).await
@@ -85,27 +85,27 @@ mod test {
     async fn init_deinit() -> Result<()> {
         let test_name = "cli_init_deinit";
         // Setup test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Deinit if present
         cmd_delete(origin).run().await.ok();
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .is_none());
         // Initialization worked
         cmd_create(origin).run().await?;
         // Assert the bucket exists now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .is_some());
         // Deinitialize the directory
         cmd_delete(origin).run().await?;
         // Assert the bucket is gone again
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .is_none());
         // Teardown test
         test_teardown(test_name).await
@@ -116,7 +116,7 @@ mod test {
     async fn configure_remote() -> Result<()> {
         let test_name = "cli_configure_remote";
         // Setup test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize
         cmd_create(origin).run().await?;
         // Configure remote endpoint
@@ -130,7 +130,7 @@ mod test {
     async fn bundle() -> Result<()> {
         let test_name = "cli_bundle";
         // Setup test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
         cmd_create(origin).run().await?;
         // Run bundle and assert success
@@ -144,7 +144,7 @@ mod test {
     async fn extract() -> Result<()> {
         let test_name = "cli_extract";
         // Setup test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
         cmd_create(origin).run().await?;
         // Run bundle and assert success

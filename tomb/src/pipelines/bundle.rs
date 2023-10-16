@@ -1,5 +1,5 @@
 use super::error::TombError;
-use crate::cli::specifiers::BucketSpecifier;
+use crate::types::config::bucket::LocalBucket;
 use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,
@@ -22,38 +22,37 @@ use anyhow::Result;
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
     global: &mut GlobalConfig,
-    bucket_specifier: &BucketSpecifier,
+    mut local: LocalBucket,
     follow_links: bool,
 ) -> Result<String, TombError> {
     let wrapping_key = global.wrapping_key().await?;
-    let mut config = global.get_bucket_by_specifier(bucket_specifier)?;
-    let mut fs = config.unlock_fs(&wrapping_key).await?;
+    let mut fs = local.unlock_fs(&wrapping_key).await?;
 
     // Create bundling plan
-    let bundling_plan = create_plans(&config.origin, follow_links).await?;
+    let bundling_plan = create_plans(&local.origin, follow_links).await?;
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
     // Create a new delta for this bundling operation
-    config.content.add_delta()?;
+    local.content.add_delta()?;
 
     // Process all of the BundlePipelinePlans
     process_plans(
         &mut fs,
         bundling_plan,
-        &config.metadata,
-        &config.content,
+        &local.metadata,
+        &local.content,
         &progress_bar,
     )
     .await?;
 
-    config.save_fs(&mut fs).await?;
+    local.save_fs(&mut fs).await?;
 
-    global.update_config(&config)?;
+    global.update_config(&local)?;
     global.to_disk()?;
 
     Ok(format!(
         "successfully bundled data into {}",
-        config.origin.display()
+        local.origin.display()
     ))
 }

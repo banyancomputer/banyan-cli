@@ -42,10 +42,9 @@ impl RunnableCommand<TombError> for MetadataCommand {
             // Read an existing metadata
             MetadataCommand::Read(metadata_specifier) => {
                 // Get Bucket config
-                let config =
-                    global.get_bucket_by_specifier(&metadata_specifier.bucket_specifier)?;
+                let omni = OmniBucket::from_specifier(global, client, &metadata_specifier.bucket_specifier).await;
                 // If we can get the metadata
-                if let Some(remote_id) = config.remote_id {
+                if let Some(remote_id) = omni.get_id() {
                     Metadata::read(remote_id, metadata_specifier.metadata_id, client)
                         .await
                         .map(|metadata| format!("{:?}", metadata))
@@ -97,8 +96,8 @@ impl RunnableCommand<TombError> for MetadataCommand {
             }
             // Read the current Metadata
             MetadataCommand::ReadCurrent(bucket_specifier) => {
-                let config = global.get_bucket_by_specifier(&bucket_specifier)?;
-                let bucket_id = config.remote_id.expect("no remote id");
+                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let bucket_id = omni.get_id().expect("no remote id");
                 Metadata::read_current(bucket_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))
@@ -106,8 +105,8 @@ impl RunnableCommand<TombError> for MetadataCommand {
             }
             // List all Metadata for a Bucket
             MetadataCommand::List(bucket_specifier) => {
-                let config = global.get_bucket_by_specifier(&bucket_specifier)?;
-                let bucket_id = config.remote_id.expect("no remote id");
+                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let bucket_id = omni.get_id().expect("no remote id");
                 Metadata::read_all(bucket_id, client)
                     .await
                     .map(|metadatas| {
@@ -121,13 +120,12 @@ impl RunnableCommand<TombError> for MetadataCommand {
             }
             // Pull a Metadata and replace the local copy
             MetadataCommand::Pull(metadata_specifier) => {
-                let config =
-                    global.get_bucket_by_specifier(&metadata_specifier.bucket_specifier)?;
-                let bucket_id = config.remote_id.expect("no remote id");
+                let omni = OmniBucket::from_specifier(global, client, &metadata_specifier.bucket_specifier).await;
+                let bucket_id = omni.get_id().expect("no remote id");
                 let metadata =
                     Metadata::read(bucket_id, metadata_specifier.metadata_id, client).await?;
                 let mut byte_stream = metadata.pull(client).await?;
-                let mut file = tokio::fs::File::create(&config.metadata.path).await?;
+                let mut file = tokio::fs::File::create(&omni.local.unwrap().metadata.path).await?;
 
                 while let Some(chunk) = byte_stream.next().await {
                     tokio::io::copy(
@@ -141,9 +139,8 @@ impl RunnableCommand<TombError> for MetadataCommand {
             }
             // Take a Cold Snapshot of the remote metadata
             MetadataCommand::Snapshot(metadata_specifier) => {
-                let config =
-                    global.get_bucket_by_specifier(&metadata_specifier.bucket_specifier)?;
-                let bucket_id = config.remote_id.expect("no remote id");
+                let omni = OmniBucket::from_specifier(global, client, &metadata_specifier.bucket_specifier).await;
+                let bucket_id = omni.get_id().expect("no remote id");
                 let metadata =
                     Metadata::read(bucket_id, metadata_specifier.metadata_id, client).await?;
 

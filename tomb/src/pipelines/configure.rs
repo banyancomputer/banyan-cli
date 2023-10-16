@@ -1,4 +1,4 @@
-use crate::{cli::specifiers::BucketSpecifier, types::config::globalconfig::GlobalConfig};
+use crate::types::config::globalconfig::GlobalConfig;
 use anyhow::Result;
 use std::path::Path;
 
@@ -12,7 +12,9 @@ pub async fn init(name: &str, path: &Path) -> Result<()> {
 /// Remove all configuration data for a given bucket
 pub async fn deinit(path: &Path) -> Result<()> {
     let mut global = GlobalConfig::from_disk().await?;
-    global.remove_bucket_by_specifier(&BucketSpecifier::with_origin(path))?;
+    if let Some(local) = global.get_bucket(path) {
+        global.remove_bucket(&local)?;
+    }
     global.to_disk()
 }
 

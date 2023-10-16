@@ -15,7 +15,6 @@ pub mod remove;
 mod test {
     use super::{add, error::TombError};
     use crate::{
-        cli::specifiers::BucketSpecifier,
         pipelines::{bundle, configure, extract, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
@@ -38,10 +37,12 @@ mod test {
     };
 
     /// Simplified Bundle call function
-    async fn bundle_pipeline(bucket_specifier: &BucketSpecifier) -> Result<String, TombError> {
+    async fn bundle_pipeline(origin: &Path) -> Result<String, TombError> {
+        let mut global = GlobalConfig::from_disk().await?;
+        let local = global.get_bucket(origin).unwrap();
         bundle::pipeline(
-            &mut GlobalConfig::from_disk().await?,
-            bucket_specifier,
+            &mut global,
+            local,
             true,
         )
         .await
@@ -49,12 +50,14 @@ mod test {
 
     /// Simplified Extract call function
     async fn extract_pipeline(
-        bucket_specifier: &BucketSpecifier,
+        origin: &Path,
         extracted: &Path,
     ) -> Result<String, TombError> {
+        let global = GlobalConfig::from_disk().await?;
+        let local = global.get_bucket(origin).unwrap();
         extract::pipeline(
             &GlobalConfig::from_disk().await?,
-            bucket_specifier,
+            local,
             extracted,
         )
         .await
@@ -65,17 +68,17 @@ mod test {
     async fn init() -> Result<()> {
         let test_name = "init";
         // Create the setup conditions
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Deinitialize for user
         configure::deinit(origin).await?;
         // Assert that bundling fails
-        assert!(bundle_pipeline(bucket_specifier).await.is_err());
+        assert!(bundle_pipeline(origin).await.is_err());
         // Initialize for this user
         configure::init("init", origin).await?;
         // Assert that a config exists for this bucket now
         assert!(GlobalConfig::from_disk()
             .await?
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .is_some());
         // Teardown
         test_teardown(test_name).await
@@ -102,11 +105,11 @@ mod test {
     async fn bundle() -> Result<()> {
         let test_name = "bundle";
         // Create the setup conditions
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize
         configure::init(test_name, origin).await?;
         // Bundle
-        bundle_pipeline(bucket_specifier).await?;
+        bundle_pipeline(origin).await?;
         // Teardown
         test_teardown(test_name).await
     }
@@ -116,11 +119,11 @@ mod test {
     async fn extract() -> Result<()> {
         let test_name = "extract";
         // Create the setup conditions
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize
         configure::init(test_name, origin).await?;
         // Bundle locally
-        bundle_pipeline(bucket_specifier).await?;
+        bundle_pipeline(origin).await?;
         // Create a new dir to extract in
         let extracted_dir = &origin
             .parent()
@@ -128,7 +131,7 @@ mod test {
             .join(format!("{}_extracted", test_name));
         create_dir_all(extracted_dir)?;
         // Run the extracting pipeline
-        extract_pipeline(bucket_specifier, extracted_dir).await?;
+        extract_pipeline(origin, extracted_dir).await?;
         // Assert the pre-bundled and extracted directories are identical
         assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         // Teardown
@@ -140,11 +143,11 @@ mod test {
     async fn add() -> Result<()> {
         let test_name = "add";
         // Create the setup conditions
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(test_name, origin).await?;
         // Run the bundle pipeline
-        bundle_pipeline(bucket_specifier).await?;
+        bundle_pipeline(origin).await?;
         // This is still in the input dir. Technically we could just
         let input_file = &origin.join("hello.txt");
         // Content to be written to the file
@@ -154,13 +157,14 @@ mod test {
         // Create and write to the file
         File::create(input_file)?.write_all(&file_content)?;
         // Add the input file to the WNFS
-        add::pipeline(bucket_specifier, input_file, input_file).await?;
+        let global = GlobalConfig::from_disk().await?;
+        add::pipeline(global.get_bucket(origin).unwrap(), input_file, input_file).await?;
 
         // Now that the pipeline has run, grab all metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
         let fs = config.unlock_fs(&wrapping_key).await?;
 
@@ -195,11 +199,11 @@ mod test {
     async fn remove() -> Result<()> {
         let test_name = "remove";
         // Create the setup conditions
-        let (origin, bucket_specifier) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         // Initialize tomb
         configure::init(test_name, origin).await?;
         // Run the bundle pipeline
-        bundle_pipeline(bucket_specifier).await?;
+        bundle_pipeline(origin).await?;
         // Write out a reference to where we expect to find this file
         let wnfs_path = &PathBuf::from("").join("0").join("0");
         let wnfs_segments = path_to_segments(wnfs_path)?;
@@ -207,7 +211,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
         let fs = config.unlock_fs(&wrapping_key).await?;
         let result = fs
@@ -217,12 +221,12 @@ mod test {
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
-        remove::pipeline(bucket_specifier, wnfs_path).await?;
+        remove::pipeline(global.get_bucket(origin).unwrap(), wnfs_path).await?;
         // Reload metadata
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
         let fs = config.unlock_fs(&wrapping_key).await?;
         let result = fs
@@ -242,11 +246,10 @@ mod test {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
-        let bucket_specifier = &BucketSpecifier::with_origin(origin);
         // Initialize
         configure::init(test_name, origin).await?;
         // Bundle locally
-        bundle_pipeline(bucket_specifier).await?;
+        bundle_pipeline(origin).await?;
         println!("finished bundling...");
         // Create a new dir to extract in
         let extracted_dir = &origin
@@ -255,7 +258,7 @@ mod test {
             .join("extracted");
         create_dir_all(extracted_dir)?;
         // Run the extracting pipeline
-        extract_pipeline(bucket_specifier, extracted_dir).await?;
+        extract_pipeline(origin, extracted_dir).await?;
         // Assert the pre-bundled and extracted directories are identical
         assert_paths(origin, extracted_dir).expect("extracted dir does not match origin");
         Ok(())
@@ -309,7 +312,7 @@ mod test {
     async fn deduplication_integrity() -> Result<()> {
         let test_name = "deduplication_integrity";
         // Setup the test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
         let dup_origin = &origin.parent().expect("origin has no parent").join("dups");
         let original = &dup_origin.join("original");
         let duplicate = &dup_origin.join("duplicate");
@@ -381,14 +384,14 @@ mod test {
         // Compute the sizes of these directories
         let bundled_dups_size = compute_directory_size(
             &global
-                .get_bucket_by_origin(origin_dup)
+                .get_bucket(origin_dup)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
         )? as f64;
         let bundled_unique_size = compute_directory_size(
             &global
-                .get_bucket_by_origin(origin_unique)
+                .get_bucket(origin_unique)
                 .expect("bucket config does not exist for this origin")
                 .content
                 .path,
@@ -422,7 +425,7 @@ mod test {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
-        let (origin, _) = &test_setup_structured(test_name, structure).await?;
+        let origin = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0").join("0");
@@ -453,7 +456,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
         let fs = config.unlock_fs(&wrapping_key).await?;
 
@@ -549,7 +552,7 @@ mod test {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
         // Setup the test once
-        let (origin, _) = &test_setup_structured(test_name, structure).await?;
+        let origin = &test_setup_structured(test_name, structure).await?;
 
         // Path for the actual file on disk that we'll be writing
         let versioned_file_path = origin.join("0");
@@ -572,7 +575,7 @@ mod test {
         let global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let config = global
-            .get_bucket_by_origin(origin)
+            .get_bucket(origin)
             .expect("bucket config does not exist for this origin");
         let fs = config.unlock_fs(&wrapping_key).await?;
 
@@ -638,7 +641,7 @@ mod test {
         let test_name = "symlinks";
 
         // Setup the test
-        let (origin, _) = &test_setup(test_name).await?;
+        let origin = &test_setup(test_name).await?;
 
         // Path in which File symlink will be created
         let sym_file_root = origin.join("0");

@@ -88,6 +88,19 @@ impl OmniBucket {
         }
     }
 
+    /// Get the ID from wherever it might be found
+    pub fn get_id(&self) -> Option<Uuid> {
+        if let Some(remote) = self.remote.clone() {
+            Some(remote.id)
+        }
+        else if let Some(local) = self.local.clone() {
+            local.remote_id
+        }
+        else {
+            None
+        }
+    }
+
     /// Create a new bucket
     pub async fn create(
         global: &mut GlobalConfig,
@@ -100,7 +113,7 @@ impl OmniBucket {
             remote: None,
         };
         // If this bucket already exists both locally and remotely
-        if let Some(bucket) = global.get_bucket_by_origin(origin) &&
+        if let Some(bucket) = global.get_bucket(origin) &&
             let Some(remote_id) = bucket.remote_id &&
             RemoteBucket::read(client, remote_id).await.is_ok() {
             // Prevent the user from re-creating it
