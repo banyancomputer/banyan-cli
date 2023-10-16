@@ -8,12 +8,14 @@ use tomb_common::{
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
-use super::{bucket::LocalBucket, Endpoints};
+use super::{
+    bucket::LocalBucket, load_api_key, new_api_key, new_wrapping_key, save_api_key, wrapping_key,
+    Endpoints,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     env::current_dir,
-    fs::{remove_file, File, OpenOptions},
-    io::{Read, Write},
+    fs::{remove_file, OpenOptions},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -143,11 +145,6 @@ impl GlobalConfig {
         }
     }
 
-    /// Create a new BucketConfig for an origin
-    pub async fn new_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
-        self.get_or_create_bucket(name, origin).await
-    }
-
     /// Remove a BucketConfig for an origin
     pub fn remove_bucket_by_specifier(&mut self, bucket_specifier: &BucketSpecifier) -> Result<()> {
         if let Ok(bucket) = self.get_bucket_by_specifier(bucket_specifier) {
@@ -210,19 +207,17 @@ impl GlobalConfig {
             .find(|bucket| bucket.remote_id == Some(*id))
     }
 
+    /// Create a new bucket
     async fn create_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
-        let wrapping_key = wrapping_key(&self.wrapping_key_path).await?;
+        let wrapping_key = self.wrapping_key().await?;
         let mut bucket = LocalBucket::new(origin, &wrapping_key).await?;
         bucket.name = name.to_string();
         self.buckets.push(bucket.clone());
         Ok(bucket)
     }
 
-    pub(crate) async fn get_or_create_bucket(
-        &mut self,
-        name: &str,
-        origin: &Path,
-    ) -> Result<LocalBucket> {
+    /// Create a bucket if it doesn't exist, return the object either way
+    pub async fn get_or_init_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
         let existing = self.get_bucket_by_origin(origin);
         if let Some(config) = existing {
             Ok(config)
@@ -271,66 +266,6 @@ impl GlobalConfig {
             Err(TombError::unknown_path(origin))
         }
     }
-}
-
-/// Generate a new Ecdsa key to use for authentication
-/// Writes the key to the config path
-async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
-    if path.exists() {
-        load_api_key(path).await?;
-    }
-    let key = EcSignatureKey::generate().await?;
-    let pem_bytes = key.export().await?;
-    let mut f = File::create(path)?;
-    f.write_all(&pem_bytes)?;
-    Ok(key)
-}
-
-/// Read the API key from disk
-async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
-    if let Ok(mut reader) = File::open(path) {
-        let mut pem_bytes = Vec::new();
-        reader.read_to_end(&mut pem_bytes)?;
-        let key = EcSignatureKey::import(&pem_bytes).await?;
-        Ok(key)
-    } else {
-        Err(anyhow!("No api key at path"))
-    }
-}
-
-/// Save the API key to disk
-async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
-    if let Ok(mut writer) = File::create(path) {
-        // Write the PEM bytes
-        writer.write_all(&key.export().await?)?;
-        Ok(())
-    } else {
-        Err(anyhow!("Cannot write API key at this path"))
-    }
-}
-
-/// Generate a new Ecdh key to use for key wrapping
-/// Writes the key to the config path
-async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
-    if path.exists() {
-        wrapping_key(path).await?;
-    }
-    let key = EcEncryptionKey::generate().await?;
-    let pem_bytes = key.export().await?;
-    let mut f = File::create(path)?;
-    f.write_all(&pem_bytes)?;
-    Ok(key)
-}
-
-/// Read the Wrapping key from disk
-async fn wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
-    if let Ok(mut reader) = File::open(path) {
-        let mut pem_bytes = Vec::new();
-        reader.read_to_end(&mut pem_bytes)?;
-        let key = EcEncryptionKey::import(&pem_bytes).await?;
-        return Ok(key);
-    }
-    Err(anyhow!("No wrapping key at path"))
 }
 
 #[cfg(test)]
@@ -420,7 +355,7 @@ mod test {
 
         // Load from disk
         let mut original = GlobalConfig::from_disk().await?;
-        let original_bucket = original.new_bucket("new", origin).await?;
+        let original_bucket = original.get_or_init_bucket("new", origin).await?;
 
         // Serialize to disk
         original.to_disk()?;

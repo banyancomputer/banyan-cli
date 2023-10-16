@@ -59,13 +59,13 @@ impl RunnableCommand<TombError> for MetadataCommand {
                 // Get info
                 let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
                     global.wrapping_key().await?;
-                let omni = OmniBucket::from_specifier(&global, client, &bucket_specifier).await;
+                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 if let Some(local) = omni.local {
                     let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
                     let valid_keys = fs.share_manager.public_fingerprints();
                     let expected_data_size = compute_directory_size(&local.metadata.path)? as u64;
                     let bucket_id = local.remote_id.expect("no remote id");
-                    let root_cid = local.content.get_root().expect("no root cid").to_string();
+                    let root_cid = local.metadata.get_root().expect("no root cid").to_string();
                     let metadata_cid = local
                         .metadata
                         .get_root()

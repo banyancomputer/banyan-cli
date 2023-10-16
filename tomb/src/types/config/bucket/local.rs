@@ -132,7 +132,7 @@ impl LocalBucket {
 
     /// Shortcut for saving a filesystem
     pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
-        fs.save(&self.metadata, &self.content).await
+        fs.save(&self.metadata, &self.metadata).await
     }
 
     /// Shortcut for serialize::load_history
@@ -197,7 +197,7 @@ mod test {
 
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
-        let mut config = global.get_or_create_bucket("test", &origin).await?;
+        let mut config = global.get_or_init_bucket("test", &origin).await?;
 
         let mut rng = thread_rng();
         let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;

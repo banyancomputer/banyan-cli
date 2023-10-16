@@ -8,14 +8,7 @@ use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
 use std::{env::current_dir, path::PathBuf};
-use tomb_common::{
-    banyan_api::{
-        client::Client,
-        models::{bucket::Bucket, metadata::Metadata},
-        requests::staging::upload::push::PushContent,
-    },
-    metadata::FsMetadata,
-};
+use tomb_common::banyan_api::{client::Client, models::bucket::Bucket};
 
 /// Subcommand for Bucket Management
 #[derive(Subcommand, Clone, Debug)]
@@ -95,11 +88,8 @@ impl RunnableCommand<TombError> for BucketsCommand {
             BucketsCommand::Create { name, origin } => {
                 let origin = origin.unwrap_or(current_dir()?);
                 let omni = OmniBucket::create(global, client, &name, &origin).await?;
-                Ok(format!(
-                    "{}\n{}\n",
-                    "<< NEW BUCKET CREATED >>".green(),
-                    omni
-                ))
+                let output = format!("{}\n{}\n", "<< NEW BUCKET CREATED >>".green(), omni);
+                Ok(output)
             }
             BucketsCommand::Prepare {
                 bucket_specifier,

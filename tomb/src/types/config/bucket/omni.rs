@@ -10,20 +10,19 @@ use crate::{
     types::config::globalconfig::GlobalConfig,
 };
 use colored::{ColoredString, Colorize};
-use tomb_common::{
-    banyan_api::{
-        client::Client,
-        models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
-    },
-    metadata::FsMetadata,
+use tomb_common::banyan_api::{
+    client::Client,
+    models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
 
-///
+/// Struct for representing the ambiguity between local and remote copies of a Bucket
 #[derive(Debug, Clone)]
 pub struct OmniBucket {
+    /// The local Bucket
     pub local: Option<LocalBucket>,
+    /// The remote Bucket
     pub remote: Option<RemoteBucket>,
 }
 
@@ -100,35 +99,21 @@ impl OmniBucket {
             local: None,
             remote: None,
         };
-
         // If this bucket already exists both locally and remotely
         if let Some(bucket) = global.get_bucket_by_origin(origin) &&
             let Some(remote_id) = bucket.remote_id &&
             RemoteBucket::read(client, remote_id).await.is_ok() {
-            // If we are able to read the bucket
-            return Err(TombError::custom_error("Bucket already exists at this origin and is persisted remotely"));
+            // Prevent the user from re-creating it
+            return Err(TombError::custom_error("Bucket already exists both locally and remotely"));
         }
 
-        // Initialize in the configs
-        let mut local = global.get_or_create_bucket(name, origin).await?;
-        global.to_disk()?;
-        local.content.add_delta()?;
-        omni.local = Some(local.clone());
-
+        // Grab the wrapping key, public key and pem
         let wrapping_key = global.wrapping_key().await?;
-
-        // Initialize and save metadata so that it can be pushed
-        let mut metadata = FsMetadata::init(&wrapping_key).await?;
-        metadata.save(&local.metadata, &local.content).await?;
-
-        // Update the config globally
-        global.update_config(&local)?;
-
         let public_key = wrapping_key.public_key()?;
         let pem = String::from_utf8(public_key.export().await?)
             .map_err(|_| TombError::custom_error("unable to represent pem from utf8"))?;
 
-        // Initialize on the remote endpoint
+        // Initialize remotely
         if let Ok((remote, _)) = RemoteBucket::create(
             name.to_string(),
             pem,
@@ -138,18 +123,31 @@ impl OmniBucket {
         )
         .await
         {
-            // Update the bucket config id
-            local.remote_id = Some(remote.id);
-            omni.local = Some(local.clone());
-            omni.remote = Some(remote.clone());
-            // Update the config globally
-            global.update_config(&local)?;
+            // Update in obj
+            omni.remote = Some(remote);
+        }
 
-            // Attempt to push the first metadata
-            let bucket_specifier = BucketSpecifier::with_id(remote.id);
-            let command = MetadataCommand::Push(bucket_specifier);
-            let metadata_result = command.run_internal(global, client).await;
-            println!("metadata_result: {:?}", metadata_result);
+        // Initialize locally
+        if let Ok(mut local) = global.get_or_init_bucket(name, origin).await {
+            // If a remote bucket was made successfully
+            if let Some(remote) = omni.remote.clone() {
+                // Also save that in the local obj
+                local.remote_id = Some(remote.id);
+            }
+            // Update in global and obj
+            global.update_config(&local.clone())?;
+            global.to_disk()?;
+            omni.local = Some(local);
+        }
+
+        // If we successfully initialized both of them
+        if let Some(remote) = omni.remote.clone() && omni.local.is_some() {
+            // Construct a command for pushing the associated Metadata
+            let command = MetadataCommand::Push(BucketSpecifier { bucket_id: Some(remote.id), name: None, origin: None });
+            // Print output of the metadata push if it succeeds
+            if let Ok(push_output) = command.run_internal(global, client).await {
+                println!("{}", push_output);
+            }
         }
 
         Ok(omni)
@@ -241,12 +239,13 @@ impl Display for OmniBucket {
 
         // If we have both present
         if let Some(local) = &self.local && let Some(remote) = &self.remote {
-            info = format!("{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
+            info = format!("{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}\nsync_status:\t{}\n",
                 local.name,
                 local.origin.display(),
                 remote.id,
                 remote.r#type,
-                remote.storage_class
+                remote.storage_class,
+                "TODO".red()
             );
         }
         else if let Some(local) = &self.local {

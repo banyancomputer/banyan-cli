@@ -5,7 +5,7 @@ use std::path::Path;
 /// Create a default config for this user
 pub async fn init(name: &str, path: &Path) -> Result<()> {
     let mut global = GlobalConfig::from_disk().await?;
-    global.new_bucket(name, path).await?;
+    global.get_or_init_bucket(name, path).await?;
     global.to_disk()
 }
 
