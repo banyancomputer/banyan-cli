@@ -1,5 +1,5 @@
 use super::error::TombError;
-use crate::{cli::specifiers::BucketSpecifier, types::config::{globalconfig::GlobalConfig, bucket::{OmniBucket, LocalBucket}}};
+use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
 use tomb_common::utils::wnfsio::path_to_segments;
@@ -17,7 +17,7 @@ use wnfs::private::PrivateNode;
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
     global: &GlobalConfig,
-    mut local: LocalBucket,
+    local: LocalBucket,
     extracted: &Path,
 ) -> Result<String, TombError> {
     // Announce that we're starting

@@ -1,14 +1,11 @@
 use super::error::TombError;
-use crate::types::config::{globalconfig::GlobalConfig, bucket::LocalBucket};
+use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::path::Path;
 use tomb_common::utils::wnfsio::path_to_segments;
 
 /// The pipeline for removing an individual file from a WNFS
-pub async fn pipeline(
-    local: LocalBucket,
-    wnfs_path: &Path,
-) -> Result<(), TombError> {
+pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), TombError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;

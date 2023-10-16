@@ -40,27 +40,14 @@ mod test {
     async fn bundle_pipeline(origin: &Path) -> Result<String, TombError> {
         let mut global = GlobalConfig::from_disk().await?;
         let local = global.get_bucket(origin).unwrap();
-        bundle::pipeline(
-            &mut global,
-            local,
-            true,
-        )
-        .await
+        bundle::pipeline(&mut global, local, true).await
     }
 
     /// Simplified Extract call function
-    async fn extract_pipeline(
-        origin: &Path,
-        extracted: &Path,
-    ) -> Result<String, TombError> {
+    async fn extract_pipeline(origin: &Path, extracted: &Path) -> Result<String, TombError> {
         let global = GlobalConfig::from_disk().await?;
         let local = global.get_bucket(origin).unwrap();
-        extract::pipeline(
-            &GlobalConfig::from_disk().await?,
-            local,
-            extracted,
-        )
-        .await
+        extract::pipeline(&GlobalConfig::from_disk().await?, local, extracted).await
     }
 
     #[tokio::test]

@@ -89,16 +89,29 @@ impl OmniBucket {
     }
 
     /// Get the ID from wherever it might be found
-    pub fn get_id(&self) -> Option<Uuid> {
+    pub fn get_id(&self) -> Result<Uuid, TombError> {
+        let err = TombError::custom_error("No bucket ID found with these properties");
         if let Some(remote) = self.remote.clone() {
-            Some(remote.id)
+            Ok(remote.id)
+        } else if let Some(local) = self.local.clone() {
+            local.remote_id.ok_or(err)
+        } else {
+            Err(err)
         }
-        else if let Some(local) = self.local.clone() {
-            local.remote_id
-        }
-        else {
-            None
-        }
+    }
+
+    /// Get the local config
+    pub fn get_local(&self) -> Result<LocalBucket, TombError> {
+        self.local.clone().ok_or(TombError::custom_error(
+            "No local Bucket with these properties",
+        ))
+    }
+
+    /// Get the remote config
+    pub fn get_remote(&self) -> Result<RemoteBucket, TombError> {
+        self.remote.clone().ok_or(TombError::custom_error(
+            "No remote Bucket with these properties",
+        ))
     }
 
     /// Create a new bucket

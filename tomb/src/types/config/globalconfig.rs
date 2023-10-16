@@ -199,7 +199,10 @@ impl GlobalConfig {
 
     /// Get a Bucket configuration by the origin
     pub fn get_bucket(&self, origin: &Path) -> Option<LocalBucket> {
-        self.buckets.iter().find(|bucket| bucket.origin == origin).map(|bucket| bucket.clone())
+        self.buckets
+            .iter()
+            .find(|bucket| bucket.origin == origin)
+            .cloned()
     }
 
     /// Create a bucket if it doesn't exist, return the object either way

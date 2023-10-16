@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::error::TombError;
-use crate::types::config::{globalconfig::GlobalConfig, bucket::LocalBucket};
+use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;

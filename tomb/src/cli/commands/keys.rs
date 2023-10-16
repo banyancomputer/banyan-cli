@@ -1,4 +1,7 @@
-use crate::{pipelines::error::TombError, types::config::{globalconfig::GlobalConfig, bucket::OmniBucket}};
+use crate::{
+    pipelines::error::TombError,
+    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
+};
 
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;
@@ -68,7 +71,7 @@ impl RunnableCommand<TombError> for KeyCommand {
                 fs.share_with(&public_key, &local.metadata).await?;
                 fs.save(&local.metadata, &local.metadata).await?;
 
-                if let Some(id) = omni.get_id() {
+                if let Ok(id) = omni.get_id() {
                     BucketKey::create(id, pem, client)
                         .await
                         .map(|key| format!("{}", key))
@@ -110,7 +113,10 @@ async fn get_key_info(
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
 ) -> anyhow::Result<(Uuid, Uuid)> {
-    let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.bucket_specifier).await.get_id().unwrap();
+    let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.bucket_specifier)
+        .await
+        .get_id()
+        .unwrap();
     let all_keys = BucketKey::read_all(bucket_id, client).await?;
     let key_index = all_keys
         .iter()
