@@ -125,7 +125,7 @@ impl LocalBucket {
         Ok(())
     }
 
-    ///
+    /// Shortcut for unlocking a filesystem
     pub async fn unlock_fs(&self, wrapping_key: &EcEncryptionKey) -> Result<FsMetadata> {
         FsMetadata::unlock(wrapping_key, &self.metadata).await
     }
@@ -154,12 +154,10 @@ impl LocalBucket {
             .content
             .get_root()
             .ok_or(anyhow::anyhow!("root_cid not found"))?;
-
         let metadata_cid = self
             .metadata
             .get_root()
             .ok_or(anyhow::anyhow!("metadata_cid not found"))?;
-
         Ok(Metadata {
             id: Uuid::new_v4(),
             bucket_id: remote_id,

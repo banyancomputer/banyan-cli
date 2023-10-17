@@ -62,23 +62,16 @@ impl RunnableCommand<TombError> for MetadataCommand {
                     global.wrapping_key().await?;
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 if let Some(local) = omni.local {
+                    let metadata = local.get_metadata().await?;
                     let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
                     let valid_keys = fs.share_manager.public_fingerprints();
-                    let expected_data_size = compute_directory_size(&local.metadata.path)? as u64;
-                    let bucket_id = local.remote_id.expect("no remote id");
-                    let root_cid = local.metadata.get_root().expect("no root cid").to_string();
-                    let metadata_cid = local
-                        .metadata
-                        .get_root()
-                        .expect("no metadata cid")
-                        .to_string();
                     let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
                     // Push the Metadata
                     Metadata::push(
-                        bucket_id,
-                        root_cid,
-                        metadata_cid,
-                        expected_data_size,
+                        metadata.bucket_id,
+                        metadata.root_cid,
+                        metadata.metadata_cid,
+                        metadata.data_size,
                         valid_keys,
                         metadata_stream,
                         client,

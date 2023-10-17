@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display, path::Path};
 
-use super::LocalBucket;
+use super::{LocalBucket, SyncState};
 use crate::{
     cli::{
         commands::{MetadataCommand, RunnableCommand},
@@ -12,7 +12,10 @@ use crate::{
 use colored::{ColoredString, Colorize};
 use tomb_common::banyan_api::{
     client::Client,
-    models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
+    models::{
+        bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
+        metadata::Metadata,
+    },
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -24,6 +27,8 @@ pub struct OmniBucket {
     pub local: Option<LocalBucket>,
     /// The remote Bucket
     pub remote: Option<RemoteBucket>,
+    /// The sync state
+    pub sync_state: Option<SyncState>,
 }
 
 impl OmniBucket {
@@ -36,6 +41,7 @@ impl OmniBucket {
         let mut new_object = Self {
             local: None,
             remote: None,
+            sync_state: None,
         };
 
         // Search for a local bucket
@@ -69,6 +75,9 @@ impl OmniBucket {
             new_object.remote = Some(bucket)
         }
 
+        // Determine the sync state
+        new_object.set_state(client).await;
+
         new_object
     }
 
@@ -77,6 +86,7 @@ impl OmniBucket {
         Self {
             local: Some(bucket.clone()),
             remote: None,
+            sync_state: Some(SyncState::Unpublished),
         }
     }
 
@@ -85,6 +95,7 @@ impl OmniBucket {
         Self {
             local: None,
             remote: Some(bucket.clone()),
+            sync_state: Some(SyncState::Unlocalized),
         }
     }
 
@@ -114,6 +125,45 @@ impl OmniBucket {
         ))
     }
 
+    /// Determine the Sync State of an omni bucket
+    pub async fn set_state(
+        &mut self,
+        client: &mut Client,
+    ) -> Result<(), TombError> {
+        let bucket_id = self.get_id()?;
+        // Grab the current remote Metadata, or return Unpublished if that operation fails
+        let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
+            self.sync_state = Some(SyncState::Unpublished);
+            return Ok(());
+        };
+        // Grab the local bucket, or return Unlocalized if unavailable
+        let Ok(local) = self.get_local() else {
+            self.sync_state = Some(SyncState::Unlocalized);
+            return Ok(());
+        };
+        let current_local = local.get_metadata().await?;
+
+        // If the metadata IDs match
+        if current_local.id == current_remote.id {
+            self.sync_state = Some(SyncState::Synced);
+            Ok(())
+        } else {
+            // If the current Metadata id exists in the list of remotely persisted ones
+            if Metadata::read_all(bucket_id, client)
+                .await?
+                .iter()
+                .find(|metadata| metadata.id == current_local.id)
+                .is_some()
+            {
+                self.sync_state = Some(SyncState::Behind(1));
+                Ok(())
+            } else {
+                self.sync_state = Some(SyncState::Ahead(1));
+                Ok(())
+            }
+        }
+    }
+
     /// Create a new bucket
     pub async fn create(
         global: &mut GlobalConfig,
@@ -124,6 +174,7 @@ impl OmniBucket {
         let mut omni = OmniBucket {
             local: None,
             remote: None,
+            sync_state: None
         };
         // If this bucket already exists both locally and remotely
         if let Some(bucket) = global.get_bucket(origin) &&
@@ -228,12 +279,16 @@ impl OmniBucket {
         for remote in remote_buckets {
             let key = Some(remote.id);
             if let Some(omni) = map.get(&key) {
+                let mut omni = OmniBucket {
+                    local: omni.local.clone(),
+                    remote: Some(remote),
+                    sync_state: None,
+                };
+                omni.set_state(client).await;
+
                 map.insert(
                     key,
-                    OmniBucket {
-                        local: omni.local.clone(),
-                        remote: Some(remote),
-                    },
+                    omni,
                 );
             } else {
                 map.insert(key, OmniBucket::from_remote(&remote));
@@ -265,13 +320,12 @@ impl Display for OmniBucket {
 
         // If we have both present
         if let Some(local) = &self.local && let Some(remote) = &self.remote {
-            info = format!("{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}\nsync_status:\t{}\n",
+            info = format!("{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
                 local.name,
                 local.origin.display(),
                 remote.id,
                 remote.r#type,
-                remote.storage_class,
-                "TODO".red()
+                remote.storage_class
             );
         }
         else if let Some(local) = &self.local {
@@ -281,6 +335,6 @@ impl Display for OmniBucket {
             info = format!("{info}\n{}", remote);
         }
 
-        f.write_fmt(format_args!("{info}\n"))
+        f.write_fmt(format_args!("{info}\nsync_status:\t{}\n", if let Some(sync) = self.sync_state.clone() { sync.to_string() } else { "Unknown".into() }))
     }
 }
