@@ -42,7 +42,7 @@ pub enum BucketsCommand {
 
         /// Output Directory
         #[arg(short, long)]
-        output: PathBuf,
+        restore_path: PathBuf,
     },
     /// Sync Bucket data
     Sync(BucketSpecifier),
@@ -99,11 +99,11 @@ impl RunnableCommand<TombError> for BucketsCommand {
             }
             BucketsCommand::Restore {
                 bucket_specifier,
-                output,
+                restore_path,
             } => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let local = omni.get_local()?;
-                extract::pipeline(global, local, &output).await
+                extract::pipeline(global, local, &restore_path).await
             }
             BucketsCommand::Sync(bucket_specifier) => {
                 let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;

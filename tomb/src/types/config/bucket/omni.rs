@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, path::Path, env::current_dir};
+use std::{collections::HashMap, env::current_dir, fmt::Display, path::Path};
 
 use super::{LocalBucket, SyncState};
 use crate::{
@@ -8,15 +8,21 @@ use crate::{
     },
     pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
+    utils::wnfsio::compute_directory_size,
 };
 use colored::{ColoredString, Colorize};
 use futures_util::StreamExt;
-use tomb_common::banyan_api::{
-    client::Client,
-    models::{
-        bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
-        metadata::Metadata, storage_ticket,
-    }, error::ClientError,
+use tomb_common::{
+    banyan_api::{
+        client::Client,
+        error::ClientError,
+        models::{
+            bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
+            metadata::Metadata,
+            storage_ticket,
+        },
+    },
+    blockstore::RootedBlockStore,
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -137,10 +143,7 @@ impl OmniBucket {
     }
 
     /// Determine the Sync State of an omni bucket
-    pub async fn set_state(
-        &mut self,
-        client: &mut Client,
-    ) -> Result<(), TombError> {
+    pub async fn set_state(&mut self, client: &mut Client) -> Result<(), TombError> {
         let bucket_id = self.get_id()?;
         // Grab the current remote Metadata, or return Unpublished if that operation fails
         let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
@@ -148,18 +151,23 @@ impl OmniBucket {
             return Ok(());
         };
         // Grab the local bucket, or return Unlocalized if unavailable
-        if let Ok(local) = self.get_local() && let Ok(current_local) = local.get_metadata().await {
-            // If the metadata IDs match
-            if current_local.id == current_remote.id {
+        if let Ok(local) = self.get_local() {
+            let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
+            // If the metadata root CIDs match
+            if local_root_cid == Some(current_remote.root_cid) {
                 self.sync_state = Some(SyncState::Synced);
                 Ok(())
             } else {
                 let all_metadatas = Metadata::read_all(bucket_id, client).await?;
-                println!("all_metadatas: {:?}\nour_metadata:{}", all_metadatas, current_local);
+                println!(
+                    "all_metadatas: {:?}\nour_metadata_root:{:?}",
+                    all_metadatas,
+                    local.metadata.get_root()
+                );
                 // If the current Metadata id exists in the list of remotely persisted ones
                 if all_metadatas
                     .iter()
-                    .find(|metadata| metadata.id == current_local.id)
+                    .find(|metadata| Some(metadata.root_cid.clone()) == local_root_cid)
                     .is_some()
                 {
                     self.sync_state = Some(SyncState::Behind(1));
@@ -173,11 +181,14 @@ impl OmniBucket {
             self.sync_state = Some(SyncState::Unlocalized);
             return Ok(());
         }
-
     }
 
     /// Sync metadata
-    pub async fn sync(&mut self, client: &mut Client, global: &mut GlobalConfig) -> Result<String, TombError> {
+    pub async fn sync(
+        &mut self,
+        client: &mut Client,
+        global: &mut GlobalConfig,
+    ) -> Result<String, TombError> {
         if self.sync_state.is_none() {
             println!("{:?}", self.set_state(client).await);
         }
@@ -187,28 +198,57 @@ impl OmniBucket {
             Some(SyncState::Unlocalized) | Some(SyncState::Behind(_)) => {
                 let current = Metadata::read_current(self.get_id()?, client).await?;
                 let mut byte_stream = current.pull(client).await?;
-                self.local = Some(global.get_or_init_bucket(&self.get_remote()?.name, &current_dir()?).await?);
+                self.local = Some(
+                    global
+                        .get_or_init_bucket(&self.get_remote()?.name, &current_dir()?)
+                        .await?,
+                );
 
-                let mut file = tokio::fs::File::create(&self.get_local()?.metadata.path).await?;
-
+                // Grab the metadata file
+                let mut metadata_file =
+                    tokio::fs::File::create(&self.get_local()?.metadata.path).await?;
+                // Write every chunk to it
                 while let Some(chunk) = byte_stream.next().await {
                     tokio::io::copy(
                         &mut chunk.map_err(ClientError::http_error)?.as_ref(),
-                        &mut file,
+                        &mut metadata_file,
                     )
                     .await?;
                 }
 
                 Ok("successfully downloaded metadata".into())
             }
-            // Upload the Bucket 
+            // Upload the Bucket
             Some(SyncState::Unpublished | SyncState::Ahead(_)) => {
-                todo!()
+                let local = self.get_local()?;
+                let wrapping_key = global.wrapping_key().await?;
+                let fs = local.unlock_fs(&wrapping_key).await?;
+                let valid_keys = fs.share_manager.public_fingerprints();
+                let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
+
+                // If we can actually get the arguments
+                if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() {
+                    // 
+                    if let Ok((metadata, storage_ticket)) = Metadata::push(
+                        bucket_id,
+                        root_cid.to_string(),
+                        root_cid.to_string(),
+                        compute_directory_size(&local.metadata.path)? as u64,
+                        valid_keys,
+                        metadata_stream,
+                        client
+                    ).await {
+                        return Ok(format!("successfully pushed metadata too: \n{}\n{:?}\n", metadata, storage_ticket));
+                    }
+                    else {
+                        return Err(TombError::custom_error("Tried but failed to push metadata!"));    
+                    }
+                } else {
+                    return Err(TombError::custom_error("No metadata to push!"));
+                }
             }
-            // 
-            Some(SyncState::Synced) => {
-                Ok("already synced".into())
-            }
+            //
+            Some(SyncState::Synced) => Ok("already synced".into()),
             None => Err(TombError::custom_error("Unable to determine sync state")),
         }
     }
@@ -223,7 +263,7 @@ impl OmniBucket {
         let mut omni = OmniBucket {
             local: None,
             remote: None,
-            sync_state: None
+            sync_state: None,
         };
         // If this bucket already exists both locally and remotely
         if let Some(bucket) = global.get_bucket(origin) &&
@@ -268,24 +308,7 @@ impl OmniBucket {
 
         // If we successfully initialized both of them
         if omni.get_remote().is_ok() && let Ok(local) = omni.get_local() {
-            // Construct a command for pushing the associated Metadata
-            // let command = MetadataCommand::Push(BucketSpecifier { bucket_id: Some(remote.id), name: None, origin: None });
-            let metadata = local.get_metadata().await?;
-            let fs = local.unlock_fs(&wrapping_key).await?;
-            let valid_keys = fs.share_manager.public_fingerprints();
-            let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
-
-            if let Ok((metadata, storage_ticket)) = Metadata::push(
-                metadata.bucket_id, 
-                metadata.root_cid, 
-                metadata.metadata_cid, 
-                metadata.data_size, 
-                valid_keys, 
-                metadata_stream, 
-                client
-            ).await {
-                println!("successfully pushed metadata too: \n{}\n{:?}\n", metadata, storage_ticket);
-            }
+            omni.sync(client, global).await;
         }
 
         let _ = omni.set_state(client).await;
@@ -349,10 +372,7 @@ impl OmniBucket {
                 };
                 omni.set_state(client).await;
 
-                map.insert(
-                    key,
-                    omni,
-                );
+                map.insert(key, omni);
             } else {
                 map.insert(key, OmniBucket::from_remote(&remote));
             }
@@ -398,6 +418,13 @@ impl Display for OmniBucket {
             info = format!("{info}\n{}", remote);
         }
 
-        f.write_fmt(format_args!("{info}\nsync_status:\t{}\n", if let Some(sync) = self.sync_state.clone() { sync.to_string() } else { "Unknown".into() }))
+        f.write_fmt(format_args!(
+            "{info}\nsync_status:\t{}\n",
+            if let Some(sync) = self.sync_state.clone() {
+                sync.to_string()
+            } else {
+                "Unknown".into()
+            }
+        ))
     }
 }

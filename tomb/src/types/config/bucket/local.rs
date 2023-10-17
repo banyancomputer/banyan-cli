@@ -144,30 +144,34 @@ impl LocalBucket {
         Ok(fs_metadata.history(&self.metadata).await?)
     }
 
-    // TODO: wrong, you should qlready have this, or be fetching it from the server
-    /// Get the Metadata struct which can be used to create Metadata API requests
-    pub async fn get_metadata(&self) -> Result<Metadata> {
-        let remote_id = self
-            .remote_id
-            .ok_or(anyhow::anyhow!("remote id not found"))?;
-        let root_cid = self
-            .metadata
-            .get_root()
-            .ok_or(anyhow::anyhow!("root_cid not found"))?;
-        let metadata_cid = self
-            .metadata
-            .get_root()
-            .ok_or(anyhow::anyhow!("metadata_cid not found"))?;
-        Ok(Metadata {
-            id: Uuid::new_v4(),
-            bucket_id: remote_id,
-            root_cid: root_cid.to_string(),
-            metadata_cid: metadata_cid.to_string(),
-            data_size: compute_directory_size(&self.content.path)? as u64,
-            state: MetadataState::Current,
-            snapshot_id: None,
-        })
-    }
+    // // TODO: wrong, you should qlready have this, or be fetching it from the server
+    // /// Get the Metadata struct which can be used to create Metadata API requests
+    // pub async fn get_metadata(&self) -> Result<Metadata> {
+    //     let remote_id = self
+    //         .remote_id
+    //         .ok_or(anyhow::anyhow!("remote id not found"))?;
+    //     let root_cid = self
+    //         .metadata
+    //         .get_root()
+    //         .ok_or(anyhow::anyhow!("root_cid not found"))?;
+    //     let metadata_cid = self
+    //         .metadata
+    //         .get_root()
+    //         .ok_or(anyhow::anyhow!("metadata_cid not found"))?;
+    //     Ok(Metadata {
+    //         id: Uuid::new_v4(),
+    //         bucket_id: remote_id,
+    //         root_cid: root_cid.to_string(),
+    //         metadata_cid: metadata_cid.to_string(),
+    //         data_size: compute_directory_size(&self.content.path)? as u64,
+    //         state: MetadataState::Current,
+    //         snapshot_id: None,
+    //     })
+    // }
+
+    // pub fn get_pull_request(&self) -> Result<()> {
+    //     Metadata::push(bucket_id, root_cid, metadata_cid, expected_data_size, valid_keys, metadata_stream, client)
+    // }
 }
 
 #[cfg(test)]
