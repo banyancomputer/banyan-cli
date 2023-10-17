@@ -651,7 +651,6 @@ mod test {
     use super::*;
     use crate::blockstore::memory::MemoryBlockStore;
     use anyhow::Result;
-    use serial_test::serial;
 
     async fn _init_save_unlock(
         wrapping_key: &EcEncryptionKey,
@@ -667,7 +666,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn init_save_unlock() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -677,7 +675,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn history() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -688,7 +685,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn build_details() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -699,7 +695,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn add_read() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -728,7 +723,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn add_read_large() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -757,7 +751,32 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
+    #[ignore]
+    async fn write_large_mkdir() -> Result<()> {
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
+
+        let file_bytes = vec![0u8; 1024 * 1024 * 50];
+        let file_path = vec!["file".to_string()];
+        let dir_path = vec!["dir".to_string()];
+
+        fs_metadata
+            .write(&file_path, &metadata_store, &metadata_store, file_bytes)
+            .await?;
+        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
+
+        fs_metadata.mkdir(&dir_path, &metadata_store).await?;
+        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        let _fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn add_rm_read() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -789,7 +808,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn add_write_read() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -833,7 +851,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
     async fn all_functions() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
