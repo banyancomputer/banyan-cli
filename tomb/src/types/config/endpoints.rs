@@ -13,24 +13,18 @@ pub struct Endpoints {
 
 impl Default for Endpoints {
     fn default() -> Self {
-        #[cfg(feature = "fake")]
-        let (core, data, frontend) = (
-            "http://127.0.0.1:3001".to_string(),
-            "http://127.0.0.1:3002".to_string(),
-            "http://127.0.0.1:3000".to_string(),
-        );
-
-        #[cfg(not(feature = "fake"))]
-        let (core, data, frontend) = (
-            "https://api.data.banyan.computer".to_string(),
-            "https://distributor.data.banyan.computer".to_string(),
-            "https://alpha.data.banyan.computer".to_string(),
-        );
-
-        Self {
-            core,
-            data,
-            frontend,
+        if let Some(dev) = option_env!("DEV_ENDPOINTS") && dev == "1" {
+            Self {
+                core: "http://127.0.0.1:3001".to_string(),
+                data: "http://127.0.0.1:3002".to_string(),
+                frontend: "http://127.0.0.1:3000".to_string(),
+            }
+        } else {
+            Self {
+                core: "https://api.data.banyan.computer".to_string(),
+                data: "https://distributor.data.banyan.computer".to_string(),
+                frontend: "https://alpha.data.banyan.computer".to_string(),
+            }
         }
     }
 }
