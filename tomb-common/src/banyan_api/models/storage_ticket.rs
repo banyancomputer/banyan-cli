@@ -64,6 +64,7 @@ impl StorageTicket {
         // TODO: This should probably be a metadata cid
         metadata_id: Uuid,
         content: S,
+        content_len: u64,
         content_hash: String,
         client: &mut Client,
     ) -> Result<(), ClientError>
@@ -75,6 +76,7 @@ impl StorageTicket {
                 host_url: self.host.clone(),
                 metadata_id,
                 content,
+                content_len,
                 content_hash,
             })
             .await

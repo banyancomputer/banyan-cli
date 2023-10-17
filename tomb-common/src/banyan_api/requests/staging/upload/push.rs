@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
-use reqwest::{Client, RequestBuilder, Url};
+use reqwest::{Client, RequestBuilder, Url, header::CONTENT_LENGTH};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -18,6 +18,7 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_len: u64,
     pub content_hash: String,
 }
 
@@ -30,6 +31,7 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_len: u64,
     pub content_hash: String,
 }
 
@@ -82,12 +84,16 @@ where
         let multipart_car = reqwest::multipart::Part::stream(self.content)
             .mime_str("application/vnd.ipld.car; version=2")
             .unwrap();
+
         // Combine the two parts into a multipart form
         let multipart_form = reqwest::multipart::Form::new()
             .part("request-data", multipart_json)
             .part("car-upload", multipart_car);
         // post
-        client.post(full_url).multipart(multipart_form)
+        client
+            .post(full_url)
+            .multipart(multipart_form)
+            .header(CONTENT_LENGTH, self.content_len)
     }
 
     fn requires_authentication(&self) -> bool {

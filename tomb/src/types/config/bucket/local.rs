@@ -94,18 +94,19 @@ impl LocalBucket {
         let metadata_path = bucket_metadata_path(&local_id);
         let content_path = bucket_content_path(&local_id);
         let metadata = CarV2DiskBlockStore::new(&metadata_path)?;
-        let content = MultiCarV2DiskBlockStore::new(&content_path)?;
+        let mut content = MultiCarV2DiskBlockStore::new(&content_path)?;
+        content.add_delta()?;
 
         // Initialize the fs metadata
         let mut fs_metadata = FsMetadata::init(wrapping_key).await?;
         let public_key = wrapping_key.public_key()?;
 
         // Save our fs to establish map
-        fs_metadata.save(&metadata, &metadata).await?;
+        fs_metadata.save(&metadata, &content).await?;
         // Share it with the owner of this wrapping key
         fs_metadata.share_with(&public_key, &metadata).await?;
         // Save our fs again
-        fs_metadata.save(&metadata, &metadata).await?;
+        fs_metadata.save(&metadata, &content).await?;
 
         Ok(Self {
             name,

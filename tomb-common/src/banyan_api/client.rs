@@ -6,7 +6,7 @@ use bytes::Bytes;
 use futures_core::stream::Stream;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client as ReqwestClient, Url,
+    Client as ReqwestClient, Url, Response,
 };
 use std::fmt::Debug;
 use tomb_crypt::prelude::*;
@@ -309,23 +309,30 @@ impl Client {
             .await
             .map_err(ClientError::http_error)?;
 
-        if response.status().is_success() {
-            Ok(())
-        } else {
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
-                // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
-            }
-            // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+        let text = response.text().await.unwrap();
+        println!("{text}");
+        Ok(())
+        // let bytes = Response::from(text.as_bytes());
 
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
-        }
+        // println!("response: {}", String::from_utf8(response.bytes().await.unwrap().to_vec()).unwrap());
+
+        // if response.status().is_success() {
+        //     Ok(())
+        // } else {
+        //     if response.status() == reqwest::StatusCode::NOT_FOUND {
+        //         // Handle 404 specifically
+        //         // You can extend this part to handle other status codes differently if needed
+        //         return Err(ClientError::http_response_error(response.status()));
+        //     }
+        //     // For other error responses, try to deserialize the error
+        //     let err = response
+        //         .json::<T::ErrorType>()
+        //         .await
+        //         .map_err(ClientError::bad_format)?;
+
+        //     let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+        //     Err(ClientError::from(err))
+        // }
     }
 
     // /// Call a multipart method that implements ApiRequest

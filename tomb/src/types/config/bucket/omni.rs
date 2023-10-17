@@ -22,7 +22,7 @@ use tomb_common::{
             storage_ticket,
         },
     },
-    blockstore::RootedBlockStore,
+    blockstore::RootedBlockStore, utils::io::get_read,
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -228,17 +228,41 @@ impl OmniBucket {
 
                 // If we can actually get the arguments
                 if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() {
+                    let delta = local.content.deltas.last().unwrap();
+                    let expected_data_size = compute_directory_size(&delta.path)? as u64;
+                    println!("expected_data_size: {}", expected_data_size);
                     // 
                     if let Ok((metadata, storage_ticket)) = Metadata::push(
                         bucket_id,
                         root_cid.to_string(),
                         root_cid.to_string(),
-                        compute_directory_size(&local.metadata.path)? as u64,
+                        expected_data_size,
                         valid_keys,
                         metadata_stream,
                         client
                     ).await {
-                        return Ok(format!("successfully pushed metadata too: \n{}\n{:?}\n", metadata, storage_ticket));
+                        // If the storage ticket is valid
+                        if let Some(storage_ticket) = storage_ticket {
+                            storage_ticket
+                                .clone()
+                                .create_grant(client)
+                                .await
+                                .map_err(|err| {
+                                    TombError::custom_error(&format!("unable to register storage ticket: {err}"))
+                                })?;
+                            println!("successfully created the grant");
+                            let delta_reader = std::fs::File::open(&delta.path)?;
+                            let content_len = delta_reader.metadata()?.len() + 546;
+                            let mut hasher = blake3::Hasher::new();
+                            hasher.update_reader(delta_reader)?;
+                            let content_hash = hasher.finalize().to_string();
+                            let delta_reader = tokio::fs::File::open(&delta.path).await?;
+                            storage_ticket.upload_content(metadata.id, delta_reader, content_len, content_hash, client).await.map_err(|err| TombError::custom_error(&format!("failed during content upload: {}", err)))?;
+                            return Ok(format!("successfully pushed metadata too: \n{}\n", metadata));
+                        }
+                        else {
+                            return Ok(format!("received metadata but no storage ticket"))
+                        }
                     }
                     else {
                         return Err(TombError::custom_error("Tried but failed to push metadata!"));    
@@ -308,7 +332,8 @@ impl OmniBucket {
 
         // If we successfully initialized both of them
         if omni.get_remote().is_ok() && let Ok(local) = omni.get_local() {
-            omni.sync(client, global).await;
+            let sync = omni.sync(client, global).await;
+            println!("sync result: {:?}", sync)
         }
 
         let _ = omni.set_state(client).await;
