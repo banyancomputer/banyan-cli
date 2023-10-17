@@ -151,7 +151,7 @@ impl LocalBucket {
             .remote_id
             .ok_or(anyhow::anyhow!("remote id not found"))?;
         let root_cid = self
-            .content
+            .metadata
             .get_root()
             .ok_or(anyhow::anyhow!("root_cid not found"))?;
         let metadata_cid = self

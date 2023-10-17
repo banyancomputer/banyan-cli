@@ -61,33 +61,30 @@ impl RunnableCommand<TombError> for MetadataCommand {
                 let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
                     global.wrapping_key().await?;
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                if let Some(local) = omni.local {
-                    let metadata = local.get_metadata().await?;
-                    let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
-                    let valid_keys = fs.share_manager.public_fingerprints();
-                    let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
-                    // Push the Metadata
-                    Metadata::push(
-                        metadata.bucket_id,
-                        metadata.root_cid,
-                        metadata.metadata_cid,
-                        metadata.data_size,
-                        valid_keys,
-                        metadata_stream,
-                        client,
-                    )
-                    .await
-                    .map(|(metadata, storage_ticket)| {
-                        let mut info = format!("\t{}", metadata);
-                        if let Some(storage_ticket) = storage_ticket {
-                            info.push_str(&format!("\n\n\t{}", storage_ticket))
-                        }
-                        info
-                    })
-                    .map_err(TombError::client_error)
-                } else {
-                    Ok("no bucket".to_string())
-                }
+                let local = omni.get_local()?;
+                let metadata = local.get_metadata().await?;
+                let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
+                let valid_keys = fs.share_manager.public_fingerprints();
+                let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
+                // Push the Metadata
+                Metadata::push(
+                    metadata.bucket_id,
+                    metadata.root_cid,
+                    metadata.metadata_cid,
+                    metadata.data_size,
+                    valid_keys,
+                    metadata_stream,
+                    client,
+                )
+                .await
+                .map(|(metadata, storage_ticket)| {
+                    let mut info = format!("\t{}", metadata);
+                    if let Some(storage_ticket) = storage_ticket {
+                        info.push_str(&format!("\n\n\t{}", storage_ticket))
+                    }
+                    info
+                })
+                .map_err(TombError::client_error)
             }
             // Read the current Metadata
             MetadataCommand::ReadCurrent(bucket_specifier) => {

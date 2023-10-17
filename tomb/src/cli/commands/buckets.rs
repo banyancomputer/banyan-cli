@@ -44,10 +44,8 @@ pub enum BucketsCommand {
         #[arg(short, long)]
         output: PathBuf,
     },
-    /// Push prepared Bucket data
-    Push(BucketSpecifier),
-    /// Download prepared Bucket data
-    Pull(BucketSpecifier),
+    /// Sync Bucket data
+    Sync(BucketSpecifier),
     /// Delete Bucket
     Delete(BucketSpecifier),
     /// Bucket info
@@ -107,11 +105,13 @@ impl RunnableCommand<TombError> for BucketsCommand {
                 let local = omni.get_local()?;
                 extract::pipeline(global, local, &output).await
             }
-            BucketsCommand::Push(_bucket_specifier) => {
-                todo!()
-            }
-            BucketsCommand::Pull(_bucket_specifier) => {
-                todo!()
+            BucketsCommand::Sync(bucket_specifier) => {
+                let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let result = omni.sync(client, global).await;
+                if let Ok(local) = omni.get_local() {
+                    global.update_config(&local)?;
+                }
+                result
             }
             BucketsCommand::Delete(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
@@ -123,24 +123,19 @@ impl RunnableCommand<TombError> for BucketsCommand {
             }
             BucketsCommand::Usage(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                if let Some(remote) = omni.remote {
-                    remote
-                        .usage(client)
-                        .await
-                        .map(|v| {
-                            format!(
-                                "{}bucket_id:\t\t{}\nusage:\t\t{}",
-                                "| USAGE INFO |".blue(),
-                                remote.id,
-                                v
-                            )
-                        })
-                        .map_err(TombError::client_error)
-                } else {
-                    Err(TombError::custom_error(
-                        "This bucket has no remote correlate for which to check usage.",
-                    ))
-                }
+                let remote = omni.get_remote()?;
+                remote
+                    .usage(client)
+                    .await
+                    .map(|v| {
+                        format!(
+                            "{}bucket_id:\t\t{}\nusage:\t\t{}",
+                            "| USAGE INFO |".blue(),
+                            remote.id,
+                            v
+                        )
+                    })
+                    .map_err(TombError::client_error)
             }
             BucketsCommand::Metadata { subcommand } => {
                 subcommand.run_internal(global, client).await
