@@ -1,5 +1,5 @@
 use crate::{
-    pipelines::{bundle, error::TombError, extract},
+    pipelines::{prepare, error::TombError, reconstruct},
     types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };
 
@@ -95,7 +95,7 @@ impl RunnableCommand<TombError> for BucketsCommand {
             } => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let local = omni.get_local()?;
-                bundle::pipeline(global, local, follow_links).await
+                prepare::pipeline(global, local, follow_links).await
             }
             BucketsCommand::Restore {
                 bucket_specifier,
@@ -103,7 +103,7 @@ impl RunnableCommand<TombError> for BucketsCommand {
             } => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let local = omni.get_local()?;
-                extract::pipeline(global, local, &restore_path).await
+                reconstruct::pipeline(global, &local, &local.content, &restore_path).await
             }
             BucketsCommand::Sync(bucket_specifier) => {
                 let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;

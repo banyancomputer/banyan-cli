@@ -2,8 +2,8 @@ use super::error::TombError;
 use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
-use tomb_common::utils::wnfsio::path_to_segments;
-use wnfs::private::PrivateNode;
+use tomb_common::{utils::wnfsio::path_to_segments, blockstore::RootedBlockStore, banyan_api::blockstore::BanyanApiBlockStore};
+use wnfs::{private::PrivateNode, common::BlockStore};
 
 /// Given the manifest file and a destination for our extracted data, run the extracting pipeline
 /// on the data referenced in the manifest.
@@ -17,7 +17,8 @@ use wnfs::private::PrivateNode;
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
     global: &GlobalConfig,
-    local: LocalBucket,
+    local: &LocalBucket,
+    content_store: &impl BlockStore,
     extracted: &Path,
 ) -> Result<String, TombError> {
     // Announce that we're starting
@@ -41,7 +42,7 @@ pub async fn pipeline(
                 let built_path = extracted.join(path.clone());
                 // If we can read the content from the file node
                 if let Ok(content) = fs
-                    .read(&path_to_segments(&path)?, &local.metadata, &local.content)
+                    .read(&path_to_segments(&path)?, &local.metadata, content_store)
                     .await
                 {
                     // If this file is a symlink

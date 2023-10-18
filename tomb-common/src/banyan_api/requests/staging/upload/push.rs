@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
-use reqwest::{Client, RequestBuilder, Url, header::CONTENT_LENGTH};
+use reqwest::{header::CONTENT_LENGTH, Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -31,7 +31,6 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
-    pub content_len: u64,
     pub content_hash: String,
 }
 
@@ -93,7 +92,7 @@ where
         client
             .post(full_url)
             .multipart(multipart_form)
-            .header(CONTENT_LENGTH, self.content_len)
+            .header(CONTENT_LENGTH, self.content_len + 546)
     }
 
     fn requires_authentication(&self) -> bool {

@@ -1,10 +1,5 @@
 use colored::Colorize;
 use std::fmt::Display;
-use tomb_common::banyan_api::{client::Client, error::ClientError, models::metadata::Metadata};
-
-use crate::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig};
-
-use super::OmniBucket;
 
 /// Sync State
 #[derive(Debug, Clone)]

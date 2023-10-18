@@ -1,13 +1,13 @@
 /// This module contains the add pipeline function, which is the main entry point for inserting into existing WNFS filesystems.
 pub mod add;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
-pub mod bundle;
+pub mod prepare;
 /// This module contains configuration functions for the cli
 pub mod configure;
 /// Pipeline Errors
 pub mod error;
 /// This module contains the decryption pipeline function, which is the main entry point for extracting previously bundled data.
-pub mod extract;
+pub mod reconstruct;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 
@@ -15,7 +15,7 @@ pub mod remove;
 mod test {
     use super::{add, error::TombError};
     use crate::{
-        pipelines::{bundle, configure, extract, remove},
+        pipelines::{prepare, configure, reconstruct, remove},
         types::config::globalconfig::GlobalConfig,
         utils::{
             test::{test_setup, test_setup_structured, test_teardown},
@@ -40,14 +40,14 @@ mod test {
     async fn bundle_pipeline(origin: &Path) -> Result<String, TombError> {
         let mut global = GlobalConfig::from_disk().await?;
         let local = global.get_bucket(origin).unwrap();
-        bundle::pipeline(&mut global, local, true).await
+        prepare::pipeline(&mut global, local, true).await
     }
 
     /// Simplified Extract call function
     async fn extract_pipeline(origin: &Path, extracted: &Path) -> Result<String, TombError> {
         let global = GlobalConfig::from_disk().await?;
         let local = global.get_bucket(origin).unwrap();
-        extract::pipeline(&GlobalConfig::from_disk().await?, local, extracted).await
+        reconstruct::pipeline(&GlobalConfig::from_disk().await?, &local, &local.content, extracted).await
     }
 
     #[tokio::test]

@@ -1,18 +1,13 @@
 use crate::{
     pipelines::error::TombError,
-    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
-    utils::wnfsio::compute_directory_size,
+    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig}
 };
 
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;
 use clap::Subcommand;
 use futures_util::StreamExt;
-use tomb_common::{
-    banyan_api::{client::Client, error::ClientError, models::metadata::Metadata},
-    blockstore::RootedBlockStore,
-    metadata::FsMetadata,
-};
+use tomb_common::banyan_api::{client::Client, error::ClientError, models::metadata::Metadata};
 
 /// Subcommand for Bucket Metadata
 #[derive(Subcommand, Clone, Debug)]
@@ -56,12 +51,12 @@ impl RunnableCommand<TombError> for MetadataCommand {
                     .map_err(TombError::client_error)
             }
             // Push metadata
-            MetadataCommand::Push(bucket_specifier) => {
+            MetadataCommand::Push(_) => {
                 // Get info
-                let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
-                    global.wrapping_key().await?;
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                let local = omni.get_local()?;
+                // let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
+                //     global.wrapping_key().await?;
+                // let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                // let local = omni.get_local()?;
 
                 // let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
                 // let valid_keys = fs.share_manager.public_fingerprints();

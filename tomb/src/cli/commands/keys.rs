@@ -66,10 +66,12 @@ impl RunnableCommand<TombError> for KeyCommand {
 
                 // Get Bucket
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                let local = omni.get_local()?;
-                let mut fs = FsMetadata::unlock(&private_key, &local.metadata).await?;
-                fs.share_with(&public_key, &local.metadata).await?;
-                fs.save(&local.metadata, &local.metadata).await?;
+
+                if let Ok(local) = omni.get_local() {
+                    let mut fs = FsMetadata::unlock(&private_key, &local.metadata).await?;
+                    fs.share_with(&public_key, &local.metadata).await?;
+                    fs.save(&local.metadata, &local.metadata).await?;
+                }
 
                 if let Ok(id) = omni.get_id() {
                     BucketKey::create(id, pem, client)

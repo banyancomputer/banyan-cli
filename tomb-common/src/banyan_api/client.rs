@@ -6,7 +6,7 @@ use bytes::Bytes;
 use futures_core::stream::Stream;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client as ReqwestClient, Url, Response,
+    Client as ReqwestClient, Url,
 };
 use std::fmt::Debug;
 use tomb_crypt::prelude::*;

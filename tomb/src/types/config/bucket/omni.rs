@@ -1,17 +1,15 @@
-use std::{collections::HashMap, env::current_dir, fmt::Display, path::Path};
+use std::{collections::HashMap, env::{current_dir, home_dir}, fmt::Display, path::Path, fs::{create_dir_all, remove_dir_all}};
 
 use super::{LocalBucket, SyncState};
 use crate::{
-    cli::{
-        commands::{MetadataCommand, RunnableCommand},
-        specifiers::BucketSpecifier,
-    },
-    pipelines::error::TombError,
+    cli::specifiers::BucketSpecifier,
+    pipelines::{error::TombError, reconstruct},
     types::config::globalconfig::GlobalConfig,
     utils::wnfsio::compute_directory_size,
 };
 use colored::{ColoredString, Colorize};
 use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
 use tomb_common::{
     banyan_api::{
         client::Client,
@@ -19,10 +17,9 @@ use tomb_common::{
         models::{
             bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
             metadata::Metadata,
-            storage_ticket,
-        },
+        }, blockstore::BanyanApiBlockStore,
     },
-    blockstore::RootedBlockStore, utils::io::get_read,
+    blockstore::{RootedBlockStore, carv2_memory::CarV2MemoryBlockStore},
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -83,7 +80,7 @@ impl OmniBucket {
         }
 
         // Determine the sync state
-        new_object.set_state(client).await;
+        let _ = new_object.set_state(client).await;
 
         new_object
     }
@@ -198,25 +195,46 @@ impl OmniBucket {
             Some(SyncState::Unlocalized) | Some(SyncState::Behind(_)) => {
                 let current = Metadata::read_current(self.get_id()?, client).await?;
                 let mut byte_stream = current.pull(client).await?;
-                self.local = Some(
-                    global
-                        .get_or_init_bucket(&self.get_remote()?.name, &current_dir()?)
-                        .await?,
-                );
 
-                // Grab the metadata file
-                let mut metadata_file =
-                    tokio::fs::File::create(&self.get_local()?.metadata.path).await?;
+                let new_local_origin = &home_dir().unwrap().join("tomb").join(self.get_remote()?.name);
+                // Remove existing contents and create a enw directory
+                remove_dir_all(new_local_origin).ok();
+                create_dir_all(new_local_origin)?;
+
+                // Create a new 
+                self.local = Some({
+                    let mut value = global
+                        .get_or_init_bucket(&self.get_remote()?.name, &new_local_origin)
+                        .await?;
+                    value.remote_id = Some(self.get_remote()?.id);
+                    value
+                });
+
+                let mut buffer = <Vec<u8>>::new();
                 // Write every chunk to it
                 while let Some(chunk) = byte_stream.next().await {
                     tokio::io::copy(
                         &mut chunk.map_err(ClientError::http_error)?.as_ref(),
-                        &mut metadata_file,
+                        &mut buffer,
                     )
                     .await?;
                 }
+                // Attempt to create a CARv2 BlockStore from the data
+                let metadata = CarV2MemoryBlockStore::try_from(buffer).map_err(|_| TombError::custom_error("Failed to represent metadata download as blockstore"))?;
+                // Grab the metadata file
+                let mut metadata_file = tokio::fs::File::create(&self.get_local()?.metadata.path).await?;
+                metadata_file.write_all(&metadata.get_data()).await?;
+                // Write that data out to the metadata
 
-                Ok("successfully downloaded metadata".into())
+                println!("{}", "<< METADATA RECONSTRUCTED >>".green());
+
+                let mut banyan_api_blockstore_client = client.clone();
+                banyan_api_blockstore_client
+                    .with_remote(client.remote_data.as_str())
+                    .expect("could not create blockstore client");
+                let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
+                // Reconstruct the data on disk
+                reconstruct::pipeline(global, &self.get_local()?, &banyan_api_blockstore, &new_local_origin).await
             }
             // Upload the Bucket
             Some(SyncState::Unpublished | SyncState::Ahead(_)) => {
@@ -228,11 +246,10 @@ impl OmniBucket {
 
                 // If we can actually get the arguments
                 if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() {
-                    let delta = local.content.deltas.last().unwrap();
-                    let expected_data_size = compute_directory_size(&delta.path)? as u64;
+                    let expected_data_size = compute_directory_size(&local.metadata.path)? as u64;
                     println!("expected_data_size: {}", expected_data_size);
-                    // 
-                    if let Ok((metadata, storage_ticket)) = Metadata::push(
+                    // Push the metadata
+                    let (metadata, storage_ticket) = Metadata::push(
                         bucket_id,
                         root_cid.to_string(),
                         root_cid.to_string(),
@@ -240,33 +257,27 @@ impl OmniBucket {
                         valid_keys,
                         metadata_stream,
                         client
-                    ).await {
-                        // If the storage ticket is valid
-                        if let Some(storage_ticket) = storage_ticket {
-                            storage_ticket
-                                .clone()
-                                .create_grant(client)
-                                .await
-                                .map_err(|err| {
-                                    TombError::custom_error(&format!("unable to register storage ticket: {err}"))
-                                })?;
-                            println!("successfully created the grant");
-                            let delta_reader = std::fs::File::open(&delta.path)?;
-                            let content_len = delta_reader.metadata()?.len() + 546;
-                            let mut hasher = blake3::Hasher::new();
-                            hasher.update_reader(delta_reader)?;
-                            let content_hash = hasher.finalize().to_string();
-                            let delta_reader = tokio::fs::File::open(&delta.path).await?;
-                            storage_ticket.upload_content(metadata.id, delta_reader, content_len, content_hash, client).await.map_err(|err| TombError::custom_error(&format!("failed during content upload: {}", err)))?;
-                            return Ok(format!("successfully pushed metadata too: \n{}\n", metadata));
-                        }
-                        else {
-                            return Ok(format!("received metadata but no storage ticket"))
-                        }
-                    }
-                    else {
-                        return Err(TombError::custom_error("Tried but failed to push metadata!"));    
-                    }
+                    ).await?;
+
+                    // If the storage ticket is valid
+                    let storage_ticket = storage_ticket.ok_or_else(|| TombError::custom_error("Metadata was pushed but storage sticket was not reccieved"))?;
+                    // Create storage grant
+                    storage_ticket
+                        .clone()
+                        .create_grant(client)
+                        .await
+                        .map_err(|err| {
+                            TombError::custom_error(&format!("unable to register storage ticket: {err}"))
+                        })?;
+                    println!("successfully created the grant");
+                    let delta_reader = std::fs::File::open(&local.metadata.path)?;
+                    let content_len = delta_reader.metadata()?.len();
+                    let mut hasher = blake3::Hasher::new();
+                    hasher.update_reader(delta_reader)?;
+                    let content_hash = hasher.finalize().to_string();
+                    let delta_reader = tokio::fs::File::open(&local.metadata.path).await?;
+                    storage_ticket.upload_content(metadata.id, delta_reader, content_len, content_hash, client).await.map_err(|err| TombError::custom_error(&format!("failed during content upload: {}", err)))?;
+                    return Ok(format!("successfully pushed metadata too: \n{}\n", metadata));
                 } else {
                     return Err(TombError::custom_error("No metadata to push!"));
                 }
@@ -331,7 +342,7 @@ impl OmniBucket {
         }
 
         // If we successfully initialized both of them
-        if omni.get_remote().is_ok() && let Ok(local) = omni.get_local() {
+        if omni.get_remote().is_ok() && omni.get_local().is_ok() {
             let sync = omni.sync(client, global).await;
             println!("sync result: {:?}", sync)
         }
@@ -395,7 +406,8 @@ impl OmniBucket {
                     remote: Some(remote),
                     sync_state: None,
                 };
-                omni.set_state(client).await;
+
+                let _ = omni.set_state(client).await;
 
                 map.insert(key, omni);
             } else {
