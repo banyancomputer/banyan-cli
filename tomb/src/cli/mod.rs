@@ -54,7 +54,7 @@ mod test {
         TombCommand::Buckets {
             command: BucketsCommand::Restore {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
-                restore_path: extracted.to_path_buf(),
+                restore_path: Some(extracted.to_path_buf()),
             },
         }
     }

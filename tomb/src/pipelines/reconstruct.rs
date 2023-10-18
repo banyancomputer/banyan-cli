@@ -2,8 +2,8 @@ use super::error::TombError;
 use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
-use tomb_common::{utils::wnfsio::path_to_segments, blockstore::RootedBlockStore, banyan_api::blockstore::BanyanApiBlockStore};
-use wnfs::{private::PrivateNode, common::BlockStore};
+use tomb_common::utils::wnfsio::path_to_segments;
+use wnfs::{common::BlockStore, private::PrivateNode};
 
 /// Given the manifest file and a destination for our extracted data, run the extracting pipeline
 /// on the data referenced in the manifest.
@@ -27,12 +27,25 @@ pub async fn pipeline(
     // Load metadata
     let mut fs = local.unlock_fs(&wrapping_key).await?;
 
+    println!(
+        "reconstruct_fs_root_dir_ls: {:?}",
+        fs.root_dir
+            .ls(&[], true, &fs.forest, &local.metadata)
+            .await?
+    );
+
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         extracted.display()
     );
+
     // For each node path tuple in the FS Metadata
     for (node, path) in fs.get_all_nodes(&local.metadata).await? {
+        println!(
+            "RECONSTRUCTING NODE: {:?} AT PATH: {}",
+            node,
+            path.display()
+        );
         match node {
             PrivateNode::Dir(_) => {
                 // Create the directory
@@ -62,14 +75,14 @@ pub async fn pipeline(
                         output_file.write_all(&content)?;
                     }
                 } else {
-                    return Err(TombError::custom_error("file missing error"));
+                    return Err(TombError::custom_error(&format!(
+                        "file missing error: {}",
+                        built_path.display()
+                    )));
                 }
             }
         }
     }
-
-    // Run extraction on the base level with an empty built path
-    // process_node(fs, metadata, content, extracted, Path::new("")).await?;
 
     Ok(format!(
         "successfully extracted data into {}",

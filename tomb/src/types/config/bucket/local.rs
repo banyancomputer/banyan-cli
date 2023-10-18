@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use tomb_common::{
+    banyan_api::models::storage_ticket::StorageTicket,
     blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
     metadata::FsMetadata,
 };
@@ -47,8 +48,10 @@ pub struct LocalBucket {
     pub(crate) origin: PathBuf,
     /// Randomly generated folder name which holds bundled content and key files
     local_id: String,
-    /// Bucket Uuid, if this
+    /// Bucket Uuid on the remote server
     pub(crate) remote_id: Option<Uuid>,
+    /// Storage ticket in case we lose track of non-metadata components
+    pub(crate) storage_ticket: Option<StorageTicket>,
     /// BlockStore for storing metadata only
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
@@ -58,7 +61,7 @@ pub struct LocalBucket {
 impl Display for LocalBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "name:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{}",
+            "name:\t\t{}\nlocal_path:\t{}\nlocal_id:\t{}\nremote_id:\t{}\nstorage_ticket:\t{}",
             self.name,
             self.origin.display(),
             self.local_id,
@@ -66,6 +69,11 @@ impl Display for LocalBucket {
                 remote_id.to_string()
             } else {
                 format!("{}", "Bucket does not exist remotely".red())
+            },
+            if let Some(storage_ticket) = self.storage_ticket.clone() {
+                storage_ticket.host
+            } else {
+                format!("{}", "Bucket does not have storage ticket".red())
             }
         ))
     }
@@ -109,6 +117,7 @@ impl LocalBucket {
             origin: origin.to_path_buf(),
             local_id,
             remote_id: None,
+            storage_ticket: None,
             metadata,
             content,
         })
@@ -140,35 +149,6 @@ impl LocalBucket {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
         Ok(fs_metadata.history(&self.metadata).await?)
     }
-
-    // // TODO: wrong, you should qlready have this, or be fetching it from the server
-    // /// Get the Metadata struct which can be used to create Metadata API requests
-    // pub async fn get_metadata(&self) -> Result<Metadata> {
-    //     let remote_id = self
-    //         .remote_id
-    //         .ok_or(anyhow::anyhow!("remote id not found"))?;
-    //     let root_cid = self
-    //         .metadata
-    //         .get_root()
-    //         .ok_or(anyhow::anyhow!("root_cid not found"))?;
-    //     let metadata_cid = self
-    //         .metadata
-    //         .get_root()
-    //         .ok_or(anyhow::anyhow!("metadata_cid not found"))?;
-    //     Ok(Metadata {
-    //         id: Uuid::new_v4(),
-    //         bucket_id: remote_id,
-    //         root_cid: root_cid.to_string(),
-    //         metadata_cid: metadata_cid.to_string(),
-    //         data_size: compute_directory_size(&self.content.path)? as u64,
-    //         state: MetadataState::Current,
-    //         snapshot_id: None,
-    //     })
-    // }
-
-    // pub fn get_pull_request(&self) -> Result<()> {
-    //     Metadata::push(bucket_id, root_cid, metadata_cid, expected_data_size, valid_keys, metadata_stream, client)
-    // }
 }
 
 #[cfg(test)]

@@ -1,25 +1,21 @@
-use std::{collections::HashMap, env::{current_dir, home_dir}, fmt::Display, path::Path, fs::{create_dir_all, remove_dir_all}};
-
 use super::{LocalBucket, SyncState};
 use crate::{
-    cli::specifiers::BucketSpecifier,
-    pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig,
+    cli::{commands::prompt_for_bool, specifiers::BucketSpecifier},
+    pipelines::error::TombError,
+    types::config::{bucket::sync_bucket, globalconfig::GlobalConfig},
     utils::wnfsio::compute_directory_size,
 };
 use colored::{ColoredString, Colorize};
-use futures_util::StreamExt;
-use tokio::io::AsyncWriteExt;
+use std::{collections::HashMap, fmt::Display, path::Path};
 use tomb_common::{
     banyan_api::{
         client::Client,
-        error::ClientError,
         models::{
             bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
             metadata::Metadata,
-        }, blockstore::BanyanApiBlockStore,
+        },
     },
-    blockstore::{RootedBlockStore, carv2_memory::CarV2MemoryBlockStore},
+    blockstore::RootedBlockStore,
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -139,6 +135,11 @@ impl OmniBucket {
         ))
     }
 
+    /// Update the LocalBucket
+    pub fn set_local(&mut self, local: LocalBucket) {
+        self.local = Some(local);
+    }
+
     /// Determine the Sync State of an omni bucket
     pub async fn set_state(&mut self, client: &mut Client) -> Result<(), TombError> {
         let bucket_id = self.get_id()?;
@@ -152,7 +153,13 @@ impl OmniBucket {
             let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
             // If the metadata root CIDs match
             if local_root_cid == Some(current_remote.root_cid) {
-                self.sync_state = Some(SyncState::Synced);
+                self.sync_state = Some(SyncState::MetadataSynced);
+
+                // If there is actually data in the local origin
+                if compute_directory_size(&local.origin)? > 100 {
+                    self.sync_state = Some(SyncState::AllSynced);
+                }
+
                 Ok(())
             } else {
                 let all_metadatas = Metadata::read_all(bucket_id, client).await?;
@@ -164,8 +171,7 @@ impl OmniBucket {
                 // If the current Metadata id exists in the list of remotely persisted ones
                 if all_metadatas
                     .iter()
-                    .find(|metadata| Some(metadata.root_cid.clone()) == local_root_cid)
-                    .is_some()
+                    .any(|metadata| Some(metadata.root_cid.clone()) == local_root_cid)
                 {
                     self.sync_state = Some(SyncState::Behind(1));
                     Ok(())
@@ -176,115 +182,7 @@ impl OmniBucket {
             }
         } else {
             self.sync_state = Some(SyncState::Unlocalized);
-            return Ok(());
-        }
-    }
-
-    /// Sync metadata
-    pub async fn sync(
-        &mut self,
-        client: &mut Client,
-        global: &mut GlobalConfig,
-    ) -> Result<String, TombError> {
-        if self.sync_state.is_none() {
-            println!("{:?}", self.set_state(client).await);
-        }
-
-        match &self.sync_state {
-            // Download the Bucket
-            Some(SyncState::Unlocalized) | Some(SyncState::Behind(_)) => {
-                let current = Metadata::read_current(self.get_id()?, client).await?;
-                let mut byte_stream = current.pull(client).await?;
-
-                let new_local_origin = &home_dir().unwrap().join("tomb").join(self.get_remote()?.name);
-                // Remove existing contents and create a enw directory
-                remove_dir_all(new_local_origin).ok();
-                create_dir_all(new_local_origin)?;
-
-                // Create a new 
-                self.local = Some({
-                    let mut value = global
-                        .get_or_init_bucket(&self.get_remote()?.name, &new_local_origin)
-                        .await?;
-                    value.remote_id = Some(self.get_remote()?.id);
-                    value
-                });
-
-                let mut buffer = <Vec<u8>>::new();
-                // Write every chunk to it
-                while let Some(chunk) = byte_stream.next().await {
-                    tokio::io::copy(
-                        &mut chunk.map_err(ClientError::http_error)?.as_ref(),
-                        &mut buffer,
-                    )
-                    .await?;
-                }
-                // Attempt to create a CARv2 BlockStore from the data
-                let metadata = CarV2MemoryBlockStore::try_from(buffer).map_err(|_| TombError::custom_error("Failed to represent metadata download as blockstore"))?;
-                // Grab the metadata file
-                let mut metadata_file = tokio::fs::File::create(&self.get_local()?.metadata.path).await?;
-                metadata_file.write_all(&metadata.get_data()).await?;
-                // Write that data out to the metadata
-
-                println!("{}", "<< METADATA RECONSTRUCTED >>".green());
-
-                let mut banyan_api_blockstore_client = client.clone();
-                banyan_api_blockstore_client
-                    .with_remote(client.remote_data.as_str())
-                    .expect("could not create blockstore client");
-                let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
-                // Reconstruct the data on disk
-                reconstruct::pipeline(global, &self.get_local()?, &banyan_api_blockstore, &new_local_origin).await
-            }
-            // Upload the Bucket
-            Some(SyncState::Unpublished | SyncState::Ahead(_)) => {
-                let local = self.get_local()?;
-                let wrapping_key = global.wrapping_key().await?;
-                let fs = local.unlock_fs(&wrapping_key).await?;
-                let valid_keys = fs.share_manager.public_fingerprints();
-                let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
-
-                // If we can actually get the arguments
-                if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() {
-                    let expected_data_size = compute_directory_size(&local.metadata.path)? as u64;
-                    println!("expected_data_size: {}", expected_data_size);
-                    // Push the metadata
-                    let (metadata, storage_ticket) = Metadata::push(
-                        bucket_id,
-                        root_cid.to_string(),
-                        root_cid.to_string(),
-                        expected_data_size,
-                        valid_keys,
-                        metadata_stream,
-                        client
-                    ).await?;
-
-                    // If the storage ticket is valid
-                    let storage_ticket = storage_ticket.ok_or_else(|| TombError::custom_error("Metadata was pushed but storage sticket was not reccieved"))?;
-                    // Create storage grant
-                    storage_ticket
-                        .clone()
-                        .create_grant(client)
-                        .await
-                        .map_err(|err| {
-                            TombError::custom_error(&format!("unable to register storage ticket: {err}"))
-                        })?;
-                    println!("successfully created the grant");
-                    let delta_reader = std::fs::File::open(&local.metadata.path)?;
-                    let content_len = delta_reader.metadata()?.len();
-                    let mut hasher = blake3::Hasher::new();
-                    hasher.update_reader(delta_reader)?;
-                    let content_hash = hasher.finalize().to_string();
-                    let delta_reader = tokio::fs::File::open(&local.metadata.path).await?;
-                    storage_ticket.upload_content(metadata.id, delta_reader, content_len, content_hash, client).await.map_err(|err| TombError::custom_error(&format!("failed during content upload: {}", err)))?;
-                    return Ok(format!("successfully pushed metadata too: \n{}\n", metadata));
-                } else {
-                    return Err(TombError::custom_error("No metadata to push!"));
-                }
-            }
-            //
-            Some(SyncState::Synced) => Ok("already synced".into()),
-            None => Err(TombError::custom_error("Unable to determine sync state")),
+            Ok(())
         }
     }
 
@@ -342,12 +240,9 @@ impl OmniBucket {
         }
 
         // If we successfully initialized both of them
-        if omni.get_remote().is_ok() && omni.get_local().is_ok() {
-            let sync = omni.sync(client, global).await;
-            println!("sync result: {:?}", sync)
+        if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
+            println!("{sync}");
         }
-
-        let _ = omni.set_state(client).await;
 
         Ok(omni)
     }
@@ -358,7 +253,8 @@ impl OmniBucket {
         global: &mut GlobalConfig,
         client: &mut Client,
     ) -> Result<String, TombError> {
-        let local_deletion = if let Some(local) = &self.local {
+        let local_deletion = if let Some(local) = &self.local &&
+        prompt_for_bool("are you sure you want to delete this Bucket locally?") {
             local.remove_data()?;
             // Find index of bucket
             let index = global
@@ -373,7 +269,7 @@ impl OmniBucket {
             false
         };
 
-        let remote_deletion = if let Some(remote) = &self.remote {
+        let remote_deletion = if let Some(remote) = &self.remote && prompt_for_bool("are you sure you want to delete this Bucket remotely?") {
             RemoteBucket::delete_by_id(client, remote.id).await.is_ok()
         } else {
             false

@@ -11,7 +11,7 @@ use crate::banyan_api::{
 };
 use tomb_crypt::prelude::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// StorageTicket is a ticket that can be used authenticate requests to stage data to a storage host
 pub struct StorageTicket {
     /// The host to stage data to

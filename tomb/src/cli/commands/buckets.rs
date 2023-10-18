@@ -1,13 +1,19 @@
 use crate::{
-    pipelines::{prepare, error::TombError, reconstruct},
-    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
+    pipelines::{error::TombError, prepare, reconstruct},
+    types::config::{
+        bucket::{sync_bucket, OmniBucket},
+        globalconfig::GlobalConfig,
+    },
 };
 
-use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
+use super::{
+    super::specifiers::BucketSpecifier, prompt_for_bool, KeyCommand, MetadataCommand,
+    RunnableCommand,
+};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
-use std::{env::current_dir, path::PathBuf};
+use std::{env::current_dir, fs::remove_dir_all, path::PathBuf};
 use tomb_common::banyan_api::client::Client;
 
 /// Subcommand for Bucket Management
@@ -42,7 +48,7 @@ pub enum BucketsCommand {
 
         /// Output Directory
         #[arg(short, long)]
-        restore_path: PathBuf,
+        restore_path: Option<PathBuf>,
     },
     /// Sync Bucket data
     Sync(BucketSpecifier),
@@ -103,11 +109,18 @@ impl RunnableCommand<TombError> for BucketsCommand {
             } => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let local = omni.get_local()?;
-                reconstruct::pipeline(global, &local, &local.content, &restore_path).await
+                if let Some(restore_path) = restore_path {
+                    reconstruct::pipeline(global, &local, &local.content, &restore_path).await
+                } else if prompt_for_bool("delete data currently in unprepared Bucket origin?") {
+                    remove_dir_all(&local.origin)?;
+                    reconstruct::pipeline(global, &local, &local.content, &local.origin).await
+                } else {
+                    Ok("did nothing".into())
+                }
             }
             BucketsCommand::Sync(bucket_specifier) => {
                 let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                let result = omni.sync(client, global).await;
+                let result = sync_bucket(&mut omni, client, global).await;
                 if let Ok(local) = omni.get_local() {
                     global.update_config(&local)?;
                 }

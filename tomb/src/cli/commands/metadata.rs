@@ -1,6 +1,6 @@
 use crate::{
     pipelines::error::TombError,
-    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig}
+    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };
 
 use super::{super::specifiers::*, RunnableCommand};
