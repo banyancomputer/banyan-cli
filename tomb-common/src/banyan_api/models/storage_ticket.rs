@@ -204,9 +204,7 @@ pub mod test {
             .await
             .expect("Failed to get locations");
         for cid in cids {
-            let location = locations
-                .get(&cid)
-                .expect("Failed to get location for cid");
+            let location = locations.get(&cid).expect("Failed to get location for cid");
             assert_eq!(location, &storage_ticket.host);
         }
         Ok(())
