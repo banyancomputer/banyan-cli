@@ -17,7 +17,7 @@ use uuid::Uuid;
 #[derive(Subcommand, Clone, Debug)]
 pub enum KeyCommand {
     /// List all Keys in a Bucket
-    List(BucketSpecifier),
+    Ls(BucketSpecifier),
     /// Request Access to a Bucket if you dont already have it
     RequestAccess(BucketSpecifier),
     /// Delete a given Key
@@ -37,7 +37,7 @@ impl RunnableCommand<TombError> for KeyCommand {
     ) -> Result<String, TombError> {
         match self {
             // List Keys
-            KeyCommand::List(bucket_specifier) => {
+            KeyCommand::Ls(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let id = omni.get_id().unwrap();
 
@@ -66,13 +66,6 @@ impl RunnableCommand<TombError> for KeyCommand {
 
                 // Get Bucket
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-
-                if let Ok(local) = omni.get_local() {
-                    let mut fs = FsMetadata::unlock(&private_key, &local.metadata).await?;
-                    fs.share_with(&public_key, &local.metadata).await?;
-                    fs.save(&local.metadata, &local.metadata).await?;
-                }
-
                 if let Ok(id) = omni.get_id() {
                     BucketKey::create(id, pem, client)
                         .await
