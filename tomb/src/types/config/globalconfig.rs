@@ -28,9 +28,11 @@ pub struct GlobalConfig {
     /// Location of api key on disk in PEM format
     pub api_key_path: PathBuf,
     /// Remote endpoint for Metadata API
-    pub remote_core: Option<String>,
-    /// Remote endpoint for Metadata API upload
-    pub remote_data: Option<String>,
+    pub remote_core: String,
+    /// Remote endpoint for Full Data API
+    pub remote_data: String,
+    /// Remote endpoint for Frontend interaction
+    pub remote_frontend: String,
     /// Remote account id
     pub remote_account_id: Option<Uuid>,
     /// Bucket Configurations
@@ -39,10 +41,25 @@ pub struct GlobalConfig {
 
 impl Default for GlobalConfig {
     fn default() -> Self {
+        #[cfg(feature = "fake")]
+        let (remote_core, remote_data, remote_frontend) = (
+            "http://127.0.0.1:3001".to_string(),
+            "http://127.0.0.1:3002".to_string(),
+            "http://127.0.0.1:3000".to_string(),
+        );
+
+        #[cfg(not(feature = "fake"))]
+        let (remote_core, remote_data, remote_frontend) = (
+            "https://api.data.banyan.computer".to_string(),
+            "https://distributor.data.banyan.computer".to_string(),
+            "https://alpha.data.banyan.computer".to_string(),
+        );
+
         Self {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            remote_core: None,
-            remote_data: None,
+            remote_core,
+            remote_data,
+            remote_frontend,
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
             remote_account_id: None,
@@ -79,7 +96,7 @@ impl GlobalConfig {
     }
 
     /// Get the api key
-    async fn api_key(&self) -> Result<EcSignatureKey> {
+    pub async fn api_key(&self) -> Result<EcSignatureKey> {
         load_api_key(&self.api_key_path).await
     }
 
@@ -98,27 +115,22 @@ impl GlobalConfig {
 
     /// Get the Client data
     pub async fn get_client(&self) -> Result<Client> {
-        // If there is already a remote endpoint
-        if let Some(remote_core) = &self.remote_core && let Some(remote_data) = &self.remote_data {
-            // Create a new Client
-            let mut client = Client::new(remote_core, remote_data)?;
-            // If there are already credentials
-            if let Ok(credentials) = self.get_credentials().await {
-                // Set the credentials
-                client.with_credentials(credentials);
-            }
-            // Return the Client
-            Ok(client)
-        } else {
-            Err(anyhow!("Remote endpoint is not yet configured."))
+        // Create a new Client
+        let mut client = Client::new(&self.remote_core, &self.remote_data)?;
+        // If there are already credentials
+        if let Ok(credentials) = self.get_credentials().await {
+            // Set the credentials
+            client.with_credentials(credentials);
         }
+        // Return the Client
+        Ok(client)
     }
 
     /// Save the Client data to the config
     pub async fn save_client(&mut self, client: Client) -> Result<()> {
         // Update the Remote endpoints
-        self.remote_core = Some(client.remote_core.to_string());
-        self.remote_data = Some(client.remote_data.to_string());
+        self.remote_core = client.remote_core.to_string();
+        self.remote_data = client.remote_data.to_string();
         // If there is a Claim
         if let Some(token) = client.claims {
             // Update the remote account ID

@@ -94,7 +94,7 @@ mod test {
         // Assert it was actually modified
         assert_eq!(
             GlobalConfig::from_disk().await?.remote_core,
-            Some(address.to_string())
+            address.to_string()
         );
         Ok(())
     }

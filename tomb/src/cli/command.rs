@@ -6,17 +6,11 @@ use uuid::Uuid;
 /// Defines the types of commands that can be executed from the CLI.
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
-    /// Set the remote endpoint where Buckets are synced to / from
-    SetRemoteCore {
-        /// Server address
-        #[arg(short, long)]
-        address: String,
-    },
-    /// Set the remote endpoint where Buckets are synced to / from
-    SetRemoteData {
-        /// Server address
-        #[arg(short, long)]
-        address: String,
+    /// Set API endpoints
+    Configure {
+        /// Subcommand
+        #[clap(subcommand)]
+        subcommand: ConfigureSubCommand,
     },
     /// Login, Register, etc.
     Auth {
@@ -32,13 +26,50 @@ pub enum Command {
     },
 }
 
+/// Subcommand for getting and setting remote addresses
+#[derive(Subcommand, Clone, Debug)]
+pub enum AddressSubCommand {
+    /// Print the address as it is currently configured
+    Get,
+    /// Set the address to a new value
+    Set {
+        /// Server address
+        #[arg(short, long)]
+        address: String,
+    },
+}
+
+/// Subcommand for endpoint configuration
+#[derive(Subcommand, Clone, Debug)]
+pub enum ConfigureSubCommand {
+    /// Address of Core server
+    Core {
+        /// Server address
+        #[clap(subcommand)]
+        address: AddressSubCommand,
+    },
+    /// Address of Data server
+    Data {
+        /// Server address
+        #[clap(subcommand)]
+        address: AddressSubCommand,
+    },
+    /// Address of Frontend server
+    Frontend {
+        /// Server address
+        #[clap(subcommand)]
+        address: AddressSubCommand,
+    },
+}
+
 /// Subcommand for Authentication
 #[derive(Subcommand, Clone, Debug)]
 pub enum AuthSubCommand {
-    /// Create an account
+    /// Add Device API Key
+    RegisterDevice,
+    /// Register
+    #[cfg(feature = "fake")]
     Register,
-    /// Login to an existing account
-    Login,
     /// Ask the server who I am
     WhoAmI,
     /// Ask the server my usage
@@ -156,19 +187,21 @@ pub enum KeySubCommand {
     Reject(KeySpecifier),
 }
 
+/// Unified way of specifying a Key
+#[derive(Debug, Clone, Args)]
+pub struct MetadataSpecifier {
+    #[clap(flatten)]
+    pub(crate) bucket_specifier: BucketSpecifier,
+    /// Uuid of the Metadata
+    #[arg(short, long)]
+    pub(crate) metadata_id: Uuid,
+}
+
 /// Subcommand for Bucket Metadata
 #[derive(Subcommand, Clone, Debug)]
 pub enum MetadataSubCommand {
     /// Read an individual Metadata Id
-    Read {
-        /// Bucket in question
-        #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
-
-        /// Id of the Metadata
-        #[arg(short, long)]
-        metadata_id: Uuid,
-    },
+    Read(MetadataSpecifier),
     /// Read the currently active Metadata
     ReadCurrent(BucketSpecifier),
     /// List all Metadatas associated with Bucket
@@ -176,23 +209,7 @@ pub enum MetadataSubCommand {
     /// Upload Metadata
     Push(BucketSpecifier),
     /// Download Metadata
-    Pull {
-        /// Bucket in question
-        #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
-
-        /// Id of the Metadata
-        #[arg(short, long)]
-        metadata_id: Uuid,
-    },
+    Pull(MetadataSpecifier),
     /// Grab Snapshot
-    Snapshot {
-        /// Bucket in question
-        #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
-
-        /// Id of the Metadata
-        #[arg(short, long)]
-        metadata_id: Uuid,
-    },
+    Snapshot(MetadataSpecifier),
 }

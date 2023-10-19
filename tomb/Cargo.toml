@@ -18,10 +18,10 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 tomb-crypt = { workspace = true }
-uuid = "1.4.1"
-reqwest.workspace = true
-futures-util = "0.3.28"
 wnfs = { workspace = true }
+reqwest.workspace = true
+uuid = { version = "^1", features = ["serde", "v4"] }
+futures-util = "0.3.28"
 fclones = "^0.30"
 indicatif = { version = "^0.17", features = ["improved_unicode"] }
 log = "^0.4"
@@ -30,7 +30,9 @@ thiserror = "^1"
 env_logger = "^0.10"
 async-trait = "^0.1"
 hex = "^0.4"
-tomb-common = { path = "../tomb-common", version = "^1", features = ["banyan-api"] }
+tomb-common = { path = "../tomb-common", version = "^1" }
+open = "^5"
+base64 = "^0.21"
 
 [dependencies.nix]
 version = "^0.27"
@@ -53,3 +55,6 @@ harness = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
+
+[features]
+fake = []

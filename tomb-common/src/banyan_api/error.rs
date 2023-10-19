@@ -45,6 +45,13 @@ impl ClientError {
             kind: ClientErrorKind::CryptoError(err),
         }
     }
+
+    /// Custom error
+    pub fn custom_error(message: &str) -> Self {
+        Self {
+            kind: ClientErrorKind::CustomError(message.to_string()),
+        }
+    }
 }
 
 impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ClientError {
@@ -66,6 +73,7 @@ impl Display for ClientError {
             HttpResponseError(status_code) => format!("http response error: {status_code:?}"),
             ResponseFormatError(_) => "response format error".into(),
             CryptoError(_) => "crypto error".into(),
+            CustomError(message) => message.into(),
         };
 
         write!(f, "{}", prefix)?;
@@ -109,4 +117,6 @@ pub enum ClientErrorKind {
     ResponseFormatError(reqwest::Error),
     /// Cryptography error
     CryptoError(TombCryptError),
+    /// CustomError
+    CustomError(String),
 }

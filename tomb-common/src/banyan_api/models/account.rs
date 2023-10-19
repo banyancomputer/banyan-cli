@@ -1,5 +1,5 @@
 use crate::banyan_api::{
-    client::Client,
+    client::{Client, Credentials},
     error::ClientError,
     requests::core::{
         auth::{fake_account::create::*, who_am_i::read::*},
@@ -20,12 +20,12 @@ pub struct Account {
 impl Account {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
     pub async fn create_fake(client: &mut Client) -> Result<(Self, EcSignatureKey), ClientError> {
-        use crate::banyan_api::client::Credentials;
         // Create a local key pair for signing
         let (api_key, device_api_key_pem) = generate_api_key().await;
         // Associate the key material with the backend
-        let response: CreateAccountResponse =
-            client.call(CreateAccount { device_api_key_pem }).await?;
+        let response: CreateAccountResponse = client
+            .call(CreateFakeAccount { device_api_key_pem })
+            .await?;
 
         // Associate the returned account ID with the key material and initialize the client with these credentials
         client.with_credentials(Credentials {
@@ -58,8 +58,7 @@ impl Account {
     }
 }
 
-// TODO: wasm tests
-
+#[cfg(feature = "fake")]
 #[cfg(test)]
 pub mod test {
     use super::*;
@@ -69,6 +68,10 @@ pub mod test {
         let mut client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
         let _ = Account::create_fake(&mut client).await.unwrap();
         client
+    }
+
+    pub async fn unauthenticated_client() -> Client {
+        Client::new("http://localhost:3001", "http://localhost:3002").unwrap()
     }
 
     #[tokio::test]
@@ -84,7 +87,7 @@ pub mod test {
     #[tokio::test]
     #[should_panic]
     async fn who_am_i_unauthenticated() {
-        let mut client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
+        let mut client = unauthenticated_client().await;
         let _ = Account::who_am_i(&mut client).await.unwrap();
     }
 

@@ -102,6 +102,7 @@ impl StorageTicket {
 }
 
 #[cfg(test)]
+#[cfg(feature = "fake")]
 pub mod test {
     use tomb_crypt::pretty_fingerprint;
 
@@ -217,7 +218,12 @@ pub mod test {
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
-        let fingerprint = pretty_fingerprint(&key.fingerprint().await.expect("create fingerprint"));
+        let fingerprint = pretty_fingerprint(
+            key.fingerprint()
+                .await
+                .expect("create fingerprint")
+                .as_slice(),
+        );
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),
