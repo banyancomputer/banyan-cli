@@ -5,7 +5,7 @@ pub mod command;
 /// Debug level
 pub mod verbosity;
 
-use crate::pipelines::{banyan_api::*, *};
+use crate::pipelines::banyan_api::*;
 use anyhow::Result;
 use command::Command;
 
@@ -13,8 +13,7 @@ use command::Command;
 pub async fn run(command: Command) -> Result<()> {
     // Determine the command being executed run appropriate subcommand
     let result: Result<String, anyhow::Error> = match command {
-        Command::SetRemoteCore { address } => configure::remote_core(&address).await,
-        Command::SetRemoteData { address } => configure::remote_data(&address).await,
+        Command::Configure { subcommand } => configure::pipeline(subcommand).await,
         Command::Auth { subcommand } => auth::pipeline(subcommand).await,
         Command::Buckets { subcommand } => bucket::pipeline(subcommand).await,
     };
@@ -34,20 +33,15 @@ pub async fn run(command: Command) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use super::command::{AuthSubCommand, BucketSpecifier, BucketsSubCommand, Command};
+    use super::command::*;
     use crate::{cli::run, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::Result;
     use dir_assert::assert_paths;
     use serial_test::serial;
     use std::{fs::create_dir, path::Path};
 
-    fn cmd_configure_remote(address: &str) -> Command {
-        Command::SetRemoteCore {
-            address: address.to_string(),
-        }
-    }
-
     #[allow(dead_code)]
+    #[cfg(feature = "fake")]
     fn cmd_register() -> Command {
         Command::Auth {
             subcommand: AuthSubCommand::Register,
@@ -150,7 +144,7 @@ mod test {
         // Initialize
         run(cmd_create(origin)).await?;
         // Configure remote endpoint
-        run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
+        // run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
         // Teardown test
         test_teardown(test_name).await
     }

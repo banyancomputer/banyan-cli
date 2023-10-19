@@ -7,6 +7,7 @@ pub(crate) async fn generate_api_key() -> (EcSignatureKey, String) {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub(crate) async fn generate_bucket_key() -> (EcEncryptionKey, String) {
     let bucket_key = EcEncryptionKey::generate().await.unwrap();
     let public_bucket_key = bucket_key.public_key().unwrap();

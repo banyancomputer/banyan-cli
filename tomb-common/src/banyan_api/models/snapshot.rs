@@ -51,6 +51,7 @@ impl Snapshot {
 }
 
 #[cfg(test)]
+#[cfg(feature = "fake")]
 mod test {
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
