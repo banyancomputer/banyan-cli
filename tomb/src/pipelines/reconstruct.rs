@@ -41,11 +41,6 @@ pub async fn pipeline(
 
     // For each node path tuple in the FS Metadata
     for (node, path) in fs.get_all_nodes(&local.metadata).await? {
-        println!(
-            "RECONSTRUCTING NODE: {:?} AT PATH: {}",
-            node,
-            path.display()
-        );
         match node {
             PrivateNode::Dir(_) => {
                 // Create the directory
@@ -54,31 +49,34 @@ pub async fn pipeline(
             PrivateNode::File(file) => {
                 let built_path = extracted.join(path.clone());
                 // If we can read the content from the file node
-                if let Ok(content) = fs
+
+                // file.get_content(forest, store)
+
+                let content = fs
                     .read(&path_to_segments(&path)?, &local.metadata, content_store)
                     .await
-                {
-                    // If this file is a symlink
-                    if let Some(origin) = file.symlink_origin() {
-                        // Write out the symlink
-                        symlink(origin, built_path)?;
-                    } else {
-                        // If the parent does not yet exist
-                        if let Some(parent) = built_path.parent() && !parent.exists() {
-                            // Create the directories
-                            std::fs::create_dir_all(parent)?;
-                        }
-                        // Create the file at the desired location
-                        let mut output_file = File::create(built_path)?;
+                    .map_err(|err| {
+                        TombError::custom_error(&format!(
+                            "file missing: path: {} & err: {err}",
+                            path.display()
+                        ))
+                    })?;
 
-                        // Write out the content to disk
-                        output_file.write_all(&content)?;
-                    }
+                // If this file is a symlink
+                if let Some(origin) = file.symlink_origin() {
+                    // Write out the symlink
+                    symlink(origin, built_path)?;
                 } else {
-                    return Err(TombError::custom_error(&format!(
-                        "file missing error: {}",
-                        built_path.display()
-                    )));
+                    // If the parent does not yet exist
+                    if let Some(parent) = built_path.parent() && !parent.exists() {
+                        // Create the directories
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    // Create the file at the desired location
+                    let mut output_file = File::create(built_path)?;
+
+                    // Write out the content to disk
+                    output_file.write_all(&content)?;
                 }
             }
         }

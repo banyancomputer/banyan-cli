@@ -1,21 +1,14 @@
-use super::{LocalBucket, SyncState};
+use super::{LocalBucket, SyncState, determine_sync_state};
 use crate::{
     cli::{commands::prompt_for_bool, specifiers::BucketSpecifier},
     pipelines::error::TombError,
-    types::config::{bucket::sync_bucket, globalconfig::GlobalConfig},
-    utils::wnfsio::compute_directory_size,
+    types::config::{bucket::sync_bucket, globalconfig::GlobalConfig}
 };
 use colored::{ColoredString, Colorize};
 use std::{collections::HashMap, fmt::Display, path::Path};
-use tomb_common::{
-    banyan_api::{
-        client::Client,
-        models::{
-            bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
-            metadata::Metadata,
-        },
-    },
-    blockstore::RootedBlockStore,
+use tomb_common::banyan_api::{
+    client::Client,
+    models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -76,7 +69,7 @@ impl OmniBucket {
         }
 
         // Determine the sync state
-        let _ = new_object.set_state(client).await;
+        let _ = determine_sync_state(&mut new_object, client).await;
 
         new_object
     }
@@ -138,52 +131,6 @@ impl OmniBucket {
     /// Update the LocalBucket
     pub fn set_local(&mut self, local: LocalBucket) {
         self.local = Some(local);
-    }
-
-    /// Determine the Sync State of an omni bucket
-    pub async fn set_state(&mut self, client: &mut Client) -> Result<(), TombError> {
-        let bucket_id = self.get_id()?;
-        // Grab the current remote Metadata, or return Unpublished if that operation fails
-        let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
-            self.sync_state = Some(SyncState::Unpublished);
-            return Ok(());
-        };
-        // Grab the local bucket, or return Unlocalized if unavailable
-        if let Ok(local) = self.get_local() {
-            let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
-            // If the metadata root CIDs match
-            if local_root_cid == Some(current_remote.root_cid) {
-                self.sync_state = Some(SyncState::MetadataSynced);
-
-                // If there is actually data in the local origin
-                if compute_directory_size(&local.origin)? > 100 {
-                    self.sync_state = Some(SyncState::AllSynced);
-                }
-
-                Ok(())
-            } else {
-                let all_metadatas = Metadata::read_all(bucket_id, client).await?;
-                println!(
-                    "all_metadatas: {:?}\nour_metadata_root:{:?}",
-                    all_metadatas,
-                    local.metadata.get_root()
-                );
-                // If the current Metadata id exists in the list of remotely persisted ones
-                if all_metadatas
-                    .iter()
-                    .any(|metadata| Some(metadata.root_cid.clone()) == local_root_cid)
-                {
-                    self.sync_state = Some(SyncState::Behind(1));
-                    Ok(())
-                } else {
-                    self.sync_state = Some(SyncState::Ahead(1));
-                    Ok(())
-                }
-            }
-        } else {
-            self.sync_state = Some(SyncState::Unlocalized);
-            Ok(())
-        }
     }
 
     /// Create a new bucket
@@ -303,7 +250,7 @@ impl OmniBucket {
                     sync_state: None,
                 };
 
-                let _ = omni.set_state(client).await;
+                let _ = determine_sync_state(&mut omni, client).await;
 
                 map.insert(key, omni);
             } else {

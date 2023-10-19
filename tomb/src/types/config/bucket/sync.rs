@@ -16,7 +16,7 @@ use tomb_common::{
 
 use crate::{
     pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig,
+    types::config::globalconfig::GlobalConfig, utils::wnfsio::compute_directory_size,
 };
 
 use super::OmniBucket;
@@ -56,6 +56,53 @@ impl Display for SyncState {
     }
 }
 
+
+/// Determine the Sync State of an omni bucket
+pub async fn determine_sync_state(omni: &mut OmniBucket, client: &mut Client) -> Result<(), TombError> {
+    let bucket_id = omni.get_id()?;
+    // Grab the current remote Metadata, or return Unpublished if that operation fails
+    let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
+        omni.sync_state = Some(SyncState::Unpublished);
+        return Ok(());
+    };
+    // Grab the local bucket, or return Unlocalized if unavailable
+    if let Ok(local) = omni.get_local() {
+        let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
+        // If the metadata root CIDs match
+        if local_root_cid == Some(current_remote.root_cid) {
+            omni.sync_state = Some(SyncState::MetadataSynced);
+
+            // If there is actually data in the local origin
+            if compute_directory_size(&local.origin)? > 100 {
+                omni.sync_state = Some(SyncState::AllSynced);
+            }
+
+            Ok(())
+        } else {
+            let all_metadatas = Metadata::read_all(bucket_id, client).await?;
+            println!(
+                "all_metadatas: {:?}\nour_metadata_root:{:?}",
+                all_metadatas,
+                local.metadata.get_root()
+            );
+            // If the current Metadata id exists in the list of remotely persisted ones
+            if all_metadatas
+                .iter()
+                .any(|metadata| Some(metadata.root_cid.clone()) == local_root_cid)
+            {
+                omni.sync_state = Some(SyncState::Behind(1));
+                Ok(())
+            } else {
+                omni.sync_state = Some(SyncState::Ahead(1));
+                Ok(())
+            }
+        }
+    } else {
+        omni.sync_state = Some(SyncState::Unlocalized);
+        Ok(())
+    }
+}
+
 /// Sync
 pub async fn sync_bucket(
     omni: &mut OmniBucket,
@@ -64,7 +111,7 @@ pub async fn sync_bucket(
 ) -> Result<String, TombError> {
     if omni.sync_state.is_none() {
         println!("determining sync state before we run sync_bucket");
-        println!("{:?}", omni.set_state(client).await);
+        println!("{:?}", determine_sync_state(omni, client).await);
     }
 
     match &omni.sync_state {
@@ -183,10 +230,12 @@ pub async fn sync_bucket(
                 .storage_ticket
                 .map(|ticket| ticket.host)
                 .unwrap_or(global.endpoints.data.clone());
+
             let mut banyan_api_blockstore_client = client.clone();
             banyan_api_blockstore_client
                 .with_remote(&storage_host)
                 .expect("could not create blockstore client");
+
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
             println!("banyan_api_blockstore constructed");
             let local = omni.get_local()?;

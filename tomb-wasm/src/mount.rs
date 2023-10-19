@@ -212,28 +212,38 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        if self.dirty() {
-            log!(
-                "tomb-wasm: mount/sync()/{} - saving changes to fs",
-                self.bucket.id.to_string()
-            );
-            let _ = self
-                .fs_metadata
-                .as_mut()
-                .unwrap()
-                .save(&self.metadata_blockstore, &self.content_blockstore)
-                .await;
-        } else {
-            log!(
-                "tomb-wasm: mount/sync()/{} - no changes to fs",
-                self.bucket.id.to_string()
-            );
-        }
+        log!(format!("tomb-wasm: self.dirty: {}", self.dirty()));
+        // if self.dirty() {
+        log!(
+            "tomb-wasm: mount/sync()/{} - saving changes to fs",
+            self.bucket.id.to_string()
+        );
+        let _ = self
+            .fs_metadata
+            .as_mut()
+            .unwrap()
+            .save(&self.metadata_blockstore, &self.content_blockstore)
+            .await;
+        // } else {
+        //     log!(
+        //         "tomb-wasm: mount/sync()/{} - no changes to fs",
+        //         self.bucket.id.to_string()
+        //     );
+        // }
 
         log!(
             "tomb-wasm: mount/sync()/{} - pushing changes",
             self.bucket.id.to_string()
         );
+
+        log!(format!(
+            "tomb-wasm: content_store: {:?}",
+            self.content_blockstore
+        ));
+        log!(format!(
+            "tomb-wasm: meta_store: {:?}",
+            self.metadata_blockstore
+        ));
 
         let root_cid = self
             .content_blockstore

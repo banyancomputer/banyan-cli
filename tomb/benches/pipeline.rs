@@ -15,8 +15,7 @@ use std::{
 };
 use tokio::runtime::Runtime;
 use tomb::{
-    cli::specifiers::BucketSpecifier,
-    pipelines::{bundle, extract},
+    pipelines::{prepare, reconstruct},
     types::config::globalconfig::GlobalConfig,
 };
 
@@ -296,12 +295,9 @@ fn bundle_benchmark(c: &mut Criterion, input_path: &Path, bundled_path: &Path) {
             || prep_bundle(bundled_path),
             // The routine to benchmark
             |_| async {
-                bundle::pipeline(
-                    black_box(&mut GlobalConfig::from_disk().await?),
-                    black_box(&BucketSpecifier::with_origin(input_path)),
-                    black_box(false),
-                )
-                .await
+                let mut global = GlobalConfig::from_disk().await?;
+                let local = global.get_or_init_bucket(input_name, &bundled_path).await?;
+                prepare::pipeline(black_box(&mut global), black_box(local), black_box(false)).await
             },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
@@ -338,9 +334,13 @@ fn extract_benchmark(c: &mut Criterion, bundled_path: &PathBuf, extracted_path: 
             || prep_extract(extracted_path),
             // The routine to benchmark
             |_| async {
-                extract::pipeline(
-                    black_box(&GlobalConfig::from_disk().await?),
-                    black_box(&BucketSpecifier::with_origin(bundled_path)),
+                let mut global = GlobalConfig::from_disk().await?;
+                let local = global.get_or_init_bucket(input_name, &bundled_path).await?;
+
+                reconstruct::pipeline(
+                    black_box(&global),
+                    black_box(&local),
+                    black_box(&local.content),
                     black_box(extracted_path),
                 )
                 .await

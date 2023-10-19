@@ -6,10 +6,7 @@ use crate::{
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;
 use clap::Subcommand;
-use tomb_common::{
-    banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
-    metadata::FsMetadata,
-};
+use tomb_common::banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey};
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
 
