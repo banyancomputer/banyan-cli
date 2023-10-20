@@ -60,14 +60,18 @@ impl Account {
 
     /// Get the total usage for the account associated with the current credentials in the Client
     pub async fn usage(client: &mut Client) -> Result<u64, ClientError> {
-        let response = client.call(GetTotalUsage).await?;
-        Ok(response.size as u64)
+        client
+            .call(GetTotalUsage)
+            .await
+            .map(|response| response.size)
     }
 
     /// Get the usage limit for the account associated with the current credentials in the Client
     pub async fn usage_limit(client: &mut Client) -> Result<u64, ClientError> {
-        let response = client.call(GetUsageLimit).await?;
-        Ok(response.size as u64)
+        client
+            .call(GetUsageLimit)
+            .await
+            .map(|response| response.size)
     }
 }
 

@@ -39,14 +39,18 @@ mod test {
     /// Simplified Bundle call function
     async fn bundle_pipeline(origin: &Path) -> Result<String, TombError> {
         let mut global = GlobalConfig::from_disk().await?;
-        let local = global.get_bucket(origin).unwrap();
+        let local = global
+            .get_bucket(origin)
+            .ok_or(TombError::custom_error("no local"))?;
         prepare::pipeline(&mut global, local, true).await
     }
 
     /// Simplified Extract call function
     async fn extract_pipeline(origin: &Path, extracted: &Path) -> Result<String, TombError> {
         let global = GlobalConfig::from_disk().await?;
-        let local = global.get_bucket(origin).unwrap();
+        let local = global
+            .get_bucket(origin)
+            .ok_or(TombError::custom_error("no local"))?;
         reconstruct::pipeline(
             &GlobalConfig::from_disk().await?,
             &local,

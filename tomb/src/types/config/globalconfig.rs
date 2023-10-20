@@ -289,7 +289,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    #[ignore]
     async fn add_bucket() -> Result<()> {
         // The known path of the global config file
         let known_path = config_path();

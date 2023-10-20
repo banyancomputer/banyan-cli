@@ -68,7 +68,7 @@ impl Display for ClientError {
 
         let prefix = match &self.kind {
             ApiResponseError(err) => format!("api response error: {err}"),
-            AuthUnavailable => "auth unavailable".into(),
+            AuthUnavailable => "Auth is required for this operation".into(),
             HttpClientError(_) => "http client error".into(),
             HttpResponseError(status_code) => format!("http response error: {status_code:?}"),
             ResponseFormatError(_) => "response format error".into(),
