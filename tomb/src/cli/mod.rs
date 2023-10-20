@@ -11,7 +11,7 @@ pub mod verbosity;
 mod test {
     use super::commands::*;
     use crate::{cli::specifiers::*, types::config::globalconfig::GlobalConfig, utils::test::*};
-    use anyhow::{Result, anyhow};
+    use anyhow::{anyhow, Result};
     use dir_assert::assert_paths;
     use serial_test::serial;
     use std::{fs::create_dir, path::Path};
