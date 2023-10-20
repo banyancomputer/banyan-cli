@@ -89,6 +89,7 @@ impl StorageTicket {
         self,
         metadata_id: Uuid,
         content: S,
+        content_len: u64,
         content_hash: String,
         client: &mut Client,
     ) -> Result<(), ClientError>
@@ -100,6 +101,7 @@ impl StorageTicket {
                 host_url: self.host.clone(),
                 metadata_id,
                 content,
+                content_len,
                 content_hash,
             })
             .await
@@ -140,15 +142,12 @@ pub mod test {
         let mut hasher = blake3::Hasher::new();
         let content = content_store.get_data();
         hasher.update(&content);
+        let content = content_store.get_data();
+        let content_len = content.len() as u64;
         let content_hash = hasher.finalize().to_string();
         storage_ticket
             .clone()
-            .upload_content(
-                metadata.id,
-                content_store.get_data(),
-                content_hash,
-                &mut client,
-            )
+            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client
@@ -160,6 +159,56 @@ pub mod test {
             .await
             .expect("Failed to get file");
         assert_eq!(bytes, "test".as_bytes().to_vec());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_locations() -> Result<(), ClientError> {
+        use crate::banyan_api::requests::core::blocks::locate::LocationRequest;
+        let mut client = authenticated_client().await;
+        let (
+            _bucket,
+            _bucket_key,
+            _key,
+            metadata,
+            storage_ticket,
+            metadata_store,
+            content_store,
+            mut fs_metadata,
+            add_path_segments,
+        ) = setup(&mut client).await?;
+        storage_ticket.clone().create_grant(&mut client).await?;
+        let mut hasher = blake3::Hasher::new();
+        let content = content_store.get_data();
+        hasher.update(&content);
+        let content = content_store.get_data();
+        let content_len = content.len() as u64;
+        let content_hash = hasher.finalize().to_string();
+        storage_ticket
+            .clone()
+            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
+            .await?;
+        let mut blockstore_client = client.clone();
+        blockstore_client
+            .with_remote(&storage_ticket.host)
+            .expect("Failed to create blockstore client");
+        let banyan_api_blockstore = BanyanApiBlockStore::from(blockstore_client);
+        let bytes = fs_metadata
+            .read(&add_path_segments, &metadata_store, &banyan_api_blockstore)
+            .await
+            .expect("Failed to get file");
+        assert_eq!(bytes, "test".as_bytes().to_vec());
+
+        let cids = content_store.car.car.index.borrow().get_all_cids();
+        let cids: LocationRequest = cids.into_iter().map(|cid| cid.to_string()).collect();
+        let locations = client
+            .call(cids.clone())
+            .await
+            .expect("Failed to get locations");
+        for cid in cids {
+            let location = locations.get(&cid).expect("Failed to get location for cid");
+            assert_eq!(location, &storage_ticket.host);
+        }
         Ok(())
     }
 

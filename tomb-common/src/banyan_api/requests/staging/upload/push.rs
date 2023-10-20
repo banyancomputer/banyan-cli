@@ -31,6 +31,7 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_len: u64,
     pub content_hash: String,
 }
 

@@ -236,15 +236,6 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        log!(format!(
-            "tomb-wasm: content_store: {:?}",
-            self.content_blockstore
-        ));
-        log!(format!(
-            "tomb-wasm: meta_store: {:?}",
-            self.metadata_blockstore
-        ));
-
         let root_cid = self
             .content_blockstore
             .get_root()
@@ -315,11 +306,18 @@ impl WasmMount {
                 // Hash the content
                 let mut hasher = blake3::Hasher::new();
                 hasher.update(&self.content_blockstore.get_data());
+                let content_len = self.content_blockstore.get_data().len() as u64;
                 let content_hash = hasher.finalize().to_string();
 
                 storage_ticket
                     .clone()
-                    .upload_content(metadata_id, content, content_hash, &mut self.client)
+                    .upload_content(
+                        metadata_id,
+                        content,
+                        content_len,
+                        content_hash,
+                        &mut self.client,
+                    )
                     .await
                     .map_err(|err| {
                         TombWasmError(format!(

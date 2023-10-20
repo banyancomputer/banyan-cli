@@ -14,7 +14,7 @@ use wnfs::libipld::{Cid, IpldCodec};
 /// CarV2 formatted memory blockstore
 pub struct CarV2MemoryBlockStore {
     data: RefCell<Cursor<Vec<u8>>>,
-    car: CarV2,
+    pub(crate) car: CarV2,
 }
 
 impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
