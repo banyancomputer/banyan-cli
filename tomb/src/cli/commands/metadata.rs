@@ -6,8 +6,7 @@ use crate::{
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;
 use clap::Subcommand;
-use futures_util::StreamExt;
-use tomb_common::banyan_api::{client::Client, error::ClientError, models::metadata::Metadata};
+use tomb_common::banyan_api::{client::Client, models::metadata::Metadata};
 
 /// Subcommand for Bucket Metadata
 #[derive(Subcommand, Clone, Debug)]
@@ -18,10 +17,6 @@ pub enum MetadataCommand {
     ReadCurrent(BucketSpecifier),
     /// List all Metadatas associated with Bucket
     List(BucketSpecifier),
-    /// Upload Metadata
-    Push(BucketSpecifier),
-    /// Download Metadata
-    Pull(MetadataSpecifier),
     /// Grab Snapshot
     Snapshot(MetadataSpecifier),
 }
@@ -50,38 +45,6 @@ impl RunnableCommand<TombError> for MetadataCommand {
                     .map(|metadata| format!("{:?}", metadata))
                     .map_err(TombError::client_error)
             }
-            // Push metadata
-            MetadataCommand::Push(_) => {
-                // Get info
-                // let wrapping_key: tomb_crypt::prelude::EcEncryptionKey =
-                //     global.wrapping_key().await?;
-                // let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                // let local = omni.get_local()?;
-
-                // let fs = FsMetadata::unlock(&wrapping_key, &local.metadata).await?;
-                // let valid_keys = fs.share_manager.public_fingerprints();
-                // let metadata_stream = tokio::fs::File::open(&local.metadata.path).await?;
-                // // Push the Metadata
-                // Metadata::push(
-                //     metadata.bucket_id,
-                //     metadata.root_cid,
-                //     metadata.metadata_cid,
-                //     metadata.data_size,
-                //     valid_keys,
-                //     metadata_stream,
-                //     client,
-                // )
-                // .await
-                // .map(|(metadata, storage_ticket)| {
-                //     let mut info = format!("\t{}", metadata);
-                //     if let Some(storage_ticket) = storage_ticket {
-                //         info.push_str(&format!("\n\n\t{}", storage_ticket))
-                //     }
-                //     info
-                // })
-                // .map_err(TombError::client_error)
-                Ok("TODO".into())
-            }
             // Read the current Metadata
             MetadataCommand::ReadCurrent(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
@@ -105,30 +68,6 @@ impl RunnableCommand<TombError> for MetadataCommand {
                             })
                     })
                     .map_err(TombError::client_error)
-            }
-            // Pull a Metadata and replace the local copy
-            MetadataCommand::Pull(metadata_specifier) => {
-                let omni = OmniBucket::from_specifier(
-                    global,
-                    client,
-                    &metadata_specifier.bucket_specifier,
-                )
-                .await;
-                let bucket_id = omni.get_id().expect("no remote id");
-                let metadata =
-                    Metadata::read(bucket_id, metadata_specifier.metadata_id, client).await?;
-                let mut byte_stream = metadata.pull(client).await?;
-                let mut file = tokio::fs::File::create(&omni.get_local()?.metadata.path).await?;
-
-                while let Some(chunk) = byte_stream.next().await {
-                    tokio::io::copy(
-                        &mut chunk.map_err(ClientError::http_error)?.as_ref(),
-                        &mut file,
-                    )
-                    .await?;
-                }
-
-                Ok("successfully downloaded metadata".to_string())
             }
             // Take a Cold Snapshot of the remote metadata
             MetadataCommand::Snapshot(metadata_specifier) => {

@@ -213,23 +213,23 @@ impl WasmMount {
         );
 
         log!(format!("tomb-wasm: self.dirty: {}", self.dirty()));
-        // if self.dirty() {
-        log!(
-            "tomb-wasm: mount/sync()/{} - saving changes to fs",
-            self.bucket.id.to_string()
-        );
-        let _ = self
-            .fs_metadata
-            .as_mut()
-            .unwrap()
-            .save(&self.metadata_blockstore, &self.content_blockstore)
-            .await;
-        // } else {
-        //     log!(
-        //         "tomb-wasm: mount/sync()/{} - no changes to fs",
-        //         self.bucket.id.to_string()
-        //     );
-        // }
+        if self.dirty() {
+            log!(
+                "tomb-wasm: mount/sync()/{} - saving changes to fs",
+                self.bucket.id.to_string()
+            );
+            let _ = self
+                .fs_metadata
+                .as_mut()
+                .unwrap()
+                .save(&self.metadata_blockstore, &self.content_blockstore)
+                .await;
+        } else {
+            log!(
+                "tomb-wasm: mount/sync()/{} - no changes to fs",
+                self.bucket.id.to_string()
+            );
+        }
 
         log!(
             "tomb-wasm: mount/sync()/{} - pushing changes",
@@ -803,6 +803,9 @@ impl WasmMount {
             .share_with(&recipient_key, &self.metadata_blockstore)
             .await
             .expect("could not share with");
+
+        // Mark as dirty so fs is saved with new key info
+        self.dirty = true;
 
         log!(
             "tomb-wasm: mount/share_with/{} - dirty, syncing changes",

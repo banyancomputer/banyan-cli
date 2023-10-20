@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
@@ -7,6 +9,7 @@ use crate::banyan_api::{
     },
     utils::generate_api_key,
 };
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::EcSignatureKey;
 
@@ -15,6 +18,16 @@ use tomb_crypt::prelude::EcSignatureKey;
 pub struct Account {
     /// The unique identifier for the account
     pub id: uuid::Uuid,
+}
+
+impl Display for Account {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{}\naccount_id:\t{}",
+            "| ACCOUNT INFO |".yellow(),
+            self.id
+        ))
+    }
 }
 
 impl Account {

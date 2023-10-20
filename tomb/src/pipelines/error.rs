@@ -1,3 +1,4 @@
+use colored::Colorize;
 use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;
 use tomb_common::banyan_api::error::ClientError;
@@ -76,10 +77,10 @@ impl Display for TombError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use TombErrorKind::*;
         let prefix = match &self.kind {
-            Client(err) => format!("client error: {err}"),
+            Client(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
             UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
             FileMissing(path) => format!("missing file at path: {}", path.display()),
-            IoError(err) => format!("io error: {err}"),
+            IoError(err) => format!("{} {err}", "IO ERROR:".underline()),
             CustomError(err) => err.to_string(),
         };
 

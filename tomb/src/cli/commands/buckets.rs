@@ -11,6 +11,7 @@ use super::{
     RunnableCommand,
 };
 use async_trait::async_trait;
+use bytesize::ByteSize;
 use clap::Subcommand;
 use colored::Colorize;
 use std::{env::current_dir, fs::remove_dir_all, path::PathBuf};
@@ -50,15 +51,15 @@ pub enum BucketsCommand {
         #[arg(short, long)]
         restore_path: Option<PathBuf>,
     },
-    /// Sync Bucket data
+    /// Sync Bucket data to or from remote
     Sync(BucketSpecifier),
     /// Delete Bucket
     Delete(BucketSpecifier),
     /// Bucket info
     Info(BucketSpecifier),
-    /// Bucket usage
+    /// Bucket data usage
     Usage(BucketSpecifier),
-    /// Metadata uploads and downloads
+    /// Get information on Bucket Metadata
     Metadata {
         /// Subcommand
         #[clap(subcommand)]
@@ -145,7 +146,7 @@ impl RunnableCommand<TombError> for BucketsCommand {
                             "{}bucket_id:\t\t{}\nusage:\t\t{}",
                             "| USAGE INFO |".blue(),
                             remote.id,
-                            v
+                            ByteSize(v)
                         )
                     })
                     .map_err(TombError::client_error)

@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
-use reqwest::{header::CONTENT_LENGTH, Client, RequestBuilder, Url};
+use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -92,7 +92,8 @@ where
         client
             .post(full_url)
             .multipart(multipart_form)
-            .header(CONTENT_LENGTH, self.content_len + 546)
+            .header(reqwest::header::CONTENT_LENGTH, self.content_len + 546)
+        // TODO is there a better way to do this? There must be, right?
     }
 
     fn requires_authentication(&self) -> bool {

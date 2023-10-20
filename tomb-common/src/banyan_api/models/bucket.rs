@@ -192,9 +192,11 @@ impl Bucket {
     }
 
     /// Get the usage for the bucket
-    pub async fn usage(&self, client: &mut Client) -> Result<usize, ClientError> {
-        let response = client.call(GetBucketUsage { id: self.id }).await?;
-        Ok(response.size as usize)
+    pub async fn usage(&self, client: &mut Client) -> Result<u64, ClientError> {
+        client
+            .call(GetBucketUsage { id: self.id })
+            .await
+            .map(|response| response.size)
     }
 
     /// Delete a bucket

@@ -19,7 +19,7 @@ pub struct GetUsageLimit;
 
 #[derive(Debug, Deserialize)]
 pub struct GetUsageResponse {
-    pub size: i64,
+    pub size: u64,
 }
 
 impl ApiRequest for GetBucketUsage {

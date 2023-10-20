@@ -77,7 +77,11 @@ fn process_field(
     address: Option<AddressCommand>,
 ) -> anyhow::Result<String> {
     match address {
-        None => Ok(format!("<< CURRENT {} ADDRESS >>\n{}\n", label, field)),
+        None => Ok(format!(
+            "{}\n{}\n",
+            format!("| {} ADDRESS INFO |", label).yellow(),
+            field
+        )),
         Some(AddressCommand::Set { address }) => {
             // Verify the address
             verify_address(&address)?;
@@ -86,7 +90,7 @@ fn process_field(
             // Report okay
             Ok(format!(
                 "{}",
-                "<< CONFIGURATION UPDATED SUCCESSFULLY >>".green()
+                format!("<< {} ENDPOINT UPDATED SUCCESSFULLY >>", label).green()
             ))
         }
     }
@@ -95,9 +99,7 @@ fn process_field(
 /// Verify the integrity of a provided address
 fn verify_address(address: &str) -> anyhow::Result<()> {
     // Update if the address is valid
-    if Url::parse(address).is_ok() {
-        Ok(())
-    } else {
-        Err(anyhow::anyhow!("<< ADDRESS WAS NOT FORMATTED CORRECTLY >>"))
-    }
+    Url::parse(address)
+        .map(|_| ())
+        .map_err(|_| anyhow::anyhow!("ADDRESS WAS NOT FORMATTED CORRECTLY"))
 }

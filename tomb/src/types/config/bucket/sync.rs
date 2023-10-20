@@ -1,9 +1,9 @@
 use colored::Colorize;
 use futures_util::StreamExt;
 use std::{
-    env::home_dir,
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
+    path::PathBuf,
 };
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
@@ -16,7 +16,8 @@ use tomb_common::{
 
 use crate::{
     pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig, utils::wnfsio::compute_directory_size,
+    types::config::globalconfig::GlobalConfig,
+    utils::wnfsio::compute_directory_size,
 };
 
 use super::OmniBucket;
@@ -56,9 +57,11 @@ impl Display for SyncState {
     }
 }
 
-
 /// Determine the Sync State of an omni bucket
-pub async fn determine_sync_state(omni: &mut OmniBucket, client: &mut Client) -> Result<(), TombError> {
+pub async fn determine_sync_state(
+    omni: &mut OmniBucket,
+    client: &mut Client,
+) -> Result<(), TombError> {
     let bucket_id = omni.get_id()?;
     // Grab the current remote Metadata, or return Unpublished if that operation fails
     let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
@@ -110,7 +113,7 @@ pub async fn sync_bucket(
     global: &mut GlobalConfig,
 ) -> Result<String, TombError> {
     if omni.sync_state.is_none() {
-        println!("determining sync state before we run sync_bucket");
+        println!("{}", "<< SYNC STATE UPDATED >>".blue());
         println!("{:?}", determine_sync_state(omni, client).await);
     }
 
@@ -120,8 +123,7 @@ pub async fn sync_bucket(
             let current = Metadata::read_current(omni.get_id()?, client).await?;
             let mut byte_stream = current.pull(client).await?;
 
-            let new_local_origin = home_dir()
-                .unwrap()
+            let new_local_origin = PathBuf::from(env!("HOME"))
                 .join("tomb")
                 .join(omni.get_remote()?.name);
             // Remove existing contents and create a enw directory
