@@ -3,19 +3,19 @@ use crate::types::config::bucket::LocalBucket;
 use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,
-    utils::bundle::{create_plans, process_plans},
+    utils::prepare::{create_plans, process_plans},
 };
 use anyhow::Result;
 /// Given the input directory, the output directory, the manifest file, and other metadata,
-/// bundle the input directory into the output directory and store a record of how this
+/// prepare the input directory into the output directory and store a record of how this
 /// operation was performed in the manifest file.
 ///
 /// # Arguments
 ///
-/// * `input_dir` - &Path representing the relative path of the input directory to bundle.
-/// * `output_dir` - &Path representing the relative path of where to store the bundled data.
+/// * `input_dir` - &Path representing the relative path of the input directory to prepare.
+/// * `output_dir` - &Path representing the relative path of where to store the prepared data.
 /// * `manifest_file` - &Path representing the relative path of where to store the manifest file.
-/// * `chunk_size` - The maximum size of a bundled file / chunk in bytes.
+/// * `chunk_size` - The maximum size of a prepared file / chunk in bytes.
 /// * `follow_links` - Whether or not to follow symlinks when bundling.
 ///
 /// # Return Type
@@ -36,7 +36,7 @@ pub async fn pipeline(
     // Create a new delta for this bundling operation
     local.content.add_delta()?;
 
-    // Process all of the BundlePipelinePlans
+    // Process all of the PreparePipelinePlans
     process_plans(
         &mut fs,
         bundling_plan,
@@ -52,7 +52,7 @@ pub async fn pipeline(
     global.to_disk()?;
 
     Ok(format!(
-        "successfully bundled data into {}",
+        "successfully prepared data into {}",
         local.origin.display()
     ))
 }

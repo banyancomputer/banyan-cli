@@ -83,7 +83,7 @@ impl Display for Metadata {
 }
 
 impl Metadata {
-    // TODO: This should probably take a generic trait related to Tomb in order to extract these arguments
+    // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn push<S>(

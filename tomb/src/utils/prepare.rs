@@ -1,5 +1,5 @@
 use crate::{
-    types::spider::BundlePipelinePlan,
+    types::spider::PreparePipelinePlan,
     utils::{grouper::grouper, spider},
 };
 use anyhow::Result;
@@ -14,12 +14,12 @@ use tomb_common::{
     blockstore::RootedBlockStore, metadata::FsMetadata, utils::wnfsio::path_to_segments,
 };
 
-/// Create BundlePipelinePlans from an origin dir
-pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<BundlePipelinePlan>> {
+/// Create PreparePipelinePlans from an origin dir
+pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PreparePipelinePlan>> {
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
-    // Vector holding all the BundlePipelinePlans for bundling
-    let mut bundling_plan: Vec<BundlePipelinePlan> = vec![];
+    // Vector holding all the PreparePipelinePlans for bundling
+    let mut bundling_plan: Vec<PreparePipelinePlan> = vec![];
 
     info!("🔍 Deduplicating the filesystem at {}", origin.display());
     // Group the filesystem provided to detect duplicates
@@ -39,33 +39,33 @@ pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<Bundl
     bundling_plan.extend(spidered_files);
 
     info!(
-        "💾 Total number of files to bundle: {}",
+        "💾 Total number of files to prepare: {}",
         bundling_plan.len()
     );
 
     Ok(bundling_plan)
 }
 
-/// Given a set of BundlePipelinePlans and required structs, process each
+/// Given a set of PreparePipelinePlans and required structs, process each
 pub async fn process_plans(
     fs: &mut FsMetadata,
-    bundling_plan: Vec<BundlePipelinePlan>,
+    bundling_plan: Vec<PreparePipelinePlan>,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
     progress_bar: &ProgressBar,
 ) -> Result<()> {
     // Create vectors of direct and indirect plans
-    let mut direct_plans: Vec<BundlePipelinePlan> = Vec::new();
-    let mut symlink_plans: Vec<BundlePipelinePlan> = Vec::new();
+    let mut direct_plans: Vec<PreparePipelinePlan> = Vec::new();
+    let mut symlink_plans: Vec<PreparePipelinePlan> = Vec::new();
 
     // Sort the bundling plans into plans which correspond to real data and those which are symlinks
-    for bundle_pipeline_plan in bundling_plan {
-        match bundle_pipeline_plan.clone() {
-            BundlePipelinePlan::FileGroup(_) | BundlePipelinePlan::Directory(_) => {
-                direct_plans.push(bundle_pipeline_plan);
+    for prepare_pipeline_plan in bundling_plan {
+        match prepare_pipeline_plan.clone() {
+            PreparePipelinePlan::FileGroup(_) | PreparePipelinePlan::Directory(_) => {
+                direct_plans.push(prepare_pipeline_plan);
             }
-            BundlePipelinePlan::Symlink(_, _) => {
-                symlink_plans.push(bundle_pipeline_plan);
+            PreparePipelinePlan::Symlink(_, _) => {
+                symlink_plans.push(prepare_pipeline_plan);
             }
         }
     }
@@ -73,7 +73,7 @@ pub async fn process_plans(
     // First, write data which corresponds to real data
     for direct_plan in direct_plans {
         match direct_plan {
-            BundlePipelinePlan::FileGroup(metadatas) => {
+            PreparePipelinePlan::FileGroup(metadatas) => {
                 // Grab the metadata for the first occurrence of this file
                 let first = &metadatas
                     .first()
@@ -99,7 +99,7 @@ pub async fn process_plans(
                 }
             }
             // If this is a directory or symlink
-            BundlePipelinePlan::Directory(meta) => {
+            PreparePipelinePlan::Directory(meta) => {
                 // Turn the canonicalized path into a vector of segments
                 let path_segments = path_to_segments(&meta.original_location)?;
                 // If the directory does not exist
@@ -108,7 +108,7 @@ pub async fn process_plans(
                     fs.mkdir(&path_segments, metadata_store).await?;
                 }
             }
-            BundlePipelinePlan::Symlink(_, _) => panic!("this is unreachable code"),
+            PreparePipelinePlan::Symlink(_, _) => panic!("this is unreachable code"),
         }
 
         // Denote progress for each loop iteration
@@ -118,14 +118,14 @@ pub async fn process_plans(
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
         match symlink_plan {
-            BundlePipelinePlan::Symlink(meta, symlink_target) => {
+            PreparePipelinePlan::Symlink(meta, symlink_target) => {
                 // The path where the symlink will be placed
                 let symlink_segments = path_to_segments(&meta.original_location)?;
                 // Symlink it
                 fs.symlink(&symlink_target, &symlink_segments, metadata_store)
                     .await?;
             }
-            BundlePipelinePlan::Directory(_) | BundlePipelinePlan::FileGroup(_) => {
+            PreparePipelinePlan::Directory(_) | PreparePipelinePlan::FileGroup(_) => {
                 panic!("this is unreachable code")
             }
         }

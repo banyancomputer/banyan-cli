@@ -46,7 +46,7 @@ pub struct LocalBucket {
     pub(crate) name: String,
     /// The filesystem that this bucket represents
     pub(crate) origin: PathBuf,
-    /// Randomly generated folder name which holds bundled content and key files
+    /// Randomly generated folder name which holds prepared content and key files
     local_id: String,
     /// Bucket Uuid on the remote server
     pub(crate) remote_id: Option<Uuid>,

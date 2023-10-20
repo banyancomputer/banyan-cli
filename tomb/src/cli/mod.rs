@@ -11,7 +11,7 @@ pub mod verbosity;
 mod test {
     use super::commands::*;
     use crate::{cli::specifiers::*, types::config::globalconfig::GlobalConfig, utils::test::*};
-    use anyhow::Result;
+    use anyhow::{Result, anyhow};
     use dir_assert::assert_paths;
     use serial_test::serial;
     use std::{fs::create_dir, path::Path};
@@ -33,14 +33,24 @@ mod test {
         }
     }
 
-    fn cmd_delete(origin: &Path) -> TombCommand {
-        TombCommand::Buckets {
-            command: BucketsCommand::Delete(BucketSpecifier::with_origin(origin)),
-        }
+    async fn cmd_delete(origin: &Path) -> Result<()> {
+        let mut global = GlobalConfig::from_disk().await?;
+        let local = global.get_bucket(origin).ok_or(anyhow!("no bucket"))?;
+        local.remove_data()?;
+        // Find index of bucket
+        let index = global
+            .buckets
+            .iter()
+            .position(|b| b == &local)
+            .expect("cannot find index in buckets");
+        // Remove bucket config from global config
+        global.buckets.remove(index);
+        global.to_disk()?;
+        Ok(())
     }
 
-    // Run the Bundle pipeline through the CLI
-    fn cmd_bundle(origin: &Path) -> TombCommand {
+    // Run the Prepare pipeline through the CLI
+    fn cmd_prepare(origin: &Path) -> TombCommand {
         TombCommand::Buckets {
             command: BucketsCommand::Prepare {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
@@ -49,12 +59,12 @@ mod test {
         }
     }
 
-    // Run the Extract pipeline through the CLI
-    fn cmd_extract(origin: &Path, extracted: &Path) -> TombCommand {
+    // Run the Restore pipeline through the CLI
+    fn cmd_restore(origin: &Path, restored: &Path) -> TombCommand {
         TombCommand::Buckets {
             command: BucketsCommand::Restore {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
-                restore_path: Some(extracted.to_path_buf()),
+                restore_path: Some(restored.to_path_buf()),
             },
         }
     }
@@ -66,9 +76,9 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Deinitialize for user
-        cmd_delete(origin).run().await.ok();
+        cmd_delete(origin).await.ok();
         // Assert failure
-        assert!(cmd_bundle(origin).run().await.is_err());
+        assert!(cmd_prepare(origin).run().await.is_err());
         // Initialization worked
         cmd_create(origin).run().await?;
         // Assert the bucket exists now
@@ -87,7 +97,7 @@ mod test {
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Deinit if present
-        cmd_delete(origin).run().await.ok();
+        cmd_delete(origin).await.ok();
         // Assert no bucket exists yet
         assert!(GlobalConfig::from_disk()
             .await?
@@ -101,7 +111,7 @@ mod test {
             .get_bucket(origin)
             .is_some());
         // Deinitialize the directory
-        cmd_delete(origin).run().await?;
+        cmd_delete(origin).await?;
         // Assert the bucket is gone again
         assert!(GlobalConfig::from_disk()
             .await?
@@ -113,52 +123,38 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn configure_remote() -> Result<()> {
-        let test_name = "cli_configure_remote";
+    async fn prepare() -> Result<()> {
+        let test_name = "cli_prepare";
         // Setup test
         let origin = &test_setup(test_name).await?;
-        // Initialize
+        // Initialize tomb
         cmd_create(origin).run().await?;
-        // Configure remote endpoint
-        // run(cmd_configure_remote("http://127.0.0.1:5001")).await?;
+        // Run prepare and assert success
+        cmd_prepare(origin).run().await?;
         // Teardown test
         test_teardown(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn bundle() -> Result<()> {
-        let test_name = "cli_bundle";
+    async fn restore() -> Result<()> {
+        let test_name = "cli_restore";
         // Setup test
         let origin = &test_setup(test_name).await?;
         // Initialize tomb
         cmd_create(origin).run().await?;
-        // Run bundle and assert success
-        cmd_bundle(origin).run().await?;
-        // Teardown test
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
-    async fn extract() -> Result<()> {
-        let test_name = "cli_extract";
-        // Setup test
-        let origin = &test_setup(test_name).await?;
-        // Initialize tomb
-        cmd_create(origin).run().await?;
-        // Run bundle and assert success
-        cmd_bundle(origin).run().await?;
-        // Create extracted dir
-        let extracted = &origin
+        // Run prepare and assert success
+        cmd_prepare(origin).run().await?;
+        // Create restored dir
+        let restored = &origin
             .parent()
             .expect("origin has no parent")
-            .join("extracted");
-        create_dir(extracted).ok();
-        // Run extract and assert success
-        cmd_extract(origin, extracted).run().await?;
+            .join("restored");
+        create_dir(restored).ok();
+        // Run restore and assert success
+        cmd_restore(origin, restored).run().await?;
         // Assert equality
-        assert_paths(origin, extracted).expect("extracted dir does not match origin");
+        assert_paths(origin, restored).expect("restored dir does not match origin");
         // Teardown test
         test_teardown(test_name).await
     }

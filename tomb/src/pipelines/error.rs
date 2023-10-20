@@ -65,7 +65,7 @@ pub enum TombErrorKind {
     Client(ClientError),
     /// User simply never configured this directory
     UnknownBucket(BucketSpecifier),
-    /// Missing File when searching for it during extracting
+    /// Missing File when searching for it during restoreing
     FileMissing(PathBuf),
     /// IO Operation Error
     IoError(std::io::Error),

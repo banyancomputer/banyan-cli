@@ -140,6 +140,8 @@ impl OmniBucket {
         name: &str,
         origin: &Path,
     ) -> Result<OmniBucket, TombError> {
+        println!("creating");
+
         let mut omni = OmniBucket {
             local: None,
             remote: None,
@@ -185,6 +187,8 @@ impl OmniBucket {
             global.to_disk()?;
             omni.local = Some(local);
         }
+
+        println!("syncing");
 
         // If we successfully initialized both of them
         if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
