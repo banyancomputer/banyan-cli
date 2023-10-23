@@ -1,7 +1,6 @@
 use crate::log;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
-use wnfs::private::PrivateNode;
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
@@ -14,6 +13,7 @@ use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
+use wnfs::private::PrivateNode;
 
 use crate::error::TombWasmError;
 use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
@@ -748,17 +748,22 @@ impl WasmMount {
 
         let fs = self.fs_metadata.as_mut().unwrap();
 
-        let node = fs.get_node(&path_segments, &self.metadata_blockstore).await.expect("unable to query node");
+        let node = fs
+            .get_node(&path_segments, &self.metadata_blockstore)
+            .await
+            .expect("unable to query node");
 
         // If this is a file, also track all the blocks we just deleted
         if let Some(PrivateNode::File(file)) = node {
-            let cids = file.get_cids(&fs.forest, &self.metadata_blockstore).await.expect("couldnt get cids for file");
+            let cids = file
+                .get_cids(&fs.forest, &self.metadata_blockstore)
+                .await
+                .expect("couldnt get cids for file");
             let string_cids: BTreeSet<String> = cids.iter().map(|cid| cid.to_string()).collect();
             self.deleted_blocks.extend(string_cids);
         }
 
-        fs
-            .rm(&path_segments, &self.metadata_blockstore)
+        fs.rm(&path_segments, &self.metadata_blockstore)
             .await
             .expect("could not rm");
 

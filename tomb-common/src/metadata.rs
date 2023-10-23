@@ -604,8 +604,6 @@ impl FsMetadata {
                 .await?
         };
 
-        println!("get_all_children running on path: {}", path.display());
-
         match node {
             Some(PrivateNode::File(file)) => Ok(vec![(file.as_node(), path.to_path_buf())]),
             Some(PrivateNode::Dir(dir)) => {

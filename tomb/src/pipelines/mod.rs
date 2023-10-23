@@ -249,7 +249,6 @@ mod test {
         configure::init(test_name, origin).await?;
         // Prepare locally
         prepare_pipeline(origin).await?;
-        println!("finished bundling...");
         // Create a new dir to restore in
         let restored_dir = &origin
             .parent()
@@ -434,6 +433,13 @@ mod test {
         remove_file(file_path)?;
 
         assert_prepare_restore(test_name).await?;
+
+        let config = GlobalConfig::from_disk()
+            .await?
+            .get_bucket(&origin)
+            .expect("no bucket at origin");
+        assert!(!config.deleted_blocks.is_empty());
+
         // Teardown
         test_teardown(test_name).await
     }

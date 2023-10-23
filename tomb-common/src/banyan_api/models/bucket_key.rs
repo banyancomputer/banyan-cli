@@ -129,6 +129,8 @@ impl BucketKey {
 #[cfg(feature = "fake")]
 #[cfg(test)]
 mod test {
+    use std::collections::BTreeSet;
+
     use tomb_crypt::prelude::{EcPublicEncryptionKey, PrivateKey, PublicKey};
     use tomb_crypt::pretty_fingerprint;
 
@@ -278,6 +280,7 @@ mod test {
             "metadata_cid".to_string(),
             0,
             vec![fingerprint1, fingerprint2],
+            BTreeSet::new(),
             "metadata_stream".as_bytes(),
             &mut client,
         )

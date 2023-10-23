@@ -54,12 +54,8 @@ pub async fn pipeline(
         }
     }
 
-    println!("gathered all disk paths");
-
     // Get all nodes and their associated paths
     let all_node_paths = fs.get_all_nodes(&local.metadata).await?;
-
-    println!("gathered all nodes");
 
     // Track all blocks removed since the last preparation
     for (node, wnfs_path) in all_node_paths {
@@ -77,8 +73,6 @@ pub async fn pipeline(
         }
     }
 
-    println!("gathered all deleted blocks");
-
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
@@ -94,8 +88,6 @@ pub async fn pipeline(
         &progress_bar,
     )
     .await?;
-
-    println!("processed all plans");
 
     local.save_fs(&mut fs).await?;
 

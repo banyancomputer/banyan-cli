@@ -276,6 +276,7 @@ pub mod test {
             "metadata_cid".to_string(),
             0,
             vec![],
+            BTreeSet::new(),
             "metadata_stream".as_bytes(),
             client,
         )

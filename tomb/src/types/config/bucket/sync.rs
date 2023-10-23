@@ -74,7 +74,6 @@ pub async fn determine_sync_state(
         let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
         // If the metadata root CIDs match
         if local_root_cid == Some(current_remote.root_cid) {
-            println!("meow;");
             // If there is actually data in the local origin
             let tolerance = 100;
             let expect_data_size = current_remote.data_size;
@@ -87,11 +86,6 @@ pub async fn determine_sync_state(
             Ok(())
         } else {
             let all_metadatas = Metadata::read_all(bucket_id, client).await?;
-            println!(
-                "all_metadatas: {:?}\nour_metadata_root:{:?}",
-                all_metadatas,
-                local.metadata.get_root()
-            );
             // If the current Metadata id exists in the list of remotely persisted ones
             if all_metadatas
                 .iter()
@@ -175,17 +169,9 @@ pub async fn sync_bucket(
             let wrapping_key = global.wrapping_key().await?;
             let fs = local.unlock_fs(&wrapping_key).await?;
 
-            println!(
-                "unpublished_fs_root_dir_ls: {:?}",
-                fs.root_dir
-                    .ls(&[], true, &fs.forest, &local.metadata)
-                    .await?
-            );
-
             // If we can actually get the arguments
-            if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() && let Some(delta) = local.content.deltas.last() {
-                // Delta size
-                println!("expected_data_size: {}", delta.data_size());
+            if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() &&
+               let Some(delta) = local.content.deltas.last() {
                 // Push the metadata
                 let (metadata, storage_ticket) = Metadata::push(
                     bucket_id,
@@ -203,8 +189,6 @@ pub async fn sync_bucket(
                 local.storage_ticket = storage_ticket.clone();
                 global.update_config(&local)?;
                 omni.set_local(local.clone());
-
-                println!("omni_local_ticket: {:?}", omni.get_local()?.storage_ticket);
 
                 // If the storage ticket is valid
                 let storage_ticket = storage_ticket.ok_or_else(|| TombError::custom_error("Metadata was pushed but storage sticket was not reccieved"))?;
