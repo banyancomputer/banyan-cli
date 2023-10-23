@@ -3,6 +3,7 @@ use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeSet,
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
@@ -14,7 +15,7 @@ use tomb_common::{
 };
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
-use wnfs::private::PrivateNodeOnPathHistory;
+use wnfs::{libipld::Cid, private::PrivateNodeOnPathHistory};
 
 use crate::utils::config::xdg_data_home;
 
@@ -52,6 +53,8 @@ pub struct LocalBucket {
     pub(crate) remote_id: Option<Uuid>,
     /// Storage ticket in case we lose track of non-metadata components
     pub(crate) storage_ticket: Option<StorageTicket>,
+    /// Locally deleted blocks the server needs to be notified of
+    pub(crate) deleted_blocks: BTreeSet<Cid>,
     /// BlockStore for storing metadata only
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
@@ -118,6 +121,7 @@ impl LocalBucket {
             local_id,
             remote_id: None,
             storage_ticket: None,
+            deleted_blocks: BTreeSet::new(),
             metadata,
             content,
         })

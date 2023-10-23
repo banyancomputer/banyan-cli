@@ -1,14 +1,14 @@
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
+use crate::banyan_api::models::metadata::MetadataState;
+use crate::banyan_api::requests::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-use crate::banyan_api::models::metadata::MetadataState;
-use crate::banyan_api::requests::ApiRequest;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Serialize)]
@@ -22,6 +22,7 @@ where
     pub root_cid: String,
     pub metadata_cid: String,
     pub valid_keys: Vec<String>,
+    pub deleted_blocks: BTreeSet<String>,
 
     pub metadata_stream: S,
 }
@@ -38,6 +39,7 @@ where
     pub root_cid: String,
     pub metadata_cid: String,
     pub valid_keys: Vec<String>,
+    pub deleted_blocks: BTreeSet<String>,
 
     pub metadata_stream: S,
 }
@@ -48,6 +50,7 @@ struct PushMetadataData {
     pub root_cid: String,
     pub metadata_cid: String,
     pub valid_keys: Vec<String>,
+    pub deleted_blocks: BTreeSet<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,6 +91,7 @@ where
             root_cid: self.root_cid,
             metadata_cid: self.metadata_cid,
             valid_keys: self.valid_keys,
+            deleted_blocks: self.deleted_blocks,
         };
 
         // Attach the form data to the request as json
@@ -131,6 +135,7 @@ where
             root_cid: self.root_cid,
             metadata_cid: self.metadata_cid,
             valid_keys: self.valid_keys,
+            deleted_blocks: self.deleted_blocks,
         };
 
         // Serialize JSON part

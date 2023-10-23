@@ -92,16 +92,6 @@ impl OmniBucket {
         }
     }
 
-    // pub async fn from_both(client: &mut Client, local: &LocalBucket, remote: &RemoteBucket) -> Self {
-    //     let mut omni = OmniBucket {
-    //         local: Some(local.clone()),
-    //         remote: Some(remote.clone()),
-    //         sync_state: None,
-    //     };
-    //     let _ = omni.set_state(client).await;
-    //     omni
-    // }
-
     /// Get the ID from wherever it might be found
     pub fn get_id(&self) -> Result<Uuid, TombError> {
         let err = TombError::custom_error("No bucket ID found with these properties");
@@ -188,10 +178,9 @@ impl OmniBucket {
             omni.local = Some(local);
         }
 
-        println!("syncing");
-
         // If we successfully initialized both of them
         if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
+            // Print and reevaluate sync state
             println!("{sync}");
         }
 

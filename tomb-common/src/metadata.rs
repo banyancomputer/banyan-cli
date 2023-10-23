@@ -4,9 +4,10 @@ use crate::{
     utils::serialize::*,
     utils::{error::SerialError, wnfsio::path_to_segments},
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use chrono::Utc;
+use futures_util::future::join_all;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -427,10 +428,12 @@ impl FsMetadata {
         dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
+        println!("running cp...");
         // Get the path of the parent
         let folder_segments = &dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
         // Make directory at parent
         self.mkdir(folder_segments, metadata_store).await?;
+        println!("made dir...");
         // Copy and Link
         self.root_dir
             .cp_link(
@@ -601,28 +604,35 @@ impl FsMetadata {
                 .await?
         };
 
-        if let Some(PrivateNode::File(file)) = node {
-            return Ok(vec![(file.as_node(), path.to_path_buf())]);
-        }
+        println!("get_all_children running on path: {}", path.display());
 
-        if let Some(PrivateNode::Dir(dir)) = node {
-            // Accumulate a list
-            let mut children = vec![];
-            // List the names of all children
-            let node_names = dir.ls(&[], true, &self.forest, metadata_store).await?;
-            // For each node name returned by the LS
-            for (node_name, _) in node_names {
-                // Get this child's children, extend the list
-                children.extend_from_slice(
-                    self.get_all_children(path.join(node_name), metadata_store)
-                        .await?
-                        .as_slice(),
-                );
+        match node {
+            Some(PrivateNode::File(file)) => Ok(vec![(file.as_node(), path.to_path_buf())]),
+            Some(PrivateNode::Dir(dir)) => {
+                // Accumulate a list
+                let mut children = vec![];
+                // List the names of all children
+                let node_names = dir.ls(&[], true, &self.forest, metadata_store).await?;
+
+                // Accumulate a list of futures
+                let mut futures = Vec::new();
+                // Add a future for each node name
+                for (node_name, _) in node_names {
+                    futures.push(self.get_all_children(path.join(node_name), metadata_store));
+                }
+                // Join on all of them and iterate over results
+                for result in join_all(futures).await {
+                    // If the result succeeded, extend children found
+                    if let Ok(node_children) = result {
+                        children.extend(node_children)
+                    } else {
+                        return Err(anyhow!("unable to recurse"));
+                    }
+                }
+                Ok(children)
             }
-            return Ok(children);
+            None => Err(anyhow::anyhow!("invalid node")),
         }
-
-        return Err(anyhow::anyhow!("invalid node"));
     }
 }
 

@@ -70,8 +70,10 @@ pub async fn process_plans(
         }
     }
 
+    println!("processing directs...");
     // First, write data which corresponds to real data
     for direct_plan in direct_plans {
+        println!("processing {:?}", direct_plan);
         match direct_plan {
             PreparePipelinePlan::FileGroup(metadatas) => {
                 // Grab the metadata for the first occurrence of this file
@@ -85,17 +87,27 @@ pub async fn process_plans(
                 let mut file = File::open(&metadatas.get(0).expect("no paths").canonicalized_path)?;
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
+                println!("calling fs_write...");
                 // Add the file contents
                 fs.write(&path_segments, metadata_store, content_store, content)
                     .await?;
+                println!("succeeded fs_write...");
 
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {
                     // Grab the original location
                     let dup_path_segments = path_to_segments(&meta.original_location)?;
-                    // Copy
-                    fs.cp(&path_segments, &dup_path_segments, metadata_store)
-                        .await?;
+                    if fs
+                        .get_node(&dup_path_segments, metadata_store)
+                        .await?
+                        .is_none()
+                    {
+                        println!("calling cp...");
+                        // Copy
+                        fs.cp(&path_segments, &dup_path_segments, metadata_store)
+                            .await?;
+                        println!("finished cp...");
+                    }
                 }
             }
             // If this is a directory or symlink
@@ -115,8 +127,10 @@ pub async fn process_plans(
         progress_bar.inc(1);
     }
 
+    println!("processing directs...");
     // Now that the data exists, we can symlink to it
     for symlink_plan in symlink_plans {
+        println!("processing: {:?}", symlink_plan);
         match symlink_plan {
             PreparePipelinePlan::Symlink(meta, symlink_target) => {
                 // The path where the symlink will be placed

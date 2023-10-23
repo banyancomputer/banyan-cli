@@ -4,6 +4,7 @@ use std::io::Read;
 
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use uuid::Uuid;
 
 use {
@@ -85,6 +86,7 @@ impl Display for Metadata {
 impl Metadata {
     // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
+    #[allow(clippy::too_many_arguments)]
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn push<S>(
         bucket_id: Uuid,
@@ -92,6 +94,7 @@ impl Metadata {
         metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
+        deleted_blocks: BTreeSet<String>,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -105,6 +108,7 @@ impl Metadata {
                 metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
+                deleted_blocks,
                 metadata_stream,
             })
             .await?;
@@ -129,6 +133,7 @@ impl Metadata {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[cfg(target_arch = "wasm32")]
     /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
     /// WASM implementation because reqwest hates me
@@ -138,6 +143,7 @@ impl Metadata {
         metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
+        deleted_blocks: BTreeSet<String>,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -151,6 +157,7 @@ impl Metadata {
                 metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
+                deleted_blocks,
                 metadata_stream,
             })
             .await?;

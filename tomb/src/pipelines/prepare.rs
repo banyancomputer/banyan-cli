@@ -1,11 +1,16 @@
+use std::path::PathBuf;
+
 use super::error::TombError;
 use crate::types::config::bucket::LocalBucket;
+use crate::types::spider::PreparePipelinePlan;
 use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,
     utils::prepare::{create_plans, process_plans},
 };
 use anyhow::Result;
+use tomb_common::utils::wnfsio::path_to_segments;
+use wnfs::private::PrivateNode;
 /// Given the input directory, the output directory, the manifest file, and other metadata,
 /// prepare the input directory into the output directory and store a record of how this
 /// operation was performed in the manifest file.
@@ -30,6 +35,50 @@ pub async fn pipeline(
 
     // Create bundling plan
     let bundling_plan = create_plans(&local.origin, follow_links).await?;
+
+    // Get all the paths present on disk
+    let mut all_disk_paths = <Vec<PathBuf>>::new();
+    for plan in bundling_plan.clone() {
+        match plan {
+            PreparePipelinePlan::Directory(metadata)
+            | PreparePipelinePlan::Symlink(metadata, _) => {
+                all_disk_paths.push(metadata.original_location.clone());
+            }
+            PreparePipelinePlan::FileGroup(metadatas) => {
+                let paths: Vec<PathBuf> = metadatas
+                    .iter()
+                    .map(|metadata| metadata.original_location.clone())
+                    .collect();
+                all_disk_paths.extend(paths);
+            }
+        }
+    }
+
+    println!("gathered all disk paths");
+
+    // Get all nodes and their associated paths
+    let all_node_paths = fs.get_all_nodes(&local.metadata).await?;
+
+    println!("gathered all nodes");
+
+    // Track all blocks removed since the last preparation
+    for (node, wnfs_path) in all_node_paths {
+        // If the existing WNFS node is not still represented on disk
+        if !all_disk_paths.contains(&wnfs_path) {
+            // If the node is a File, add all the CIDs associated with it to a list
+            if let PrivateNode::File(file) = node {
+                local
+                    .deleted_blocks
+                    .extend(file.get_cids(&fs.forest, &local.metadata).await?);
+            }
+            // Remove the reference from the WNFS
+            fs.rm(&path_to_segments(&wnfs_path)?, &local.metadata)
+                .await?;
+        }
+    }
+
+    println!("gathered all deleted blocks");
+
     // TODO: optionally turn off the progress bar
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
@@ -45,6 +94,8 @@ pub async fn pipeline(
         &progress_bar,
     )
     .await?;
+
+    println!("processed all plans");
 
     local.save_fs(&mut fs).await?;
 
