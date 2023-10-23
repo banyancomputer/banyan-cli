@@ -629,7 +629,7 @@ impl FsMetadata {
                 }
                 Ok(children)
             }
-            None => Err(anyhow::anyhow!("invalid node")),
+            None => Err(anyhow!("invalid node")),
         }
     }
 }

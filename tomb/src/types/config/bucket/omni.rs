@@ -178,9 +178,8 @@ impl OmniBucket {
             omni.local = Some(local);
         }
 
-        // If we successfully initialized both of them
+        // Print sync result if we successfully initialized both of them
         if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
-            // Print and reevaluate sync state
             println!("{sync}");
         }
 

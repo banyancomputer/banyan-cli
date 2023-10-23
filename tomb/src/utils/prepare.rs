@@ -82,7 +82,8 @@ pub async fn process_plans(
                 // Turn the relative path into a vector of segments
                 let path_segments = path_to_segments(first)?;
                 // Load the file from disk
-                let mut file = File::open(&metadatas.get(0).expect("no paths").canonicalized_path)?;
+                let mut file =
+                    File::open(&metadatas.first().expect("no paths").canonicalized_path)?;
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
                 // Add the file contents
