@@ -12,13 +12,12 @@ use tomb_common::{
         blockstore::BanyanApiBlockStore, client::Client, error::ClientError,
         models::metadata::Metadata,
     },
-    blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
+    blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore}, metadata::FsMetadata,
 };
 
 use crate::{
     pipelines::{error::TombError, reconstruct},
     types::config::globalconfig::GlobalConfig,
-    utils::wnfsio::compute_directory_size,
 };
 
 use super::OmniBucket;
@@ -75,14 +74,14 @@ pub async fn determine_sync_state(
         // If the metadata root CIDs match
         if local_root_cid == Some(current_remote.root_cid) {
             // If there is actually data in the local origin
-            let tolerance = 100;
-            let expect_data_size = current_remote.data_size;
+            let _tolerance = 100;
+            let _expect_data_size = current_remote.data_size;
             // If the data size matches the most recent delta
-            if let Some(delta) = local.content.deltas.last() && let Ok(actual_data_size) = compute_directory_size(&delta.path).map(|v| v as u64) && actual_data_size >= expect_data_size-tolerance && actual_data_size < expect_data_size+tolerance {
-                omni.sync_state = Some(SyncState::AllSynced);
-            } else {
-                omni.sync_state = Some(SyncState::MetadataSynced);
-            }
+            // if let Some(delta) = local.content.deltas.last() && let Ok(actual_data_size) = compute_directory_size(&delta.path).map(|v| v as u64) && actual_data_size >= expect_data_size-tolerance && actual_data_size < expect_data_size+tolerance {
+            //     omni.sync_state = Some(SyncState::AllSynced);
+            // } else {
+            // }
+            omni.sync_state = Some(SyncState::MetadataSynced);
             Ok(())
         } else {
             let all_metadatas = Metadata::read_all(bucket_id, client).await?;
@@ -228,8 +227,8 @@ pub async fn sync_bucket(
         }
         // Reconstruct the Bucket locally
         Some(SyncState::MetadataSynced) => {
-            let storage_host = omni
-                .get_local()?
+            let local = omni.get_local()?;
+            let storage_host = local.clone()
                 .storage_ticket
                 .map(|ticket| ticket.host)
                 .unwrap_or(global.endpoints.data.clone());
@@ -241,7 +240,12 @@ pub async fn sync_bucket(
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
             println!("banyan_api_blockstore constructed");
-            let local = omni.get_local()?;
+
+            let fs = FsMetadata::unlock(&GlobalConfig::from_disk().await?.wrapping_key().await?, &local.metadata).await?;
+            let mut store = CarV2MemoryBlockStore::new()?;
+            let forest_root = fs.forest.store(&mut store).await?;
+            println!("forest_root: {:?}", forest_root);
+
             // Reconstruct the data on disk
             let reconstruction_result =
                 reconstruct::pipeline(global, &local, &banyan_api_blockstore, &local.origin).await;

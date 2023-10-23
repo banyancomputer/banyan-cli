@@ -645,10 +645,25 @@ impl WasmMount {
             .expect("could not create blockstore client");
         let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
 
-        let vec = self
+        let fs = self
             .fs_metadata
             .as_mut()
-            .unwrap()
+            .unwrap();
+
+        let store = BlockStore::new().expect("failed store creation");
+        let forest_root = fs.forest.store(&store).await.expect("failed forest storing");
+        log!(format!("womt-wasm: forest_root: {}", forest_root));
+        log!(format!("womt-wasm: whole ass forest: {:?}", fs.forest));
+
+        log!(format!("tomb-wasm: running fs_get_node @ {:?}", path_segments));
+        let node = fs.get_node(&path_segments, &self.metadata_blockstore).await.expect("no node").expect("no node (none)");
+        if let PrivateNode::File(file) = node {
+            log!("tomb-wasm: node is a file");
+            let cids = file.get_cids(&fs.forest, &self.metadata_blockstore).await.expect("unable to get cids");
+            log!(format!("tomb-wasm: node cids: {:?}", cids));
+        }
+
+        let vec = fs
             .read(
                 &path_segments,
                 &self.metadata_blockstore,

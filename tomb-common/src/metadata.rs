@@ -1,5 +1,5 @@
 use crate::{
-    blockstore::{split::DoubleSplitStore, RootedBlockStore},
+    blockstore::{split::DoubleSplitStore, RootedBlockStore, carv2_memory::CarV2MemoryBlockStore},
     share::manager::ShareManager,
     utils::serialize::*,
     utils::{error::SerialError, wnfsio::path_to_segments},
@@ -185,6 +185,9 @@ impl FsMetadata {
 
         // Get the forests
         let forest = load_forest(forest_cid, store).await?;
+        let forest_store = CarV2MemoryBlockStore::new()?;
+        let forest = Rc::new(PrivateForest::load(&forest.store(&forest_store).await?, &forest_store).await?);
+
         // Get the share manager
         let mut share_manager = store
             .get_deserializable::<ShareManager>(share_manager_cid)
@@ -493,6 +496,9 @@ impl FsMetadata {
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
     ) -> Result<Vec<u8>> {
+        println!("attempting to read: {:?}", path_segments);
+        println!("forest: {:?}", self.forest);
+        
         // Compress the data in the file
         let result = self
             .root_dir
@@ -505,7 +511,12 @@ impl FsMetadata {
 
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
+            println!("about to get cids...");
+            let all_cids = file.get_cids(&self.forest, metadata_store).await?;
+            println!("all_cids: {:?}", all_cids);
+            println!("about to get content...");
             let content = file.get_content(&self.forest, &split_store).await?;
+            println!("got content...");
             Ok(content)
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())

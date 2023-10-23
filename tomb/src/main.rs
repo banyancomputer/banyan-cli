@@ -10,7 +10,7 @@
 use anyhow::Result;
 use clap::Parser;
 use std::io::Write;
-use tomb::cli;
+use tomb::cli::{self, commands::RunnableCommand};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -18,11 +18,7 @@ async fn main() -> Result<()> {
     let cli = cli::args::Args::parse();
 
     // Determine the command being executed run appropriate subcommand
-    #[cfg(build = "release")]
-    cli.command.run().await?;
-
-    #[cfg(build = "debug")]
-    let _ = cli.command.run().await;
+    let _ = cli.command.run().await?;
 
     // TODO eventually make options to format it differently?
     env_logger::Builder::new()
