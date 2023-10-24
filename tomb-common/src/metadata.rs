@@ -805,9 +805,8 @@ mod test {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
         // Make sure the original file is gone
         let file_node = fs_metadata.get_node(&file_path, &metadata_store).await?;
-        match file_node {
-            Some(_) => panic!("file not deleted"),
-            None => (),
+        if file_node.is_some() {
+            panic!("file not deleted")
         };
         // Make sure the new file is there
         let new_file_node = fs_metadata.get_node(&mv_file_path, &metadata_store).await?;

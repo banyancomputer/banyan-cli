@@ -18,10 +18,10 @@ serde = { workspace = true }
 tomb-crypt = { workspace = true } 
 wnfs = { workspace = true }
 blake3 = { workspace = true }
-cid = { workspace = true }
 
 async-trait = "^0.1"
 base58 = "^0.2"
+cid = { version = "^0.10", features = ["serde-codec"] }
 futures = "^0.3"
 futures-core = "^0.3"
 futures-util = "^0.3"

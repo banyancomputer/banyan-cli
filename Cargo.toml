@@ -38,7 +38,6 @@ blake3 = "^1"
 chrono = { version = "^0.4", default-features = false, features = ["clock", "std"] }
 clap = { version = "^4", features = ["derive"] }
 criterion = { version = "^0.4", features = ["async_tokio"] }
-cid = { version = "^0.10", features = ["serde-codec"] }
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "^0.2" }
 fake-file = "^0.1"
 fs_extra = "^1"
