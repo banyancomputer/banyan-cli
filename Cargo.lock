@@ -4364,6 +4364,7 @@ dependencies = [
  "blake3",
  "bytes",
  "chrono",
+ "cid 0.10.1",
  "fs_extra",
  "futures",
  "futures-core",

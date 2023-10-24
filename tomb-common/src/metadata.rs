@@ -408,44 +408,25 @@ impl FsMetadata {
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
         let ds_store = DoubleSplitStore::new(metadata_store, content_store);
-
-        // TODO: This is a good example of why a Tiered BlockStore is needed
         let result = self
             .root_dir
-            .get_node(&src_path_segments, true, &self.forest, &ds_store)
+            .get_node(src_path_segments, true, &self.forest, &ds_store)
             .await?;
         match result {
             Some(_) => {
-                // println!("Found node");
-                // // Clone a temp forest
-                // let temp_forest = self.forest.clone();
-                // let mut temp_root_dir = self.root_dir.clone();
-                // println!("Cloned forest");
-                // Run basic move against the content store
                 self.root_dir
                     .basic_mv(
-                        &src_path_segments,
-                        &dest_path_segments,
+                        src_path_segments,
+                        dest_path_segments,
                         true,
                         Utc::now(),
                         &mut self.forest,
                         &ds_store,
                         &mut thread_rng(),
                     )
-                    .await?;
-                println!("Basic mv complete");
-                // // Remove the lingering block from the metadata store
-                // let _node = temp_root_dir
-                //     .rm(&src_path_segments, true, &temp_forest, metadata_store)
-                //     .await?;
-                Ok(())
+                    .await
             }
-            None => {
-                return Err(SerialError::NodeNotFound(
-                    src_path_segments.join("/").to_string(),
-                )
-                .into())
-            }
+            None => Err(SerialError::NodeNotFound(src_path_segments.join("/").to_string()).into()),
         }
     }
 
@@ -789,14 +770,9 @@ mod test {
 
         // Add a new file
         let file_path = vec!["file".to_string()];
-        let content = "loop de doop de dah".as_bytes().to_vec(); 
+        let content = "loop de doop de dah".as_bytes().to_vec();
         fs_metadata
-            .write(
-                &file_path,
-                &metadata_store,
-                &content_store,
-                content.clone(),
-            )
+            .write(&file_path, &metadata_store, &content_store, content.clone())
             .await?;
 
         // Add a new dir
@@ -823,24 +799,18 @@ mod test {
             PrivateNode::File(file) => file,
             _ => panic!("file not found"),
         };
-        
+
         // Save the metadata
         fs_metadata.save(&metadata_store, &metadata_store).await?;
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
         // Make sure the original file is gone
-        let file_node = fs_metadata.get_node(
-            &file_path,
-            &metadata_store,
-        ).await?;
+        let file_node = fs_metadata.get_node(&file_path, &metadata_store).await?;
         match file_node {
             Some(_) => panic!("file not deleted"),
             None => (),
         };
         // Make sure the new file is there
-        let new_file_node = fs_metadata.get_node(
-            &mv_file_path,
-            &metadata_store,
-        ).await?;
+        let new_file_node = fs_metadata.get_node(&mv_file_path, &metadata_store).await?;
         match new_file_node {
             Some(_) => (),
             None => panic!("file not found"),
@@ -850,7 +820,7 @@ mod test {
             .read(&mv_file_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(content, new_file_content);
-    
+
         Ok(())
     }
 
@@ -983,7 +953,8 @@ mod test {
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
-        fs_metadata.mv(&cat_path, &dog_path, &metadata_store, &content_store)
+        fs_metadata
+            .mv(&cat_path, &dog_path, &metadata_store, &content_store)
             .await?;
         // Replace existing content
         fs_metadata

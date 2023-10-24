@@ -6,9 +6,9 @@ use serde::Deserialize;
 
 use crate::banyan_api::requests::ApiRequest;
 
-pub type LocationRequest = Vec<String>;
+pub type LocationRequest = Vec<cid::Cid>;
 
-pub type LocationResponse = std::collections::HashMap<String, String>;
+pub type LocationResponse = std::collections::HashMap<String, Vec<cid::Cid>>;
 
 impl ApiRequest for LocationRequest {
     type ResponseType = LocationResponse;

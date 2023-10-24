@@ -18,6 +18,7 @@ serde = { workspace = true }
 tomb-crypt = { workspace = true } 
 wnfs = { workspace = true }
 blake3 = { workspace = true }
+cid = { workspace = true }
 
 async-trait = "^0.1"
 base58 = "^0.2"

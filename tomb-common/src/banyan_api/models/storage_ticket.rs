@@ -198,15 +198,32 @@ pub mod test {
             .expect("Failed to get file");
         assert_eq!(bytes, "test".as_bytes().to_vec());
 
-        let cids = content_store.car.car.index.borrow().get_all_cids();
-        let cids: LocationRequest = cids.into_iter().map(|cid| cid.to_string()).collect();
+        let cids: LocationRequest = content_store.car.car.index.borrow().get_all_cids();
         let locations = client
             .call(cids.clone())
             .await
             .expect("Failed to get locations");
-        for cid in cids {
-            let location = locations.get(&cid).expect("Failed to get location for cid");
-            assert_eq!(location, &storage_ticket.host);
+        let target_cids = locations
+            .get(&storage_ticket.host)
+            .expect("Failed to get cids");
+        for cid in cids.clone() {
+            assert!(target_cids.contains(&cid));
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_bad_location() -> Result<(), ClientError> {
+        use crate::banyan_api::requests::core::blocks::locate::LocationRequest;
+        let mut client = authenticated_client().await;
+        let cids: LocationRequest = vec![cid::Cid::default()];
+        let locations = client
+            .call(cids.clone())
+            .await
+            .expect("Failed to get locations");
+        let target_cids = locations.get("NA").expect("Failed to get cids");
+        for cid in cids.clone() {
+            assert!(target_cids.contains(&cid));
         }
         Ok(())
     }
