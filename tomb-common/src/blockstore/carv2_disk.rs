@@ -59,6 +59,11 @@ impl CarV2DiskBlockStore {
     pub fn to_disk(&self) -> Result<()> {
         self.car.write_bytes(&mut get_read_write(&self.path)?)
     }
+
+    /// Get the size of the underlying CARv1
+    pub fn data_size(&self) -> u64 {
+        self.car.data_size()
+    }
 }
 
 #[async_trait(?Send)]

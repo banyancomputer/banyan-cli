@@ -116,6 +116,13 @@ impl Client {
         self.bearer_token = Some(bearer_token);
     }
 
+    /// Log out of the account
+    pub fn logout(&mut self) {
+        self.claims = None;
+        self.signing_key = None;
+        self.bearer_token = None;
+    }
+
     /// Return a bearer token based on the current credentials
     /// # Returns
     /// * `Option<String>` - The bearer token

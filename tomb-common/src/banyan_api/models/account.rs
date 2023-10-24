@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
@@ -7,6 +9,7 @@ use crate::banyan_api::{
     },
     utils::generate_api_key,
 };
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::EcSignatureKey;
 
@@ -15,6 +18,16 @@ use tomb_crypt::prelude::EcSignatureKey;
 pub struct Account {
     /// The unique identifier for the account
     pub id: uuid::Uuid,
+}
+
+impl Display for Account {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "{}\naccount_id:\t{}",
+            "| ACCOUNT INFO |".yellow(),
+            self.id
+        ))
+    }
 }
 
 impl Account {
@@ -47,14 +60,18 @@ impl Account {
 
     /// Get the total usage for the account associated with the current credentials in the Client
     pub async fn usage(client: &mut Client) -> Result<u64, ClientError> {
-        let response = client.call(GetTotalUsage).await?;
-        Ok(response.size as u64)
+        client
+            .call(GetTotalUsage)
+            .await
+            .map(|response| response.size)
     }
 
     /// Get the usage limit for the account associated with the current credentials in the Client
     pub async fn usage_limit(client: &mut Client) -> Result<u64, ClientError> {
-        let response = client.call(GetUsageLimit).await?;
-        Ok(response.size as u64)
+        client
+            .call(GetUsageLimit)
+            .await
+            .map(|response| response.size)
     }
 }
 

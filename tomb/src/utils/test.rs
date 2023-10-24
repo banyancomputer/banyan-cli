@@ -1,20 +1,16 @@
+use crate::pipelines::configure;
 use anyhow::Result;
 use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use std::{fs::remove_dir_all, path::PathBuf};
 
-use crate::{cli::command::BucketSpecifier, pipelines::configure};
-
 /// Set up temporary filesystem for test cases
-pub async fn test_setup(test_name: &str) -> Result<(PathBuf, BucketSpecifier)> {
+pub async fn test_setup(test_name: &str) -> Result<PathBuf> {
     // Run the structured test setup with a default Structure
     test_setup_structured(test_name, Structure::new(2, 2, 2000, Strategy::Simple)).await
 }
 
 /// Set up a temporary filesystem for test cases according to specified structure
-pub async fn test_setup_structured(
-    test_name: &str,
-    structure: Structure,
-) -> Result<(PathBuf, BucketSpecifier)> {
+pub async fn test_setup_structured(test_name: &str, structure: Structure) -> Result<PathBuf> {
     // Deinit all
     configure::deinit_all().await?;
     // Base of the test directory
@@ -32,10 +28,7 @@ pub async fn test_setup_structured(
     // Deinitialize existing data / metadata
     configure::deinit(&input_path).await?;
     // Return all paths
-    Ok((
-        input_path.clone(),
-        BucketSpecifier::with_origin(&input_path),
-    ))
+    Ok(input_path.clone())
 }
 
 /// Remove contents of temporary dir

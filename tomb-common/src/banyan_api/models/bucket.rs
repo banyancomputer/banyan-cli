@@ -1,6 +1,5 @@
-use std::{fmt::Display, str::FromStr};
-
 use serde::{Deserialize, Serialize};
+use std::{fmt::Display, str::FromStr};
 use uuid::Uuid;
 
 use crate::banyan_api::{
@@ -90,7 +89,7 @@ pub struct Bucket {
 impl Display for Bucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n| REMOTE BUCKET INFO |\nname:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
+            "name:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
             self.name, self.id, self.r#type, self.storage_class
         ))
     }
@@ -193,9 +192,11 @@ impl Bucket {
     }
 
     /// Get the usage for the bucket
-    pub async fn usage(&self, client: &mut Client) -> Result<usize, ClientError> {
-        let response = client.call(GetBucketUsage { id: self.id }).await?;
-        Ok(response.size as usize)
+    pub async fn usage(&self, client: &mut Client) -> Result<u64, ClientError> {
+        client
+            .call(GetBucketUsage { id: self.id })
+            .await
+            .map(|response| response.size)
     }
 
     /// Delete a bucket

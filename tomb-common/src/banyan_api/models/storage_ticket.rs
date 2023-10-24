@@ -1,3 +1,4 @@
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 #[cfg(target_arch = "wasm32")]
@@ -10,7 +11,7 @@ use crate::banyan_api::{
 };
 use tomb_crypt::prelude::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// StorageTicket is a ticket that can be used authenticate requests to stage data to a storage host
 pub struct StorageTicket {
     /// The host to stage data to
@@ -22,8 +23,10 @@ pub struct StorageTicket {
 impl Display for StorageTicket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n| STORAGE TICKET INFO |\nhost:\t{}\nauthorization:\t{}",
-            self.host, self.authorization
+            "\n{}\nhost:\t{}\nauthorization:\t{}",
+            "| STORAGE TICKET INFO |".yellow(),
+            self.host,
+            self.authorization
         ))
     }
 }
@@ -53,7 +56,7 @@ impl StorageTicket {
             .await
     }
 
-    // TODO: This should probably take a generic trait related to Tomb in order to extract these arguments
+    // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn upload_content<S>(
@@ -61,6 +64,7 @@ impl StorageTicket {
         // TODO: This should probably be a metadata cid
         metadata_id: Uuid,
         content: S,
+        content_len: u64,
         content_hash: String,
         client: &mut Client,
     ) -> Result<(), ClientError>
@@ -72,6 +76,7 @@ impl StorageTicket {
                 host_url: self.host.clone(),
                 metadata_id,
                 content,
+                content_len,
                 content_hash,
             })
             .await
@@ -84,6 +89,7 @@ impl StorageTicket {
         self,
         metadata_id: Uuid,
         content: S,
+        content_len: u64,
         content_hash: String,
         client: &mut Client,
     ) -> Result<(), ClientError>
@@ -95,6 +101,7 @@ impl StorageTicket {
                 host_url: self.host.clone(),
                 metadata_id,
                 content,
+                content_len,
                 content_hash,
             })
             .await
@@ -135,15 +142,12 @@ pub mod test {
         let mut hasher = blake3::Hasher::new();
         let content = content_store.get_data();
         hasher.update(&content);
+        let content = content_store.get_data();
+        let content_len = content.len() as u64;
         let content_hash = hasher.finalize().to_string();
         storage_ticket
             .clone()
-            .upload_content(
-                metadata.id,
-                content_store.get_data(),
-                content_hash,
-                &mut client,
-            )
+            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client
@@ -177,15 +181,12 @@ pub mod test {
         let mut hasher = blake3::Hasher::new();
         let content = content_store.get_data();
         hasher.update(&content);
+        let content = content_store.get_data();
+        let content_len = content.len() as u64;
         let content_hash = hasher.finalize().to_string();
         storage_ticket
             .clone()
-            .upload_content(
-                metadata.id,
-                content_store.get_data(),
-                content_hash,
-                &mut client,
-            )
+            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client

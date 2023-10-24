@@ -1,4 +1,4 @@
-use crate::types::spider::{BundlePipelinePlan, SpiderMetadata};
+use crate::types::spider::{PreparePipelinePlan, SpiderMetadata};
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
 use std::{
@@ -14,25 +14,25 @@ use super::custom_fclones_logger::CustomLogger;
 ///
 /// # Arguments
 ///
-/// * `default_bundle_plan` - A reference to the default BundlePlan configuration.
+/// * `default_prepare_plan` - A reference to the default PreparePlan configuration.
 /// * `input_dir` - A reference to the input directory path.
 /// * `follow_links` - A boolean indicating whether to follow symbolic links.
 /// * `seen_files` - A mutable reference to a HashSet of PathBuf containing paths of the seen files.
 ///
 /// # Returns
 ///
-/// * `Result<Vec<BundlePipelinePlan>>` - A Result containing a vector of BundlePipelinePlan objects
+/// * `Result<Vec<PreparePipelinePlan>>` - A Result containing a vector of PreparePipelinePlan objects
 ///   representing the bundling plan, or an error in case of failure.
 pub fn grouper(
     input_dir: &Path,
     follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<BundlePipelinePlan>> {
+) -> Result<Vec<PreparePipelinePlan>> {
     // Construct the group config
     let group_config = create_group_config(input_dir, follow_links);
 
     let file_groups = group_files(&group_config, &CustomLogger::default())?;
-    // Vector holding all the BundlePipelinePlans for bundling
+    // Vector holding all the PreparePipelinePlans for bundling
     let mut bundling_plan = vec![];
     // go over the files- do it in groups
     for group in file_groups {
@@ -69,8 +69,8 @@ pub fn grouper(
             // Append the metadata
             metadatas.push(spider_metadata);
         }
-        // Push a BundlePipelinePlan with this file group
-        bundling_plan.push(BundlePipelinePlan::FileGroup(metadatas));
+        // Push a PreparePipelinePlan with this file group
+        bundling_plan.push(PreparePipelinePlan::FileGroup(metadatas));
     }
     Ok(bundling_plan)
 }

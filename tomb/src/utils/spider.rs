@@ -1,4 +1,4 @@
-use crate::types::spider::{BundlePipelinePlan, SpiderMetadata};
+use crate::types::spider::{PreparePipelinePlan, SpiderMetadata};
 use anyhow::Result;
 use jwalk::WalkDir;
 use std::{
@@ -19,7 +19,7 @@ pub async fn spider(
     origin: &Path,
     _follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<BundlePipelinePlan>> {
+) -> Result<Vec<PreparePipelinePlan>> {
     // Canonicalize the path
     let path_root = origin.canonicalize()?;
 
@@ -56,8 +56,8 @@ pub async fn spider(
         let origin_data = Arc::new(spidered.clone());
         // If this is a directory
         if spidered.original_metadata.is_dir() {
-            // Push a BundlePipelinePlan with this origin data
-            bundling_plan.push(BundlePipelinePlan::Directory(origin_data));
+            // Push a PreparePipelinePlan with this origin data
+            bundling_plan.push(PreparePipelinePlan::Directory(origin_data));
         }
         // If this is a symlink
         else if spidered.original_metadata.is_symlink() {
@@ -94,13 +94,13 @@ pub async fn spider(
                 // Otherwise this isn't a prefix anyway, nothing needs to happen
             }
 
-            // Push a BundlePipelinePlan with this origin data and symlink
-            bundling_plan.push(BundlePipelinePlan::Symlink(origin_data, symlink_target));
+            // Push a PreparePipelinePlan with this origin data and symlink
+            bundling_plan.push(PreparePipelinePlan::Symlink(origin_data, symlink_target));
         }
         // If this is a file that was not in a group
         else {
-            // Push a BundlePipelinePlan using fake file group of singular spidered metadata
-            bundling_plan.push(BundlePipelinePlan::FileGroup(vec![origin_data]));
+            // Push a PreparePipelinePlan using fake file group of singular spidered metadata
+            bundling_plan.push(PreparePipelinePlan::FileGroup(vec![origin_data]));
         }
     }
     Ok(bundling_plan)
