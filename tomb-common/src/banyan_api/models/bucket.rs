@@ -231,7 +231,7 @@ pub mod test {
                 .await
                 .expect("create fingerprint")
                 .as_slice(),
-        );
+        ).replace(':', "");
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),

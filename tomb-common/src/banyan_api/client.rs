@@ -8,7 +8,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Url,
 };
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
@@ -183,11 +183,13 @@ impl Client {
 
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
+            println!("bearer_token: {}", bearer_token);
             request_builder = request_builder.bearer_auth(bearer_token);
         }
 
         // Send the request and obtain the response
         let response = request_builder
+            .timeout(Duration::from_secs(1))
             .send()
             .await
             .map_err(ClientError::http_error)?;
