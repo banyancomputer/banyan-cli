@@ -689,6 +689,7 @@ impl WasmMount {
             .mv(
                 &from_path_segments,
                 &to_path_segments,
+                &self.metadata_blockstore,
                 &self.content_blockstore,
             )
             .await

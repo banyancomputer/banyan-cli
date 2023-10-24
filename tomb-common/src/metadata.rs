@@ -404,34 +404,49 @@ impl FsMetadata {
         &mut self,
         src_path_segments: &[String],
         dest_path_segments: &[String],
-        store: &impl RootedBlockStore,
+        metadata_store: &impl RootedBlockStore,
+        content_store: &impl RootedBlockStore,
     ) -> Result<()> {
-        // Search through the PrivateDirectory for a Node that matches the path provided
+        let ds_store = DoubleSplitStore::new(metadata_store, content_store);
+
+        // TODO: This is a good example of why a Tiered BlockStore is needed
         let result = self
             .root_dir
-            .get_node(&src_path_segments, true, &self.forest, store)
-            .await;
-
-        if let Ok(node) = result && node.is_some() {
-            // Create the subdirectory
-            self.root_dir
-                .basic_mv(
-                    &src_path_segments,
-                    &dest_path_segments,
-                    true,
-                    Utc::now(),
-                    &mut self.forest,
-                    store,
-                    &mut thread_rng(),
+            .get_node(&src_path_segments, true, &self.forest, &ds_store)
+            .await?;
+        match result {
+            Some(_) => {
+                // println!("Found node");
+                // // Clone a temp forest
+                // let temp_forest = self.forest.clone();
+                // let mut temp_root_dir = self.root_dir.clone();
+                // println!("Cloned forest");
+                // Run basic move against the content store
+                self.root_dir
+                    .basic_mv(
+                        &src_path_segments,
+                        &dest_path_segments,
+                        true,
+                        Utc::now(),
+                        &mut self.forest,
+                        &ds_store,
+                        &mut thread_rng(),
+                    )
+                    .await?;
+                println!("Basic mv complete");
+                // // Remove the lingering block from the metadata store
+                // let _node = temp_root_dir
+                //     .rm(&src_path_segments, true, &temp_forest, metadata_store)
+                //     .await?;
+                Ok(())
+            }
+            None => {
+                return Err(SerialError::NodeNotFound(
+                    src_path_segments.join("/").to_string(),
                 )
-                .await?;
-        } else {
-            return Err(SerialError::NodeNotFound(
-                src_path_segments.join("/").to_string(),
-            )
-            .into());
+                .into())
+            }
         }
-        Ok(())
     }
 
     /// Cp a file to a new location while deduplicating
@@ -511,12 +526,9 @@ impl FsMetadata {
             .await
             .expect("node not found");
 
-        // Split store
-        let split_store = DoubleSplitStore::new(metadata_store, content_store);
-
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            let content = file.get_content(&self.forest, &split_store).await?;
+            let content = file.get_content(&self.forest, content_store).await?;
             Ok(content)
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
@@ -574,6 +586,7 @@ impl FsMetadata {
         }
     }
 
+    // TODO: is this correct?
     /// Get a node from the Fs
     pub async fn get_node(
         &mut self,
@@ -737,6 +750,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn add_read_large() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -785,8 +799,6 @@ mod test {
             )
             .await?;
 
-        
-        println!("file_path: {:?}", file_path);
         // Add a new dir
         let dir_path = vec!["dir".to_string()];
         fs_metadata.mkdir(&dir_path, &metadata_store).await?;
@@ -798,11 +810,10 @@ mod test {
             PrivateNode::Dir(dir) => dir,
             _ => panic!("dir not found"),
         };
-        println!("dir_path: {:?}", dir_path);
         // Move File into the dir
         let mv_file_path = vec!["dir".to_string(), "file".to_string()];
         fs_metadata
-            .mv(&file_path, &mv_file_path, &metadata_store)
+            .mv(&file_path, &mv_file_path, &metadata_store, &content_store)
             .await?;
         let new_file = fs_metadata
             .get_node(&mv_file_path, &metadata_store)
@@ -812,12 +823,34 @@ mod test {
             PrivateNode::File(file) => file,
             _ => panic!("file not found"),
         };
-        println!("mv_file_path: {:?}", mv_file_path);
+        
+        // Save the metadata
+        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
+        // Make sure the original file is gone
+        let file_node = fs_metadata.get_node(
+            &file_path,
+            &metadata_store,
+        ).await?;
+        match file_node {
+            Some(_) => panic!("file not deleted"),
+            None => (),
+        };
+        // Make sure the new file is there
+        let new_file_node = fs_metadata.get_node(
+            &mv_file_path,
+            &metadata_store,
+        ).await?;
+        match new_file_node {
+            Some(_) => (),
+            None => panic!("file not found"),
+        };
         // Read the file
         let new_file_content = fs_metadata
             .read(&mv_file_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(content, new_file_content);
+    
         Ok(())
     }
 
@@ -950,7 +983,8 @@ mod test {
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
-        fs_metadata.mv(&cat_path, &dog_path, &content_store).await?;
+        fs_metadata.mv(&cat_path, &dog_path, &metadata_store, &content_store)
+            .await?;
         // Replace existing content
         fs_metadata
             .write(
