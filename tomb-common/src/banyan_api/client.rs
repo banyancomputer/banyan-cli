@@ -389,6 +389,11 @@ impl Client {
             .await
             .map_err(ClientError::http_error)?;
 
+        
+        println!("status: {}", response.status());
+
+        // response.text().await.map(|string| Ok(Bytes::from(string))).map_err(|err| ClientError::custom_error("oh no"))
+        
         if response.status().is_success() {
             Ok(response.bytes_stream())
         } else {

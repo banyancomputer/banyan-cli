@@ -23,6 +23,12 @@ impl StreamableApiRequest for PullBlock {
         let block_id = self.cid.to_string();
         let path = format!("/api/v1/blocks/{}", block_id);
         let full_url = base_url.join(&path).unwrap();
+
+        println!("full_url of block request: {:?}", full_url.to_string());
+
+        #[cfg(target_arch="wasm32")]
+        gloo::console::log!("full_url of block request: {:?}", full_url.to_string());
+
         client.get(full_url)
     }
 

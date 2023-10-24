@@ -785,11 +785,11 @@ mod test {
         fs_metadata
             .write(&file_path, &metadata_store, &metadata_store, file_bytes)
             .await?;
-        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        fs_metadata.save(&metadata_store, &content_store).await?;
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
 
         fs_metadata.mkdir(&dir_path, &metadata_store).await?;
-        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        fs_metadata.save(&metadata_store, &content_store).await?;
         let _fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
 
         Ok(())

@@ -142,7 +142,7 @@ impl LocalBucket {
 
     /// Shortcut for saving a filesystem
     pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
-        fs.save(&self.metadata, &self.metadata).await
+        fs.save(&self.metadata, &self.content).await
     }
 
     /// Shortcut for serialize::load_history

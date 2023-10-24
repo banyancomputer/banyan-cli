@@ -200,7 +200,7 @@ pub async fn sync_bucket(
                         TombError::custom_error(&format!("unable to register storage ticket: {err}"))
                     })?;
 
-                println!("successfully created the grant; now pushing content");
+                println!("successfully created the grant; now pushing content from delta: {}", delta.path.display());
 
                 // Push content to the storage provider
                 let delta_reader = std::fs::File::open(&delta.path)?;
@@ -217,7 +217,8 @@ pub async fn sync_bucket(
                         Metadata::read_current(bucket_id, client).await.map(|new_metadata| format!("{}\n{}", "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(), new_metadata)).map_err(TombError::client_error)
                     },
                     // Upload failed
-                    Err(_) => {
+                    Err(err) => {
+                        println!("err: {}", err);
                         Ok(format!("{}\n{}\n{}\n", "<< FAILED TO PUSH CONTENT >>".red(), "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(), metadata))
                     },
                 }
