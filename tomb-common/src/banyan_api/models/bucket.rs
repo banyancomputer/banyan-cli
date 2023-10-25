@@ -6,9 +6,9 @@ use crate::banyan_api::{
     client::Client,
     error::ClientError,
     models::bucket_key::BucketKey,
-    requests::core::buckets::{
+    requests::{core::buckets::{
         create::*, delete::*, read::*, snapshots::read::ReadAllSnapshots, usage::GetBucketUsage,
-    },
+    }, staging::client_grant::authorization::{AuthorizationGrants, AuthorizationGrantsResponse}},
 };
 
 use super::snapshot::Snapshot;
@@ -200,7 +200,7 @@ impl Bucket {
     }
 
     /// Delete a bucket
-    pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
+    pub async fn delete(&self, client: &mut Client) -> Result<(), ClientError> {
         client.call_no_content(DeleteBucket { id: self.id }).await
     }
 
@@ -208,13 +208,23 @@ impl Bucket {
     pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ClientError> {
         client.call_no_content(DeleteBucket { id }).await
     }
+
+    /// Authorization grants
+    pub async fn get_grants(&self, client: &mut Client) -> Result<Client, ClientError> {
+        client.call(AuthorizationGrants { bucket_id: self.id }).await.map(|value| {
+            let new_token = value.authorization_token;
+            let mut new_client = client.clone();
+            new_client.with_bearer_token(new_token);
+            new_client
+        })
+    }
 }
 
 #[cfg(test)]
 #[cfg(feature = "fake")]
 pub mod test {
     use tomb_crypt::prelude::PrivateKey;
-    use tomb_crypt::pretty_fingerprint;
+    use tomb_crypt::hex_fingerprint;
 
     use super::*;
     use crate::banyan_api::models::account::test::{authenticated_client, unauthenticated_client};
@@ -226,7 +236,7 @@ pub mod test {
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
-        let fingerprint = pretty_fingerprint(
+        let fingerprint = hex_fingerprint(
             key.fingerprint()
                 .await
                 .expect("create fingerprint")

@@ -4334,9 +4334,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.9"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d68074620f57a0b21594d9735eb2e98ab38b17f80d3fcb189fca266771ca60d"
+checksum = "5419f34732d9eb6ee4c3578b7989078579b7f039cbbb9ca2c4da015749371e15"
 dependencies = [
  "bytes",
  "futures-core",
@@ -4431,7 +4431,6 @@ dependencies = [
 [[package]]
 name = "tomb-crypt"
 version = "0.1.0"
-source = "git+https://github.com/banyancomputer/tomb-crypt?branch=main#998fbeba67ca72c8192d4af1bf08d12229361bec"
 dependencies = [
  "aes-gcm",
  "async-trait",

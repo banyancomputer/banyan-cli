@@ -112,18 +112,63 @@ impl StorageTicket {
 #[cfg(feature = "fake")]
 pub mod test {
     use std::collections::BTreeSet;
+    use std::time::Duration;
     use tomb_crypt::pretty_fingerprint;
+    use wnfs::libipld::Cid;
 
     use super::*;
     use crate::banyan_api::blockstore::BanyanApiBlockStore;
     use crate::banyan_api::models::account::test::authenticated_client;
+    use crate::banyan_api::models::bucket::test::create_bucket;
     use crate::banyan_api::models::bucket::{Bucket, BucketType, StorageClass};
     use crate::banyan_api::models::bucket_key::BucketKey;
     use crate::banyan_api::models::metadata::Metadata;
+    use crate::banyan_api::requests::staging::client_grant::authorization::AuthorizationGrants;
     use crate::banyan_api::utils::generate_bucket_key;
     use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
     use crate::blockstore::RootedBlockStore;
     use crate::metadata::FsMetadata;
+
+    #[tokio::test]
+    async fn authorization_grants() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        // let (_, pem) = generate_bucket_key().await;
+        let (bucket, bucket_key) = create_bucket(&mut client).await?;
+        // Assert 404 before any space has been allocated
+        assert!(bucket.get_grants(&mut client).await.is_err());
+
+        let (metadata, storage_ticket) = Metadata::push(
+            bucket.clone().id, 
+            Cid::default().to_string(), 
+            Cid::default().to_string(), 
+            10, 
+            vec![bucket_key.fingerprint], 
+            BTreeSet::new(), 
+            b"data to stream".to_vec(), 
+            &mut client
+        ).await?;
+        let storage_ticket = storage_ticket.unwrap();
+        storage_ticket.clone().create_grant(&mut client).await?;
+
+        let mut hasher = blake3::Hasher::new();
+        let content = b"whole lot of data".to_vec();
+        hasher.update(&content);
+        let content_len = content.len() as u64;
+        let content_hash = hasher.finalize().to_string();
+        let upload_result = storage_ticket
+            .clone()
+            .upload_content(metadata.id, content, content_len, content_hash, &mut client).await;
+        
+        std::thread::sleep(Duration::from_secs(2));
+     
+        println!("result: {:?}", upload_result);
+    
+        let result = client.call(AuthorizationGrants { bucket_id: bucket.clone().id }).await;
+        println!("result: {:?}", result);
+    
+        Ok(())
+    }
+    
 
     #[tokio::test]
     async fn create_grant() -> Result<(), ClientError> {
@@ -213,7 +258,7 @@ pub mod test {
         Ok(())
     }
 
-    async fn create_bucket(
+    async fn create_bucket_v2(
         client: &mut Client,
     ) -> Result<(Bucket, BucketKey, EcEncryptionKey), ClientError> {
         let (key, pem) = generate_bucket_key().await;
@@ -259,7 +304,7 @@ pub mod test {
         ),
         ClientError,
     > {
-        let (bucket, bucket_key, key) = create_bucket(client).await?;
+        let (bucket, bucket_key, key) = create_bucket_v2(client).await?;
         let metadata_store = CarV2MemoryBlockStore::new().expect("Failed to create metadata store");
         let content_store = CarV2MemoryBlockStore::new().expect("Failed to create content store");
         let mut fs_metadata = FsMetadata::init(&key)

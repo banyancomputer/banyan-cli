@@ -125,7 +125,7 @@ mod test {
     use std::collections::BTreeSet;
 
     use tomb_crypt::prelude::PrivateKey;
-    use tomb_crypt::pretty_fingerprint;
+    use tomb_crypt::hex_fingerprint;
 
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
@@ -150,7 +150,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (key, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let our_fingerprint = pretty_fingerprint(
+        let our_fingerprint = hex_fingerprint(
             key.fingerprint()
                 .await
                 .expect("cant fingerprint")
