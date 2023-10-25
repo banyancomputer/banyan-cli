@@ -12,7 +12,8 @@ use tomb_common::{
         blockstore::BanyanApiBlockStore, client::Client, error::ClientError,
         models::metadata::Metadata,
     },
-    blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore}, metadata::FsMetadata,
+    blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
+    metadata::FsMetadata,
 };
 
 use crate::{
@@ -229,7 +230,8 @@ pub async fn sync_bucket(
         // Reconstruct the Bucket locally
         Some(SyncState::MetadataSynced) => {
             let local = omni.get_local()?;
-            let storage_host = local.clone()
+            let storage_host = local
+                .clone()
                 .storage_ticket
                 .map(|ticket| ticket.host)
                 .unwrap_or(global.endpoints.data.clone());
@@ -242,7 +244,11 @@ pub async fn sync_bucket(
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
             println!("banyan_api_blockstore constructed");
 
-            let fs = FsMetadata::unlock(&GlobalConfig::from_disk().await?.wrapping_key().await?, &local.metadata).await?;
+            let fs = FsMetadata::unlock(
+                &GlobalConfig::from_disk().await?.wrapping_key().await?,
+                &local.metadata,
+            )
+            .await?;
             let mut store = CarV2MemoryBlockStore::new()?;
             let forest_root = fs.forest.store(&mut store).await?;
             println!("forest_root: {:?}", forest_root);

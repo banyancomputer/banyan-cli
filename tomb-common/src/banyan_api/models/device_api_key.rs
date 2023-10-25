@@ -57,7 +57,9 @@ impl DeviceApiKey {
 
     /// Delete the device api key from the account
     pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
-        client.call_no_content(DeleteDeviceApiKey { id: self.id }).await
+        client
+            .call_no_content(DeleteDeviceApiKey { id: self.id })
+            .await
     }
 
     /// Delete the device api key from the account by id

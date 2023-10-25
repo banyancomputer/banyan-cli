@@ -112,11 +112,7 @@ impl BucketKey {
     }
 
     /// Reject a Bucket Key
-    pub async fn reject(
-        bucket_id: Uuid,
-        id: Uuid,
-        client: &mut Client,
-    ) -> Result<(), ClientError> {
+    pub async fn reject(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<(), ClientError> {
         client
             .call_no_content(RejectBucketKey { bucket_id, id })
             .await
@@ -128,7 +124,7 @@ impl BucketKey {
 mod test {
     use std::collections::BTreeSet;
 
-    use tomb_crypt::prelude::{EcPublicEncryptionKey, PrivateKey, PublicKey};
+    use tomb_crypt::prelude::PrivateKey;
     use tomb_crypt::pretty_fingerprint;
 
     use super::*;
@@ -239,7 +235,8 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
         assert!(initial_bucket_key.approved);
-        let rejection_result = BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
+        let rejection_result =
+            BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
         assert!(rejection_result.is_err());
         Ok(())
     }

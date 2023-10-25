@@ -26,7 +26,7 @@ impl StreamableApiRequest for PullBlock {
 
         println!("full_url of block request: {:?}", full_url.to_string());
 
-        #[cfg(target_arch="wasm32")]
+        #[cfg(target_arch = "wasm32")]
         gloo::console::log!("full_url of block request: {:?}", full_url.to_string());
 
         client.get(full_url)

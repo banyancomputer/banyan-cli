@@ -193,7 +193,10 @@ impl Client {
             // .timeout(Duration::from_secs(1))
             .send()
             .await
-            .map_err(|err| { println!("clienterr: {}", err); ClientError::http_error(err) })?;
+            .map_err(|err| {
+                println!("clienterr: {}", err);
+                ClientError::http_error(err)
+            })?;
 
         // If the call succeeded
         if response.status().is_success() {
@@ -398,11 +401,10 @@ impl Client {
             .await
             .map_err(ClientError::http_error)?;
 
-        
         println!("status: {}", response.status());
 
         // response.text().await.map(|string| Ok(Bytes::from(string))).map_err(|err| ClientError::custom_error("oh no"))
-        
+
         if response.status().is_success() {
             Ok(response.bytes_stream())
         } else {

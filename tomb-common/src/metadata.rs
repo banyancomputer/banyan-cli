@@ -1,5 +1,5 @@
 use crate::{
-    blockstore::{split::DoubleSplitStore, RootedBlockStore, carv2_memory::CarV2MemoryBlockStore},
+    blockstore::{carv2_memory::CarV2MemoryBlockStore, split::DoubleSplitStore, RootedBlockStore},
     share::manager::ShareManager,
     utils::serialize::*,
     utils::{error::SerialError, wnfsio::path_to_segments},
@@ -186,7 +186,8 @@ impl FsMetadata {
         // Get the forests
         let forest = load_forest(forest_cid, store).await?;
         let forest_store = CarV2MemoryBlockStore::new()?;
-        let forest = Rc::new(PrivateForest::load(&forest.store(&forest_store).await?, &forest_store).await?);
+        let forest =
+            Rc::new(PrivateForest::load(&forest.store(&forest_store).await?, &forest_store).await?);
 
         // Get the share manager
         let mut share_manager = store
@@ -498,7 +499,7 @@ impl FsMetadata {
     ) -> Result<Vec<u8>> {
         println!("attempting to read: {:?}", path_segments);
         println!("forest: {:?}", self.forest);
-        
+
         // Compress the data in the file
         let result = self
             .root_dir

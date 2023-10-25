@@ -23,7 +23,10 @@ impl ApiRequest for CreateSnapshot {
     type ErrorType = CreateSnapshotError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
-        let path = format!("/api/v1/buckets/{}/snapshots/{}", self.bucket_id, self.metadata_id);
+        let path = format!(
+            "/api/v1/buckets/{}/snapshots/{}",
+            self.bucket_id, self.metadata_id
+        );
         let full_url = base_url.join(&path).unwrap();
         client.post(full_url).json(&self)
     }

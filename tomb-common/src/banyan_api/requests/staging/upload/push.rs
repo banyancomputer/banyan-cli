@@ -3,8 +3,8 @@ use std::fmt::{self, Display, Formatter};
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
-use reqwest::header::{CONTENT_LENGTH, HeaderMap};
-use reqwest::multipart::{Part, Form};
+use reqwest::header::CONTENT_LENGTH;
+use reqwest::multipart::{Form, Part};
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -46,7 +46,6 @@ struct PushContentData {
 #[derive(Debug, Deserialize)]
 pub struct PushContentResponse {}
 
-
 #[cfg(not(target_arch = "wasm32"))]
 impl<S> ApiRequest for PushContent<S>
 where
@@ -67,10 +66,14 @@ where
 
         // Attach the form data to the request as json
         let multipart_json_data = serde_json::to_string(&pc_req).unwrap();
-        let multipart_json = Part::bytes(multipart_json_data.as_bytes().to_vec()).mime_str("application/json").unwrap();
+        let multipart_json = Part::bytes(multipart_json_data.as_bytes().to_vec())
+            .mime_str("application/json")
+            .unwrap();
 
         // Attach the CAR file to the request
-        let multipart_car = Part::stream(self.content).mime_str("application/vnd.ipld.car; version=2").unwrap();
+        let multipart_car = Part::stream(self.content)
+            .mime_str("application/vnd.ipld.car; version=2")
+            .unwrap();
 
         // Combine the two parts into a multipart form
         let multipart_form = Form::new()
@@ -88,7 +91,6 @@ where
         true
     }
 }
-
 
 #[cfg(target_arch = "wasm32")]
 fn generate_boundary() -> String {
