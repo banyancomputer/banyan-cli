@@ -647,15 +647,6 @@ impl WasmMount {
 
         let fs = self.fs_metadata.as_mut().unwrap();
 
-        let store = BlockStore::new().expect("failed store creation");
-        let forest_root = fs
-            .forest
-            .store(&store)
-            .await
-            .expect("failed forest storing");
-        log!(format!("womt-wasm: forest_root: {}", forest_root));
-        log!(format!("womt-wasm: whole ass forest: {:?}", fs.forest));
-
         log!(format!(
             "tomb-wasm: running fs_get_node @ {:?}",
             path_segments

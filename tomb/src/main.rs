@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
     let cli = cli::args::Args::parse();
 
     // Determine the command being executed run appropriate subcommand
-    let _ = cli.command.run().await?;
+    cli.command.run().await?;
 
     // TODO eventually make options to format it differently?
     env_logger::Builder::new()

@@ -113,6 +113,7 @@ impl StorageTicket {
 pub mod test {
     use std::collections::BTreeSet;
     use tomb_crypt::hex_fingerprint;
+    use wnfs::libipld::Cid;
 
     use super::*;
     use crate::banyan_api::blockstore::BanyanApiBlockStore;
@@ -157,11 +158,11 @@ pub mod test {
             .upload_content(metadata.id, content, content_len, content_hash, &mut client)
             .await?;
 
-        let account_id = Account::who_am_i(&mut client).await.unwrap();
-        println!(" account_id: {}", account_id);
+        let account = Account::who_am_i(&mut client).await.unwrap();
+        println!("bucket_id: {}, account_id: {}", bucket.id, account.id);
 
+        // Successfully get a new client with a bearer token which can access the new grants
         let _new_client = bucket.get_grants(&mut client).await?;
-        // println!("result: {:?}", result);
 
         Ok(())
     }
@@ -241,15 +242,22 @@ pub mod test {
             .expect("Failed to get file");
         assert_eq!(bytes, "test".as_bytes().to_vec());
 
-        let cids = content_store.car.car.index.borrow().get_all_cids();
-        let cids: LocationRequest = cids.into_iter().map(|cid| cid.to_string()).collect();
+        let cids: Vec<Cid> = content_store.car.car.index.borrow().get_all_cids();
+        let cids_request: LocationRequest = cids
+            .clone()
+            .into_iter()
+            .map(|cid| cid.to_string())
+            .collect();
         let locations = client
-            .call(cids.clone())
+            .call(cids_request)
             .await
             .expect("Failed to get locations");
+
+        let stored_blocks = locations
+            .get(&storage_ticket.host)
+            .expect("no blocks at storage host");
         for cid in cids {
-            let location = locations.get(&cid).expect("Failed to get location for cid");
-            assert_eq!(location, &storage_ticket.host);
+            assert!(stored_blocks.contains(&cid.to_string()));
         }
         Ok(())
     }

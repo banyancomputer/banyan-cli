@@ -5081,6 +5081,7 @@ dependencies = [
 [[package]]
 name = "wnfs"
 version = "0.1.21"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=claudia/screaming#8bf79f52b3d2a4ad6e8e88539c394543a90c9ab7"
 dependencies = [
  "aes-gcm",
  "aes-kw",
@@ -5110,6 +5111,7 @@ dependencies = [
 [[package]]
 name = "wnfs-common"
 version = "0.1.21"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=claudia/screaming#8bf79f52b3d2a4ad6e8e88539c394543a90c9ab7"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -5127,6 +5129,7 @@ dependencies = [
 [[package]]
 name = "wnfs-hamt"
 version = "0.1.21"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=claudia/screaming#8bf79f52b3d2a4ad6e8e88539c394543a90c9ab7"
 dependencies = [
  "anyhow",
  "async-once-cell",
@@ -5150,6 +5153,7 @@ dependencies = [
 [[package]]
 name = "wnfs-namefilter"
 version = "0.1.21"
+source = "git+https://github.com/banyancomputer/rs-wnfs?branch=claudia/screaming#8bf79f52b3d2a4ad6e8e88539c394543a90c9ab7"
 dependencies = [
  "anyhow",
  "async-once-cell",

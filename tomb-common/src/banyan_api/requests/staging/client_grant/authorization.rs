@@ -28,15 +28,19 @@ impl ApiRequest for AuthorizationGrants {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         // Ignore the client url, and use our own bearer token
-        let full_url = base_url.join("/api/v1/authorization_grants").unwrap();
-        client.post(full_url).json(&AuthorizationGrantsData {
+        let full_url = base_url
+            .join(&format!(
+                "/api/v1/buckets/{}/authorization_grants",
+                self.bucket_id
+            ))
+            .unwrap();
+        client.get(full_url).json(&AuthorizationGrantsData {
             bucket_id: self.bucket_id,
         })
-        // .bearer_auth(self.bearer_token)
     }
 
     fn requires_authentication(&self) -> bool {
-        false
+        true
     }
 }
 

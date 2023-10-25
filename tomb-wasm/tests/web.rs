@@ -17,7 +17,7 @@ use tomb_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-const FIVE_TIB: u64 = 5_497_558_138_880;
+const USAGE_LIMIT: u64 = 53_687_091_200;
 
 fn js_array(values: &[&str]) -> JsValue {
     let js_array: Array = values.iter().map(|s| JsValue::from_str(s)).collect();
@@ -93,7 +93,7 @@ async fn get_usage() -> TombResult<()> {
     let usage = client.get_usage().await?;
     assert_eq!(usage, 0);
     let usage_limit = client.get_usage_limit().await?;
-    assert_eq!(usage_limit, FIVE_TIB);
+    assert_eq!(usage_limit, USAGE_LIMIT);
     Ok(())
 }
 
@@ -204,7 +204,6 @@ async fn mkdir_remount() -> TombResult<()> {
     mount.mkdir(mkdir_path_array).await?;
     let ls: Array = mount.ls(ls_path_array.clone()).await?;
     assert_eq!(ls.length(), 1);
-
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): remount() and ls()");
     let mut mount = client
         .mount(bucket.id().to_string(), web_encryption_key_pair)

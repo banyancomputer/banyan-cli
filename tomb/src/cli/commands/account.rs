@@ -13,8 +13,8 @@ use tomb_common::banyan_api::{
     requests::core::auth::device_api_key::regwait::start::{StartRegwait, StartRegwaitResponse},
 };
 use tomb_crypt::{
+    hex_fingerprint,
     prelude::{PrivateKey, PublicKey},
-    pretty_fingerprint,
 };
 
 /// Subcommand for Authentication
@@ -53,7 +53,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
 
                 // Create a fingerprint from the public key
                 let fingerprint =
-                    pretty_fingerprint(public_device_key.fingerprint().await?.as_slice());
+                    hex_fingerprint(public_device_key.fingerprint().await?.as_slice());
                 // URL encoded DER bytes
                 let der_url = general_purpose::URL_SAFE_NO_PAD
                     .encode(public_device_key.export_bytes().await?);
