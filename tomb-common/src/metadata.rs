@@ -587,7 +587,7 @@ impl FsMetadata {
     /// Get all nodes under the root directory
     pub async fn get_all_nodes(
         &self,
-        metadata_store: &impl RootedBlockStore,
+        metadata_store: &impl BlockStore,
     ) -> Result<Vec<(PrivateNode, PathBuf)>> {
         self.get_all_children(Path::new("").to_path_buf(), metadata_store)
             .await
@@ -597,7 +597,7 @@ impl FsMetadata {
     async fn get_all_children(
         &self,
         path: PathBuf,
-        metadata_store: &impl RootedBlockStore,
+        metadata_store: &impl BlockStore,
     ) -> Result<Vec<(PrivateNode, PathBuf)>> {
         let segments = path_to_segments(&path)?;
         let node = if segments.is_empty() {

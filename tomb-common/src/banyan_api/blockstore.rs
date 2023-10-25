@@ -30,15 +30,21 @@ impl BlockStore for BanyanApiBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
     #[allow(clippy::await_holding_refcell_ref)]
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+        println!(
+            "attempting to get block from banyan api blockstore... {}",
+            cid
+        );
         let mut client = self.0.borrow_mut();
         let mut stream = client
             .stream(PullBlock { cid: *cid })
             .await
             .map_err(|_| anyhow!("Failed to pull block"))?;
+        println!("got a stream...");
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
+        println!("successfully retrieved block from api store...");
         Ok(Cow::Owned(data))
     }
 }

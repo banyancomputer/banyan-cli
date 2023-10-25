@@ -134,7 +134,7 @@ impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {
 /// encryption steps.
 /// this takes in pre-grouped files (for processing together) or marked directories/simlinks.
 #[derive(Debug, Clone)]
-pub enum BundlePipelinePlan {
+pub enum PreparePipelinePlan {
     /// It was a directory, just create it
     Directory(Arc<SpiderMetadata>),
     /// it was a symlink, just create it (with destination)

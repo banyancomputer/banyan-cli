@@ -2,6 +2,7 @@ use std::fmt::Display;
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -71,14 +72,18 @@ pub struct Metadata {
 impl Display for Metadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n| METADATA INFO |\nmetadata_id:\t{}\nroot_cid:\t{}\ndata_size:\t{}\nstatus:\t\t{}",
-            self.id, self.root_cid, self.data_size, self.state
+            "\n{}\nmetadata_id:\t{}\nroot_cid:\t{}\ndata_size:\t{}\nstatus:\t\t{}",
+            "| METADATA INFO |".yellow(),
+            self.id,
+            self.root_cid,
+            self.data_size,
+            self.state
         ))
     }
 }
 
 impl Metadata {
-    // TODO: This should probably take a generic trait related to Tomb in order to extract these arguments
+    // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn push<S>(
@@ -279,7 +284,6 @@ pub mod test {
         Ok((metadata, storage_ticket, snapshot_id))
     }
     #[tokio::test]
-    #[ignore]
     async fn push_read_pull() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;

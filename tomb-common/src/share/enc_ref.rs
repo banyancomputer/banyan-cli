@@ -30,7 +30,7 @@ impl EncryptedPrivateRef {
         private_ref: &PrivateRef,
         recipient_key: &EcPublicEncryptionKey,
     ) -> Result<Self> {
-        // Extract the temporal key from the Reference
+        // Restore the temporal key from the Reference
         let temporal_key = private_ref.temporal_key.clone();
         // Wrap the temporal key in a Symmetric Key
         let temporal_key = SymmetricKey::from(temporal_key.0.bytes());

@@ -212,6 +212,7 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
+        log!(format!("tomb-wasm: self.dirty: {}", self.dirty()));
         if self.dirty() {
             log!(
                 "tomb-wasm: mount/sync()/{} - saving changes to fs",
@@ -305,11 +306,18 @@ impl WasmMount {
                 // Hash the content
                 let mut hasher = blake3::Hasher::new();
                 hasher.update(&self.content_blockstore.get_data());
+                let content_len = self.content_blockstore.get_data().len() as u64;
                 let content_hash = hasher.finalize().to_string();
 
                 storage_ticket
                     .clone()
-                    .upload_content(metadata_id, content, content_hash, &mut self.client)
+                    .upload_content(
+                        metadata_id,
+                        content,
+                        content_len,
+                        content_hash,
+                        &mut self.client,
+                    )
                     .await
                     .map_err(|err| {
                         TombWasmError(format!(
@@ -794,6 +802,9 @@ impl WasmMount {
             .share_with(&recipient_key, &self.metadata_blockstore)
             .await
             .expect("could not share with");
+
+        // Mark as dirty so fs is saved with new key info
+        self.dirty = true;
 
         log!(
             "tomb-wasm: mount/share_with/{} - dirty, syncing changes",

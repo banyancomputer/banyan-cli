@@ -11,10 +11,10 @@
 
 /* General Project Chores */
 /* Bugs */
-// TODO (amiller68 and laudiacay): Pipeline extracts single file input to a empty directory with the same name as the file, instead of the file
+// TODO (amiller68 and laudiacay): Pipeline restores single file input to a empty directory with the same name as the file, instead of the file
 
 /* Speculative Lifts */
-// TODO (laudiacay): Can / Should we include an option to bundle chunks into a CAR file? Look into this.
+// TODO (laudiacay): Can / Should we include an option to prepare chunks into a CAR file? Look into this.
 // TODO (laudiacay) : Handle pinning threads to CPU cores (with tokio localsets and runtimes?) correctly so that disk throughput is maximized
 
 /* tomb:
@@ -46,7 +46,7 @@ extern crate log;
 
 /// This module contains the CLI
 pub mod cli;
-/// This module contains both the bundle_pipeline and the extract_pipeline, which allow the main CLI to run bundling an extracting pipelines.
+/// This module contains both the prepare_pipeline and the restore_pipeline, which allow the main CLI to run bundling an restoreing pipelines.
 pub mod pipelines;
 /// This module contains types unique to this project.
 pub mod types;

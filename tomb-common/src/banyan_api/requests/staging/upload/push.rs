@@ -18,6 +18,7 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_len: u64,
     pub content_hash: String,
 }
 
@@ -30,6 +31,7 @@ where
     pub host_url: String,
     pub metadata_id: Uuid,
     pub content: S,
+    pub content_len: u64,
     pub content_hash: String,
 }
 
@@ -82,12 +84,17 @@ where
         let multipart_car = reqwest::multipart::Part::stream(self.content)
             .mime_str("application/vnd.ipld.car; version=2")
             .unwrap();
+
         // Combine the two parts into a multipart form
         let multipart_form = reqwest::multipart::Form::new()
             .part("request-data", multipart_json)
             .part("car-upload", multipart_car);
         // post
-        client.post(full_url).multipart(multipart_form)
+        client
+            .post(full_url)
+            .multipart(multipart_form)
+            .header(reqwest::header::CONTENT_LENGTH, self.content_len + 546)
+        // TODO is there a better way to do this? There must be, right?
     }
 
     fn requires_authentication(&self) -> bool {

@@ -1,9 +1,11 @@
+use colored::Colorize;
 use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;
 use tomb_common::banyan_api::error::ClientError;
+use tomb_crypt::prelude::TombCryptError;
 use uuid::Uuid;
 
-use crate::cli::command::BucketSpecifier;
+use crate::cli::specifiers::BucketSpecifier;
 
 /// Errors for the Tomb CLI & Native program
 #[derive(Error, Debug)]
@@ -49,9 +51,9 @@ impl TombError {
     }
 
     /// Anyhow errors
-    pub fn anyhow_error(err: anyhow::Error) -> Self {
+    pub fn custom_error(msg: &str) -> Self {
         Self {
-            kind: TombErrorKind::AnyhowError(err),
+            kind: TombErrorKind::CustomError(msg.to_string()),
         }
     }
 }
@@ -63,23 +65,23 @@ pub enum TombErrorKind {
     Client(ClientError),
     /// User simply never configured this directory
     UnknownBucket(BucketSpecifier),
-    /// Missing File when searching for it during extracting
+    /// Missing File when searching for it during restoreing
     FileMissing(PathBuf),
     /// IO Operation Error
     IoError(std::io::Error),
-    /// Anyhow errors
-    AnyhowError(anyhow::Error),
+    /// Custom errors
+    CustomError(String),
 }
 
 impl Display for TombError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use TombErrorKind::*;
         let prefix = match &self.kind {
-            Client(err) => format!("client error: {err}"),
+            Client(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
             UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
             FileMissing(path) => format!("missing file at path: {}", path.display()),
-            IoError(err) => format!("io error: {err}"),
-            AnyhowError(err) => format!("anyhow error: {err}"),
+            IoError(err) => format!("{} {err}", "IO ERROR:".underline()),
+            CustomError(err) => err.to_string(),
         };
 
         write!(f, "{}", prefix)?;
@@ -102,12 +104,18 @@ impl From<std::io::Error> for TombError {
 
 impl From<anyhow::Error> for TombError {
     fn from(value: anyhow::Error) -> Self {
-        Self::anyhow_error(value)
+        Self::custom_error(&value.to_string())
     }
 }
 
 impl From<ClientError> for TombError {
     fn from(value: ClientError) -> Self {
         Self::client_error(value)
+    }
+}
+
+impl From<TombCryptError> for TombError {
+    fn from(value: TombCryptError) -> Self {
+        Self::client_error(ClientError::crypto_error(value))
     }
 }

@@ -10,14 +10,15 @@
 use anyhow::Result;
 use clap::Parser;
 use std::io::Write;
-use tomb::cli;
+use tomb::cli::{self, commands::RunnableCommand};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
     let cli = cli::args::Args::parse();
 
-    cli::run(cli.command).await?;
+    // Determine the command being executed run appropriate subcommand
+    let _ = cli.command.run().await;
 
     // TODO eventually make options to format it differently?
     env_logger::Builder::new()
