@@ -567,7 +567,6 @@ impl FsMetadata {
         }
     }
 
-    // TODO: is this correct?
     /// Get a node from the Fs
     pub async fn get_node(
         &mut self,

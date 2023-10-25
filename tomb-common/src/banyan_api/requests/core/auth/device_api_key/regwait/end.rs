@@ -59,7 +59,7 @@ pub mod test {
         utils::generate_api_key,
     };
     use std::sync::Arc;
-    use tomb_crypt::{prelude::PrivateKey, pretty_fingerprint};
+    use tomb_crypt::prelude::PrivateKey;
 
     #[tokio::test]
     #[ignore]
@@ -73,7 +73,9 @@ pub mod test {
             .expect("Failed to get fingerprint");
         let fingerprint_bytes =
             Arc::into_inner(fingerprint_arc_bytes).expect("Failed to get fingerprint bytes");
-        let fingerprint = pretty_fingerprint(&fingerprint_bytes);
+        let fingerprint = fingerprint_bytes
+            .iter()
+            .fold(String::new(), |chain, byte| format!("{chain}{byte:02x}"));
         let fingerprint_clone = fingerprint.clone();
 
         let end_handle = tokio::spawn(async move {
