@@ -10,10 +10,7 @@ pub struct DeleteDeviceApiKey {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DeleteDeviceApiKeyResponse {
-    pub id: Uuid,
-    pub fingerprint: String,
-}
+pub struct DeleteDeviceApiKeyResponse;
 
 impl ApiRequest for DeleteDeviceApiKey {
     type ErrorType = DeleteDeviceApiKeyError;

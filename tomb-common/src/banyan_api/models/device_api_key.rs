@@ -56,16 +56,13 @@ impl DeviceApiKey {
     }
 
     /// Delete the device api key from the account
-    pub async fn delete(self, _client: &mut Client) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse =
-            _client.call(DeleteDeviceApiKey { id: self.id }).await?;
-        Ok(response.id.to_string())
+    pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
+        client.call_no_content(DeleteDeviceApiKey { id: self.id }).await
     }
 
     /// Delete the device api key from the account by id
-    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<String, ClientError> {
-        let response: DeleteDeviceApiKeyResponse = client.call(DeleteDeviceApiKey { id }).await?;
-        Ok(response.id.to_string())
+    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ClientError> {
+        client.call_no_content(DeleteDeviceApiKey { id }).await
     }
 }
 
@@ -117,9 +114,13 @@ mod test {
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
+        println!("key creating");
         let create = DeviceApiKey::create(pem, &mut client).await?;
-        let delete = create.clone().delete(&mut client).await?;
-        assert_eq!(create.id.to_string(), delete);
+        println!("key created");
+        create.clone().delete(&mut client).await?;
+        println!("key deleted");
+        let all_remaining = DeviceApiKey::read_all(&mut client).await?;
+        assert!(!all_remaining.iter().any(|value| value.id == create.id));
         Ok(())
     }
 }

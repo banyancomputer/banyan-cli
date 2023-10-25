@@ -240,9 +240,7 @@ mod test {
         let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
         assert!(initial_bucket_key.approved);
         let rejection_result = BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
-
-        // TODO vera see comment on core side i don't know why rejection was changed
-        // assert!(rejection_result.is_err());
+        assert!(rejection_result.is_err());
         Ok(())
     }
 
