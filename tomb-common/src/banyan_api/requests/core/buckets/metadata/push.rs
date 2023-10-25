@@ -22,7 +22,7 @@ where
     pub root_cid: String,
     pub metadata_cid: String,
     pub valid_keys: Vec<String>,
-    pub deleted_blocks: BTreeSet<String>,
+    pub deleted_block_cids: BTreeSet<String>,
 
     pub metadata_stream: S,
 }
@@ -39,7 +39,7 @@ where
     pub root_cid: String,
     pub metadata_cid: String,
     pub valid_keys: Vec<String>,
-    pub deleted_blocks: BTreeSet<String>,
+    pub deleted_block_cids: BTreeSet<String>,
 
     pub metadata_stream: S,
 }
@@ -50,7 +50,7 @@ struct PushMetadataData {
     pub root_cid: String,
     pub metadata_cid: String,
     pub valid_keys: Vec<String>,
-    pub deleted_blocks: BTreeSet<String>,
+    pub deleted_block_cids: BTreeSet<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,7 +91,7 @@ where
             root_cid: self.root_cid,
             metadata_cid: self.metadata_cid,
             valid_keys: self.valid_keys,
-            deleted_blocks: self.deleted_blocks,
+            deleted_block_cids: self.deleted_block_cids,
         };
 
         // Attach the form data to the request as json
@@ -135,7 +135,7 @@ where
             root_cid: self.root_cid,
             metadata_cid: self.metadata_cid,
             valid_keys: self.valid_keys,
-            deleted_blocks: self.deleted_blocks,
+            deleted_block_cids: self.deleted_block_cids,
         };
 
         // Serialize JSON part

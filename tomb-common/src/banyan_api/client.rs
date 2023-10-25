@@ -207,7 +207,9 @@ impl Client {
                 .map_err(ClientError::bad_format)
         } else {
             let text = response.text().await.expect("dogs are true");
-            println!("text: {}", text);
+            println!("text: {text}");
+            #[cfg(target_arch = "wasm32")]
+            gloo::console::log!(format!("text: {}", text));
             Err(ClientError::custom_error(&text))
             // // If we got a 404
             // if response.status() == reqwest::StatusCode::NOT_FOUND {
@@ -246,7 +248,9 @@ impl Client {
             Ok(())
         } else {
             let text = response.text().await.expect("dogs are true");
-            println!("text: {}", text);
+            println!("text: {text}");
+            #[cfg(target_arch = "wasm32")]
+            gloo::console::log!(format!("text: {}", text));
             Err(ClientError::custom_error(&text))
             // if response.status() == reqwest::StatusCode::NOT_FOUND {
             //     // Handle 404 specifically
@@ -288,19 +292,25 @@ impl Client {
                 .await
                 .map_err(ClientError::bad_format)
         } else {
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
-                // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
-            }
-            // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+            let text = response.text().await.expect("oh hnooooo");
+            println!("text: {text}");
+            #[cfg(target_arch = "wasm32")]
+            gloo::console::log!(format!("text: {}", text));
+            Err(ClientError::custom_error(&text))
 
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
+            // if response.status() == reqwest::StatusCode::NOT_FOUND {
+            //     // Handle 404 specifically
+            //     // You can extend this part to handle other status codes differently if needed
+            //     return Err(ClientError::http_response_error(response.status()));
+            // }
+            // // For other error responses, try to deserialize the error
+            // let err = response
+            //     .json::<T::ErrorType>()
+            //     .await
+            //     .map_err(ClientError::bad_format)?;
+
+            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            // Err(ClientError::from(err))
         }
     }
 
@@ -324,19 +334,24 @@ impl Client {
         if response.status().is_success() {
             Ok(())
         } else {
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
-                // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
-            }
-            // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+            let text = response.text().await.expect("cant text it up");
+            println!("text: {text}");
+            #[cfg(target_arch = "wasm32")]
+            gloo::console::log!(format!("text: {}", text));
+            Err(ClientError::custom_error(&text))
+            // if response.status() == reqwest::StatusCode::NOT_FOUND {
+            //     // Handle 404 specifically
+            //     // You can extend this part to handle other status codes differently if needed
+            //     return Err(ClientError::http_response_error(response.status()));
+            // }
+            // // For other error responses, try to deserialize the error
+            // let err = response
+            //     .json::<T::ErrorType>()
+            //     .await
+            //     .map_err(ClientError::bad_format)?;
 
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
+            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            // Err(ClientError::from(err))
         }
     }
 

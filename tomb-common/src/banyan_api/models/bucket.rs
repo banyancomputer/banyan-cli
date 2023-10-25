@@ -213,16 +213,11 @@ impl Bucket {
     }
 
     /// Authorization grants
-    pub async fn get_grants(&self, client: &mut Client) -> Result<Client, ClientError> {
+    pub async fn get_grants_token(&self, client: &mut Client) -> Result<String, ClientError> {
         client
             .call(AuthorizationGrants { bucket_id: self.id })
             .await
-            .map(|value| {
-                let new_token = value.authorization_token;
-                let mut new_client = client.clone();
-                new_client.with_bearer_token(new_token);
-                new_client
-            })
+            .map(|value| value.authorization_token)
     }
 }
 

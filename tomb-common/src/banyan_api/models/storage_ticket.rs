@@ -146,7 +146,7 @@ pub mod test {
         storage_ticket.clone().create_grant(&mut client).await?;
 
         // Assert 404 before any space has been allocated
-        assert!(bucket.get_grants(&mut client).await.is_err());
+        assert!(bucket.get_grants_token(&mut client).await.is_err());
 
         let mut hasher = blake3::Hasher::new();
         let content = content_store.get_data();
@@ -162,7 +162,7 @@ pub mod test {
         println!("bucket_id: {}, account_id: {}", bucket.id, account.id);
 
         // Successfully get a new client with a bearer token which can access the new grants
-        let _new_client = bucket.get_grants(&mut client).await?;
+        let _new_client = bucket.get_grants_token(&mut client).await?;
 
         Ok(())
     }

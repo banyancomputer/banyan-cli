@@ -99,7 +99,10 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket.id, client)
             .await
-            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
+            .map_err(|err| {
+                log!("this is how i died!");
+                TombWasmError(format!("unable to read current metadata: {err}"))
+            })?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -153,7 +156,10 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(|err| TombWasmError(format!("failed to read current metadata: {err}")))?;
+            .map_err(|err| {
+                log!("this is how i died! (refresh)");
+                TombWasmError(format!("unable to read current metadata: {err}"))
+            })?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
