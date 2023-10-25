@@ -6,9 +6,12 @@ use crate::banyan_api::{
     client::Client,
     error::ClientError,
     models::bucket_key::BucketKey,
-    requests::{core::buckets::{
-        create::*, delete::*, read::*, snapshots::read::ReadAllSnapshots, usage::GetBucketUsage,
-    }, staging::client_grant::authorization::{AuthorizationGrants, AuthorizationGrantsResponse}},
+    requests::{
+        core::buckets::{
+            create::*, delete::*, read::*, snapshots::read::ReadAllSnapshots, usage::GetBucketUsage,
+        },
+        staging::client_grant::authorization::AuthorizationGrants,
+    },
 };
 
 use super::snapshot::Snapshot;
@@ -166,7 +169,7 @@ impl Bucket {
                 id: response.id,
                 bucket_id: self.id,
                 metadata_id: response.metadata_id,
-                size: response.size,
+                size: response.size.unwrap_or(0),
                 created_at: response.created_at,
             })
             .collect())
@@ -185,7 +188,7 @@ impl Bucket {
                 id: response.id,
                 bucket_id,
                 metadata_id: response.metadata_id,
-                size: response.size,
+                size: response.size.unwrap_or(0),
                 created_at: response.created_at,
             })
             .collect())
@@ -211,20 +214,23 @@ impl Bucket {
 
     /// Authorization grants
     pub async fn get_grants(&self, client: &mut Client) -> Result<Client, ClientError> {
-        client.call(AuthorizationGrants { bucket_id: self.id }).await.map(|value| {
-            let new_token = value.authorization_token;
-            let mut new_client = client.clone();
-            new_client.with_bearer_token(new_token);
-            new_client
-        })
+        client
+            .call(AuthorizationGrants { bucket_id: self.id })
+            .await
+            .map(|value| {
+                let new_token = value.authorization_token;
+                let mut new_client = client.clone();
+                new_client.with_bearer_token(new_token);
+                new_client
+            })
     }
 }
 
 #[cfg(test)]
 #[cfg(feature = "fake")]
 pub mod test {
-    use tomb_crypt::prelude::PrivateKey;
     use tomb_crypt::hex_fingerprint;
+    use tomb_crypt::prelude::PrivateKey;
 
     use super::*;
     use crate::banyan_api::models::account::test::{authenticated_client, unauthenticated_client};

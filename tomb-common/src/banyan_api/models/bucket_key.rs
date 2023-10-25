@@ -124,8 +124,8 @@ impl BucketKey {
 mod test {
     use std::collections::BTreeSet;
 
-    use tomb_crypt::prelude::PrivateKey;
     use tomb_crypt::hex_fingerprint;
+    use tomb_crypt::prelude::PrivateKey;
 
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;

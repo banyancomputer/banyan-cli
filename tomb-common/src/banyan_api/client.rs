@@ -8,7 +8,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Url,
 };
-use std::{fmt::Debug, time::Duration};
+use std::fmt::Debug;
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 
@@ -71,8 +71,8 @@ impl Client {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
-            .pool_max_idle_per_host(0)
-            .pool_idle_timeout(Duration::from_secs(10))
+            // .pool_max_idle_per_host(0)
+            // .pool_idle_timeout(Duration::from_secs(10))
             .default_headers(default_headers)
             .build()
             .unwrap();

@@ -1754,7 +1754,7 @@ dependencies = [
  "gloo-events 0.2.0",
  "gloo-utils 0.2.0",
  "serde",
- "serde-wasm-bindgen 0.6.0",
+ "serde-wasm-bindgen 0.6.1",
  "serde_urlencoded",
  "thiserror",
  "wasm-bindgen",
@@ -3789,9 +3789,9 @@ dependencies = [
 
 [[package]]
 name = "serde-wasm-bindgen"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30c9933e5689bd420dc6c87b7a1835701810cbc10cd86a26e4da45b73e6b1d78"
+checksum = "17ba92964781421b6cef36bf0d7da26d201e96d84e1b10e7ae6ed416e516906d"
 dependencies = [
  "js-sys",
  "serde",
@@ -4431,6 +4431,7 @@ dependencies = [
 [[package]]
 name = "tomb-crypt"
 version = "0.1.0"
+source = "git+https://github.com/banyancomputer/tomb-crypt?branch=main#0cd64a2845cf6a612c34cb1573386e030f5fda4c"
 dependencies = [
  "aes-gcm",
  "async-trait",
@@ -5090,7 +5091,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
- "gloo 0.10.0",
  "libipld",
  "multihash 0.19.1",
  "once_cell",
@@ -5136,7 +5136,6 @@ dependencies = [
  "chrono",
  "either",
  "futures",
- "gloo 0.10.0",
  "libipld",
  "multihash 0.18.1",
  "once_cell",

@@ -1,15 +1,14 @@
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
-#[cfg(target_arch = "wasm32")]
-use std::io::Read;
-
-use reqwest::header::CONTENT_LENGTH;
-use reqwest::multipart::{Form, Part};
+use crate::banyan_api::requests::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 use uuid::Uuid;
 
-use crate::banyan_api::requests::ApiRequest;
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest::multipart::{Form, Part};
+#[cfg(target_arch = "wasm32")]
+use std::io::Read;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug)]
@@ -84,7 +83,7 @@ where
         client
             .post(full_url)
             .multipart(multipart_form)
-            .header(CONTENT_LENGTH, self.content_len + 546)
+            .header(reqwest::header::CONTENT_LENGTH, self.content_len + 546)
     }
 
     fn requires_authentication(&self) -> bool {

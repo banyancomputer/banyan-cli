@@ -13,7 +13,6 @@ use tomb_common::{
         models::metadata::Metadata,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
-    metadata::FsMetadata,
 };
 
 use crate::{
@@ -243,15 +242,6 @@ pub async fn sync_bucket(
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
             println!("banyan_api_blockstore constructed");
-
-            let fs = FsMetadata::unlock(
-                &GlobalConfig::from_disk().await?.wrapping_key().await?,
-                &local.metadata,
-            )
-            .await?;
-            let mut store = CarV2MemoryBlockStore::new()?;
-            let forest_root = fs.forest.store(&mut store).await?;
-            println!("forest_root: {:?}", forest_root);
 
             // Reconstruct the data on disk
             let reconstruction_result =
