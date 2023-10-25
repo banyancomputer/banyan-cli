@@ -18,7 +18,7 @@ pub struct Snapshot {
     /// The unique identifier for the bucket it belongs to
     pub metadata_id: Uuid,
     /// The size of the data associated with the snapshot
-    pub size: u64,
+    pub size: Option<u64>,
     /// The timestamp when the snapshot was created
     pub created_at: i64,
 }

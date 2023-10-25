@@ -217,7 +217,7 @@ pub mod test {
     use tomb_crypt::pretty_fingerprint;
 
     use super::*;
-    use crate::banyan_api::models::account::test::authenticated_client;
+    use crate::banyan_api::models::account::test::{authenticated_client, unauthenticated_client};
     use crate::banyan_api::models::metadata::test::push_metadata_and_snapshot;
     use crate::banyan_api::utils::generate_bucket_key;
 
@@ -315,9 +315,16 @@ pub mod test {
     async fn create_list_snapshots() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
+        println!("pushing");
+
         let (metadata, _storage_ticket, _snapshot) =
             push_metadata_and_snapshot(bucket.id, &mut client).await?;
+
+        println!("pushed meta and shots");
+
         let snapshots = bucket.list_snapshots(&mut client).await?;
+
+        println!("listed shots");
         assert_eq!(snapshots.len(), 1);
         assert_eq!(snapshots[0].bucket_id, bucket.id);
         assert_eq!(snapshots[0].metadata_id, metadata.id);
@@ -334,7 +341,7 @@ pub mod test {
     async fn create_delete_unauthorized() -> Result<(), ClientError> {
         let mut good_client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut good_client).await?;
-        let mut bad_client = authenticated_client().await;
+        let mut bad_client = unauthenticated_client().await;
         let delete_result = bucket.delete(&mut bad_client).await;
         assert!(delete_result.is_err());
         Ok(())

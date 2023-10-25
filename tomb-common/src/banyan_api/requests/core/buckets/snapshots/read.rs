@@ -16,7 +16,7 @@ pub struct ReadAllSnapshots {
 pub struct ReadSnapshotResponse {
     pub id: Uuid,
     pub metadata_id: Uuid,
-    pub size: u64,
+    pub size: Option<u64>,
     pub created_at: i64,
 }
 
