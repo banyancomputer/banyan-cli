@@ -21,7 +21,6 @@ blake3 = { workspace = true }
 
 async-trait = "^0.1"
 base58 = "^0.2"
-cid = { version = "^0.10", features = ["serde-codec"] }
 futures = "^0.3"
 futures-core = "^0.3"
 futures-util = "^0.3"
@@ -42,6 +41,7 @@ mime_guess = "^2"
 fs_extra = { workspace = true }
 lazy_static = { workspace = true }
 tokio = { workspace = true }
+cid = "^0.10"
 async-std = { version = "^1", features = ["attributes"] }
 serial_test = "^2"
 hex-literal = "^0.4"

@@ -198,7 +198,15 @@ pub mod test {
             .expect("Failed to get file");
         assert_eq!(bytes, "test".as_bytes().to_vec());
 
-        let cids: LocationRequest = content_store.car.car.index.borrow().get_all_cids();
+        let cids: LocationRequest = content_store
+            .car
+            .car
+            .index
+            .borrow()
+            .get_all_cids()
+            .into_iter()
+            .map(|x| x.to_string())
+            .collect();
         let locations = client
             .call(cids.clone())
             .await
@@ -216,7 +224,7 @@ pub mod test {
     async fn get_bad_location() -> Result<(), ClientError> {
         use crate::banyan_api::requests::core::blocks::locate::LocationRequest;
         let mut client = authenticated_client().await;
-        let cids: LocationRequest = vec![cid::Cid::default()];
+        let cids: LocationRequest = vec![cid::Cid::default().to_string()];
         let locations = client
             .call(cids.clone())
             .await
