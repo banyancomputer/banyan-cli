@@ -231,7 +231,7 @@ pub mod test {
                 .await
                 .expect("create fingerprint")
                 .as_slice(),
-        ).replace(':', "");
+        );
         let (bucket, bucket_key) = Bucket::create(
             bucket_name.clone(),
             pem.clone(),
@@ -283,7 +283,10 @@ pub mod test {
     #[tokio::test]
     async fn create_usage() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await?;
+        let (bucket, key) = create_bucket(&mut client).await?;
+        println!("created the bucket!");
+        println!("bucket: {:?}", bucket);
+        println!("bucketkey: {:?}", key);
         let usage = bucket.usage(&mut client).await?;
         assert_eq!(usage, 0);
         Ok(())

@@ -78,8 +78,6 @@ impl Account {
 #[cfg(feature = "fake")]
 #[cfg(test)]
 pub mod test {
-    use std::f64::consts::E;
-
     use super::*;
     use crate::banyan_api::client::Client;
 
@@ -122,17 +120,8 @@ pub mod test {
     #[tokio::test]
     async fn usage_limit() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let usage_limit = Account::usage_limit(&mut client).await;
-        match usage_limit {
-            Ok(_) => {
-                // 5 TiB
-                assert_eq!(usage_limit.unwrap(), 5 * 1024 * 1024 * 1024 * 1024);
-            },
-            Err(e) => {
-                println!("ererererer: {}", e);
-            },
-        }
-        
+        let usage_limit = Account::usage_limit(&mut client).await?;
+        assert_eq!(usage_limit, 50 * 1024 * 1024 * 1024);
         Ok(())
     }
 }
