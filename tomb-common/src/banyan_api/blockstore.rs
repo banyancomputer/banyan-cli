@@ -9,6 +9,7 @@ use std::cell::RefCell;
 use wnfs::libipld::{Cid, IpldCodec};
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
+
 #[derive(Debug, Clone)]
 pub struct BanyanApiBlockStore(RefCell<Client>);
 

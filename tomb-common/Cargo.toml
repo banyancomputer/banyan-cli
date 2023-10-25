@@ -42,6 +42,7 @@ colored = "^2"
 fs_extra = { workspace = true }
 lazy_static = { workspace = true }
 tokio = { workspace = true }
+cid = "^0.10"
 async-std = { version = "^1", features = ["attributes"] }
 serial_test = "^2"
 hex-literal = "^0.4"
