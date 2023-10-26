@@ -94,7 +94,7 @@ impl Metadata {
         metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
-        deleted_blocks: BTreeSet<String>,
+        deleted_block_cids: BTreeSet<String>,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -108,7 +108,7 @@ impl Metadata {
                 metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
-                deleted_blocks,
+                deleted_block_cids,
                 metadata_stream,
             })
             .await?;
@@ -143,7 +143,7 @@ impl Metadata {
         metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
-        deleted_blocks: BTreeSet<String>,
+        deleted_block_cids: BTreeSet<String>,
         metadata_stream: S,
         client: &mut Client,
     ) -> Result<(Self, Option<StorageTicket>), ClientError>
@@ -157,7 +157,7 @@ impl Metadata {
                 metadata_cid: metadata_cid.clone(),
                 expected_data_size,
                 valid_keys,
-                deleted_blocks,
+                deleted_block_cids,
                 metadata_stream,
             })
             .await?;

@@ -1,3 +1,7 @@
+use crate::{
+    pipelines::{error::TombError, reconstruct},
+    types::config::globalconfig::GlobalConfig,
+};
 use colored::Colorize;
 use futures_util::StreamExt;
 use std::{
@@ -13,12 +17,6 @@ use tomb_common::{
         models::metadata::Metadata,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
-};
-
-use crate::{
-    pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig,
-    utils::wnfsio::compute_directory_size,
 };
 
 use super::OmniBucket;
@@ -74,15 +72,8 @@ pub async fn determine_sync_state(
         let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
         // If the metadata root CIDs match
         if local_root_cid == Some(current_remote.root_cid) {
-            // If there is actually data in the local origin
-            let tolerance = 100;
-            let expect_data_size = current_remote.data_size;
-            // If the data size matches the most recent delta
-            if let Some(delta) = local.content.deltas.last() && let Ok(actual_data_size) = compute_directory_size(&delta.path).map(|v| v as u64) && actual_data_size >= expect_data_size-tolerance && actual_data_size < expect_data_size+tolerance {
-                omni.sync_state = Some(SyncState::AllSynced);
-            } else {
-                omni.sync_state = Some(SyncState::MetadataSynced);
-            }
+            // TODO determine a reliable way to check if the content is synced too
+            omni.sync_state = Some(SyncState::MetadataSynced);
             Ok(())
         } else {
             let all_metadatas = Metadata::read_all(bucket_id, client).await?;
@@ -179,12 +170,12 @@ pub async fn sync_bucket(
                     root_cid.to_string(),
                     delta.data_size(),
                     fs.share_manager.public_fingerprints(),
-                    local.deleted_blocks.clone().iter().map(|v| v.to_string()).collect(),
+                    local.deleted_block_cids.clone().iter().map(|v| v.to_string()).collect(),
                     tokio::fs::File::open(&local.metadata.path).await?,
                     client
                 ).await?;
                 // Empty the list of deleted blocks, now that it's the server's problem
-                local.deleted_blocks = BTreeSet::new();
+                local.deleted_block_cids = BTreeSet::new();
                 // Update storage ticket in the local configurations for future pulls
                 local.storage_ticket = storage_ticket.clone();
                 global.update_config(&local)?;
@@ -240,7 +231,6 @@ pub async fn sync_bucket(
                 .expect("could not create blockstore client");
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
-            println!("banyan_api_blockstore constructed");
             let local = omni.get_local()?;
             // Reconstruct the data on disk
             let reconstruction_result =

@@ -38,7 +38,7 @@ pub struct WasmMount {
     append: bool,
 
     /// Deleted Block CIDs
-    deleted_blocks: BTreeSet<String>,
+    deleted_block_cids: BTreeSet<String>,
 
     metadata_blockstore: BlockStore,
     content_blockstore: BlockStore,
@@ -79,7 +79,7 @@ impl WasmMount {
             dirty: true,
             append: false,
 
-            deleted_blocks: BTreeSet::new(),
+            deleted_block_cids: BTreeSet::new(),
             metadata_blockstore,
             content_blockstore,
             fs_metadata: Some(fs_metadata),
@@ -138,7 +138,7 @@ impl WasmMount {
             locked: true,
             dirty: false,
             append: false,
-            deleted_blocks: BTreeSet::new(),
+            deleted_block_cids: BTreeSet::new(),
 
             metadata_blockstore,
             content_blockstore,
@@ -282,7 +282,7 @@ impl WasmMount {
                 .share_manager
                 .public_fingerprints(),
             // This may lint as an error but it is not
-            self.deleted_blocks.clone(),
+            self.deleted_block_cids.clone(),
             Cursor::new(self.metadata_blockstore.get_data()),
             &mut self.client,
         )
@@ -760,7 +760,7 @@ impl WasmMount {
                 .await
                 .expect("couldnt get cids for file");
             let string_cids: BTreeSet<String> = cids.iter().map(|cid| cid.to_string()).collect();
-            self.deleted_blocks.extend(string_cids);
+            self.deleted_block_cids.extend(string_cids);
         }
 
         fs.rm(&path_segments, &self.metadata_blockstore)

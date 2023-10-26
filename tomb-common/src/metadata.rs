@@ -428,12 +428,10 @@ impl FsMetadata {
         dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
     ) -> Result<()> {
-        println!("running cp...");
         // Get the path of the parent
         let folder_segments = &dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
         // Make directory at parent
         self.mkdir(folder_segments, metadata_store).await?;
-        println!("made dir...");
         // Copy and Link
         self.root_dir
             .cp_link(

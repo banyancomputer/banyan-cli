@@ -54,7 +54,7 @@ pub struct LocalBucket {
     /// Storage ticket in case we lose track of non-metadata components
     pub(crate) storage_ticket: Option<StorageTicket>,
     /// Locally deleted blocks the server needs to be notified of
-    pub(crate) deleted_blocks: BTreeSet<Cid>,
+    pub(crate) deleted_block_cids: BTreeSet<Cid>,
     /// BlockStore for storing metadata only
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
@@ -121,7 +121,7 @@ impl LocalBucket {
             local_id,
             remote_id: None,
             storage_ticket: None,
-            deleted_blocks: BTreeSet::new(),
+            deleted_block_cids: BTreeSet::new(),
             metadata,
             content,
         })
