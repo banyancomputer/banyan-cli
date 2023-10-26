@@ -511,9 +511,12 @@ impl FsMetadata {
             .await
             .expect("node not found");
 
+        // Split store for reading
+        let split_store = DoubleSplitStore::new(content_store, metadata_store);
+
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            let content = file.get_content(&self.forest, content_store).await?;
+            let content = file.get_content(&self.forest, &split_store).await?;
             Ok(content)
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
