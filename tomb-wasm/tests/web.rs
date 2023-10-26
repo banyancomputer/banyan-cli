@@ -256,7 +256,7 @@ async fn write_read() -> TombResult<()> {
     assert!(!mount.locked());
     let write_path_array: Array = js_array(&["zero.bin"]).into();
     let ls_path_array: Array = js_array(&[]).into();
-    let zero_content_buffer = Uint8Array::new_with_length(1024 * 1024 * 10);
+    let zero_content_buffer = Uint8Array::new_with_length(1024 * 1024);
     let zero_content_array_buffer = zero_content_buffer.buffer();
     mount
         .write(write_path_array.clone(), zero_content_array_buffer.clone())

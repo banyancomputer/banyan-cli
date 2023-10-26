@@ -262,6 +262,22 @@ pub mod test {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn get_bad_location() -> Result<(), ClientError> {
+        use crate::banyan_api::requests::core::blocks::locate::LocationRequest;
+        let mut client = authenticated_client().await;
+        let cids: LocationRequest = vec![cid::Cid::default().to_string()];
+        let locations = client
+            .call(cids.clone())
+            .await
+            .expect("Failed to get locations");
+        let target_cids = locations.get("NA").expect("Failed to get cids");
+        for cid in cids.clone() {
+            assert!(target_cids.contains(&cid));
+        }
+        Ok(())
+    }
+
     async fn create_bucket_v2(
         client: &mut Client,
     ) -> Result<(Bucket, BucketKey, EcEncryptionKey), ClientError> {

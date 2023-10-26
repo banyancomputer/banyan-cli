@@ -19,11 +19,6 @@ use tomb_common::{
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
 };
 
-use crate::{
-    pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig,
-};
-
 use super::OmniBucket;
 
 /// Sync State
