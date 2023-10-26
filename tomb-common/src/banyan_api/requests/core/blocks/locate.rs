@@ -8,7 +8,7 @@ use crate::banyan_api::requests::ApiRequest;
 
 pub type LocationRequest = Vec<String>;
 
-pub type LocationResponse = std::collections::HashMap<String, String>;
+pub type LocationResponse = std::collections::HashMap<String, Vec<String>>;
 
 impl ApiRequest for LocationRequest {
     type ResponseType = LocationResponse;

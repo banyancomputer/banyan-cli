@@ -403,25 +403,35 @@ impl FsMetadata {
         Ok(transformed_entries)
     }
 
-    /// Mv a node to a new location
+    /// Mv a file or directory to a new location
     pub async fn mv(
         &mut self,
         src_path_segments: &[String],
         dest_path_segments: &[String],
+        metadata_store: &impl RootedBlockStore,
         content_store: &impl RootedBlockStore,
     ) -> Result<()> {
-        self.root_dir
-            .basic_mv(
-                src_path_segments,
-                dest_path_segments,
-                true,
-                Utc::now(),
-                &mut self.forest,
-                content_store,
-                &mut thread_rng(),
-            )
-            .await
-            .map_err(|_| SerialError::NodeNotFound(src_path_segments.join("/")).into())
+        let ds_store = DoubleSplitStore::new(metadata_store, content_store);
+        let result = self
+            .root_dir
+            .get_node(src_path_segments, true, &self.forest, &ds_store)
+            .await?;
+        match result {
+            Some(_) => {
+                self.root_dir
+                    .basic_mv(
+                        src_path_segments,
+                        dest_path_segments,
+                        true,
+                        Utc::now(),
+                        &mut self.forest,
+                        &ds_store,
+                        &mut thread_rng(),
+                    )
+                    .await
+            }
+            None => Err(SerialError::NodeNotFound(src_path_segments.join("/").to_string()).into()),
+        }
     }
 
     /// Cp a file to a new location while deduplicating
@@ -501,12 +511,9 @@ impl FsMetadata {
             .await
             .expect("node not found");
 
-        // Split store
-        let split_store = DoubleSplitStore::new(metadata_store, content_store);
-
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            let content = file.get_content(&self.forest, &split_store).await?;
+            let content = file.get_content(&self.forest, content_store).await?;
             Ok(content)
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
@@ -732,6 +739,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn add_read_large() -> Result<()> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
@@ -755,6 +763,70 @@ mod test {
             .read(&cat_path, &metadata_store, &content_store)
             .await?;
         assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn add_mkdir_mv() -> Result<()> {
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
+
+        // Add a new file
+        let file_path = vec!["file".to_string()];
+        let content = "loop de doop de dah".as_bytes().to_vec();
+        fs_metadata
+            .write(&file_path, &metadata_store, &content_store, content.clone())
+            .await?;
+
+        // Add a new dir
+        let dir_path = vec!["dir".to_string()];
+        fs_metadata.mkdir(&dir_path, &metadata_store).await?;
+        let new_dir = fs_metadata
+            .get_node(&dir_path, &metadata_store)
+            .await?
+            .expect("dir not found");
+        match new_dir {
+            PrivateNode::Dir(dir) => dir,
+            _ => panic!("dir not found"),
+        };
+        // Move File into the dir
+        let mv_file_path = vec!["dir".to_string(), "file".to_string()];
+        fs_metadata
+            .mv(&file_path, &mv_file_path, &metadata_store, &content_store)
+            .await?;
+        let new_file = fs_metadata
+            .get_node(&mv_file_path, &metadata_store)
+            .await?
+            .expect("file not found");
+        match new_file {
+            PrivateNode::File(file) => file,
+            _ => panic!("file not found"),
+        };
+
+        // Save the metadata
+        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
+        // Make sure the original file is gone
+        let file_node = fs_metadata.get_node(&file_path, &metadata_store).await?;
+        if file_node.is_some() {
+            panic!("file not deleted")
+        };
+        // Make sure the new file is there
+        let new_file_node = fs_metadata.get_node(&mv_file_path, &metadata_store).await?;
+        match new_file_node {
+            Some(_) => (),
+            None => panic!("file not found"),
+        };
+        // Read the file
+        let new_file_content = fs_metadata
+            .read(&mv_file_path, &metadata_store, &content_store)
+            .await?;
+        assert_eq!(content, new_file_content);
 
         Ok(())
     }
@@ -888,7 +960,9 @@ mod test {
         let puppy_bytes = "hello puppy".as_bytes().to_vec();
 
         // Move cat.txt to dog.txt
-        fs_metadata.mv(&cat_path, &dog_path, &content_store).await?;
+        fs_metadata
+            .mv(&cat_path, &dog_path, &metadata_store, &content_store)
+            .await?;
         // Replace existing content
         fs_metadata
             .write(

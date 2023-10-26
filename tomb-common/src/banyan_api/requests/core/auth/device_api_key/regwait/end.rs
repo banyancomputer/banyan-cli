@@ -56,34 +56,64 @@ pub mod test {
     use crate::banyan_api::{
         models::account::test::authenticated_client,
         requests::core::auth::device_api_key::regwait::start::StartRegwait,
+        utils::generate_api_key,
     };
+    use std::sync::Arc;
+    use tomb_crypt::prelude::PrivateKey;
 
     #[tokio::test]
-    async fn regwait_fail() {
+    #[ignore]
+    async fn regwait_success() {
         let mut client = authenticated_client().await;
+        let mut other_client = client.clone();
+        let (api_key, _pem) = generate_api_key().await;
+        let fingerprint_arc_bytes = api_key
+            .fingerprint()
+            .await
+            .expect("Failed to get fingerprint");
+        let fingerprint_bytes =
+            Arc::into_inner(fingerprint_arc_bytes).expect("Failed to get fingerprint bytes");
+        let fingerprint = fingerprint_bytes
+            .iter()
+            .fold(String::new(), |chain, byte| format!("{chain}{byte:02x}"));
+        let fingerprint_clone = fingerprint.clone();
 
-        let fingerprint = "fingerprint".to_string();
-
-        let mut client_1 = client.clone();
-        let handle = tokio::spawn(async move {
-            client_1
-                .call_no_content(StartRegwait {
-                    fingerprint: fingerprint.clone(),
+        let end_handle = tokio::spawn(async move {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            other_client
+                .call_no_content(EndRegwait {
+                    fingerprint: fingerprint_clone,
                 })
                 .await
+                .unwrap();
         });
+        client
+            .call_no_content(StartRegwait { fingerprint })
+            .await
+            .unwrap();
+        end_handle.await.unwrap();
+    }
 
-        std::thread::sleep(std::time::Duration::from_secs(3));
-
-        // Try to end the regwait on a nonexistent fingerprint
-        let result = client
-            .call_no_content(EndRegwait {
+    #[tokio::test]
+    #[ignore]
+    async fn regwait_fail() {
+        let mut client = authenticated_client().await;
+        let mut other_client = client.clone();
+        let end_handle = tokio::spawn(async move {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            other_client
+                .call_no_content(EndRegwait {
+                    fingerprint: "other_random_nonsense_string".to_string(),
+                })
+                .await
+                .expect_err("Expected an error");
+        });
+        client
+            .call_no_content(StartRegwait {
                 fingerprint: "random_nonsense_string".to_string(),
             })
-            .await;
-
-        let _ = handle.await;
-
-        println!("result: {:?}", result);
+            .await
+            .expect_err("Expected an error");
+        end_handle.await.unwrap();
     }
 }

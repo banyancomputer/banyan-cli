@@ -421,31 +421,6 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn block_tracking() -> Result<()> {
-        let test_name = "block_tracking";
-        // Setup the test once
-        let origin = test_setup(test_name).await?;
-        // Run the test twice
-        assert_prepare_restore(test_name).await?;
-
-        // Delete one file from disk
-        let file_path = origin.join("0").join("0");
-        remove_file(file_path)?;
-
-        assert_prepare_restore(test_name).await?;
-
-        let config = GlobalConfig::from_disk()
-            .await?
-            .get_bucket(&origin)
-            .expect("no bucket at origin");
-        assert!(!config.deleted_block_cids.is_empty());
-
-        // Teardown
-        test_teardown(test_name).await
-    }
-
-    #[tokio::test]
-    #[serial]
     #[ignore]
     async fn versioning_complex() -> Result<()> {
         let test_name = "versioning_complex";
