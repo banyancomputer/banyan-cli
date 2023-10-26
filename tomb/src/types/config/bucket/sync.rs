@@ -161,8 +161,10 @@ pub async fn sync_bucket(
             let fs = local.unlock_fs(&wrapping_key).await?;
 
             // If we can actually get the arguments
-            if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() &&
-               let Some(delta) = local.content.deltas.last() {
+            if let Some(bucket_id) = local.remote_id
+                && let Some(root_cid) = local.metadata.get_root()
+                && let Some(delta) = local.content.deltas.last()
+            {
                 // Push the metadata
                 let (metadata, storage_ticket) = Metadata::push(
                     bucket_id,
@@ -170,10 +172,16 @@ pub async fn sync_bucket(
                     root_cid.to_string(),
                     delta.data_size(),
                     fs.share_manager.public_fingerprints(),
-                    local.deleted_block_cids.clone().iter().map(|v| v.to_string()).collect(),
+                    local
+                        .deleted_block_cids
+                        .clone()
+                        .iter()
+                        .map(|v| v.to_string())
+                        .collect(),
                     tokio::fs::File::open(&local.metadata.path).await?,
-                    client
-                ).await?;
+                    client,
+                )
+                .await?;
                 // Empty the list of deleted blocks, now that it's the server's problem
                 local.deleted_block_cids = BTreeSet::new();
                 // Update storage ticket in the local configurations for future pulls
@@ -182,14 +190,20 @@ pub async fn sync_bucket(
                 omni.set_local(local.clone());
 
                 // If the storage ticket is valid
-                let storage_ticket = storage_ticket.ok_or_else(|| TombError::custom_error("Metadata was pushed but storage sticket was not reccieved"))?;
+                let storage_ticket = storage_ticket.ok_or_else(|| {
+                    TombError::custom_error(
+                        "Metadata was pushed but storage sticket was not reccieved",
+                    )
+                })?;
                 // Create storage grant
                 storage_ticket
                     .clone()
                     .create_grant(client)
                     .await
                     .map_err(|err| {
-                        TombError::custom_error(&format!("unable to register storage ticket: {err}"))
+                        TombError::custom_error(&format!(
+                            "unable to register storage ticket: {err}"
+                        ))
                     })?;
 
                 println!("successfully created the grant; now pushing content");
@@ -202,19 +216,36 @@ pub async fn sync_bucket(
                 let content_hash = hasher.finalize().to_string();
                 let delta_reader = tokio::fs::File::open(&delta.path).await?;
 
-                match storage_ticket.upload_content(metadata.id, delta_reader, content_len, content_hash, client).await {
+                match storage_ticket
+                    .upload_content(metadata.id, delta_reader, content_len, content_hash, client)
+                    .await
+                {
                     // Upload succeeded
                     Ok(_) => {
                         omni.sync_state = Some(SyncState::AllSynced);
-                        Metadata::read_current(bucket_id, client).await.map(|new_metadata| format!("{}\n{}", "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(), new_metadata)).map_err(TombError::client_error)
-                    },
+                        Metadata::read_current(bucket_id, client)
+                            .await
+                            .map(|new_metadata| {
+                                format!(
+                                    "{}\n{}",
+                                    "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
+                                    new_metadata
+                                )
+                            })
+                            .map_err(TombError::client_error)
+                    }
                     // Upload failed
-                    Err(_) => {
-                        Ok(format!("{}\n{}\n{}\n", "<< FAILED TO PUSH CONTENT >>".red(), "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(), metadata))
-                    },
+                    Err(_) => Ok(format!(
+                        "{}\n{}\n{}\n",
+                        "<< FAILED TO PUSH CONTENT >>".red(),
+                        "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
+                        metadata
+                    )),
                 }
             } else {
-                Err(TombError::custom_error("No metadata to push, or no content deltas"))
+                Err(TombError::custom_error(
+                    "No metadata to push, or no content deltas",
+                ))
             }
         }
         // Reconstruct the Bucket locally

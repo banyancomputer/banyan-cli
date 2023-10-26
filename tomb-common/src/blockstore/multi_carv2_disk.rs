@@ -35,9 +35,14 @@ impl MultiCarV2DiskBlockStore {
             // For each child in the directory
             for dir_entry in fs::read_dir(dir)? {
                 // If the dir entry is valid, the file is a .car, and a MultiCarV2DiskBlockStore can be read from it
-                if let Ok(entry) = dir_entry &&
-                   entry.file_name().to_str().expect("no file name str").contains(".car") &&
-                   let Ok(car) = CarV2DiskBlockStore::new(&entry.path()) {
+                if let Ok(entry) = dir_entry
+                    && entry
+                        .file_name()
+                        .to_str()
+                        .expect("no file name str")
+                        .contains(".car")
+                    && let Ok(car) = CarV2DiskBlockStore::new(&entry.path())
+                {
                     // Push this to the vec
                     deltas.push(car);
                 }
@@ -59,7 +64,9 @@ impl MultiCarV2DiskBlockStore {
         new_store.set_root(&Cid::default());
 
         // If there is already a most recent delta
-        if let Some(last) = self.deltas.last() && let Some(root) = last.get_root() {
+        if let Some(last) = self.deltas.last()
+            && let Some(root) = last.get_root()
+        {
             // Set the root in the new blockstore too
             new_store.set_root(&root);
         }

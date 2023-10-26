@@ -38,13 +38,14 @@ impl CarV1 {
         // End of the header
         let header_end = r.stream_position()?;
         // If we're in a CARv2
-        if let Some(index_offset) = index_offset &&
-        r.seek(SeekFrom::Start(index_offset)).is_ok() &&
-            let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
+        if let Some(index_offset) = index_offset
+            && r.seek(SeekFrom::Start(index_offset)).is_ok()
+            && let Ok(index) = <Index<Bucket>>::read_bytes(&mut r)
+        {
             return Ok(Self {
                 header,
-                index: RefCell::new(index)
-            })
+                index: RefCell::new(index),
+            });
         }
 
         r.seek(SeekFrom::Start(header_end))?;
