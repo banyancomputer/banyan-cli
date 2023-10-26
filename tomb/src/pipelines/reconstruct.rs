@@ -57,7 +57,9 @@ pub async fn pipeline(
                     symlink(origin, built_path)?;
                 } else {
                     // If the parent does not yet exist
-                    if let Some(parent) = built_path.parent() && !parent.exists() {
+                    if let Some(parent) = built_path.parent()
+                        && !parent.exists()
+                    {
                         // Create the directories
                         std::fs::create_dir_all(parent)?;
                     }

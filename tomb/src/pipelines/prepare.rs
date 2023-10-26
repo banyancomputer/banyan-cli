@@ -64,7 +64,7 @@ pub async fn pipeline(
             // If the node is a File, add all the CIDs associated with it to a list
             if let PrivateNode::File(file) = node {
                 local
-                    .deleted_blocks
+                    .deleted_block_cids
                     .extend(file.get_cids(&fs.forest, &local.metadata).await?);
             }
             // Remove the reference from the WNFS

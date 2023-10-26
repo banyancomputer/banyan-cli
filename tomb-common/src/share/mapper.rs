@@ -138,13 +138,17 @@ impl EncRefMapper {
         if let Ipld::Map(map) = ipld {
             // For each key value pair in the IPLD
             for (fingerprint, ipld) in map {
-                if let Ipld::Map(sub_map) = ipld &&
-                    let Some(Ipld::Bytes(public_key)) = sub_map.get(PUBLIC_KEY_LABEL) &&
-                    let Some(Ipld::String(encrypted_private_ref)) = sub_map.get(ENCRYPTED_PRIVATE_REF_LABEL) {
+                if let Ipld::Map(sub_map) = ipld
+                    && let Some(Ipld::Bytes(public_key)) = sub_map.get(PUBLIC_KEY_LABEL)
+                    && let Some(Ipld::String(encrypted_private_ref)) =
+                        sub_map.get(ENCRYPTED_PRIVATE_REF_LABEL)
+                {
                     // Insert the new value into the mapper
-                    mapper.0.insert(fingerprint, (public_key.to_vec(), encrypted_private_ref.to_string()));
-                }
-                else {
+                    mapper.0.insert(
+                        fingerprint,
+                        (public_key.to_vec(), encrypted_private_ref.to_string()),
+                    );
+                } else {
                     return Err(KeyError::Missing.into());
                 }
             }

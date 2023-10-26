@@ -73,11 +73,12 @@ impl GlobalConfig {
 
     // Get the Gredentials
     async fn get_credentials(&self) -> Result<Credentials> {
-        if let Ok(signing_key) = self.api_key().await &&
-           let Some(account_id) = self.remote_account_id {
+        if let Ok(signing_key) = self.api_key().await
+            && let Some(account_id) = self.remote_account_id
+        {
             Ok(Credentials {
                 signing_key,
-                account_id
+                account_id,
             })
         } else {
             Err(anyhow!("No credentials."))
@@ -134,9 +135,10 @@ impl GlobalConfig {
 
     /// Initialize from file on disk
     pub async fn from_disk() -> Result<Self> {
-        if let Ok(file) = get_read(&config_path()) &&
-           let Ok(config) = serde_json::from_reader(file) {
-                Ok(config)
+        if let Ok(file) = get_read(&config_path())
+            && let Ok(config) = serde_json::from_reader(file)
+        {
+            Ok(config)
         } else {
             let config = Self::create().await?;
             config.to_disk()?;

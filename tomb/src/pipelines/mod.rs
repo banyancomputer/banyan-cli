@@ -438,7 +438,7 @@ mod test {
             .await?
             .get_bucket(&origin)
             .expect("no bucket at origin");
-        assert!(!config.deleted_blocks.is_empty());
+        assert!(!config.deleted_block_cids.is_empty());
 
         // Teardown
         test_teardown(test_name).await
