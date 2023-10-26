@@ -132,8 +132,6 @@ impl OmniBucket {
         name: &str,
         origin: &Path,
     ) -> Result<OmniBucket, TombError> {
-        println!("creating");
-
         let mut omni = OmniBucket {
             local: None,
             remote: None,

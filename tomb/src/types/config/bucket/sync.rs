@@ -1,3 +1,7 @@
+use crate::{
+    pipelines::{error::TombError, reconstruct},
+    types::config::globalconfig::GlobalConfig,
+};
 use colored::Colorize;
 use futures_util::StreamExt;
 use std::{
@@ -73,14 +77,7 @@ pub async fn determine_sync_state(
         let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
         // If the metadata root CIDs match
         if local_root_cid == Some(current_remote.root_cid) {
-            // If there is actually data in the local origin
-            let _tolerance = 100;
-            let _expect_data_size = current_remote.data_size;
-            // If the data size matches the most recent delta
-            // if let Some(delta) = local.content.deltas.last() && let Ok(actual_data_size) = compute_directory_size(&delta.path).map(|v| v as u64) && actual_data_size >= expect_data_size-tolerance && actual_data_size < expect_data_size+tolerance {
-            //     omni.sync_state = Some(SyncState::AllSynced);
-            // } else {
-            // }
+            // TODO determine a reliable way to check if the content is synced too
             omni.sync_state = Some(SyncState::MetadataSynced);
             Ok(())
         } else {
@@ -277,8 +274,7 @@ pub async fn sync_bucket(
                 .expect("could not create blockstore client");
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
-            println!("banyan_api_blockstore constructed");
-
+            let local = omni.get_local()?;
             // Reconstruct the data on disk
             let reconstruction_result =
                 reconstruct::pipeline(global, &local, &banyan_api_blockstore, &local.origin).await;
