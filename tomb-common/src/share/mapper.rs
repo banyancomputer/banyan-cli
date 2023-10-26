@@ -1,5 +1,5 @@
 use super::error::KeyError;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::*;
 use tomb_crypt::pretty_fingerprint;
@@ -29,14 +29,14 @@ impl EncRefMapper {
             // Get the public key from the DER
             let public_key = EcPublicEncryptionKey::import_bytes(&der)
                 .await
-                .map_err(|_| anyhow::anyhow!("could not import recipient key"))?;
+                .map_err(|_| anyhow!("could not import recipient key"))?;
             // Encrypt the private ref for the public key
             let encrypted_private_ref = EncryptedPrivateRef::encrypt_for(private_ref, &public_key)
                 .await
-                .map_err(|_| anyhow::anyhow!("could not encrypt private ref for recipient"))?;
+                .map_err(|_| anyhow!("could not encrypt private ref for recipient"))?;
             // Insert the encrypted private ref into the map
             let ref_string = serde_json::to_string(&encrypted_private_ref)
-                .map_err(|_| anyhow::anyhow!("could not export encrypted private ref to string"))?;
+                .map_err(|_| anyhow!("could not export encrypted private ref to string"))?;
             // Insert the reencrypted version of the TemporalKey
             self.0.insert(fingerprint, (der, ref_string));
         }
@@ -55,14 +55,14 @@ impl EncRefMapper {
             recipient
                 .fingerprint()
                 .await
-                .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?
+                .map_err(|_| anyhow!("could not fingerprint recipient"))?
                 .as_slice(),
         );
         // Get the DER encoded public key bytes
         let der = recipient
             .export_bytes()
             .await
-            .map_err(|_| anyhow::anyhow!("could not export recipient public key to DER"))?;
+            .map_err(|_| anyhow!("could not export recipient public key to DER"))?;
 
         // If there is a valid temporal key
         let ref_string = match private_ref {
@@ -71,14 +71,11 @@ impl EncRefMapper {
                 let encrypted_private_ref =
                     EncryptedPrivateRef::encrypt_for(private_ref, recipient)
                         .await
-                        .map_err(|_| {
-                            anyhow::anyhow!("could not encrypt private ref for recipient")
-                        })?;
+                        .map_err(|_| anyhow!("could not encrypt private ref for recipient"))?;
                 // Export the encrypted private ref to a string
                 // Insert the encrypted private ref into the map
-                serde_json::to_string(&encrypted_private_ref).map_err(|_| {
-                    anyhow::anyhow!("could not export encrypted private ref to string")
-                })?
+                serde_json::to_string(&encrypted_private_ref)
+                    .map_err(|_| anyhow!("could not export encrypted private ref to string"))?
             }
             None => String::new(),
         };
@@ -95,7 +92,7 @@ impl EncRefMapper {
             recipient
                 .fingerprint()
                 .await
-                .map_err(|_| anyhow::anyhow!("could not fingerprint recipient"))?
+                .map_err(|_| anyhow!("could not fingerprint recipient"))?
                 .as_slice(),
         );
         // Grab the encrypted key associated with the fingerprint
@@ -104,11 +101,11 @@ impl EncRefMapper {
             None => return Err(KeyError::Missing.into()),
         };
         let enc_ref = serde_json::from_str::<EncryptedPrivateRef>(enc_ref_string)
-            .map_err(|_| anyhow::anyhow!("could not deserialize encrypted private ref"))?;
+            .map_err(|_| anyhow!("could not deserialize encrypted private ref"))?;
         let private_ref = enc_ref
             .decrypt_with(recipient)
             .await
-            .map_err(|_| anyhow::anyhow!("could not decrypt private ref"))?;
+            .map_err(|_| anyhow!("could not decrypt private ref"))?;
         Ok(private_ref)
     }
 }
@@ -141,13 +138,17 @@ impl EncRefMapper {
         if let Ipld::Map(map) = ipld {
             // For each key value pair in the IPLD
             for (fingerprint, ipld) in map {
-                if let Ipld::Map(sub_map) = ipld &&
-                    let Some(Ipld::Bytes(public_key)) = sub_map.get(PUBLIC_KEY_LABEL) &&
-                    let Some(Ipld::String(encrypted_private_ref)) = sub_map.get(ENCRYPTED_PRIVATE_REF_LABEL) {
+                if let Ipld::Map(sub_map) = ipld
+                    && let Some(Ipld::Bytes(public_key)) = sub_map.get(PUBLIC_KEY_LABEL)
+                    && let Some(Ipld::String(encrypted_private_ref)) =
+                        sub_map.get(ENCRYPTED_PRIVATE_REF_LABEL)
+                {
                     // Insert the new value into the mapper
-                    mapper.0.insert(fingerprint, (public_key.to_vec(), encrypted_private_ref.to_string()));
-                }
-                else {
+                    mapper.0.insert(
+                        fingerprint,
+                        (public_key.to_vec(), encrypted_private_ref.to_string()),
+                    );
+                } else {
                     return Err(KeyError::Missing.into());
                 }
             }

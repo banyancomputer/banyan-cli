@@ -64,7 +64,9 @@ impl OmniBucket {
             new_object.local = Some(bucket);
         }
         // If we found one
-        if let Some(remote_id) = remote_id && let Ok(bucket) = RemoteBucket::read(client, remote_id).await {
+        if let Some(remote_id) = remote_id
+            && let Ok(bucket) = RemoteBucket::read(client, remote_id).await
+        {
             new_object.remote = Some(bucket)
         }
 
@@ -91,16 +93,6 @@ impl OmniBucket {
             sync_state: Some(SyncState::Unlocalized),
         }
     }
-
-    // pub async fn from_both(client: &mut Client, local: &LocalBucket, remote: &RemoteBucket) -> Self {
-    //     let mut omni = OmniBucket {
-    //         local: Some(local.clone()),
-    //         remote: Some(remote.clone()),
-    //         sync_state: None,
-    //     };
-    //     let _ = omni.set_state(client).await;
-    //     omni
-    // }
 
     /// Get the ID from wherever it might be found
     pub fn get_id(&self) -> Result<Uuid, TombError> {
@@ -140,19 +132,20 @@ impl OmniBucket {
         name: &str,
         origin: &Path,
     ) -> Result<OmniBucket, TombError> {
-        println!("creating");
-
         let mut omni = OmniBucket {
             local: None,
             remote: None,
             sync_state: None,
         };
         // If this bucket already exists both locally and remotely
-        if let Some(bucket) = global.get_bucket(origin) &&
-            let Some(remote_id) = bucket.remote_id &&
-            RemoteBucket::read(client, remote_id).await.is_ok() {
+        if let Some(bucket) = global.get_bucket(origin)
+            && let Some(remote_id) = bucket.remote_id
+            && RemoteBucket::read(client, remote_id).await.is_ok()
+        {
             // Prevent the user from re-creating it
-            return Err(TombError::custom_error("Bucket already exists both locally and remotely"));
+            return Err(TombError::custom_error(
+                "Bucket already exists both locally and remotely",
+            ));
         }
 
         // Grab the wrapping key, public key and pem
@@ -188,9 +181,7 @@ impl OmniBucket {
             omni.local = Some(local);
         }
 
-        println!("syncing");
-
-        // If we successfully initialized both of them
+        // Print sync result if we successfully initialized both of them
         if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
             println!("{sync}");
         }
@@ -204,8 +195,9 @@ impl OmniBucket {
         global: &mut GlobalConfig,
         client: &mut Client,
     ) -> Result<String, TombError> {
-        let local_deletion = if let Some(local) = &self.local &&
-        prompt_for_bool("are you sure you want to delete this Bucket locally?") {
+        let local_deletion = if let Some(local) = &self.local
+            && prompt_for_bool("are you sure you want to delete this Bucket locally?")
+        {
             local.remove_data()?;
             // Find index of bucket
             let index = global
@@ -220,7 +212,9 @@ impl OmniBucket {
             false
         };
 
-        let remote_deletion = if let Some(remote) = &self.remote && prompt_for_bool("are you sure you want to delete this Bucket remotely?") {
+        let remote_deletion = if let Some(remote) = &self.remote
+            && prompt_for_bool("are you sure you want to delete this Bucket remotely?")
+        {
             RemoteBucket::delete_by_id(client, remote.id).await.is_ok()
         } else {
             false
@@ -286,19 +280,20 @@ impl Display for OmniBucket {
         );
 
         // If we have both present
-        if let Some(local) = &self.local && let Some(remote) = &self.remote {
-            info = format!("{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
+        if let Some(local) = &self.local
+            && let Some(remote) = &self.remote
+        {
+            info = format!(
+                "{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
                 local.name,
                 local.origin.display(),
                 remote.id,
                 remote.r#type,
                 remote.storage_class
             );
-        }
-        else if let Some(local) = &self.local {
+        } else if let Some(local) = &self.local {
             info = format!("{info}\n{}", local);
-        }
-        else if let Some(remote) = &self.remote {
+        } else if let Some(remote) = &self.remote {
             info = format!("{info}\n{}", remote);
         }
 

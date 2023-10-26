@@ -33,8 +33,9 @@ impl CarV2DiskBlockStore {
             }
 
             // If the file is already a valid CarV2v2
-            if let Ok(mut file) = File::open(path) &&
-            let Ok(car) = CarV2::read_bytes(&mut file) {
+            if let Ok(mut file) = File::open(path)
+                && let Ok(car) = CarV2::read_bytes(&mut file)
+            {
                 Ok(Self {
                     path: path.to_path_buf(),
                     car,
@@ -44,10 +45,10 @@ impl CarV2DiskBlockStore {
             else {
                 // Grab read and write
                 let mut rw = get_read_write(path)?;
-                // Create new 
+                // Create new
                 let store = CarV2DiskBlockStore {
                     path: path.to_path_buf(),
-                    car: CarV2::new(&mut rw)?
+                    car: CarV2::new(&mut rw)?,
                 };
                 // Return Ok
                 Ok(store)

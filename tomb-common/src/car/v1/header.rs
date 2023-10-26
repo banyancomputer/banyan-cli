@@ -30,10 +30,11 @@ impl Header {
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
     pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self> {
         // If the IPLD is a true map and the correct keys exist within it
-        if let Ok(ipld) = dagcbor::decode(bytes) &&
-            let Ipld::Map(map) = ipld &&
-            let Some(Ipld::Integer(int)) = map.get("version") &&
-            let Some(Ipld::List(roots_ipld)) = map.get("roots") {
+        if let Ok(ipld) = dagcbor::decode(bytes)
+            && let Ipld::Map(map) = ipld
+            && let Some(Ipld::Integer(int)) = map.get("version")
+            && let Some(Ipld::List(roots_ipld)) = map.get("roots")
+        {
             // Helper function for interpreting a given Cid as a Link
             fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CARError> {
                 if let Ipld::Link(cid) = ipld {
@@ -43,7 +44,10 @@ impl Header {
                 }
             }
             // Interpret all of the roots as CIDs
-            let roots = roots_ipld.iter().map(ipld_to_cid).collect::<Result<Vec<Cid>, CARError>>()?;
+            let roots = roots_ipld
+                .iter()
+                .map(ipld_to_cid)
+                .collect::<Result<Vec<Cid>, CARError>>()?;
 
             // Return Ok with new Self
             Ok(Self {

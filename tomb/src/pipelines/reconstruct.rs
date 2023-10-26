@@ -27,13 +27,6 @@ pub async fn pipeline(
     // Load metadata
     let mut fs = local.unlock_fs(&wrapping_key).await?;
 
-    println!(
-        "reconstruct_fs_root_dir_ls: {:?}",
-        fs.root_dir
-            .ls(&[], true, &fs.forest, &local.metadata)
-            .await?
-    );
-
     info!(
         "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
         restored.display()
@@ -48,10 +41,6 @@ pub async fn pipeline(
             }
             PrivateNode::File(file) => {
                 let built_path = restored.join(path.clone());
-                // If we can read the content from the file node
-
-                // file.get_content(forest, store)
-
                 let content = fs
                     .read(&path_to_segments(&path)?, &local.metadata, content_store)
                     .await
@@ -68,7 +57,9 @@ pub async fn pipeline(
                     symlink(origin, built_path)?;
                 } else {
                     // If the parent does not yet exist
-                    if let Some(parent) = built_path.parent() && !parent.exists() {
+                    if let Some(parent) = built_path.parent()
+                        && !parent.exists()
+                    {
                         // Create the directories
                         std::fs::create_dir_all(parent)?;
                     }
