@@ -3,11 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
-use uuid::Uuid;
 
 use crate::banyan_api::{
     client::Client, error::ClientError, requests::staging::client_grant::create::*,
-    requests::staging::upload::push::*,
 };
 use tomb_crypt::prelude::*;
 
@@ -56,56 +54,56 @@ impl StorageTicket {
             .await
     }
 
-    // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
-    /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn upload_content<S>(
-        self,
-        // TODO: This should probably be a metadata cid
-        metadata_id: Uuid,
-        content: S,
-        content_len: u64,
-        content_hash: String,
-        client: &mut Client,
-    ) -> Result<(), ClientError>
-    where
-        reqwest::Body: From<S>,
-    {
-        client
-            .multipart_no_content(PushContent {
-                host_url: self.host.clone(),
-                metadata_id,
-                content,
-                content_len,
-                content_hash,
-            })
-            .await
-    }
+    // // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
+    // /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
+    // #[cfg(not(target_arch = "wasm32"))]
+    // pub async fn upload_content<S>(
+    //     self,
+    //     // TODO: This should probably be a metadata cid
+    //     metadata_id: Uuid,
+    //     content: S,
+    //     content_len: u64,
+    //     content_hash: String,
+    //     client: &mut Client,
+    // ) -> Result<(), ClientError>
+    // where
+    //     reqwest::Body: From<S>,
+    // {
+    //     client
+    //         .multipart_no_content(PushContent {
+    //             host_url: self.host.clone(),
+    //             metadata_id,
+    //             content,
+    //             content_len,
+    //             content_hash,
+    //         })
+    //         .await
+    // }
 
-    #[cfg(target_arch = "wasm32")]
-    /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
-    /// WASM implementation because reqwest hates me
-    pub async fn upload_content<S>(
-        self,
-        metadata_id: Uuid,
-        content: S,
-        content_len: u64,
-        content_hash: String,
-        client: &mut Client,
-    ) -> Result<(), ClientError>
-    where
-        S: Read,
-    {
-        client
-            .multipart_no_content(PushContent {
-                host_url: self.host.clone(),
-                metadata_id,
-                content,
-                content_len,
-                content_hash,
-            })
-            .await
-    }
+    // #[cfg(target_arch = "wasm32")]
+    // /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
+    // /// WASM implementation because reqwest hates me
+    // pub async fn upload_content<S>(
+    //     self,
+    //     metadata_id: Uuid,
+    //     content: S,
+    //     content_len: u64,
+    //     content_hash: String,
+    //     client: &mut Client,
+    // ) -> Result<(), ClientError>
+    // where
+    //     S: Read,
+    // {
+    //     client
+    //         .multipart_no_content(PushContent {
+    //             host_url: self.host.clone(),
+    //             metadata_id,
+    //             content,
+    //             content_len,
+    //             content_hash,
+    //         })
+    //         .await
+    // }
 }
 
 #[cfg(test)]
@@ -122,6 +120,7 @@ pub mod test {
     use crate::banyan_api::models::bucket::{Bucket, BucketType, StorageClass};
     use crate::banyan_api::models::bucket_key::BucketKey;
     use crate::banyan_api::models::metadata::Metadata;
+    use crate::banyan_api::requests::staging::upload::content::UploadContent;
     use crate::banyan_api::utils::generate_bucket_key;
     use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
     use crate::blockstore::RootedBlockStore;
@@ -148,14 +147,8 @@ pub mod test {
         // Assert 404 before any space has been allocated
         assert!(bucket.get_grants_token(&mut client).await.is_err());
 
-        let mut hasher = blake3::Hasher::new();
-        let content = content_store.get_data();
-        hasher.update(&content);
-        let content_len = content.len() as u64;
-        let content_hash = hasher.finalize().to_string();
-        storage_ticket
-            .clone()
-            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
+        content_store
+            .upload(Some(storage_ticket.host), metadata.id, &mut client)
             .await?;
 
         let account = Account::who_am_i(&mut client).await.unwrap();
@@ -182,15 +175,8 @@ pub mod test {
             add_path_segments,
         ) = setup(&mut client).await?;
         storage_ticket.clone().create_grant(&mut client).await?;
-        let mut hasher = blake3::Hasher::new();
-        let content = content_store.get_data();
-        hasher.update(&content);
-        let content = content_store.get_data();
-        let content_len = content.len() as u64;
-        let content_hash = hasher.finalize().to_string();
-        storage_ticket
-            .clone()
-            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
+        content_store
+            .upload(Some(storage_ticket.host.clone()), metadata.id, &mut client)
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client
@@ -221,15 +207,8 @@ pub mod test {
             add_path_segments,
         ) = setup(&mut client).await?;
         storage_ticket.clone().create_grant(&mut client).await?;
-        let mut hasher = blake3::Hasher::new();
-        let content = content_store.get_data();
-        hasher.update(&content);
-        let content = content_store.get_data();
-        let content_len = content.len() as u64;
-        let content_hash = hasher.finalize().to_string();
-        storage_ticket
-            .clone()
-            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
+        content_store
+            .upload(Some(storage_ticket.host.clone()), metadata.id, &mut client)
             .await?;
         let mut blockstore_client = client.clone();
         blockstore_client
@@ -356,7 +335,7 @@ pub mod test {
             .expect("Failed to get metadata cid");
         let data_size = content_store.data_size();
         let metadata_bytes = metadata_store.get_data();
-        let (metadata, storage_ticket) = Metadata::push(
+        let (metadata, host, authorization) = Metadata::push(
             bucket.id,
             root_cid.to_string(),
             metadata_cid.to_string(),
@@ -367,7 +346,10 @@ pub mod test {
             client,
         )
         .await?;
-        let storage_ticket = storage_ticket.expect("Storage ticket not returned");
+        let storage_ticket = StorageTicket {
+            host: host.unwrap(),
+            authorization: authorization.unwrap(),
+        };
         Ok((
             bucket,
             bucket_key,

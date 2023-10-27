@@ -14,7 +14,7 @@ use tokio::io::AsyncWriteExt;
 use tomb_common::{
     banyan_api::{
         blockstore::BanyanApiBlockStore, client::Client, error::ClientError,
-        models::metadata::Metadata,
+        models::metadata::Metadata, requests::staging::upload::content::UploadContent,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
 };
