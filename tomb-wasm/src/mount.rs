@@ -99,10 +99,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket.id, client)
             .await
-            .map_err(|err| {
-                log!("this is how i died!");
-                TombWasmError(format!("unable to read current metadata: {err}"))
-            })?;
+            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -156,10 +153,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(|err| {
-                log!("this is how i died! (refresh)");
-                TombWasmError(format!("unable to read current metadata: {err}"))
-            })?;
+            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -657,19 +651,6 @@ impl WasmMount {
             "tomb-wasm: running fs_get_node @ {:?}",
             path_segments
         ));
-        let node = fs
-            .get_node(&path_segments, &self.metadata_blockstore)
-            .await
-            .expect("no node")
-            .expect("no node (none)");
-        if let PrivateNode::File(file) = node {
-            log!("tomb-wasm: node is a file");
-            let cids = file
-                .get_cids(&fs.forest, &self.metadata_blockstore)
-                .await
-                .expect("unable to get cids");
-            log!(format!("tomb-wasm: node cids: {:?}", cids));
-        }
 
         let vec = fs
             .read(

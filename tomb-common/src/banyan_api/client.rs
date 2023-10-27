@@ -188,7 +188,6 @@ impl Client {
 
         // Send the request and obtain the response
         let response = request_builder
-            // .timeout(Duration::from_secs(1))
             .send()
             .await
             .map_err(ClientError::http_error)?;

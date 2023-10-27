@@ -506,9 +506,6 @@ impl FsMetadata {
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
     ) -> Result<Vec<u8>> {
-        println!("attempting to read: {:?}", path_segments);
-        println!("forest: {:?}", self.forest);
-
         // Compress the data in the file
         let result = self
             .root_dir
