@@ -1,8 +1,8 @@
 use super::error::KeyError;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use tomb_crypt::hex_fingerprint;
 use tomb_crypt::prelude::*;
-use tomb_crypt::pretty_fingerprint;
 use wnfs::private::PrivateRef;
 
 use std::collections::{BTreeMap, HashMap};
@@ -51,7 +51,7 @@ impl EncRefMapper {
         recipient: &EcPublicEncryptionKey,
     ) -> Result<()> {
         // Grab the public key's fingerprint
-        let fingerprint = pretty_fingerprint(
+        let fingerprint = hex_fingerprint(
             recipient
                 .fingerprint()
                 .await
@@ -88,7 +88,7 @@ impl EncRefMapper {
     /// Decrypt the TemporalKey using a recipient's PrivateKey
     pub async fn recover_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
         // Grab the fingerprint from the
-        let fingerprint = pretty_fingerprint(
+        let fingerprint = hex_fingerprint(
             recipient
                 .fingerprint()
                 .await

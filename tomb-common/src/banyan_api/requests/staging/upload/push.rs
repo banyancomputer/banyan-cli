@@ -1,13 +1,14 @@
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
-#[cfg(target_arch = "wasm32")]
-use std::io::Read;
-
+use crate::banyan_api::requests::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 use uuid::Uuid;
 
-use crate::banyan_api::requests::ApiRequest;
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest::multipart::{Form, Part};
+#[cfg(target_arch = "wasm32")]
+use std::io::Read;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug)]
@@ -44,18 +45,6 @@ struct PushContentData {
 #[derive(Debug, Deserialize)]
 pub struct PushContentResponse {}
 
-#[cfg(target_arch = "wasm32")]
-fn generate_boundary() -> String {
-    use rand::{distributions::Alphanumeric, Rng};
-    let random_string: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30) // Adjust the length as needed
-        .map(char::from)
-        .collect();
-
-    format!("------------------------{}", random_string)
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 impl<S> ApiRequest for PushContent<S>
 where
@@ -76,30 +65,42 @@ where
 
         // Attach the form data to the request as json
         let multipart_json_data = serde_json::to_string(&pc_req).unwrap();
-        let multipart_json =
-            reqwest::multipart::Part::bytes(multipart_json_data.as_bytes().to_vec())
-                .mime_str("application/json")
-                .unwrap();
+        let multipart_json = Part::bytes(multipart_json_data.as_bytes().to_vec())
+            .mime_str("application/json")
+            .unwrap();
+
         // Attach the CAR file to the request
-        let multipart_car = reqwest::multipart::Part::stream(self.content)
+        let multipart_car = Part::stream(self.content)
             .mime_str("application/vnd.ipld.car; version=2")
             .unwrap();
 
         // Combine the two parts into a multipart form
-        let multipart_form = reqwest::multipart::Form::new()
+        let multipart_form = Form::new()
             .part("request-data", multipart_json)
             .part("car-upload", multipart_car);
+
         // post
         client
             .post(full_url)
             .multipart(multipart_form)
             .header(reqwest::header::CONTENT_LENGTH, self.content_len + 546)
-        // TODO is there a better way to do this? There must be, right?
     }
 
     fn requires_authentication(&self) -> bool {
         true
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn generate_boundary() -> String {
+    use rand::{distributions::Alphanumeric, Rng};
+    let random_string: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30) // Adjust the length as needed
+        .map(char::from)
+        .collect();
+
+    format!("------------------------{}", random_string)
 }
 
 #[cfg(target_arch = "wasm32")]

@@ -92,14 +92,13 @@ impl BucketKey {
     }
 
     /// Delete a Bucket Key
-    pub async fn delete(self, client: &mut Client) -> Result<String, ClientError> {
-        let response = client
-            .call(DeleteBucketKey {
+    pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
+        client
+            .call_no_content(DeleteBucketKey {
                 bucket_id: self.bucket_id,
                 id: self.id,
             })
-            .await?;
-        Ok(response.id.to_string())
+            .await
     }
 
     /// Delete a Bucket Key by id
@@ -113,16 +112,10 @@ impl BucketKey {
     }
 
     /// Reject a Bucket Key
-    pub async fn reject(
-        bucket_id: Uuid,
-        id: Uuid,
-        client: &mut Client,
-    ) -> Result<String, ClientError> {
-        Ok(client
-            .call(RejectBucketKey { bucket_id, id })
-            .await?
-            .id
-            .to_string())
+    pub async fn reject(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<(), ClientError> {
+        client
+            .call_no_content(RejectBucketKey { bucket_id, id })
+            .await
     }
 }
 
@@ -131,8 +124,8 @@ impl BucketKey {
 mod test {
     use std::collections::BTreeSet;
 
-    use tomb_crypt::prelude::{EcPublicEncryptionKey, PrivateKey, PublicKey};
-    use tomb_crypt::pretty_fingerprint;
+    use tomb_crypt::hex_fingerprint;
+    use tomb_crypt::prelude::PrivateKey;
 
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;
@@ -157,7 +150,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (key, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let our_fingerprint = pretty_fingerprint(
+        let our_fingerprint = hex_fingerprint(
             key.fingerprint()
                 .await
                 .expect("cant fingerprint")
@@ -195,9 +188,10 @@ mod test {
         let (_, pem) = generate_bucket_key().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
-        let bucket_key_ = bucket_key.clone();
-        let id = bucket_key.delete(&mut client).await?;
-        assert_eq!(id, bucket_key_.id.to_string());
+        let bucket_key_id = bucket_key.id;
+        bucket_key.delete(&mut client).await?;
+        let all_remaining = BucketKey::read_all(bucket.id, &mut client).await?;
+        assert!(!all_remaining.iter().any(|value| value.id == bucket_key_id));
         Ok(())
     }
 
@@ -230,8 +224,9 @@ mod test {
         let (bucket, _) = create_bucket(&mut client).await?;
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert!(!bucket_key.approved);
-        let rejected_id = BucketKey::reject(bucket.id, bucket_key.id, &mut client).await?;
-        assert_eq!(bucket_key.id.to_string(), rejected_id);
+        BucketKey::reject(bucket.id, bucket_key.id, &mut client).await?;
+        let all_remaining = BucketKey::read_all(bucket.id, &mut client).await?;
+        assert!(!all_remaining.iter().any(|value| value.id == bucket_key.id));
         Ok(())
     }
 
@@ -240,8 +235,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
         assert!(initial_bucket_key.approved);
-        let rejected_id = BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
-        assert!(rejected_id.is_err());
+        BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await?;
         Ok(())
     }
 
@@ -254,32 +248,13 @@ mod test {
         let bucket_key = BucketKey::create(bucket.id, pem, &mut client).await?;
         assert!(!bucket_key.approved);
 
-        let fingerprint1 = pretty_fingerprint(
-            EcPublicEncryptionKey::import(initial_bucket_key.pem.as_bytes())
-                .await
-                .unwrap()
-                .fingerprint()
-                .await
-                .unwrap()
-                .as_slice(),
-        );
-        let fingerprint2 = pretty_fingerprint(
-            EcPublicEncryptionKey::import(bucket_key.pem.as_bytes())
-                .await
-                .unwrap()
-                .fingerprint()
-                .await
-                .unwrap()
-                .as_slice(),
-        );
-
         // Push metadata with the new BucketKey listed as valid
         Metadata::push(
             bucket.id,
             "root_cid".to_string(),
             "metadata_cid".to_string(),
             0,
-            vec![fingerprint1, fingerprint2],
+            vec![initial_bucket_key.fingerprint, bucket_key.fingerprint],
             BTreeSet::new(),
             "metadata_stream".as_bytes(),
             &mut client,

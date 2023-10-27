@@ -6,6 +6,7 @@ use crate::{
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;
 use clap::Subcommand;
+use colored::Colorize;
 use tomb_common::banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey};
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use uuid::Uuid;
@@ -93,7 +94,7 @@ impl RunnableCommand<TombError> for KeyCommand {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::reject(bucket_id, id, client)
                     .await
-                    .map(|id| format!("rejected key!\nid:\t{}", id))
+                    .map(|_| format!("{}", "<< REJECTED KEY SUCCESSFULLY >>".green()))
                     .map_err(TombError::client_error)
             }
         }

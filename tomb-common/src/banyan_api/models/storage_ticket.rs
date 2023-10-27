@@ -112,11 +112,13 @@ impl StorageTicket {
 #[cfg(feature = "fake")]
 pub mod test {
     use std::collections::BTreeSet;
-    use tomb_crypt::pretty_fingerprint;
+    use tomb_crypt::hex_fingerprint;
+    use wnfs::libipld::Cid;
 
     use super::*;
     use crate::banyan_api::blockstore::BanyanApiBlockStore;
     use crate::banyan_api::models::account::test::authenticated_client;
+    use crate::banyan_api::models::account::Account;
     use crate::banyan_api::models::bucket::{Bucket, BucketType, StorageClass};
     use crate::banyan_api::models::bucket_key::BucketKey;
     use crate::banyan_api::models::metadata::Metadata;
@@ -124,6 +126,46 @@ pub mod test {
     use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
     use crate::blockstore::RootedBlockStore;
     use crate::metadata::FsMetadata;
+
+    #[tokio::test]
+    async fn authorization_grants() -> Result<(), ClientError> {
+        let mut client = authenticated_client().await;
+        let (
+            bucket,
+            _bucket_key,
+            _key,
+            metadata,
+            storage_ticket,
+            _metadata_store,
+            content_store,
+            _fs_metadata,
+            _add_path_segments,
+        ) = setup(&mut client).await?;
+
+        // Create a grant using storage ticket
+        storage_ticket.clone().create_grant(&mut client).await?;
+
+        // Assert 404 before any space has been allocated
+        assert!(bucket.get_grants_token(&mut client).await.is_err());
+
+        let mut hasher = blake3::Hasher::new();
+        let content = content_store.get_data();
+        hasher.update(&content);
+        let content_len = content.len() as u64;
+        let content_hash = hasher.finalize().to_string();
+        storage_ticket
+            .clone()
+            .upload_content(metadata.id, content, content_len, content_hash, &mut client)
+            .await?;
+
+        let account = Account::who_am_i(&mut client).await.unwrap();
+        println!("bucket_id: {}, account_id: {}", bucket.id, account.id);
+
+        // Successfully get a new client with a bearer token which can access the new grants
+        let _new_client = bucket.get_grants_token(&mut client).await?;
+
+        Ok(())
+    }
 
     #[tokio::test]
     async fn create_grant() -> Result<(), ClientError> {
@@ -200,24 +242,22 @@ pub mod test {
             .expect("Failed to get file");
         assert_eq!(bytes, "test".as_bytes().to_vec());
 
-        let cids: LocationRequest = content_store
-            .car
-            .car
-            .index
-            .borrow()
-            .get_all_cids()
+        let cids: Vec<Cid> = content_store.car.car.index.borrow().get_all_cids();
+        let cids_request: LocationRequest = cids
+            .clone()
             .into_iter()
-            .map(|x| x.to_string())
+            .map(|cid| cid.to_string())
             .collect();
         let locations = client
-            .call(cids.clone())
+            .call(cids_request)
             .await
             .expect("Failed to get locations");
-        let target_cids = locations
+
+        let stored_blocks = locations
             .get(&storage_ticket.host)
-            .expect("Failed to get cids");
-        for cid in cids.clone() {
-            assert!(target_cids.contains(&cid));
+            .expect("no blocks at storage host");
+        for cid in cids {
+            assert!(stored_blocks.contains(&cid.to_string()));
         }
         Ok(())
     }
@@ -238,14 +278,14 @@ pub mod test {
         Ok(())
     }
 
-    async fn create_bucket(
+    async fn create_bucket_v2(
         client: &mut Client,
     ) -> Result<(Bucket, BucketKey, EcEncryptionKey), ClientError> {
         let (key, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
-        let fingerprint = pretty_fingerprint(
+        let fingerprint = hex_fingerprint(
             key.fingerprint()
                 .await
                 .expect("create fingerprint")
@@ -284,7 +324,7 @@ pub mod test {
         ),
         ClientError,
     > {
-        let (bucket, bucket_key, key) = create_bucket(client).await?;
+        let (bucket, bucket_key, key) = create_bucket_v2(client).await?;
         let metadata_store = CarV2MemoryBlockStore::new().expect("Failed to create metadata store");
         let content_store = CarV2MemoryBlockStore::new().expect("Failed to create content store");
         let mut fs_metadata = FsMetadata::init(&key)

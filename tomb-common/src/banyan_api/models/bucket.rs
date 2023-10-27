@@ -6,8 +6,11 @@ use crate::banyan_api::{
     client::Client,
     error::ClientError,
     models::bucket_key::BucketKey,
-    requests::core::buckets::{
-        create::*, delete::*, read::*, snapshots::read::ReadAllSnapshots, usage::GetBucketUsage,
+    requests::{
+        core::buckets::{
+            create::*, delete::*, read::*, snapshots::read::ReadAllSnapshots, usage::GetBucketUsage,
+        },
+        staging::client_grant::authorization::AuthorizationGrants,
     },
 };
 
@@ -166,7 +169,7 @@ impl Bucket {
                 id: response.id,
                 bucket_id: self.id,
                 metadata_id: response.metadata_id,
-                size: response.size,
+                size: response.size.unwrap_or(0),
                 created_at: response.created_at,
             })
             .collect())
@@ -185,7 +188,7 @@ impl Bucket {
                 id: response.id,
                 bucket_id,
                 metadata_id: response.metadata_id,
-                size: response.size,
+                size: response.size.unwrap_or(0),
                 created_at: response.created_at,
             })
             .collect())
@@ -200,7 +203,7 @@ impl Bucket {
     }
 
     /// Delete a bucket
-    pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
+    pub async fn delete(&self, client: &mut Client) -> Result<(), ClientError> {
         client.call_no_content(DeleteBucket { id: self.id }).await
     }
 
@@ -208,16 +211,24 @@ impl Bucket {
     pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ClientError> {
         client.call_no_content(DeleteBucket { id }).await
     }
+
+    /// Authorization grants
+    pub async fn get_grants_token(&self, client: &mut Client) -> Result<String, ClientError> {
+        client
+            .call(AuthorizationGrants { bucket_id: self.id })
+            .await
+            .map(|value| value.authorization_token)
+    }
 }
 
 #[cfg(test)]
 #[cfg(feature = "fake")]
 pub mod test {
+    use tomb_crypt::hex_fingerprint;
     use tomb_crypt::prelude::PrivateKey;
-    use tomb_crypt::pretty_fingerprint;
 
     use super::*;
-    use crate::banyan_api::models::account::test::authenticated_client;
+    use crate::banyan_api::models::account::test::{authenticated_client, unauthenticated_client};
     use crate::banyan_api::models::metadata::test::push_metadata_and_snapshot;
     use crate::banyan_api::utils::generate_bucket_key;
 
@@ -226,7 +237,7 @@ pub mod test {
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
         let bucket_name = format!("{}", rand::random::<u64>());
-        let fingerprint = pretty_fingerprint(
+        let fingerprint = hex_fingerprint(
             key.fingerprint()
                 .await
                 .expect("create fingerprint")
@@ -258,10 +269,8 @@ pub mod test {
     }
     #[tokio::test]
     async fn create_read() -> Result<(), ClientError> {
-        println!("Authenticated client");
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        println!("Bucket: {:?}", bucket);
         let read_bucket = Bucket::read(&mut client, bucket.id).await?;
         assert_eq!(read_bucket.name, bucket.name);
         assert_eq!(read_bucket.r#type, bucket.r#type);
@@ -331,7 +340,7 @@ pub mod test {
     async fn create_delete_unauthorized() -> Result<(), ClientError> {
         let mut good_client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut good_client).await?;
-        let mut bad_client = authenticated_client().await;
+        let mut bad_client = unauthenticated_client().await;
         let delete_result = bucket.delete(&mut bad_client).await;
         assert!(delete_result.is_err());
         Ok(())

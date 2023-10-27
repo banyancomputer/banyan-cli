@@ -123,10 +123,10 @@ impl Metadata {
         };
         match response.storage_host {
             None => Ok((metadata, None)),
-            Some(_) => Ok((
+            Some(host) => Ok((
                 metadata,
                 Some(StorageTicket {
-                    host: response.storage_host.unwrap(),
+                    host,
                     authorization: response.storage_authorization.unwrap(),
                 }),
             )),
@@ -172,10 +172,10 @@ impl Metadata {
         };
         match response.storage_host {
             None => Ok((metadata, None)),
-            Some(_) => Ok((
+            Some(host) => Ok((
                 metadata,
                 Some(StorageTicket {
-                    host: response.storage_host.unwrap(),
+                    host,
                     authorization: response.storage_authorization.unwrap(),
                 }),
             )),
@@ -258,6 +258,7 @@ impl Metadata {
 #[cfg(test)]
 pub mod test {
     use futures_util::stream::StreamExt;
+    use serial_test::serial;
     use uuid::Uuid;
 
     use crate::banyan_api::models::{
@@ -292,6 +293,7 @@ pub mod test {
         Ok((metadata, storage_ticket, snapshot_id))
     }
     #[tokio::test]
+    #[serial]
     async fn push_read_pull() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
@@ -338,6 +340,7 @@ pub mod test {
     }
 
     #[tokio::test]
+    #[serial]
     async fn push_read_pull_snapshot() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;

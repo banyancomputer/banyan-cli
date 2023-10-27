@@ -21,6 +21,7 @@ where
 
     /// Run the internal command, passing a reference to a global configuration which is saved after completion
     async fn run(self) -> Result<(), ErrorType> {
+        println!("starting a run");
         // Grab global config
         let mut global = GlobalConfig::from_disk()
             .await

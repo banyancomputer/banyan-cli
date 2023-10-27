@@ -153,7 +153,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(|err| TombWasmError(format!("failed to read current metadata: {err}")))?;
+            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -645,10 +645,14 @@ impl WasmMount {
             .expect("could not create blockstore client");
         let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
 
-        let vec = self
-            .fs_metadata
-            .as_mut()
-            .unwrap()
+        let fs = self.fs_metadata.as_mut().unwrap();
+
+        log!(format!(
+            "tomb-wasm: running fs_get_node @ {:?}",
+            path_segments
+        ));
+
+        let vec = fs
             .read(
                 &path_segments,
                 &self.metadata_blockstore,

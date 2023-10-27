@@ -1,5 +1,5 @@
 use crate::{
-    blockstore::{split::DoubleSplitStore, RootedBlockStore},
+    blockstore::{carv2_memory::CarV2MemoryBlockStore, split::DoubleSplitStore, RootedBlockStore},
     share::manager::ShareManager,
     utils::serialize::*,
     utils::{error::SerialError, wnfsio::path_to_segments},
@@ -185,6 +185,10 @@ impl FsMetadata {
 
         // Get the forests
         let forest = load_forest(forest_cid, store).await?;
+        let forest_store = CarV2MemoryBlockStore::new()?;
+        let forest =
+            Rc::new(PrivateForest::load(&forest.store(&forest_store).await?, &forest_store).await?);
+
         // Get the share manager
         let mut share_manager = store
             .get_deserializable::<ShareManager>(share_manager_cid)
@@ -325,9 +329,7 @@ impl FsMetadata {
             .get_node(path_segments, true, &self.forest, metadata_store)
             .await;
 
-        if let Ok(node) = result
-            && node.is_some()
-        {
+        if let Ok(Some(_)) = result {
         }
         // If there was an error searching for the Node or
         else {
@@ -516,8 +518,7 @@ impl FsMetadata {
 
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            let content = file.get_content(&self.forest, &split_store).await?;
-            Ok(content)
+            file.get_content(&self.forest, &split_store).await
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
         }
@@ -850,11 +851,11 @@ mod test {
         fs_metadata
             .write(&file_path, &metadata_store, &metadata_store, file_bytes)
             .await?;
-        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        fs_metadata.save(&metadata_store, &content_store).await?;
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
 
         fs_metadata.mkdir(&dir_path, &metadata_store).await?;
-        fs_metadata.save(&metadata_store, &metadata_store).await?;
+        fs_metadata.save(&metadata_store, &content_store).await?;
         let _fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
 
         Ok(())

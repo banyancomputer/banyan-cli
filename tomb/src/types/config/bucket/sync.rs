@@ -206,7 +206,10 @@ pub async fn sync_bucket(
                         ))
                     })?;
 
-                println!("successfully created the grant; now pushing content");
+                println!(
+                    "successfully created the grant; now pushing content from delta: {}",
+                    delta.path.display()
+                );
 
                 // Push content to the storage provider
                 let delta_reader = std::fs::File::open(&delta.path)?;
@@ -250,8 +253,9 @@ pub async fn sync_bucket(
         }
         // Reconstruct the Bucket locally
         Some(SyncState::MetadataSynced) => {
-            let storage_host = omni
-                .get_local()?
+            let local = omni.get_local()?;
+            let storage_host = local
+                .clone()
                 .storage_ticket
                 .map(|ticket| ticket.host)
                 .unwrap_or(global.endpoints.data.clone());

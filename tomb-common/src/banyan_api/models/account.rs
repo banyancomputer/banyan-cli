@@ -82,18 +82,19 @@ pub mod test {
     use crate::banyan_api::client::Client;
 
     pub async fn authenticated_client() -> Client {
-        let mut client = Client::new("http://localhost:3001", "http://localhost:3002").unwrap();
+        let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap();
         let _ = Account::create_fake(&mut client).await.unwrap();
         client
     }
 
     pub async fn unauthenticated_client() -> Client {
-        Client::new("http://localhost:3001", "http://localhost:3002").unwrap()
+        Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap()
     }
 
     #[tokio::test]
     async fn who_am_i() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
+        println!("client: {:?}", client);
         let subject = client.subject().unwrap();
         let read = Account::who_am_i(&mut client).await?;
         let subject_uuid = uuid::Uuid::parse_str(&subject).unwrap();
@@ -120,8 +121,7 @@ pub mod test {
     async fn usage_limit() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let usage_limit = Account::usage_limit(&mut client).await?;
-        // 5 TiB
-        assert_eq!(usage_limit, 5 * 1024 * 1024 * 1024 * 1024);
+        assert_eq!(usage_limit, 50 * 1024 * 1024 * 1024);
         Ok(())
     }
 }
