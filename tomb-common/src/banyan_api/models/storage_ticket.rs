@@ -120,7 +120,6 @@ pub mod test {
     use crate::banyan_api::models::bucket::{Bucket, BucketType, StorageClass};
     use crate::banyan_api::models::bucket_key::BucketKey;
     use crate::banyan_api::models::metadata::Metadata;
-    use crate::banyan_api::requests::staging::upload::content::UploadContent;
     use crate::banyan_api::utils::generate_bucket_key;
     use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
     use crate::blockstore::RootedBlockStore;

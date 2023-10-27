@@ -5,6 +5,7 @@
 #![feature(let_chains)]
 #![feature(file_create_new)]
 #![feature(duration_constants)]
+#![feature(type_alias_impl_trait)]
 #![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
 // #![deny(unused_crate_dependencies)]
 

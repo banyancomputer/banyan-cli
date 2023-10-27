@@ -13,8 +13,11 @@ use std::{
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
     banyan_api::{
-        blockstore::BanyanApiBlockStore, client::Client, error::ClientError,
-        models::metadata::Metadata, requests::staging::upload::content::UploadContent,
+        blockstore::BanyanApiBlockStore,
+        client::Client,
+        error::ClientError,
+        models::{metadata::Metadata, storage_ticket::StorageTicket},
+        requests::staging::upload::content::UploadContent,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
 };
@@ -166,7 +169,7 @@ pub async fn sync_bucket(
                 && let Some(delta) = local.content.deltas.last()
             {
                 // Push the metadata
-                let (metadata, storage_ticket) = Metadata::push(
+                let (metadata, host, authorization) = Metadata::push(
                     bucket_id,
                     root_cid.to_string(),
                     root_cid.to_string(),
@@ -182,47 +185,34 @@ pub async fn sync_bucket(
                     client,
                 )
                 .await?;
+
                 // Empty the list of deleted blocks, now that it's the server's problem
                 local.deleted_block_cids = BTreeSet::new();
-                // Update storage ticket in the local configurations for future pulls
-                local.storage_ticket = storage_ticket.clone();
+
+                // If a full storage ticket was returned
+                if let Some(host) = host.clone()
+                    && let Some(authorization) = authorization
+                {
+                    let storage_ticket = StorageTicket {
+                        host,
+                        authorization,
+                    };
+
+                    // Update the storage ticket locally
+                    local.storage_ticket = Some(storage_ticket.clone());
+
+                    // Create a grant
+                    storage_ticket.create_grant(client).await?;
+                } else {
+                    local.storage_ticket = None;
+                }
+
+                // Update global and local configs
                 global.update_config(&local)?;
                 omni.set_local(local.clone());
 
-                // If the storage ticket is valid
-                let storage_ticket = storage_ticket.ok_or_else(|| {
-                    TombError::custom_error(
-                        "Metadata was pushed but storage sticket was not reccieved",
-                    )
-                })?;
-                // Create storage grant
-                storage_ticket
-                    .clone()
-                    .create_grant(client)
-                    .await
-                    .map_err(|err| {
-                        TombError::custom_error(&format!(
-                            "unable to register storage ticket: {err}"
-                        ))
-                    })?;
-
-                println!(
-                    "successfully created the grant; now pushing content from delta: {}",
-                    delta.path.display()
-                );
-
                 // Push content to the storage provider
-                let delta_reader = std::fs::File::open(&delta.path)?;
-                let content_len = delta_reader.metadata()?.len();
-                let mut hasher = blake3::Hasher::new();
-                hasher.update_reader(delta_reader)?;
-                let content_hash = hasher.finalize().to_string();
-                let delta_reader = tokio::fs::File::open(&delta.path).await?;
-
-                match storage_ticket
-                    .upload_content(metadata.id, delta_reader, content_len, content_hash, client)
-                    .await
-                {
+                match delta.path.upload(host, metadata.id, client).await {
                     // Upload succeeded
                     Ok(_) => {
                         omni.sync_state = Some(SyncState::AllSynced);
