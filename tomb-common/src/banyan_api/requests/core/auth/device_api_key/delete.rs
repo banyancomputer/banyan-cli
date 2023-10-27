@@ -9,12 +9,9 @@ pub struct DeleteDeviceApiKey {
     pub id: Uuid,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DeleteDeviceApiKeyResponse;
-
 impl ApiRequest for DeleteDeviceApiKey {
     type ErrorType = DeleteDeviceApiKeyError;
-    type ResponseType = DeleteDeviceApiKeyResponse;
+    type ResponseType = ();
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let id = self.id.to_string();
