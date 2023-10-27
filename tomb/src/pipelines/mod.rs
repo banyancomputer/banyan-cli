@@ -30,7 +30,7 @@ mod test {
     use fs_extra::dir;
     use serial_test::serial;
     use std::{
-        fs::{create_dir_all, read_link, rename, symlink_metadata, File},
+        fs::{create_dir_all, read_link, remove_dir_all, rename, symlink_metadata, File},
         io::Write,
         os::unix::fs::symlink,
         path::{Path, PathBuf},
@@ -247,12 +247,14 @@ mod test {
         configure::init(test_name, origin).await?;
         // Prepare locally
         prepare_pipeline(origin).await?;
-        println!("finished bundling...");
         // Create a new dir to restore in
         let restored_dir = &origin
             .parent()
             .expect("origin has no parent")
             .join("restored");
+        if restored_dir.exists() {
+            remove_dir_all(restored_dir)?;
+        }
         create_dir_all(restored_dir)?;
         // Run the restoreing pipeline
         restore_pipeline(origin, restored_dir).await?;

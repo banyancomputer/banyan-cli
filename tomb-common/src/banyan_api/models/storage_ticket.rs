@@ -111,6 +111,7 @@ impl StorageTicket {
 #[cfg(test)]
 #[cfg(feature = "fake")]
 pub mod test {
+    use std::collections::BTreeSet;
     use tomb_crypt::pretty_fingerprint;
 
     use super::*;
@@ -321,6 +322,7 @@ pub mod test {
             metadata_cid.to_string(),
             data_size,
             vec![],
+            BTreeSet::new(),
             metadata_bytes,
             client,
         )

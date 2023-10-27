@@ -1,6 +1,7 @@
 use crate::log;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
+use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
@@ -12,6 +13,7 @@ use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
+use wnfs::private::PrivateNode;
 
 use crate::error::TombWasmError;
 use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
@@ -34,6 +36,9 @@ pub struct WasmMount {
 
     /// Whether or not data has been appended to the content blockstore
     append: bool,
+
+    /// Deleted Block CIDs
+    deleted_block_cids: BTreeSet<String>,
 
     metadata_blockstore: BlockStore,
     content_blockstore: BlockStore,
@@ -74,6 +79,7 @@ impl WasmMount {
             dirty: true,
             append: false,
 
+            deleted_block_cids: BTreeSet::new(),
             metadata_blockstore,
             content_blockstore,
             fs_metadata: Some(fs_metadata),
@@ -132,6 +138,7 @@ impl WasmMount {
             locked: true,
             dirty: false,
             append: false,
+            deleted_block_cids: BTreeSet::new(),
 
             metadata_blockstore,
             content_blockstore,
@@ -275,6 +282,7 @@ impl WasmMount {
                 .share_manager
                 .public_fingerprints(),
             // This may lint as an error but it is not
+            self.deleted_block_cids.clone(),
             Cursor::new(self.metadata_blockstore.get_data()),
             &mut self.client,
         )
@@ -739,10 +747,24 @@ impl WasmMount {
             panic!("Bucket is locked");
         };
 
-        self.fs_metadata
-            .as_mut()
-            .unwrap()
-            .rm(&path_segments, &self.metadata_blockstore)
+        let fs = self.fs_metadata.as_mut().unwrap();
+
+        let node = fs
+            .get_node(&path_segments, &self.metadata_blockstore)
+            .await
+            .expect("unable to query node");
+
+        // If this is a file, also track all the blocks we just deleted
+        if let Some(PrivateNode::File(file)) = node {
+            let cids = file
+                .get_cids(&fs.forest, &self.metadata_blockstore)
+                .await
+                .expect("couldnt get cids for file");
+            let string_cids: BTreeSet<String> = cids.iter().map(|cid| cid.to_string()).collect();
+            self.deleted_block_cids.extend(string_cids);
+        }
+
+        fs.rm(&path_segments, &self.metadata_blockstore)
             .await
             .expect("could not rm");
 

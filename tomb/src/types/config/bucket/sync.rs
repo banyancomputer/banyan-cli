@@ -1,6 +1,11 @@
+use crate::{
+    pipelines::{error::TombError, reconstruct},
+    types::config::globalconfig::GlobalConfig,
+};
 use colored::Colorize;
 use futures_util::StreamExt;
 use std::{
+    collections::BTreeSet,
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::PathBuf,
@@ -12,12 +17,6 @@ use tomb_common::{
         models::metadata::Metadata,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
-};
-
-use crate::{
-    pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig,
-    utils::wnfsio::compute_directory_size,
 };
 
 use super::OmniBucket;
@@ -73,21 +72,11 @@ pub async fn determine_sync_state(
         let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
         // If the metadata root CIDs match
         if local_root_cid == Some(current_remote.root_cid) {
+            // TODO determine a reliable way to check if the content is synced too
             omni.sync_state = Some(SyncState::MetadataSynced);
-
-            // If there is actually data in the local origin
-            if compute_directory_size(&local.origin)? > 100 {
-                omni.sync_state = Some(SyncState::AllSynced);
-            }
-
             Ok(())
         } else {
             let all_metadatas = Metadata::read_all(bucket_id, client).await?;
-            println!(
-                "all_metadatas: {:?}\nour_metadata_root:{:?}",
-                all_metadatas,
-                local.metadata.get_root()
-            );
             // If the current Metadata id exists in the list of remotely persisted ones
             if all_metadatas
                 .iter()
@@ -171,17 +160,11 @@ pub async fn sync_bucket(
             let wrapping_key = global.wrapping_key().await?;
             let fs = local.unlock_fs(&wrapping_key).await?;
 
-            println!(
-                "unpublished_fs_root_dir_ls: {:?}",
-                fs.root_dir
-                    .ls(&[], true, &fs.forest, &local.metadata)
-                    .await?
-            );
-
             // If we can actually get the arguments
-            if let Some(bucket_id) = local.remote_id && let Some(root_cid) = local.metadata.get_root() && let Some(delta) = local.content.deltas.last() {
-                // Delta size
-                println!("expected_data_size: {}", delta.data_size());
+            if let Some(bucket_id) = local.remote_id
+                && let Some(root_cid) = local.metadata.get_root()
+                && let Some(delta) = local.content.deltas.last()
+            {
                 // Push the metadata
                 let (metadata, storage_ticket) = Metadata::push(
                     bucket_id,
@@ -189,25 +172,38 @@ pub async fn sync_bucket(
                     root_cid.to_string(),
                     delta.data_size(),
                     fs.share_manager.public_fingerprints(),
+                    local
+                        .deleted_block_cids
+                        .clone()
+                        .iter()
+                        .map(|v| v.to_string())
+                        .collect(),
                     tokio::fs::File::open(&local.metadata.path).await?,
-                    client
-                ).await?;
+                    client,
+                )
+                .await?;
+                // Empty the list of deleted blocks, now that it's the server's problem
+                local.deleted_block_cids = BTreeSet::new();
                 // Update storage ticket in the local configurations for future pulls
                 local.storage_ticket = storage_ticket.clone();
                 global.update_config(&local)?;
                 omni.set_local(local.clone());
 
-                println!("omni_local_ticket: {:?}", omni.get_local()?.storage_ticket);
-
                 // If the storage ticket is valid
-                let storage_ticket = storage_ticket.ok_or_else(|| TombError::custom_error("Metadata was pushed but storage sticket was not reccieved"))?;
+                let storage_ticket = storage_ticket.ok_or_else(|| {
+                    TombError::custom_error(
+                        "Metadata was pushed but storage sticket was not reccieved",
+                    )
+                })?;
                 // Create storage grant
                 storage_ticket
                     .clone()
                     .create_grant(client)
                     .await
                     .map_err(|err| {
-                        TombError::custom_error(&format!("unable to register storage ticket: {err}"))
+                        TombError::custom_error(&format!(
+                            "unable to register storage ticket: {err}"
+                        ))
                     })?;
 
                 println!("successfully created the grant; now pushing content");
@@ -219,10 +215,37 @@ pub async fn sync_bucket(
                 hasher.update_reader(delta_reader)?;
                 let content_hash = hasher.finalize().to_string();
                 let delta_reader = tokio::fs::File::open(&delta.path).await?;
-                storage_ticket.upload_content(metadata.id, delta_reader, content_len, content_hash, client).await.map_err(|err| TombError::custom_error(&format!("failed during content upload: {}", err)))?;
-                Ok(format!("successfully pushed metadata and content: \n{}\n", metadata))
+
+                match storage_ticket
+                    .upload_content(metadata.id, delta_reader, content_len, content_hash, client)
+                    .await
+                {
+                    // Upload succeeded
+                    Ok(_) => {
+                        omni.sync_state = Some(SyncState::AllSynced);
+                        Metadata::read_current(bucket_id, client)
+                            .await
+                            .map(|new_metadata| {
+                                format!(
+                                    "{}\n{}",
+                                    "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
+                                    new_metadata
+                                )
+                            })
+                            .map_err(TombError::client_error)
+                    }
+                    // Upload failed
+                    Err(_) => Ok(format!(
+                        "{}\n{}\n{}\n",
+                        "<< FAILED TO PUSH CONTENT >>".red(),
+                        "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
+                        metadata
+                    )),
+                }
             } else {
-                Err(TombError::custom_error("No metadata to push, or no content deltas"))
+                Err(TombError::custom_error(
+                    "No metadata to push, or no content deltas",
+                ))
             }
         }
         // Reconstruct the Bucket locally
@@ -239,7 +262,6 @@ pub async fn sync_bucket(
                 .expect("could not create blockstore client");
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
-            println!("banyan_api_blockstore constructed");
             let local = omni.get_local()?;
             // Reconstruct the data on disk
             let reconstruction_result =

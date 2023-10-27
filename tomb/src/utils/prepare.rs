@@ -82,7 +82,8 @@ pub async fn process_plans(
                 // Turn the relative path into a vector of segments
                 let path_segments = path_to_segments(first)?;
                 // Load the file from disk
-                let mut file = File::open(&metadatas.get(0).expect("no paths").canonicalized_path)?;
+                let mut file =
+                    File::open(&metadatas.first().expect("no paths").canonicalized_path)?;
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
                 // Add the file contents
@@ -93,9 +94,15 @@ pub async fn process_plans(
                 for meta in &metadatas[1..] {
                     // Grab the original location
                     let dup_path_segments = path_to_segments(&meta.original_location)?;
-                    // Copy
-                    fs.cp(&path_segments, &dup_path_segments, metadata_store)
-                        .await?;
+                    if fs
+                        .get_node(&dup_path_segments, metadata_store)
+                        .await?
+                        .is_none()
+                    {
+                        // Copy
+                        fs.cp(&path_segments, &dup_path_segments, metadata_store)
+                            .await?;
+                    }
                 }
             }
             // If this is a directory or symlink
