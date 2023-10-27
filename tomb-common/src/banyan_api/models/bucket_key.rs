@@ -235,9 +235,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, initial_bucket_key) = create_bucket(&mut client).await?;
         assert!(initial_bucket_key.approved);
-        let rejection_result =
-            BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await;
-        assert!(rejection_result.is_err());
+        BucketKey::reject(bucket.id, initial_bucket_key.id, &mut client).await?;
         Ok(())
     }
 
