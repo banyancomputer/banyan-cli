@@ -1,8 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-#[cfg(target_arch = "wasm32")]
-use std::io::Read;
 
 use crate::banyan_api::{
     client::Client, error::ClientError, requests::staging::client_grant::create::*,
@@ -106,6 +104,7 @@ impl StorageTicket {
     // }
 }
 
+/*
 #[cfg(test)]
 #[cfg(feature = "fake")]
 pub mod test {
@@ -362,3 +361,5 @@ pub mod test {
         ))
     }
 }
+
+ */

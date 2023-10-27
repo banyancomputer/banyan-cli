@@ -1,16 +1,21 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use reqwest::Body;
-use std::path::PathBuf;
 use uuid::Uuid;
 
 use super::push::PushContent;
 use crate::banyan_api::{client::Client, error::ClientError};
 
+#[cfg(not(target_arch = "wasm32"))]
+use {
+    reqwest::Body,
+    std::path::PathBuf
+};
+
 #[cfg(target_arch = "wasm32")]
-use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
-#[cfg(target_arch = "wasm32")]
-use std::io::Cursor;
+use {
+    crate::blockstore::carv2_memory::CarV2MemoryBlockStore,
+    std::io::Cursor
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 type ContentType = Body;
@@ -25,13 +30,13 @@ pub trait UploadContent {
 
     async fn upload(
         &self,
-        host: Option<String>,
+        host_url: String,
         metadata_id: Uuid,
         client: &mut Client,
     ) -> Result<(), ClientError> {
         client
             .multipart_no_content(PushContent {
-                host_url: host.unwrap_or(client.remote_data.to_string()),
+                host_url,
                 metadata_id,
                 content: self.get_body().await?,
                 content_len: self.get_length()?,

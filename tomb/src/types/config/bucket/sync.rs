@@ -211,29 +211,34 @@ pub async fn sync_bucket(
                 global.update_config(&local)?;
                 omni.set_local(local.clone());
 
-                // Push content to the storage provider
-                match delta.path.upload(host, metadata.id, client).await {
-                    // Upload succeeded
-                    Ok(_) => {
-                        omni.sync_state = Some(SyncState::AllSynced);
-                        Metadata::read_current(bucket_id, client)
-                            .await
-                            .map(|new_metadata| {
-                                format!(
-                                    "{}\n{}",
-                                    "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
-                                    new_metadata
-                                )
-                            })
-                            .map_err(TombError::client_error)
+                if let Some(host_url) = host {
+                    // Push content to the storage provider
+                    match delta.path.upload(host_url, metadata.id, client).await {
+                        // Upload succeeded
+                        Ok(_) => {
+                            omni.sync_state = Some(SyncState::AllSynced);
+                            Metadata::read_current(bucket_id, client)
+                                .await
+                                .map(|new_metadata| {
+                                    format!(
+                                        "{}\n{}",
+                                        "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
+                                        new_metadata
+                                    )
+                                })
+                                .map_err(TombError::client_error)
+                        }
+                        // Upload failed
+                        Err(_) => Ok(format!(
+                            "{}\n{}\n{}\n",
+                            "<< FAILED TO PUSH CONTENT >>".red(),
+                            "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
+                            metadata
+                        )),
                     }
-                    // Upload failed
-                    Err(_) => Ok(format!(
-                        "{}\n{}\n{}\n",
-                        "<< FAILED TO PUSH CONTENT >>".red(),
-                        "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
-                        metadata
-                    )),
+                }
+                else {
+                    Ok(format!("METADATA PUSHED; NO CONTENT PUSH NEEDED"))
                 }
             } else {
                 Err(TombError::custom_error(

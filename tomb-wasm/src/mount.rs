@@ -311,9 +311,9 @@ impl WasmMount {
         }
 
         // If we are doing an upload
-        if let Some(host) = host {
+        if let Some(host_url) = host {
             self.content_blockstore
-                .upload(Some(host), metadata_id, &mut self.client)
+                .upload(host_url, metadata_id, &mut self.client)
                 .await
                 .map_err(|err| TombWasmError(format!("unable to upload content: {err}")))?;
         }
