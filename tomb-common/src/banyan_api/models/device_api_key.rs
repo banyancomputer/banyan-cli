@@ -116,11 +116,8 @@ mod test {
     async fn create_delete() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
-        println!("key creating");
         let create = DeviceApiKey::create(pem, &mut client).await?;
-        println!("key created");
         create.clone().delete(&mut client).await?;
-        println!("key deleted");
         let all_remaining = DeviceApiKey::read_all(&mut client).await?;
         assert!(!all_remaining.iter().any(|value| value.id == create.id));
         Ok(())

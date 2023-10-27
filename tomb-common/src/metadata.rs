@@ -329,9 +329,7 @@ impl FsMetadata {
             .get_node(path_segments, true, &self.forest, metadata_store)
             .await;
 
-        if let Ok(node) = result
-            && node.is_some()
-        {
+        if let Ok(Some(_)) = result {
         }
         // If there was an error searching for the Node or
         else {

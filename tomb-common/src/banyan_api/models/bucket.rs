@@ -269,10 +269,8 @@ pub mod test {
     }
     #[tokio::test]
     async fn create_read() -> Result<(), ClientError> {
-        println!("Authenticated client");
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        println!("Bucket: {:?}", bucket);
         let read_bucket = Bucket::read(&mut client, bucket.id).await?;
         assert_eq!(read_bucket.name, bucket.name);
         assert_eq!(read_bucket.r#type, bucket.r#type);
@@ -294,10 +292,7 @@ pub mod test {
     #[tokio::test]
     async fn create_usage() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
-        let (bucket, key) = create_bucket(&mut client).await?;
-        println!("created the bucket!");
-        println!("bucket: {:?}", bucket);
-        println!("bucketkey: {:?}", key);
+        let (bucket, _) = create_bucket(&mut client).await?;
         let usage = bucket.usage(&mut client).await?;
         assert_eq!(usage, 0);
         Ok(())
@@ -326,16 +321,9 @@ pub mod test {
     async fn create_list_snapshots() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        println!("pushing");
-
         let (metadata, _storage_ticket, _snapshot) =
             push_metadata_and_snapshot(bucket.id, &mut client).await?;
-
-        println!("pushed meta and shots");
-
         let snapshots = bucket.list_snapshots(&mut client).await?;
-
-        println!("listed shots");
         assert_eq!(snapshots.len(), 1);
         assert_eq!(snapshots[0].bucket_id, bucket.id);
         assert_eq!(snapshots[0].metadata_id, metadata.id);
