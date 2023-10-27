@@ -521,13 +521,7 @@ impl FsMetadata {
 
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            println!("about to get cids...");
-            let all_cids = file.get_cids(&self.forest, metadata_store).await?;
-            println!("all_cids: {:?}", all_cids);
-            println!("about to get content...");
-            let content = file.get_content(&self.forest, &split_store).await?;
-            println!("got content...");
-            Ok(content)
+            file.get_content(&self.forest, &split_store).await
         } else {
             Err(SerialError::NodeNotFound(path_segments.join("/")).into())
         }

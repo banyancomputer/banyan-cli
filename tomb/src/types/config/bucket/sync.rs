@@ -238,15 +238,12 @@ pub async fn sync_bucket(
                             .map_err(TombError::client_error)
                     }
                     // Upload failed
-                    Err(err) => {
-                        println!("err: {}", err);
-                        Ok(format!(
-                            "{}\n{}\n{}\n",
-                            "<< FAILED TO PUSH CONTENT >>".red(),
-                            "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
-                            metadata
-                        ))
-                    }
+                    Err(_) => Ok(format!(
+                        "{}\n{}\n{}\n",
+                        "<< FAILED TO PUSH CONTENT >>".red(),
+                        "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
+                        metadata
+                    )),
                 }
             } else {
                 Err(TombError::custom_error(
