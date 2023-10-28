@@ -51,57 +51,6 @@ impl StorageTicket {
             })
             .await
     }
-
-    // // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
-    // /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
-    // #[cfg(not(target_arch = "wasm32"))]
-    // pub async fn upload_content<S>(
-    //     self,
-    //     // TODO: This should probably be a metadata cid
-    //     metadata_id: Uuid,
-    //     content: S,
-    //     content_len: u64,
-    //     content_hash: String,
-    //     client: &mut Client,
-    // ) -> Result<(), ClientError>
-    // where
-    //     reqwest::Body: From<S>,
-    // {
-    //     client
-    //         .multipart_no_content(PushContent {
-    //             host_url: self.host.clone(),
-    //             metadata_id,
-    //             content,
-    //             content_len,
-    //             content_hash,
-    //         })
-    //         .await
-    // }
-
-    // #[cfg(target_arch = "wasm32")]
-    // /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
-    // /// WASM implementation because reqwest hates me
-    // pub async fn upload_content<S>(
-    //     self,
-    //     metadata_id: Uuid,
-    //     content: S,
-    //     content_len: u64,
-    //     content_hash: String,
-    //     client: &mut Client,
-    // ) -> Result<(), ClientError>
-    // where
-    //     S: Read,
-    // {
-    //     client
-    //         .multipart_no_content(PushContent {
-    //             host_url: self.host.clone(),
-    //             metadata_id,
-    //             content,
-    //             content_len,
-    //             content_hash,
-    //         })
-    //         .await
-    // }
 }
 
 /*

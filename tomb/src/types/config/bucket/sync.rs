@@ -236,8 +236,7 @@ pub async fn sync_bucket(
                             metadata
                         )),
                     }
-                }
-                else {
+                } else {
                     Ok(format!("METADATA PUSHED; NO CONTENT PUSH NEEDED"))
                 }
             } else {
@@ -273,4 +272,178 @@ pub async fn sync_bucket(
         Some(SyncState::AllSynced) => Ok("already synced".into()),
         None => Err(TombError::custom_error("Unable to determine sync state")),
     }
+}
+
+#[cfg(test)]
+#[cfg(feature = "fake")]
+pub mod test {
+    use crate::{
+        cli::commands::{BucketsCommand, RunnableCommand, TombCommand},
+        pipelines::{configure, error::TombError, prepare},
+        types::config::{
+            bucket::{LocalBucket, OmniBucket},
+            globalconfig::GlobalConfig,
+        },
+        utils::test::test_setup,
+    };
+    use std::{collections::BTreeSet, path::PathBuf};
+    use tomb_common::{
+        banyan_api::{
+            client::Client,
+            error::ClientError,
+            models::{account::Account, metadata::Metadata, storage_ticket::StorageTicket},
+        },
+        blockstore::{carv2_disk::CarV2DiskBlockStore, RootedBlockStore},
+        metadata::FsMetadata,
+    };
+    use tomb_crypt::hex_fingerprint;
+    use wnfs::libipld::Cid;
+
+    pub async fn authenticated_client() -> Client {
+        let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap();
+        let _ = Account::create_fake(&mut client).await.unwrap();
+        client
+    }
+
+    #[tokio::test]
+    async fn create_grant() -> Result<(), TombError> {
+        let test_name = String::from("create_grant");
+        let origin = PathBuf::from("test").join(&test_name);
+        let mut client = authenticated_client().await;
+        let mut global = GlobalConfig::from_disk().await?;
+
+        let omni = OmniBucket::create(&mut global, &mut client, &test_name, &origin).await?;
+        let local = omni.get_local()?;
+        let fs = omni
+            .get_local()?
+            .unlock_fs(&global.wrapping_key().await?)
+            .await?;
+        let (metadata, host, authorization) = Metadata::push(
+            omni.get_id()?,
+            local.content.get_root().unwrap().to_string(),
+            local.metadata.get_root().unwrap().to_string(),
+            10,
+            fs.share_manager.public_fingerprints(),
+            BTreeSet::new(),
+            tokio::fs::File::open(&local.metadata.path).await?,
+            &mut client,
+        )
+        .await?;
+
+        let storage_ticket = StorageTicket {
+            host: host.unwrap(),
+            authorization: authorization.unwrap(),
+        };
+
+        storage_ticket.create_grant(&mut client).await?;
+
+        Ok(())
+    }
+
+    // #[tokio::test]
+    // async fn authorization_grants() -> Result<(), ClientError> {
+    //     let mut client = authenticated_client().await;
+    //     test_setup("")
+    //     // Create a grant using storage ticket
+    //     storage_ticket.clone().create_grant(&mut client).await?;
+
+    //     // Assert 404 before any space has been allocated
+    //     assert!(bucket.get_grants_token(&mut client).await.is_err());
+
+    //     content_store
+    //         .upload(Some(storage_ticket.host), metadata.id, &mut client)
+    //         .await?;
+
+    //     let account = Account::who_am_i(&mut client).await.unwrap();
+    //     println!("bucket_id: {}, account_id: {}", bucket.id, account.id);
+
+    //     // Successfully get a new client with a bearer token which can access the new grants
+    //     let _new_client = bucket.get_grants_token(&mut client).await?;
+
+    //     Ok(())
+    // }
+
+    // #[tokio::test]
+    // async fn create_grant() -> Result<(), ClientError> {
+
+    //     storage_ticket.clone().create_grant(&mut client).await?;
+    //     content_store
+    //         .upload(Some(storage_ticket.host.clone()), metadata.id, &mut client)
+    //         .await?;
+    //     let mut blockstore_client = client.clone();
+    //     blockstore_client
+    //         .with_remote(&storage_ticket.host)
+    //         .expect("Failed to create blockstore client");
+    //     let banyan_api_blockstore = BanyanApiBlockStore::from(blockstore_client);
+    //     let bytes = fs_metadata
+    //         .read(&add_path_segments, &metadata_store, &banyan_api_blockstore)
+    //         .await
+    //         .expect("Failed to get file");
+    //     assert_eq!(bytes, "test".as_bytes().to_vec());
+    //     Ok(())
+    // }
+
+    // #[tokio::test]
+    // async fn get_locations() -> Result<(), ClientError> {
+    //     let mut client = authenticated_client().await;
+    //     let (
+    //         _bucket,
+    //         _bucket_key,
+    //         _key,
+    //         metadata,
+    //         storage_ticket,
+    //         metadata_store,
+    //         content_store,
+    //         mut fs_metadata,
+    //         add_path_segments,
+    //     ) = setup(&mut client).await?;
+    //     storage_ticket.clone().create_grant(&mut client).await?;
+    //     content_store
+    //         .upload(Some(storage_ticket.host.clone()), metadata.id, &mut client)
+    //         .await?;
+    //     let mut blockstore_client = client.clone();
+    //     blockstore_client
+    //         .with_remote(&storage_ticket.host)
+    //         .expect("Failed to create blockstore client");
+    //     let banyan_api_blockstore = BanyanApiBlockStore::from(blockstore_client);
+    //     let bytes = fs_metadata
+    //         .read(&add_path_segments, &metadata_store, &banyan_api_blockstore)
+    //         .await
+    //         .expect("Failed to get file");
+    //     assert_eq!(bytes, "test".as_bytes().to_vec());
+
+    //     let cids: Vec<Cid> = content_store.car.car.index.borrow().get_all_cids();
+    //     let cids_request: LocationRequest = cids
+    //         .clone()
+    //         .into_iter()
+    //         .map(|cid| cid.to_string())
+    //         .collect();
+    //     let locations = client
+    //         .call(cids_request)
+    //         .await
+    //         .expect("Failed to get locations");
+
+    //     let stored_blocks = locations
+    //         .get(&storage_ticket.host)
+    //         .expect("no blocks at storage host");
+    //     for cid in cids {
+    //         assert!(stored_blocks.contains(&cid.to_string()));
+    //     }
+    //     Ok(())
+    // }
+
+    // #[tokio::test]
+    // async fn get_bad_location() -> Result<(), ClientError> {
+    //     let mut client = authenticated_client().await;
+    //     let cids: LocationRequest = vec![cid::Cid::default().to_string()];
+    //     let locations = client
+    //         .call(cids.clone())
+    //         .await
+    //         .expect("Failed to get locations");
+    //     let target_cids = locations.get("NA").expect("Failed to get cids");
+    //     for cid in cids.clone() {
+    //         assert!(target_cids.contains(&cid));
+    //     }
+    //     Ok(())
+    // }
 }

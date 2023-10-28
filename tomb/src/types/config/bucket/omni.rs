@@ -181,11 +181,6 @@ impl OmniBucket {
             omni.local = Some(local);
         }
 
-        // Print sync result if we successfully initialized both of them
-        if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
-            println!("{sync}");
-        }
-
         Ok(omni)
     }
 

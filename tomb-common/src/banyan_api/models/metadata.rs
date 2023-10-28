@@ -1,10 +1,7 @@
-use std::fmt::Display;
-#[cfg(target_arch = "wasm32")]
-use std::io::Read;
-
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::fmt::Display;
 use uuid::Uuid;
 
 use {
@@ -86,64 +83,16 @@ impl Metadata {
     // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
     #[allow(clippy::too_many_arguments)]
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn push<S>(
+    pub async fn push(
         bucket_id: Uuid,
         root_cid: String,
         metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
         deleted_block_cids: BTreeSet<String>,
-        metadata_stream: S,
+        metadata_stream: MetadataStreamType,
         client: &mut Client,
-    ) -> Result<(Self, Option<String>, Option<String>), ClientError>
-    where
-        reqwest::Body: From<S>,
-    {
-        let response = client
-            .multipart(PushMetadata {
-                bucket_id,
-                root_cid: root_cid.clone(),
-                metadata_cid: metadata_cid.clone(),
-                expected_data_size,
-                valid_keys,
-                deleted_block_cids,
-                metadata_stream,
-            })
-            .await?;
-        let metadata = Self {
-            id: response.id,
-            bucket_id,
-            root_cid,
-            metadata_cid,
-            data_size: 0,
-            state: response.state,
-            snapshot_id: None,
-        };
-        Ok((
-            metadata,
-            response.storage_host,
-            response.storage_authorization,
-        ))
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    #[cfg(target_arch = "wasm32")]
-    /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
-    /// WASM implementation because reqwest hates me
-    pub async fn push<S>(
-        bucket_id: Uuid,
-        root_cid: String,
-        metadata_cid: String,
-        expected_data_size: u64,
-        valid_keys: Vec<String>,
-        deleted_block_cids: BTreeSet<String>,
-        metadata_stream: S,
-        client: &mut Client,
-    ) -> Result<(Self, Option<String>, Option<String>), ClientError>
-    where
-        S: Read,
-    {
+    ) -> Result<(Self, Option<String>, Option<String>), ClientError> {
         let response = client
             .multipart(PushMetadata {
                 bucket_id,
@@ -247,6 +196,7 @@ impl Metadata {
 #[cfg(test)]
 pub mod test {
     use futures_util::stream::StreamExt;
+    use reqwest::Body;
     use serial_test::serial;
     use uuid::Uuid;
 
@@ -267,7 +217,7 @@ pub mod test {
             0,
             vec![],
             BTreeSet::new(),
-            "metadata_stream".as_bytes(),
+            Body::from("metadata_stream".as_bytes()),
             client,
         )
         .await?;

@@ -6,21 +6,15 @@ use super::push::PushContent;
 use crate::banyan_api::{client::Client, error::ClientError};
 
 #[cfg(not(target_arch = "wasm32"))]
-use {
-    reqwest::Body,
-    std::path::PathBuf
-};
+use {reqwest::Body, std::path::PathBuf};
 
 #[cfg(target_arch = "wasm32")]
-use {
-    crate::blockstore::carv2_memory::CarV2MemoryBlockStore,
-    std::io::Cursor
-};
+use {crate::blockstore::carv2_memory::CarV2MemoryBlockStore, std::io::Cursor};
 
 #[cfg(not(target_arch = "wasm32"))]
-type ContentType = Body;
+pub type ContentType = Body;
 #[cfg(target_arch = "wasm32")]
-type ContentType = Cursor<Vec<u8>>;
+pub type ContentType = Cursor<Vec<u8>>;
 
 #[async_trait(?Send)]
 pub trait UploadContent {
