@@ -282,7 +282,7 @@ pub async fn sync_bucket(
                     })
                     .await
                     .map(|value| value.authorization_token)?;
-                
+
                 // Create a grant for this Client so that future BlockStore calls will succeed
                 let storage_ticket = StorageTicket {
                     host: storage_host,
