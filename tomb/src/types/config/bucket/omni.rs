@@ -2,7 +2,7 @@ use super::{determine_sync_state, LocalBucket, SyncState};
 use crate::{
     cli::{commands::prompt_for_bool, specifiers::BucketSpecifier},
     pipelines::error::TombError,
-    types::config::{bucket::sync_bucket, globalconfig::GlobalConfig},
+    types::config::globalconfig::GlobalConfig,
 };
 use colored::{ColoredString, Colorize};
 use std::{collections::HashMap, fmt::Display, path::Path};

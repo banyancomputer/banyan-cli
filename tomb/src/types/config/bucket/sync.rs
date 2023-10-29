@@ -17,10 +17,13 @@ use tomb_common::{
         client::Client,
         error::ClientError,
         models::{metadata::Metadata, storage_ticket::StorageTicket},
-        requests::staging::upload::content::UploadContent,
+        requests::staging::{
+            client_grant::authorization::AuthorizationGrants, upload::content::UploadContent,
+        },
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
 };
+use wnfs::common::BlockStore;
 
 use super::OmniBucket;
 
@@ -181,7 +184,7 @@ pub async fn sync_bucket(
                         .iter()
                         .map(|v| v.to_string())
                         .collect(),
-                    tokio::fs::File::open(&local.metadata.path).await?,
+                    tokio::fs::File::open(&local.metadata.path).await?.into(),
                     client,
                 )
                 .await?;
@@ -237,7 +240,7 @@ pub async fn sync_bucket(
                         )),
                     }
                 } else {
-                    Ok(format!("METADATA PUSHED; NO CONTENT PUSH NEEDED"))
+                    Ok("METADATA PUSHED; NO CONTENT PUSH NEEDED".to_string())
                 }
             } else {
                 Err(TombError::custom_error(
@@ -260,6 +263,34 @@ pub async fn sync_bucket(
                 .expect("could not create blockstore client");
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
+
+            // If getting a block is an error
+            if banyan_api_blockstore
+                .get_block(
+                    &local
+                        .metadata
+                        .get_root()
+                        .ok_or(TombError::custom_error("no metadata root_cid"))?,
+                )
+                .await
+                .is_err()
+            {
+                // Get authorization
+                let authorization = client
+                    .call(AuthorizationGrants {
+                        bucket_id: omni.get_id()?,
+                    })
+                    .await
+                    .map(|value| value.authorization_token)?;
+                
+                // Create a grant for this Client so that future BlockStore calls will succeed
+                let storage_ticket = StorageTicket {
+                    host: storage_host,
+                    authorization,
+                };
+                storage_ticket.create_grant(client).await?;
+            }
+
             let local = omni.get_local()?;
             // Reconstruct the data on disk
             let reconstruction_result =
@@ -278,26 +309,17 @@ pub async fn sync_bucket(
 #[cfg(feature = "fake")]
 pub mod test {
     use crate::{
-        cli::commands::{BucketsCommand, RunnableCommand, TombCommand},
-        pipelines::{configure, error::TombError, prepare},
-        types::config::{
-            bucket::{LocalBucket, OmniBucket},
-            globalconfig::GlobalConfig,
-        },
-        utils::test::test_setup,
+        pipelines::error::TombError,
+        types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
     };
     use std::{collections::BTreeSet, path::PathBuf};
     use tomb_common::{
         banyan_api::{
             client::Client,
-            error::ClientError,
             models::{account::Account, metadata::Metadata, storage_ticket::StorageTicket},
         },
-        blockstore::{carv2_disk::CarV2DiskBlockStore, RootedBlockStore},
-        metadata::FsMetadata,
+        blockstore::RootedBlockStore,
     };
-    use tomb_crypt::hex_fingerprint;
-    use wnfs::libipld::Cid;
 
     pub async fn authenticated_client() -> Client {
         let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap();
@@ -318,14 +340,14 @@ pub mod test {
             .get_local()?
             .unlock_fs(&global.wrapping_key().await?)
             .await?;
-        let (metadata, host, authorization) = Metadata::push(
+        let (_, host, authorization) = Metadata::push(
             omni.get_id()?,
             local.content.get_root().unwrap().to_string(),
             local.metadata.get_root().unwrap().to_string(),
             10,
             fs.share_manager.public_fingerprints(),
             BTreeSet::new(),
-            tokio::fs::File::open(&local.metadata.path).await?,
+            tokio::fs::File::open(&local.metadata.path).await?.into(),
             &mut client,
         )
         .await?;
