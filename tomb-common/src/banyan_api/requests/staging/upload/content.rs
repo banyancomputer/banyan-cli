@@ -5,14 +5,11 @@ use uuid::Uuid;
 use super::push::PushContent;
 use crate::banyan_api::{client::Client, error::ClientError};
 
-#[cfg(not(target_arch = "wasm32"))]
-use {reqwest::Body, std::path::PathBuf};
-
 #[cfg(target_arch = "wasm32")]
 use {crate::blockstore::carv2_memory::CarV2MemoryBlockStore, std::io::Cursor};
 
 #[cfg(not(target_arch = "wasm32"))]
-pub type ContentType = Body;
+pub type ContentType = reqwest::Body;
 #[cfg(target_arch = "wasm32")]
 pub type ContentType = Cursor<Vec<u8>>;
 
