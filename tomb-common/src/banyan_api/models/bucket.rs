@@ -321,7 +321,7 @@ pub mod test {
     async fn create_list_snapshots() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket, _snapshot) =
+        let (metadata, _host, _authorization, _snapshot) =
             push_metadata_and_snapshot(bucket.id, &mut client).await?;
         let snapshots = bucket.list_snapshots(&mut client).await?;
         assert_eq!(snapshots.len(), 1);

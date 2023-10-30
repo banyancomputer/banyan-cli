@@ -1,38 +1,24 @@
-use std::collections::BTreeSet;
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
-#[cfg(target_arch = "wasm32")]
-use std::io::Read;
-
 use crate::banyan_api::models::metadata::MetadataState;
 use crate::banyan_api::requests::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 use uuid::Uuid;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, Serialize)]
-pub struct PushMetadata<S>
-where
-    reqwest::Body: From<S>,
-{
-    pub bucket_id: Uuid,
-
-    pub expected_data_size: u64,
-    pub root_cid: String,
-    pub metadata_cid: String,
-    pub valid_keys: Vec<String>,
-    pub deleted_block_cids: BTreeSet<String>,
-
-    pub metadata_stream: S,
-}
-
+use reqwest::Body;
 #[cfg(target_arch = "wasm32")]
-#[derive(Debug, Serialize)]
-pub struct PushMetadata<S>
-where
-    S: Read,
-{
+use std::io::{Cursor, Read};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type MetadataStreamType = Body;
+#[cfg(target_arch = "wasm32")]
+pub type MetadataStreamType = Cursor<Vec<u8>>;
+
+#[derive(Debug)]
+pub struct PushMetadata {
     pub bucket_id: Uuid,
 
     pub expected_data_size: u64,
@@ -41,7 +27,7 @@ where
     pub valid_keys: Vec<String>,
     pub deleted_block_cids: BTreeSet<String>,
 
-    pub metadata_stream: S,
+    pub metadata_stream: MetadataStreamType,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,23 +47,8 @@ pub struct PushMetadataResponse {
     pub storage_authorization: Option<String>,
 }
 
-#[cfg(target_arch = "wasm32")]
-fn generate_boundary() -> String {
-    use rand::{distributions::Alphanumeric, Rng};
-    let random_string: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30) // Adjust the length as needed
-        .map(char::from)
-        .collect();
-
-    format!("------------------------{}", random_string)
-}
-
 #[cfg(not(target_arch = "wasm32"))]
-impl<S> ApiRequest for PushMetadata<S>
-where
-    reqwest::Body: From<S>,
-{
+impl ApiRequest for PushMetadata {
     type ResponseType = PushMetadataResponse;
     type ErrorType = PushMetadataError;
 
@@ -118,10 +89,19 @@ where
 }
 
 #[cfg(target_arch = "wasm32")]
-impl<S> ApiRequest for PushMetadata<S>
-where
-    S: Read,
-{
+fn generate_boundary() -> String {
+    use rand::{distributions::Alphanumeric, Rng};
+    let random_string: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30) // Adjust the length as needed
+        .map(char::from)
+        .collect();
+
+    format!("------------------------{}", random_string)
+}
+
+#[cfg(target_arch = "wasm32")]
+impl ApiRequest for PushMetadata {
     type ResponseType = PushMetadataResponse;
     type ErrorType = PushMetadataError;
 

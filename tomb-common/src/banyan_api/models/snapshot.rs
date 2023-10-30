@@ -65,7 +65,7 @@ mod test {
     async fn restore() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
-        let (metadata, _) = push_empty_metadata(bucket.id, &mut client).await.unwrap();
+        let (metadata, _, _) = push_empty_metadata(bucket.id, &mut client).await.unwrap();
         let _snapshot_id = metadata.snapshot(&mut client).await.unwrap();
         //let restored_metadata_id = snapshot.restore(&mut client).await.unwrap();
         //assert_eq!(restored_metadata_id, metadata.id);

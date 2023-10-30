@@ -1,17 +1,13 @@
-use std::fmt::Display;
-#[cfg(target_arch = "wasm32")]
-use std::io::Read;
-
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::fmt::Display;
 use uuid::Uuid;
 
 use {
     crate::banyan_api::{
         client::Client,
         error::ClientError,
-        models::storage_ticket::StorageTicket,
         requests::core::buckets::{
             metadata::{pull::*, push::*, read::*},
             snapshots::create::*,
@@ -87,20 +83,16 @@ impl Metadata {
     // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
     #[allow(clippy::too_many_arguments)]
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn push<S>(
+    pub async fn push(
         bucket_id: Uuid,
         root_cid: String,
         metadata_cid: String,
         expected_data_size: u64,
         valid_keys: Vec<String>,
         deleted_block_cids: BTreeSet<String>,
-        metadata_stream: S,
+        metadata_stream: MetadataStreamType,
         client: &mut Client,
-    ) -> Result<(Self, Option<StorageTicket>), ClientError>
-    where
-        reqwest::Body: From<S>,
-    {
+    ) -> Result<(Self, Option<String>, Option<String>), ClientError> {
         let response = client
             .multipart(PushMetadata {
                 bucket_id,
@@ -121,65 +113,11 @@ impl Metadata {
             state: response.state,
             snapshot_id: None,
         };
-        match response.storage_host {
-            None => Ok((metadata, None)),
-            Some(host) => Ok((
-                metadata,
-                Some(StorageTicket {
-                    host,
-                    authorization: response.storage_authorization.unwrap(),
-                }),
-            )),
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    #[cfg(target_arch = "wasm32")]
-    /// Push new metadata for a bucket. Creates a new metadata record and returns a storage ticket if needed
-    /// WASM implementation because reqwest hates me
-    pub async fn push<S>(
-        bucket_id: Uuid,
-        root_cid: String,
-        metadata_cid: String,
-        expected_data_size: u64,
-        valid_keys: Vec<String>,
-        deleted_block_cids: BTreeSet<String>,
-        metadata_stream: S,
-        client: &mut Client,
-    ) -> Result<(Self, Option<StorageTicket>), ClientError>
-    where
-        S: Read,
-    {
-        let response = client
-            .multipart(PushMetadata {
-                bucket_id,
-                root_cid: root_cid.clone(),
-                metadata_cid: metadata_cid.clone(),
-                expected_data_size,
-                valid_keys,
-                deleted_block_cids,
-                metadata_stream,
-            })
-            .await?;
-        let metadata = Self {
-            id: response.id,
-            bucket_id,
-            root_cid,
-            metadata_cid,
-            data_size: 0,
-            state: response.state,
-            snapshot_id: None,
-        };
-        match response.storage_host {
-            None => Ok((metadata, None)),
-            Some(host) => Ok((
-                metadata,
-                Some(StorageTicket {
-                    host,
-                    authorization: response.storage_authorization.unwrap(),
-                }),
-            )),
-        }
+        Ok((
+            metadata,
+            response.storage_host,
+            response.storage_authorization,
+        ))
     }
 
     /// Pull the metadata file for the bucket metadata
@@ -258,6 +196,7 @@ impl Metadata {
 #[cfg(test)]
 pub mod test {
     use futures_util::stream::StreamExt;
+    use reqwest::Body;
     use serial_test::serial;
     use uuid::Uuid;
 
@@ -270,34 +209,34 @@ pub mod test {
     pub async fn push_empty_metadata(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, Option<StorageTicket>), ClientError> {
-        let (metadata, storage_ticket) = Metadata::push(
+    ) -> Result<(Metadata, Option<String>, Option<String>), ClientError> {
+        let (metadata, host, authorization) = Metadata::push(
             bucket_id,
             "root_cid".to_string(),
             "metadata_cid".to_string(),
             0,
             vec![],
             BTreeSet::new(),
-            "metadata_stream".as_bytes(),
+            Body::from("metadata_stream".as_bytes()),
             client,
         )
         .await?;
-        Ok((metadata, storage_ticket))
+        Ok((metadata, host, authorization))
     }
     pub async fn push_metadata_and_snapshot(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, Option<StorageTicket>, Uuid), ClientError> {
-        let (metadata, storage_ticket) = push_empty_metadata(bucket_id, client).await?;
+    ) -> Result<(Metadata, Option<String>, Option<String>, Uuid), ClientError> {
+        let (metadata, host, authorization) = push_empty_metadata(bucket_id, client).await?;
         let snapshot_id = metadata.snapshot(client).await?;
-        Ok((metadata, storage_ticket, snapshot_id))
+        Ok((metadata, host, authorization, snapshot_id))
     }
     #[tokio::test]
     #[serial]
     async fn push_read_pull() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
+        let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.data_size, 0);
@@ -318,7 +257,7 @@ pub mod test {
     async fn push_read_unauthorized() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
+        let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
 
         let mut bad_client = authenticated_client().await;
@@ -331,8 +270,9 @@ pub mod test {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (other_bucket, _) = create_bucket(&mut client).await?;
-        let (_metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
-        let (other_metadata, _storage_ticket) =
+        let (_metadata, _host, _authorization) =
+            push_empty_metadata(bucket.id, &mut client).await?;
+        let (other_metadata, _host, _authorization) =
             push_empty_metadata(other_bucket.id, &mut client).await?;
         let read_metadata = Metadata::read(bucket.id, other_metadata.id, &mut client).await;
         assert!(read_metadata.is_err());
@@ -344,7 +284,7 @@ pub mod test {
     async fn push_read_pull_snapshot() -> Result<(), ClientError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _storage_ticket) = push_empty_metadata(bucket.id, &mut client).await?;
+        let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
         assert_eq!(metadata.bucket_id, bucket.id);
         assert_eq!(metadata.root_cid, "root_cid");
         assert_eq!(metadata.data_size, 0);

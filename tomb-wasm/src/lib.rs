@@ -1,5 +1,4 @@
 //! This crate contains modules which are compiled to WASM
-
 mod error;
 pub mod mount;
 pub mod types;

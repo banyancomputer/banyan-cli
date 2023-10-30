@@ -124,6 +124,7 @@ impl BucketKey {
 mod test {
     use std::collections::BTreeSet;
 
+    use reqwest::Body;
     use tomb_crypt::hex_fingerprint;
     use tomb_crypt::prelude::PrivateKey;
 
@@ -256,7 +257,7 @@ mod test {
             0,
             vec![initial_bucket_key.fingerprint, bucket_key.fingerprint],
             BTreeSet::new(),
-            "metadata_stream".as_bytes(),
+            Body::from("metadata_stream".as_bytes()),
             &mut client,
         )
         .await?;
