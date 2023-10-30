@@ -3,11 +3,10 @@
 use std::convert::TryFrom;
 
 use gloo::console::log;
-use gloo::utils::window;
-use js_sys::{Array, Reflect, Uint8Array};
+use js_sys::{Array, Uint8Array};
+use tomb_crypt::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
-use web_sys::{CryptoKey, CryptoKeyPair};
 
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::account::Account;
@@ -23,6 +22,19 @@ fn js_array(values: &[&str]) -> JsValue {
     let js_array: Array = values.iter().map(|s| JsValue::from_str(s)).collect();
 
     JsValue::from(js_array)
+}
+
+async fn pem_from_ec_key(key: &EcEncryptionKey) -> String {
+    let key_pem_bytes = key.export().await.expect("pem bytes");
+    let key_pem = String::from_utf8(key_pem_bytes).expect("pem");
+    key_pem
+}
+
+async fn public_pem_from_ec_key(key: &EcEncryptionKey) -> String {
+    let public_key = key.public_key().expect("public key");
+    let public_key_pem_bytes = public_key.export().await.expect("pem bytes");
+    let public_key_pem = String::from_utf8(public_key_pem_bytes).expect("pem");
+    public_key_pem
 }
 
 pub async fn authenticated_client() -> TombResult<TombWasm> {
@@ -44,10 +56,9 @@ pub async fn authenticated_client() -> TombResult<TombWasm> {
 
 pub async fn create_bucket(
     client: &mut TombWasm,
-    key_pair: &CryptoKeyPair,
+    encryption_key: &EcEncryptionKey,
 ) -> TombResult<WasmBucket> {
-    let web_public_encryption_key =
-        CryptoKey::from(Reflect::get(key_pair, &"publicKey".into()).unwrap());
+    let pem = public_pem_from_ec_key(encryption_key).await;
     // Generate a random name
     let bucket_name = random_string(10);
     // Note: this might lint as an error, but it's not
@@ -56,7 +67,7 @@ pub async fn create_bucket(
             bucket_name.clone(),
             "warm".to_string(),
             "interactive".to_string(),
-            web_public_encryption_key,
+            pem,
         )
         .await?;
     assert_eq!(bucket.name(), bucket_name);
@@ -74,21 +85,9 @@ fn random_string(length: usize) -> String {
     String::from_utf8(bytes).unwrap()
 }
 
-async fn web_ec_key_pair(key_type: &str, uses: &[&str]) -> CryptoKeyPair {
-    let subtle = window().crypto().unwrap().subtle();
-    let params = web_sys::EcKeyGenParams::new(key_type, "P-384");
-    let usages = js_array(uses);
-    let promise = subtle
-        .generate_key_with_object(&params, true, &usages)
-        .unwrap();
-    let key_pair = wasm_bindgen_futures::JsFuture::from(promise).await.unwrap();
-    CryptoKeyPair::from(key_pair)
-}
-
 #[wasm_bindgen_test]
 async fn get_usage() -> TombResult<()> {
     log!("tomb_wasm_test: get_usage()");
-    let _key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
     let mut client = authenticated_client().await?;
     let usage = client.get_usage().await?;
     assert_eq!(usage, 0);
@@ -102,10 +101,13 @@ async fn get_usage() -> TombResult<()> {
 async fn mount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
 
     assert!(!mount.locked());
@@ -116,13 +118,16 @@ async fn mount() -> TombResult<()> {
 async fn share_with() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_share_with()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let wasm_bucket_key: WasmBucketKey = client.create_bucket_key(bucket.id().to_string()).await?;
     assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
     assert!(!wasm_bucket_key.approved());
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     mount.share_with(wasm_bucket_key.id()).await?;
@@ -133,15 +138,19 @@ async fn share_with() -> TombResult<()> {
 async fn snapshot() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_snapshot()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     assert!(!mount.has_snapshot());
     let _snapshot_id = mount.snapshot().await?;
     assert!(mount.has_snapshot());
+    // TODO: this should be testing whether you can read the snapshot
     //assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
     //assert_eq!(
     //    snapshot.metadata_id(),
@@ -149,7 +158,10 @@ async fn snapshot() -> TombResult<()> {
     //);
 
     let mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     assert!(mount.has_snapshot());
@@ -160,12 +172,15 @@ async fn snapshot() -> TombResult<()> {
 async fn mkdir() -> TombResult<()> {
     let mut client = authenticated_client().await?;
 
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
 
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
 
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
 
@@ -189,12 +204,15 @@ async fn mkdir() -> TombResult<()> {
 async fn mkdir_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
 
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): create_bucket()");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
 
@@ -206,7 +224,10 @@ async fn mkdir_remount() -> TombResult<()> {
     assert_eq!(ls.length(), 1);
     log!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): remount() and ls()");
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     let ls: Array = mount.ls(ls_path_array).await?;
@@ -222,10 +243,13 @@ async fn mkdir_remount() -> TombResult<()> {
 async fn write() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     let write_path_array: Array = js_array(&["zero.bin"]).into();
@@ -248,10 +272,13 @@ async fn write() -> TombResult<()> {
 async fn write_read() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_mkdir()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     let write_path_array: Array = js_array(&["zero.bin"]).into();
@@ -278,12 +305,15 @@ async fn write_read() -> TombResult<()> {
 async fn write_remount() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
 
     log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): create_bucket()");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair.clone())
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
 
@@ -301,7 +331,10 @@ async fn write_remount() -> TombResult<()> {
 
     log!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): remount() and ls()");
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     let ls: Array = mount.ls(ls_path_array).await?;
@@ -317,10 +350,13 @@ async fn write_remount() -> TombResult<()> {
 async fn write_rm() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_write_rm()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     let write_path_array: Array = js_array(&["zero.bin"]).into();
@@ -343,10 +379,13 @@ async fn write_rm() -> TombResult<()> {
 async fn write_mv() -> TombResult<()> {
     log!("tomb_wasm_test: create_bucket_mount_write_mv()");
     let mut client = authenticated_client().await?;
-    let web_encryption_key_pair = web_ec_key_pair("ECDH", &["deriveBits"]).await;
+    let web_encryption_key_pair = EcEncryptionKey::generate().await.expect("encryption key");
     let bucket = create_bucket(&mut client, &web_encryption_key_pair).await?;
     let mut mount = client
-        .mount(bucket.id().to_string(), web_encryption_key_pair)
+        .mount(
+            bucket.id().to_string(),
+            pem_from_ec_key(&web_encryption_key_pair).await,
+        )
         .await?;
     assert!(!mount.locked());
     let write_path_array: Array = js_array(&["zero.bin"]).into();
