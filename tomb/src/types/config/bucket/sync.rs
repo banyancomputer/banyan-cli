@@ -166,36 +166,44 @@ pub async fn sync_bucket(
             let wrapping_key = global.wrapping_key().await?;
             let fs = local.unlock_fs(&wrapping_key).await?;
 
-            // If we can actually get the arguments
-            if let Some(bucket_id) = local.remote_id
-                && let Some(root_cid) = local.metadata.get_root()
-                && let Some(delta) = local.content.deltas.last()
-            {
-                // Push the metadata
-                let (metadata, host, authorization) = Metadata::push(
-                    bucket_id,
-                    root_cid.to_string(),
-                    root_cid.to_string(),
-                    delta.data_size(),
-                    fs.share_manager.public_fingerprints(),
-                    local
-                        .deleted_block_cids
-                        .clone()
-                        .iter()
-                        .map(|v| v.to_string())
-                        .collect(),
-                    tokio::fs::File::open(&local.metadata.path).await?.into(),
-                    client,
-                )
-                .await?;
+            // Extract variables or error
+            let bucket_id = local
+                .remote_id
+                .ok_or(TombError::custom_error("Bucket has no remote ID"))?;
+            let root_cid = local
+                .metadata
+                .get_root()
+                .ok_or(TombError::custom_error("Bucket has no root CID"))?;
+            let delta = local.content.get_delta()?;
 
-                // Empty the list of deleted blocks, now that it's the server's problem
-                local.deleted_block_cids = BTreeSet::new();
+            // Push the metadata
+            let (metadata, host, authorization) = Metadata::push(
+                bucket_id,
+                root_cid.to_string(),
+                root_cid.to_string(),
+                delta.data_size(),
+                fs.share_manager.public_fingerprints(),
+                local
+                    .deleted_block_cids
+                    .clone()
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect(),
+                tokio::fs::File::open(&local.metadata.path).await?.into(),
+                client,
+            )
+            .await?;
 
-                // If a full storage ticket was returned
-                if let Some(host) = host.clone()
-                    && let Some(authorization) = authorization
-                {
+            // Empty the list of deleted blocks, now that it's the server's problem
+            local.deleted_block_cids = BTreeSet::new();
+
+            if host.is_none() && authorization.is_none() {
+                local.storage_ticket = None;
+            }
+
+            // If a full storage ticket was returned
+            if let Some(host) = host.clone() {
+                if let Some(authorization) = authorization {
                     let storage_ticket = StorageTicket {
                         host,
                         authorization,
@@ -206,46 +214,40 @@ pub async fn sync_bucket(
 
                     // Create a grant
                     storage_ticket.create_grant(client).await?;
-                } else {
-                    local.storage_ticket = None;
                 }
+            }
 
-                // Update global and local configs
-                global.update_config(&local)?;
-                omni.set_local(local.clone());
+            // Update global and local configs
+            global.update_config(&local)?;
+            omni.set_local(local.clone());
 
-                if let Some(host_url) = host {
-                    // Push content to the storage provider
-                    match delta.path.upload(host_url, metadata.id, client).await {
-                        // Upload succeeded
-                        Ok(_) => {
-                            omni.sync_state = Some(SyncState::AllSynced);
-                            Metadata::read_current(bucket_id, client)
-                                .await
-                                .map(|new_metadata| {
-                                    format!(
-                                        "{}\n{}",
-                                        "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
-                                        new_metadata
-                                    )
-                                })
-                                .map_err(TombError::client_error)
-                        }
-                        // Upload failed
-                        Err(_) => Ok(format!(
-                            "{}\n{}\n{}\n",
-                            "<< FAILED TO PUSH CONTENT >>".red(),
-                            "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
-                            metadata
-                        )),
+            if let Some(host_url) = host {
+                // Push content to the storage provider
+                match local.content.upload(host_url, metadata.id, client).await {
+                    // Upload succeeded
+                    Ok(_) => {
+                        omni.sync_state = Some(SyncState::AllSynced);
+                        Metadata::read_current(bucket_id, client)
+                            .await
+                            .map(|new_metadata| {
+                                format!(
+                                    "{}\n{}",
+                                    "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
+                                    new_metadata
+                                )
+                            })
+                            .map_err(TombError::client_error)
                     }
-                } else {
-                    Ok("METADATA PUSHED; NO CONTENT PUSH NEEDED".to_string())
+                    // Upload failed
+                    Err(_) => Ok(format!(
+                        "{}\n{}\n{}\n",
+                        "<< FAILED TO PUSH CONTENT >>".red(),
+                        "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
+                        metadata
+                    )),
                 }
             } else {
-                Err(TombError::custom_error(
-                    "No metadata to push, or no content deltas",
-                ))
+                Ok("METADATA PUSHED; NO CONTENT PUSH NEEDED".to_string())
             }
         }
         // Reconstruct the Bucket locally

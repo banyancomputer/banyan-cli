@@ -1,4 +1,4 @@
-use crate::blockstore::{carv2_disk::CarV2DiskBlockStore, BlockStore, RootedBlockStore};
+use super::CarV2DiskBlockStore;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -7,6 +7,8 @@ use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
+use tomb_common::banyan_api::requests::staging::upload::content::{ContentType, UploadContent};
+use tomb_common::blockstore::{BlockStore, RootedBlockStore};
 use wnfs::common::BlockStoreError;
 use wnfs::libipld::{Cid, IpldCodec};
 
@@ -64,11 +66,12 @@ impl MultiCarV2DiskBlockStore {
         new_store.set_root(&Cid::default());
 
         // If there is already a most recent delta
-        if let Some(last) = self.deltas.last()
-            && let Some(root) = last.get_root()
-        {
-            // Set the root in the new blockstore too
-            new_store.set_root(&root);
+
+        if let Ok(current_delta) = self.get_delta() {
+            if let Some(root) = current_delta.get_root() {
+                // Set the root in the new blockstore too
+                new_store.set_root(&root);
+            }
         }
 
         // Add the new store
@@ -76,6 +79,14 @@ impl MultiCarV2DiskBlockStore {
 
         // Ok
         Ok(())
+    }
+
+    /// Get the most recent delta
+    pub fn get_delta(&self) -> Result<CarV2DiskBlockStore> {
+        self.deltas
+            .last()
+            .ok_or(anyhow!("No delta to upload"))
+            .map(|delta| delta.to_owned())
     }
 }
 
@@ -97,7 +108,7 @@ impl BlockStore for MultiCarV2DiskBlockStore {
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
         // If there is a delta
-        if let Some(current_delta) = self.deltas.last() {
+        if let Ok(current_delta) = self.get_delta() {
             let cid = current_delta.put_block(bytes, codec).await?;
             Ok(cid)
         } else {
@@ -109,18 +120,37 @@ impl BlockStore for MultiCarV2DiskBlockStore {
 #[async_trait(?Send)]
 impl RootedBlockStore for MultiCarV2DiskBlockStore {
     fn get_root(&self) -> Option<Cid> {
-        if let Some(car) = self.deltas.last() {
-            car.get_root()
+        if let Ok(current_delta) = self.get_delta() {
+            current_delta.get_root()
         } else {
             None
         }
     }
 
     fn set_root(&self, root: &Cid) {
-        if let Some(car) = self.deltas.last() {
-            car.set_root(root);
-            car.to_disk().expect("failed to write to disk");
+        if let Ok(current_delta) = self.get_delta() {
+            current_delta.set_root(root);
+            current_delta.to_disk().expect("failed to write to disk");
         }
+    }
+}
+
+#[async_trait(?Send)]
+impl UploadContent for MultiCarV2DiskBlockStore {
+    fn get_hash(&self) -> anyhow::Result<String> {
+        let reader = std::fs::File::open(self.get_delta()?.path)?;
+        let mut hasher = blake3::Hasher::new();
+        hasher.update_reader(&reader)?;
+        Ok(hasher.finalize().to_string())
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn get_body(&self) -> anyhow::Result<ContentType> {
+        Ok(tokio::fs::File::open(&self.get_delta()?.path).await?.into())
+    }
+
+    fn get_length(&self) -> Result<u64> {
+        Ok(self.get_delta()?.path.metadata()?.len())
     }
 }
 

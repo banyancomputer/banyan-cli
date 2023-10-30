@@ -8,16 +8,15 @@ use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_common::{
-    banyan_api::models::storage_ticket::StorageTicket,
-    blockstore::{carv2_disk::CarV2DiskBlockStore, multi_carv2_disk::MultiCarV2DiskBlockStore},
-    metadata::FsMetadata,
-};
+use tomb_common::{banyan_api::models::storage_ticket::StorageTicket, metadata::FsMetadata};
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 use wnfs::{libipld::Cid, private::PrivateNodeOnPathHistory};
 
-use crate::utils::config::xdg_data_home;
+use crate::{
+    types::blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
+    utils::config::xdg_data_home,
+};
 
 const BUCKET_METADATA_FILE_NAME: &str = "metadata.car";
 const BUCKET_CONTENT_DIR_NAME: &str = "deltas";

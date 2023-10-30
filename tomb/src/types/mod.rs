@@ -1,3 +1,5 @@
+/// Disk Blockstores
+pub mod blockstore;
 /// Configuration
 pub mod config;
 /// This module contains types that are shared in their usage throughout the project.

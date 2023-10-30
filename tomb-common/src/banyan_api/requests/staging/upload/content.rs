@@ -40,26 +40,6 @@ pub trait UploadContent {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[async_trait(?Send)]
-impl UploadContent for PathBuf {
-    fn get_hash(&self) -> anyhow::Result<String> {
-        let reader = std::fs::File::open(self)?;
-        let mut hasher = blake3::Hasher::new();
-        hasher.update_reader(&reader)?;
-        Ok(hasher.finalize().to_string())
-    }
-
-    #[allow(refining_impl_trait)]
-    async fn get_body(&self) -> anyhow::Result<ContentType> {
-        Ok(tokio::fs::File::open(&self).await?.into())
-    }
-
-    fn get_length(&self) -> Result<u64> {
-        Ok(self.metadata()?.len())
-    }
-}
-
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
 impl UploadContent for CarV2MemoryBlockStore {
