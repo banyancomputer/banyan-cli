@@ -1,6 +1,5 @@
 //! This crate contains modules which are compiled to WASM
 mod error;
-pub mod key_helpers;
 pub mod mount;
 pub mod types;
 pub mod utils;
@@ -17,10 +16,6 @@ use std::str::FromStr;
 
 use gloo::console::log;
 use js_sys::Array;
-use uuid::Uuid;
-use wasm_bindgen::prelude::*;
-use web_sys::{CryptoKey, CryptoKeyPair};
-
 use tomb_common::banyan_api::client::{Client, Credentials};
 use tomb_common::banyan_api::models::account::Account;
 use tomb_common::banyan_api::models::{
@@ -28,9 +23,10 @@ use tomb_common::banyan_api::models::{
     bucket_key::*,
 };
 use tomb_crypt::prelude::*;
+use uuid::Uuid;
+use wasm_bindgen::prelude::*;
 
 use crate::error::TombWasmError;
-use crate::key_helpers::*;
 use crate::mount::WasmMount;
 use crate::types::*;
 use crate::utils::*;
@@ -63,7 +59,7 @@ impl TombWasm {
     ///
     /// Don't call it from multiple threads in parallel!
     pub async fn new(
-        web_signing_key: CryptoKeyPair,
+        signing_key_pem: String,
         account_id: String,
         core_endpoint: String,
         data_endpoint: String,
@@ -76,10 +72,13 @@ impl TombWasm {
 
         log!("tomb-wasm: new()");
 
+        log!(format!("tomb-wasm pem: {}", signing_key_pem));
+
         let mut banyan_client = Client::new(&core_endpoint, &data_endpoint).unwrap();
-        let signing_key = key_pair_to_signature_key(&web_signing_key)
+        let signing_key = EcSignatureKey::import(signing_key_pem.as_bytes())
             .await
-            .expect("unable to create signature key from key pair");
+            .map_err(|err| TombWasmError(format!("unable to create signature key from pem: {err}")))
+            .unwrap();
 
         let account_id = Uuid::parse_str(&account_id).unwrap();
         let banyan_credentials = Credentials {
@@ -237,19 +236,21 @@ impl TombWasm {
         name: String,
         storage_class: String,
         bucket_type: String,
-        initial_key: CryptoKey,
+        initial_bucket_key_pem: String,
     ) -> TombResult<WasmBucket> {
         log!("tomb-wasm: create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class).expect("Invalid storage class");
         let bucket_type = BucketType::from_str(&bucket_type).expect("Invalid bucket type");
-        let key = key_to_public_encryption_key(&initial_key).await?;
-        let pem_bytes = key.export().await.expect("Failed to export wrapping key");
-        let pem = String::from_utf8(pem_bytes).expect("Failed to encode pem");
         // Call the API
-        let (bucket, _bucket_key) =
-            Bucket::create(name, pem, bucket_type, storage_class, self.client())
-                .await
-                .expect("Failed to create bucket");
+        let (bucket, _bucket_key) = Bucket::create(
+            name,
+            initial_bucket_key_pem,
+            bucket_type,
+            storage_class,
+            self.client(),
+        )
+        .await
+        .expect("Failed to create bucket");
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
         // Ok
@@ -330,7 +331,7 @@ impl TombWasm {
     pub async fn mount(
         &mut self,
         bucket_id: String,
-        key_pair: CryptoKeyPair,
+        encryption_key_pem: String,
     ) -> TombResult<WasmMount> {
         log!(format!("tomb-wasm: mount / {}", &bucket_id));
 
@@ -342,7 +343,9 @@ impl TombWasm {
         ));
 
         // Load the EcEncryptionKey
-        let key = key_pair_to_encryption_key(&key_pair).await?;
+        let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
+            .await
+            .map_err(|err| TombWasmError(format!("Unable to import encryption key: {err}")))?;
         log!(format!(
             "tomb-wasm: mount / {} / reading bucket",
             &bucket_id

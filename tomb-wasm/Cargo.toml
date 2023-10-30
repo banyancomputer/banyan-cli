@@ -43,16 +43,6 @@ tokio-util = { version = "^0.7", features = ["compat"] }
 tomb-common = { path = "../tomb-common", version = "^1" }
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-futures = "^0.4"
-web-sys = { version = "^0.3", features = [
-    "console",
-    "Window",
-    "Crypto",
-    "CryptoKey",
-    "CryptoKeyPair",
-    "EcKeyGenParams",
-    "SubtleCrypto",
-    "FileReader"
-]}
 
 [dev-dependencies]
 wasm-bindgen-test = "^0.3"
