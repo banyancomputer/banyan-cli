@@ -63,15 +63,17 @@ impl MultiCarV2DiskBlockStore {
         // Create a new delta for writing
         let new_store =
             CarV2DiskBlockStore::new(&self.path.join(format!("{}.car", self.deltas.len() + 1)))?;
-        new_store.set_root(&Cid::default());
 
-        // If there is already a most recent delta
-
-        if let Ok(current_delta) = self.get_delta() {
-            if let Some(root) = current_delta.get_root() {
-                // Set the root in the new blockstore too
-                new_store.set_root(&root);
-            }
+        // Set the root depending on previous deltas
+        if !self.deltas.is_empty() {
+            new_store.set_root(
+                &self
+                    .get_delta()?
+                    .get_root()
+                    .ok_or(anyhow!("No root in previous delta"))?,
+            );
+        } else {
+            new_store.set_root(&Cid::default());
         }
 
         // Add the new store
@@ -82,11 +84,8 @@ impl MultiCarV2DiskBlockStore {
     }
 
     /// Get the most recent delta
-    pub fn get_delta(&self) -> Result<CarV2DiskBlockStore> {
-        self.deltas
-            .last()
-            .ok_or(anyhow!("No delta to upload"))
-            .map(|delta| delta.to_owned())
+    pub fn get_delta(&self) -> Result<&CarV2DiskBlockStore> {
+        self.deltas.last().ok_or(anyhow!("No delta to upload"))
     }
 }
 
@@ -128,7 +127,10 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
     }
 
     fn set_root(&self, root: &Cid) {
-        if let Ok(current_delta) = self.get_delta() {
+        println!("setting root: {}", root);
+        if !self.deltas.is_empty() {
+            println!("yay! there is a delta!");
+            let current_delta = self.get_delta().unwrap();
             current_delta.set_root(root);
             current_delta.to_disk().expect("failed to write to disk");
         }
@@ -138,7 +140,7 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
 #[async_trait(?Send)]
 impl UploadContent for MultiCarV2DiskBlockStore {
     fn get_hash(&self) -> anyhow::Result<String> {
-        let reader = std::fs::File::open(self.get_delta()?.path)?;
+        let reader = std::fs::File::open(&self.get_delta()?.path)?;
         let mut hasher = blake3::Hasher::new();
         hasher.update_reader(&reader)?;
         Ok(hasher.finalize().to_string())
