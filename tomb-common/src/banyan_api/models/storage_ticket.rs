@@ -30,7 +30,7 @@ impl Display for StorageTicket {
 impl StorageTicket {
     /// Create a new grant for a client to stage data to a storage host
     /// Allows us to upload data to a storage host using our signing key
-    pub async fn create_grant(self, client: &mut Client) -> Result<(), ClientError> {
+    pub async fn create_grant(&self, client: &mut Client) -> Result<(), ClientError> {
         let signing_key = client
             .signing_key
             .as_ref()
