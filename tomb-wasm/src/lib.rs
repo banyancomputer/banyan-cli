@@ -72,8 +72,6 @@ impl TombWasm {
 
         log!("tomb-wasm: new()");
 
-        log!(format!("tomb-wasm pem: {}", signing_key_pem));
-
         let mut banyan_client = Client::new(&core_endpoint, &data_endpoint).unwrap();
         let signing_key = EcSignatureKey::import(signing_key_pem.as_bytes())
             .await
