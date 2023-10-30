@@ -2,7 +2,7 @@ use super::{determine_sync_state, LocalBucket, SyncState};
 use crate::{
     cli::{commands::prompt_for_bool, specifiers::BucketSpecifier},
     pipelines::error::TombError,
-    types::config::{bucket::sync_bucket, globalconfig::GlobalConfig},
+    types::config::globalconfig::GlobalConfig,
 };
 use colored::{ColoredString, Colorize};
 use std::{collections::HashMap, fmt::Display, path::Path};
@@ -179,11 +179,6 @@ impl OmniBucket {
             global.update_config(&local.clone())?;
             global.to_disk()?;
             omni.local = Some(local);
-        }
-
-        // Print sync result if we successfully initialized both of them
-        if let Ok(sync) = sync_bucket(&mut omni, client, global).await {
-            println!("{sync}");
         }
 
         Ok(omni)

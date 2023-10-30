@@ -7,7 +7,7 @@ use tomb_crypt::prelude::TombCryptError;
 #[non_exhaustive]
 pub struct ClientError {
     #[allow(dead_code)]
-    kind: ClientErrorKind,
+    pub(crate) kind: ClientErrorKind,
 }
 
 impl ClientError {

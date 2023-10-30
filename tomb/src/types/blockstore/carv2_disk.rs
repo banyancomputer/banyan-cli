@@ -1,6 +1,3 @@
-use crate::blockstore::{BlockStore, RootedBlockStore};
-use crate::car::{v1::block::Block, v2::CarV2};
-use crate::utils::io::{get_read, get_read_write, get_write};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{de::Error as DeError, Deserialize, Serialize};
@@ -9,6 +6,9 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
+use tomb_common::blockstore::{BlockStore, RootedBlockStore};
+use tomb_common::car::{v1::block::Block, v2::CarV2};
+use tomb_common::utils::io::{get_read, get_read_write, get_write};
 use wnfs::libipld::{Cid, IpldCodec};
 
 /// CarV2DiskBlockStore implementation using File IO
@@ -141,13 +141,13 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        blockstore::{BlockStore, RootedBlockStore},
-        utils::tests::car_test_setup,
-    };
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
+    use tomb_common::{
+        blockstore::{BlockStore, RootedBlockStore},
+        utils::tests::car_test_setup,
+    };
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
     use wnfs::libipld::{Cid, IpldCodec};
 

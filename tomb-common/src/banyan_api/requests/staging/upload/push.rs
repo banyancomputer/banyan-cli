@@ -10,28 +10,13 @@ use reqwest::multipart::{Form, Part};
 #[cfg(target_arch = "wasm32")]
 use std::io::Read;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug)]
-pub struct PushContent<S>
-where
-    reqwest::Body: From<S>,
-{
-    pub host_url: String,
-    pub metadata_id: Uuid,
-    pub content: S,
-    pub content_len: u64,
-    pub content_hash: String,
-}
+use super::content::ContentType;
 
-#[cfg(target_arch = "wasm32")]
 #[derive(Debug)]
-pub struct PushContent<S>
-where
-    S: Read,
-{
+pub struct PushContent {
     pub host_url: String,
     pub metadata_id: Uuid,
-    pub content: S,
+    pub content: ContentType,
     pub content_len: u64,
     pub content_hash: String,
 }
@@ -46,10 +31,7 @@ struct PushContentData {
 pub struct PushContentResponse {}
 
 #[cfg(not(target_arch = "wasm32"))]
-impl<S> ApiRequest for PushContent<S>
-where
-    reqwest::Body: From<S>,
-{
+impl ApiRequest for PushContent {
     type ResponseType = PushContentResponse;
     type ErrorType = PushContentError;
 
@@ -104,10 +86,7 @@ fn generate_boundary() -> String {
 }
 
 #[cfg(target_arch = "wasm32")]
-impl<S> ApiRequest for PushContent<S>
-where
-    S: Read,
-{
+impl ApiRequest for PushContent {
     type ResponseType = PushContentResponse;
     type ErrorType = PushContentError;
 

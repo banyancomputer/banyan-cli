@@ -7,7 +7,9 @@ use std::io::Cursor;
 use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
 use tomb_common::banyan_api::client::Client;
 use tomb_common::banyan_api::models::snapshot::Snapshot;
+use tomb_common::banyan_api::models::storage_ticket::StorageTicket;
 use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
+use tomb_common::banyan_api::requests::staging::upload::content::UploadContent;
 use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
 use tomb_common::blockstore::RootedBlockStore;
 use tomb_common::metadata::FsMetadata;
@@ -271,7 +273,7 @@ impl WasmMount {
             metadata_cid.to_string(),
             data_size
         );
-        let (metadata, storage_ticket) = Metadata::push(
+        let (metadata, host, authorization) = Metadata::push(
             self.bucket.id,
             root_cid.to_string(),
             metadata_cid.to_string(),
@@ -294,51 +296,28 @@ impl WasmMount {
         let metadata_id = metadata.id;
         self.metadata = Some(metadata);
 
-        match storage_ticket {
-            Some(storage_ticket) => {
-                log!(
-                    "tomb-wasm: mount/sync()/ - storage ticket returned",
-                    self.bucket.id.to_string()
-                );
-
+        if let Some(host) = host.clone() {
+            if let Some(authorization) = authorization {
+                let storage_ticket = StorageTicket {
+                    host,
+                    authorization,
+                };
                 storage_ticket
                     .clone()
                     .create_grant(&mut self.client)
                     .await
                     .map_err(|err| {
-                        TombWasmError(format!("unable to register storage ticket: {err}"))
-                    })?;
-
-                // Get content
-                let content = Cursor::new(self.content_blockstore.get_data());
-                // Hash the content
-                let mut hasher = blake3::Hasher::new();
-                hasher.update(&self.content_blockstore.get_data());
-                let content_len = self.content_blockstore.get_data().len() as u64;
-                let content_hash = hasher.finalize().to_string();
-
-                storage_ticket
-                    .clone()
-                    .upload_content(
-                        metadata_id,
-                        content,
-                        content_len,
-                        content_hash,
-                        &mut self.client,
-                    )
-                    .await
-                    .map_err(|err| {
-                        TombWasmError(format!(
-                            "unable to upload data to distribution service: {err}"
-                        ))
+                        TombWasmError(format!("unable to register storage grant: {err}"))
                     })?;
             }
-            None => {
-                log!(format!(
-                    "tomb-wasm: mount/sync()/{} - no storage ticket returned no content to upload",
-                    self.bucket.id,
-                ));
-            }
+        }
+
+        // If we are doing an upload
+        if let Some(host_url) = host {
+            self.content_blockstore
+                .upload(host_url, metadata_id, &mut self.client)
+                .await
+                .map_err(|err| TombWasmError(format!("unable to upload content: {err}")))?;
         }
 
         self.dirty = false;
