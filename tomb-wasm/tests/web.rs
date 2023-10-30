@@ -26,15 +26,13 @@ fn js_array(values: &[&str]) -> JsValue {
 
 async fn pem_from_ec_key(key: &EcEncryptionKey) -> String {
     let key_pem_bytes = key.export().await.expect("pem bytes");
-    let key_pem = String::from_utf8(key_pem_bytes).expect("pem");
-    key_pem
+    String::from_utf8(key_pem_bytes).expect("pem")
 }
 
 async fn public_pem_from_ec_key(key: &EcEncryptionKey) -> String {
     let public_key = key.public_key().expect("public key");
     let public_key_pem_bytes = public_key.export().await.expect("pem bytes");
-    let public_key_pem = String::from_utf8(public_key_pem_bytes).expect("pem");
-    public_key_pem
+    String::from_utf8(public_key_pem_bytes).expect("pem")
 }
 
 pub async fn authenticated_client() -> TombResult<TombWasm> {
