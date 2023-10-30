@@ -1,6 +1,4 @@
 //! This crate contains modules which are compiled to WASM
-#![feature(let_chains)]
-
 mod error;
 pub mod key_helpers;
 pub mod mount;

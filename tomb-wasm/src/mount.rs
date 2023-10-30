@@ -296,18 +296,20 @@ impl WasmMount {
         let metadata_id = metadata.id;
         self.metadata = Some(metadata);
 
-        if let Some(host) = host.clone()
-            && let Some(authorization) = authorization
-        {
-            let storage_ticket = StorageTicket {
-                host,
-                authorization,
-            };
-            storage_ticket
-                .clone()
-                .create_grant(&mut self.client)
-                .await
-                .map_err(|err| TombWasmError(format!("unable to register storage grant: {err}")))?;
+        if let Some(host) = host.clone() {
+            if let Some(authorization) = authorization {
+                let storage_ticket = StorageTicket {
+                    host,
+                    authorization,
+                };
+                storage_ticket
+                    .clone()
+                    .create_grant(&mut self.client)
+                    .await
+                    .map_err(|err| {
+                        TombWasmError(format!("unable to register storage grant: {err}"))
+                    })?;
+            }
         }
 
         // If we are doing an upload
