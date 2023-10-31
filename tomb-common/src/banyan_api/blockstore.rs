@@ -56,7 +56,6 @@ impl BlockStore for BanyanApiBlockStore {
     #[allow(clippy::await_holding_refcell_ref)]
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
         let mut client = self.client.clone();
-
         // If there is already a known block location before we do this
         let base_url = match self.block_locations.borrow().clone().get(&cid.to_string()) {
             Some(addresses) => Url::parse(&addresses[0])?,
@@ -67,12 +66,10 @@ impl BlockStore for BanyanApiBlockStore {
             .stream(PullBlock { cid: *cid }, &base_url)
             .await
             .map_err(|_| anyhow!("Failed to pull block"))?;
-        println!("got a stream...");
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
-        println!("successfully retrieved block from api store...");
         Ok(Cow::Owned(data))
     }
 }

@@ -127,9 +127,7 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
     }
 
     fn set_root(&self, root: &Cid) {
-        println!("setting root: {}", root);
         if !self.deltas.is_empty() {
-            println!("yay! there is a delta!");
             let current_delta = self.get_delta().unwrap();
             current_delta.set_root(root);
             current_delta.to_disk().expect("failed to write to disk");

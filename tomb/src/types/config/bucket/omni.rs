@@ -31,7 +31,7 @@ impl OmniBucket {
         client: &mut Client,
         bucket_specifier: &BucketSpecifier,
     ) -> Self {
-        let mut new_object = Self {
+        let mut omni = Self {
             local: None,
             remote: None,
             sync_state: None,
@@ -44,29 +44,27 @@ impl OmniBucket {
             let check_name = Some(bucket.name.clone()) == bucket_specifier.name;
             check_remote || check_origin || check_name
         });
+        omni.local = local_result;
 
-        // Search for a remote bucket id
-        let mut remote_id = None;
-        if let Some(id) = bucket_specifier.bucket_id {
-            remote_id = Some(id);
-        }
-        if let Some(bucket) = local_result {
-            if let Some(id) = bucket.remote_id {
-                remote_id = Some(id);
-            }
-            new_object.local = Some(bucket);
-        }
-        // If we found one
-        if let Some(remote_id) = remote_id
-            && let Ok(bucket) = RemoteBucket::read(client, remote_id).await
-        {
-            new_object.remote = Some(bucket)
+        // Search for a remote bucket
+        let all_remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
+        let remote_result = all_remote_buckets.into_iter().find(|bucket| {
+            let check_id = Some(bucket.id) == bucket_specifier.bucket_id;
+            let check_name = Some(bucket.name.clone()) == bucket_specifier.name;
+            check_id || check_name
+        });
+        omni.remote = remote_result;
+
+        if omni.local.is_some() && omni.remote.is_some() {
+            let mut local = omni.get_local().unwrap();
+            local.remote_id = Some(omni.get_remote().unwrap().id);
+            omni.local = Some(local);
         }
 
         // Determine the sync state
-        let _ = determine_sync_state(&mut new_object, client).await;
+        let _ = determine_sync_state(&mut omni, client).await;
 
-        new_object
+        omni
     }
 
     /// Initialize w/ local
@@ -89,7 +87,7 @@ impl OmniBucket {
 
     /// Get the ID from wherever it might be found
     pub fn get_id(&self) -> Result<Uuid, TombError> {
-        let err = TombError::custom_error("No bucket ID found with these properties");
+        let err = TombError::custom_error("Unable to find remote Bucket ID with that query");
         if let Some(remote) = self.remote.clone() {
             Ok(remote.id)
         } else if let Some(local) = self.local.clone() {
@@ -102,14 +100,14 @@ impl OmniBucket {
     /// Get the local config
     pub fn get_local(&self) -> Result<LocalBucket, TombError> {
         self.local.clone().ok_or(TombError::custom_error(
-            "No local Bucket with these properties",
+            "Unable to find a local Bucket with that query",
         ))
     }
 
     /// Get the remote config
     pub fn get_remote(&self) -> Result<RemoteBucket, TombError> {
         self.remote.clone().ok_or(TombError::custom_error(
-            "No remote Bucket with these properties",
+            "Unable to find a remote Bucket with that query",
         ))
     }
 

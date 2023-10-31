@@ -106,8 +106,11 @@ pub async fn sync_bucket(
     global: &mut GlobalConfig,
 ) -> Result<String, TombError> {
     if omni.sync_state.is_none() {
-        println!("{}", "<< SYNC STATE UPDATED >>".blue());
-        println!("{:?}", determine_sync_state(omni, client).await);
+        determine_sync_state(omni, client).await?;
+        info!(
+            "{}",
+            format!("<< SYNC STATE UPDATED TO {:?} >>", omni.sync_state).blue()
+        );
     }
 
     match &omni.sync_state {
@@ -151,7 +154,7 @@ pub async fn sync_bucket(
             metadata_file.write_all(&metadata.get_data()).await?;
             // Write that data out to the metadata
 
-            println!("{}", "<< METADATA RECONSTRUCTED >>".green());
+            info!("{}", "<< METADATA RECONSTRUCTED >>".green());
             omni.sync_state = Some(SyncState::MetadataSynced);
             Ok(format!(
                 "{}",
@@ -276,7 +279,6 @@ pub async fn sync_bucket(
             {
                 // Get authorization
                 let authorization = omni.get_remote()?.get_grants_token(client).await?;
-
                 // Create a grant for this Client so that future BlockStore calls will succeed
                 let storage_ticket = StorageTicket {
                     host: storage_host,
