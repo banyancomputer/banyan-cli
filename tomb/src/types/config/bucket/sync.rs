@@ -263,7 +263,6 @@ pub async fn sync_bucket(
                 .expect("could not create blockstore client");
 
             let banyan_api_blockstore = BanyanApiBlockStore::from(banyan_api_blockstore_client);
-
             // If getting a block is an error
             if banyan_api_blockstore
                 .get_block(
@@ -421,7 +420,6 @@ pub mod test {
             .with_remote(&storage_ticket.host)
             .expect("Failed to create blockstore client");
         let banyan_api_blockstore = BanyanApiBlockStore::from(blockstore_client);
-
         let node = fs
             .get_node(&["cat.txt".to_string()], &local.metadata)
             .await?
@@ -429,11 +427,7 @@ pub mod test {
         let file = node.as_file()?;
         let split_store = DoubleSplitStore::new(&banyan_api_blockstore, &local.metadata);
         let cids = file.get_cids(&fs.forest, &split_store).await?;
-        let cids_request: LocationRequest = cids
-            .clone()
-            .into_iter()
-            .map(|cid| cid.to_string())
-            .collect();
+        let cids_request = LocationRequest { cids: cids.clone() };
         let locations = client
             .call(cids_request)
             .await
@@ -451,14 +445,16 @@ pub mod test {
     #[serial]
     async fn get_bad_location() -> Result<(), TombError> {
         let mut client = authenticated_client().await;
-        let cids: LocationRequest = vec![Cid::default().to_string()];
+        let mut cids = BTreeSet::new();
+        cids.insert(Cid::default());
+        let location_request = LocationRequest { cids: cids.clone() };
         let locations = client
-            .call(cids.clone())
+            .call(location_request)
             .await
             .expect("Failed to get locations");
         let target_cids = locations.get("NA").expect("Failed to get cids");
         for cid in cids.clone() {
-            assert!(target_cids.contains(&cid));
+            assert!(target_cids.contains(&cid.to_string()));
         }
         Ok(())
     }

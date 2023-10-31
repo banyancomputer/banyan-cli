@@ -626,6 +626,19 @@ impl WasmMount {
 
         let fs = self.fs_metadata.as_mut().unwrap();
 
+        let node = fs
+            .get_node(&path_segments, &self.metadata_blockstore)
+            .await
+            .expect("cant access fs")
+            .expect("no node at this path");
+        if let PrivateNode::File(file) = node {
+            let cids = file
+                .get_cids(&fs.forest, &self.metadata_blockstore)
+                .await
+                .expect("cant get cids");
+            banyan_api_blockstore.find_cids(cids).await;
+        }
+
         log!(format!(
             "tomb-wasm: running fs_get_node @ {:?}",
             path_segments
