@@ -2,7 +2,7 @@ use super::error::TombError;
 use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
-use tomb_common::{banyan_api::blockstore::BanyanApiBlockStore, utils::wnfsio::path_to_segments};
+use tomb_common::utils::wnfsio::path_to_segments;
 use wnfs::{common::BlockStore, private::PrivateNode};
 
 /// Given the manifest file and a destination for our restored data, run the restoreing pipeline

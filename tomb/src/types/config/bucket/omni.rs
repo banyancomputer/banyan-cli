@@ -39,17 +39,10 @@ impl OmniBucket {
 
         // Search for a local bucket
         let local_result = global.buckets.clone().into_iter().find(|bucket| {
-            bucket.remote_id == bucket_specifier.bucket_id
-                && (if let Some(origin) = &bucket_specifier.origin {
-                    bucket.origin == *origin
-                } else {
-                    true
-                })
-                && (if let Some(name) = &bucket_specifier.name {
-                    bucket.name == *name
-                } else {
-                    true
-                })
+            let check_remote = bucket.remote_id == bucket_specifier.bucket_id;
+            let check_origin = Some(bucket.origin.clone()) == bucket_specifier.origin;
+            let check_name = Some(bucket.name.clone()) == bucket_specifier.name;
+            check_remote || check_origin || check_name
         });
 
         // Search for a remote bucket id
