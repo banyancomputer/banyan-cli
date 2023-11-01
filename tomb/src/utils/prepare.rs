@@ -3,7 +3,6 @@ use crate::{
     utils::{grouper::grouper, spider},
 };
 use anyhow::Result;
-use indicatif::ProgressBar;
 use std::{
     collections::HashSet,
     fs::File,
@@ -13,6 +12,8 @@ use std::{
 use tomb_common::{
     blockstore::RootedBlockStore, metadata::FsMetadata, utils::wnfsio::path_to_segments,
 };
+
+use super::wnfsio::get_progress_bar;
 
 /// Create PreparePipelinePlans from an origin dir
 pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PreparePipelinePlan>> {
@@ -52,8 +53,9 @@ pub async fn process_plans(
     bundling_plan: Vec<PreparePipelinePlan>,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
-    progress_bar: &ProgressBar,
 ) -> Result<()> {
+    // Initialize the progress bar using the number of Nodes to process
+    let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
     // Create vectors of direct and indirect plans
     let mut direct_plans: Vec<PreparePipelinePlan> = Vec::new();
     let mut symlink_plans: Vec<PreparePipelinePlan> = Vec::new();

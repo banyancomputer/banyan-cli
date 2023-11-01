@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use super::error::TombError;
 use crate::types::config::bucket::LocalBucket;
 use crate::types::spider::PreparePipelinePlan;
-use crate::utils::wnfsio::get_progress_bar;
 use crate::{
     types::config::globalconfig::GlobalConfig,
     utils::prepare::{create_plans, process_plans},
@@ -73,21 +72,11 @@ pub async fn pipeline(
         }
     }
 
-    // TODO: optionally turn off the progress bar
-    // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
     // Create a new delta for this bundling operation
     local.content.add_delta()?;
 
     // Process all of the PreparePipelinePlans
-    process_plans(
-        &mut fs,
-        bundling_plan,
-        &local.metadata,
-        &local.content,
-        &progress_bar,
-    )
-    .await?;
+    process_plans(&mut fs, bundling_plan, &local.metadata, &local.content).await?;
 
     local.save_fs(&mut fs).await?;
 

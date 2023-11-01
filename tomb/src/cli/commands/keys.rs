@@ -8,20 +8,23 @@ use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
 use tomb_common::banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey};
-use tomb_crypt::prelude::{PrivateKey, PublicKey};
+use tomb_crypt::{
+    hex_fingerprint,
+    prelude::{PrivateKey, PublicKey},
+};
 use uuid::Uuid;
 
 /// Subcommand for Bucket Keys
 #[derive(Subcommand, Clone, Debug)]
 pub enum KeyCommand {
-    /// List all Keys in a Bucket
-    Ls(BucketSpecifier),
     /// Request Access to a Bucket if you dont already have it
     RequestAccess(BucketSpecifier),
+    /// List all Keys in a Bucket
+    Ls(BucketSpecifier),
+    /// Get information about an individual Bucket Key
+    Info(KeySpecifier),
     /// Delete a given Key
     Delete(KeySpecifier),
-    /// List the keys persisted by the remote endpoint
-    Info(KeySpecifier),
     /// Reject or remove a key and sync that witht the remote endpoint
     Reject(KeySpecifier),
 }
@@ -34,6 +37,46 @@ impl RunnableCommand<TombError> for KeyCommand {
         client: &mut Client,
     ) -> Result<String, TombError> {
         match self {
+            // Request access to a bucket
+            KeyCommand::RequestAccess(bucket_specifier) => {
+                let private_key = global.wrapping_key().await?;
+                let public_key = private_key
+                    .public_key()
+                    .map_err(ClientError::crypto_error)?;
+                // Compute PEM
+                let fingerprint = hex_fingerprint(&public_key.fingerprint().await?.to_vec());
+                let pem = String::from_utf8(
+                    public_key
+                        .export()
+                        .await
+                        .map_err(ClientError::crypto_error)?,
+                )
+                .unwrap();
+
+                // Get Bucket
+                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                if let Ok(id) = omni.get_id() {
+                    let existing_keys = BucketKey::read_all(id, client).await?;
+                    if let Some(existing_key) = existing_keys
+                        .iter()
+                        .find(|key| key.fingerprint == fingerprint)
+                    {
+                        info!("\n{existing_key}\n");
+                        Err(TombError::custom_error(
+                            "You've already requested access on this Bucket!",
+                        ))
+                    } else {
+                        BucketKey::create(id, pem, client)
+                            .await
+                            .map(|key| format!("\n{}", key))
+                            .map_err(TombError::client_error)
+                    }
+                } else {
+                    Err(TombError::custom_error(
+                        "Cannot request key access on a Bucket with no known remote correlate.",
+                    ))
+                }
+            }
             // List Keys
             KeyCommand::Ls(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
@@ -47,31 +90,13 @@ impl RunnableCommand<TombError> for KeyCommand {
                     })
                     .map_err(TombError::client_error)
             }
-            // Request access to a bucket
-            KeyCommand::RequestAccess(bucket_specifier) => {
-                let private_key = global.wrapping_key().await?;
-                let public_key = private_key
-                    .public_key()
-                    .map_err(ClientError::crypto_error)?;
-                // Compute PEM
-                let pem = String::from_utf8(
-                    public_key
-                        .export()
-                        .await
-                        .map_err(ClientError::crypto_error)?,
-                )
-                .unwrap();
-
-                // Get Bucket
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                if let Ok(id) = omni.get_id() {
-                    BucketKey::create(id, pem, client)
-                        .await
-                        .map(|key| format!("{}", key))
-                        .map_err(TombError::client_error)
-                } else {
-                    Ok("added key to bucket locally".to_string())
-                }
+            // Get info about a Key
+            KeyCommand::Info(ks) => {
+                let (bucket_id, id) = get_key_info(client, global, &ks).await?;
+                BucketKey::read(bucket_id, id, client)
+                    .await
+                    .map(|key| format!("{}", key))
+                    .map_err(TombError::client_error)
             }
             // Delete an already approved key
             KeyCommand::Delete(ks) => {
@@ -79,14 +104,6 @@ impl RunnableCommand<TombError> for KeyCommand {
                 BucketKey::delete_by_id(bucket_id, id, client)
                     .await
                     .map(|id| format!("deleted key!\nid:\t{}", id))
-                    .map_err(TombError::client_error)
-            }
-            // Get info about a Key
-            KeyCommand::Info(ks) => {
-                let (bucket_id, id) = get_key_info(client, global, &ks).await?;
-                BucketKey::read(bucket_id, id, client)
-                    .await
-                    .map(|key| format!("{}", key))
                     .map_err(TombError::client_error)
             }
             // Reject a Key pending approval

@@ -219,7 +219,16 @@ impl OmniBucket {
     /// List all available Buckets
     pub async fn ls(global: &GlobalConfig, client: &mut Client) -> Vec<OmniBucket> {
         let local_buckets = &global.buckets;
-        let remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
+        let remote_buckets = match RemoteBucket::read_all(client).await {
+            Ok(buckets) => buckets,
+            Err(_) => {
+                error!(
+                    "{}",
+                    "Unable to fetch remote Buckets. Check your authentication!".red()
+                );
+                <Vec<RemoteBucket>>::new()
+            }
+        };
 
         let mut map: HashMap<Option<Uuid>, OmniBucket> = HashMap::new();
 

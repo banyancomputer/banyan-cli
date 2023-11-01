@@ -1,5 +1,8 @@
 use super::error::TombError;
-use crate::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
+use crate::{
+    types::config::{bucket::LocalBucket, globalconfig::GlobalConfig},
+    utils::wnfsio::get_progress_bar,
+};
 use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
 use tomb_common::utils::wnfsio::path_to_segments;
@@ -26,18 +29,22 @@ pub async fn pipeline(
     let wrapping_key = global.clone().wrapping_key().await?;
     // Load metadata
     let mut fs = local.unlock_fs(&wrapping_key).await?;
-
+    // Get all the nodes in the FileSystem
+    let all_nodes = fs.get_all_nodes(&local.metadata).await?;
     info!(
-        "🔐 Decompressing and decrypting each file as it is copied to the new filesystem at {}",
+        "🔐 Restoring all {} files to {}",
+        all_nodes.len(),
         restored.display()
     );
-
+    // Initialize the progress bar using the number of Nodes to process
+    let progress_bar = get_progress_bar(all_nodes.len() as u64)?;
     // For each node path tuple in the FS Metadata
-    for (node, path) in fs.get_all_nodes(&local.metadata).await? {
+    for (node, path) in all_nodes {
         match node {
             PrivateNode::Dir(_) => {
                 // Create the directory
                 std::fs::create_dir_all(restored.join(path))?;
+                progress_bar.inc(1);
             }
             PrivateNode::File(file) => {
                 let built_path = restored.join(path.clone());
@@ -70,6 +77,8 @@ pub async fn pipeline(
                     // Write out the content to disk
                     output_file.write_all(&content)?;
                 }
+
+                progress_bar.inc(1);
             }
         }
     }
