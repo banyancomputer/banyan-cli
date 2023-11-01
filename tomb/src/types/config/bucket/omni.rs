@@ -116,6 +116,11 @@ impl OmniBucket {
         self.local = Some(local);
     }
 
+    /// Update the RemoteBucket
+    pub fn set_remote(&mut self, remote: RemoteBucket) {
+        self.remote = Some(remote);
+    }
+
     /// Create a new bucket
     pub async fn create(
         global: &mut GlobalConfig,
@@ -156,13 +161,13 @@ impl OmniBucket {
         .await
         {
             // Update in obj
-            omni.remote = Some(remote);
+            omni.set_remote(remote);
         }
 
         // Initialize locally
         if let Ok(mut local) = global.get_or_init_bucket(name, origin).await {
             // If a remote bucket was made successfully
-            if let Some(remote) = omni.remote.clone() {
+            if let Ok(remote) = omni.get_remote() {
                 // Also save that in the local obj
                 local.remote_id = Some(remote.id);
             }
@@ -181,33 +186,30 @@ impl OmniBucket {
         global: &mut GlobalConfig,
         client: &mut Client,
     ) -> Result<String, TombError> {
-        let local_deletion = if let Some(local) = &self.local
-            && prompt_for_bool("are you sure you want to delete this Bucket locally?")
-        {
-            local.remove_data()?;
-            // Find index of bucket
-            let index = global
-                .buckets
-                .iter()
-                .position(|b| b == local)
-                .expect("cannot find index in buckets");
-            // Remove bucket config from global config
-            global.buckets.remove(index);
-            true
-        } else {
-            false
-        };
+        let mut local_deletion = false;
+        let mut remote_deletion = false;
 
-        let remote_deletion = if let Some(remote) = &self.remote
-            && prompt_for_bool("are you sure you want to delete this Bucket remotely?")
-        {
-            RemoteBucket::delete_by_id(client, remote.id).await.is_ok()
-        } else {
-            false
-        };
+        if let Ok(local) = self.get_local() {
+            if prompt_for_bool("Are you sure you want to delete this Bucket locally?") {
+                local.remove_data()?;
+                // Find index of bucket
+                let index = global.buckets.iter().position(|b| b == &local).ok_or(
+                    TombError::custom_error("omni had local bucket but not present in config"),
+                )?;
+                // Remove bucket config from global config
+                global.buckets.remove(index);
+                local_deletion = true;
+            }
+        }
+
+        if let Ok(remote) = self.get_remote() {
+            if prompt_for_bool("Are you sure you want to delete this Bucket remotely?") {
+                remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
+            }
+        }
 
         Ok(format!(
-            "{}\nlocal:\t{}\nremote:\t{}",
+            "{}\ndeleted locally:\t{}\ndeleted remotely:\t{}",
             "<< BUCKET DELETION >>".blue(),
             bool_colorized(local_deletion),
             bool_colorized(remote_deletion)
@@ -268,7 +270,7 @@ impl Display for OmniBucket {
         match (self.get_local(), self.get_remote()) {
             (Ok(local), Ok(remote)) => {
                 info = format!(
-                    "{info}\nname:\t\t\t{}\nid:\t\t\t{}\norigin:\t\t\t{}\ntype:\t\t\t{}\nstorage_class:\t\t{}\nstorage_ticket:\t\t{}",
+                    "{info}\nname:\t\t\t{}\nbucket_id:\t\t{}\norigin:\t\t\t{}\ntype:\t\t\t{}\nstorage_class:\t\t{}\nstorage_ticket:\t\t{}",
                     remote.name,
                     remote.id,
                     local.origin.display(),
@@ -287,7 +289,7 @@ impl Display for OmniBucket {
             (Err(_), Ok(remote)) => {
                 info = format!("{info}\n{}", remote);
             }
-            (Err(_), Err(_)) => todo!(),
+            (Err(_), Err(_)) => {}
         }
 
         f.write_fmt(format_args!(
@@ -295,7 +297,7 @@ impl Display for OmniBucket {
             if let Some(sync) = self.sync_state.clone() {
                 sync.to_string()
             } else {
-                "Unknown".into()
+                format!("{}", "Unknown".red())
             }
         ))
     }

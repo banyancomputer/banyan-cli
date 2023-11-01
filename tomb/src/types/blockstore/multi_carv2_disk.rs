@@ -169,7 +169,9 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
         D: serde::Deserializer<'de>,
     {
         let path = PathBuf::deserialize(deserializer)?;
-        Ok(Self::new(&path).map_err(|err| serde::de::Error::custom("multicarv2"))?)
+        Self::new(&path).map_err(|err| {
+            serde::de::Error::custom(format!("MultiCARv2 Deserialization error: {err}"))
+        })
     }
 }
 

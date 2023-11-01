@@ -1,10 +1,7 @@
 use crate::{
     pipelines::{error::TombError, reconstruct},
-    types::{blockstore::ReconstructionBlockStore, config::globalconfig::GlobalConfig},
-    utils::wnfsio::compute_directory_size,
+    types::config::globalconfig::GlobalConfig,
 };
-use async_recursion::async_recursion;
-use bytesize::ByteSize;
 use colored::Colorize;
 use futures_util::StreamExt;
 use std::{
@@ -12,7 +9,6 @@ use std::{
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::PathBuf,
-    str::FromStr,
 };
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
@@ -20,16 +16,17 @@ use tomb_common::{
         blockstore::BanyanApiBlockStore,
         client::Client,
         error::ClientError,
-        models::{metadata::Metadata, storage_ticket::StorageTicket},
+        models::{
+            bucket::{Bucket, BucketType, StorageClass},
+            metadata::Metadata,
+            storage_ticket::StorageTicket,
+        },
         requests::staging::upload::content::UploadContent,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
-    metadata::FsMetadata,
 };
-use wnfs::{
-    common::BlockStore,
-    libipld::{Cid, Ipld},
-};
+use tomb_crypt::prelude::{PrivateKey, PublicKey};
+use wnfs::{common::BlockStore, libipld::Ipld};
 
 use super::OmniBucket;
 
@@ -70,7 +67,13 @@ pub async fn determine_sync_state(
     omni: &mut OmniBucket,
     client: &mut Client,
 ) -> Result<(), TombError> {
-    let bucket_id = omni.get_id()?;
+    let bucket_id = match omni.get_id() {
+        Ok(bucket_id) => bucket_id,
+        Err(_) => {
+            omni.sync_state = Some(SyncState::Unpublished);
+            return Ok(());
+        }
+    };
     // Grab the current remote Metadata, or return Unpublished if that operation fails
     let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
         omni.sync_state = Some(SyncState::Unpublished);
@@ -122,8 +125,6 @@ pub async fn sync_bucket(
             format!("<< SYNC STATE UPDATED TO {:?} >>", omni.sync_state).blue()
         );
     }
-
-    println!("syncing {:?}", omni.sync_state);
 
     match &omni.sync_state {
         // Download the Bucket
@@ -178,6 +179,25 @@ pub async fn sync_bucket(
             let mut local = omni.get_local()?;
             let wrapping_key = global.wrapping_key().await?;
             let fs = local.unlock_fs(&wrapping_key).await?;
+
+            // If there is still no ID, that means the remote Bucket was never created
+            if omni.get_id().is_err() {
+                let public_key = wrapping_key.public_key()?;
+                let pem = String::from_utf8(public_key.export().await?)
+                    .map_err(|_| TombError::custom_error("unable to represent pem from utf8"))?;
+                let (remote, _) = Bucket::create(
+                    local.name.clone(),
+                    pem,
+                    BucketType::Interactive,
+                    StorageClass::Hot,
+                    client,
+                )
+                .await?;
+
+                omni.set_remote(remote.clone());
+                local.remote_id = Some(remote.id);
+                omni.set_local(local.clone());
+            }
 
             // Extract variables or error
             let bucket_id = local
