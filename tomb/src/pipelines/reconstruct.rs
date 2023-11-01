@@ -5,7 +5,7 @@ use std::{fs::File, io::Write, os::unix::fs::symlink, path::Path};
 use tomb_common::utils::wnfsio::path_to_segments;
 use wnfs::{common::BlockStore, private::PrivateNode};
 
-/// Given the manifest file and a destination for our restored data, run the restoreing pipeline
+/// Given the manifest file and a destination for our restored data, run the restoring pipeline
 /// on the data referenced in the manifest.
 ///
 /// # Arguments
@@ -22,7 +22,7 @@ pub async fn pipeline(
     restored: &Path,
 ) -> Result<String, TombError> {
     // Announce that we're starting
-    info!("🚀 Starting restoreing pipeline...");
+    info!("🚀 Starting restoration pipeline...");
     let wrapping_key = global.clone().wrapping_key().await?;
     // Load metadata
     let mut fs = local.unlock_fs(&wrapping_key).await?;
@@ -75,7 +75,7 @@ pub async fn pipeline(
     }
 
     Ok(format!(
-        "successfully restored data into {}",
+        "🎉 Data has been successfully reconstructed at this path: {}",
         restored.display()
     ))
 }

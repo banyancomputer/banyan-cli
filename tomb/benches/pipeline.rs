@@ -256,7 +256,7 @@ fn prep_prepare(prepared_path: &Path) {
     }
 }
 
-/// Make sure the restored directory is empty for restoreing and that the manifest file exists
+/// Make sure the restored directory is empty for restoring and that the manifest file exists
 #[doc(hidden)]
 fn prep_restore(restored_path: &Path) {
     // Ensure the restored directory exists and is empty
@@ -309,7 +309,7 @@ fn prepare_benchmark(c: &mut Criterion, input_path: &Path, prepared_path: &Path)
     group.finish();
 }
 
-/// Benchmark restoreing - relies on PACKED_PATH and MANIFEST_PATH having prepared data!
+/// Benchmark restoring - relies on PACKED_PATH and MANIFEST_PATH having prepared data!
 /// # Arguments
 /// * `c` - Criterion object
 /// * `prepared_path` - Path to the prepared directory to use for the benchmark. This will probably be the same as every other benchmark

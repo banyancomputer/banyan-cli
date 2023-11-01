@@ -250,41 +250,48 @@ impl OmniBucket {
 #[inline]
 fn bool_colorized(value: bool) -> ColoredString {
     if value {
-        "true".green()
+        "Yes".green()
     } else {
-        "false".red()
+        "No".red()
     }
 }
 
 impl Display for OmniBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut info = format!(
-            "{}\ntracked locally:  {}\ntracked remotely: {}",
+            "{}\nlocally tracked:\t{}\nremotely tracked:\t{}",
             "| BUCKET INFO |".yellow(),
             bool_colorized(self.local.is_some()),
             bool_colorized(self.remote.is_some()),
         );
 
-        // If we have both present
-        if let Some(local) = &self.local
-            && let Some(remote) = &self.remote
-        {
-            info = format!(
-                "{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
-                local.name,
-                local.origin.display(),
-                remote.id,
-                remote.r#type,
-                remote.storage_class
-            );
-        } else if let Some(local) = &self.local {
-            info = format!("{info}\n{}", local);
-        } else if let Some(remote) = &self.remote {
-            info = format!("{info}\n{}", remote);
+        match (self.get_local(), self.get_remote()) {
+            (Ok(local), Ok(remote)) => {
+                info = format!(
+                    "{info}\nname:\t\t\t{}\nid:\t\t\t{}\norigin:\t\t\t{}\ntype:\t\t\t{}\nstorage_class:\t\t{}\nstorage_ticket:\t\t{}",
+                    remote.name,
+                    remote.id,
+                    local.origin.display(),
+                    remote.r#type,
+                    remote.storage_class,
+                    if let Some(storage_ticket) = local.storage_ticket.clone() {
+                        storage_ticket.host
+                    } else {
+                        format!("{}", "None".yellow())
+                    }
+                );
+            }
+            (Ok(local), Err(_)) => {
+                info = format!("{info}\n{}", local);
+            }
+            (Err(_), Ok(remote)) => {
+                info = format!("{info}\n{}", remote);
+            }
+            (Err(_), Err(_)) => todo!(),
         }
 
         f.write_fmt(format_args!(
-            "{info}\nsync_status:\t{}\n",
+            "{info}\nsync_status:\t\t{}\n",
             if let Some(sync) = self.sync_state.clone() {
                 sync.to_string()
             } else {

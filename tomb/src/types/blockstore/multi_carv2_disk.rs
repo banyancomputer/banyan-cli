@@ -13,7 +13,7 @@ use wnfs::common::BlockStoreError;
 use wnfs::libipld::{Cid, IpldCodec};
 
 /// CARv2 MultiCarV2DiskBlockStore across multiple CAR files using File IO
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MultiCarV2DiskBlockStore {
     /// CAR directory path
     pub path: PathBuf,
@@ -151,6 +151,25 @@ impl UploadContent for MultiCarV2DiskBlockStore {
 
     fn get_length(&self) -> Result<u64> {
         Ok(self.get_delta()?.path.metadata()?.len())
+    }
+}
+
+impl Serialize for MultiCarV2DiskBlockStore {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.path.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let path = PathBuf::deserialize(deserializer)?;
+        Ok(Self::new(&path).map_err(|err| serde::de::Error::custom("multicarv2"))?)
     }
 }
 

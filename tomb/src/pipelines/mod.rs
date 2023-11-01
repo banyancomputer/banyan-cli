@@ -6,7 +6,7 @@ pub mod configure;
 pub mod error;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod prepare;
-/// This module contains the decryption pipeline function, which is the main entry point for restoreing previously prepared data.
+/// This module contains the decryption pipeline function, which is the main entry point for restoring previously prepared data.
 pub mod reconstruct;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
@@ -129,7 +129,7 @@ mod test {
             .expect("origin has no parent")
             .join(format!("{}_restored", test_name));
         create_dir_all(restored_dir)?;
-        // Run the restoreing pipeline
+        // Run the restoring pipeline
         restore_pipeline(origin, restored_dir).await?;
         // Assert the pre-prepared and restored directories are identical
         assert_paths(origin, restored_dir).expect("restored dir does not match origin");
@@ -258,7 +258,7 @@ mod test {
             remove_dir_all(restored_dir)?;
         }
         create_dir_all(restored_dir)?;
-        // Run the restoreing pipeline
+        // Run the restoring pipeline
         restore_pipeline(origin, restored_dir).await?;
         // Assert the pre-prepared and restored directories are identical
         assert_paths(origin, restored_dir).expect("restored dir does not match origin");

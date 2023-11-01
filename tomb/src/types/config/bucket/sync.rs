@@ -1,7 +1,10 @@
 use crate::{
     pipelines::{error::TombError, reconstruct},
-    types::config::globalconfig::GlobalConfig,
+    types::{blockstore::ReconstructionBlockStore, config::globalconfig::GlobalConfig},
+    utils::wnfsio::compute_directory_size,
 };
+use async_recursion::async_recursion;
+use bytesize::ByteSize;
 use colored::Colorize;
 use futures_util::StreamExt;
 use std::{
@@ -9,6 +12,7 @@ use std::{
     fmt::Display,
     fs::{create_dir_all, remove_dir_all},
     path::PathBuf,
+    str::FromStr,
 };
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
@@ -20,26 +24,30 @@ use tomb_common::{
         requests::staging::upload::content::UploadContent,
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
+    metadata::FsMetadata,
 };
-use wnfs::common::BlockStore;
+use wnfs::{
+    common::BlockStore,
+    libipld::{Cid, Ipld},
+};
 
 use super::OmniBucket;
 
 /// Sync State
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SyncState {
     /// There is no remote correlate
     Unpublished,
     /// There is no local correlate
     Unlocalized,
-    /// Local bucket is N commits behind the remote
-    Behind(usize),
+    /// Local bucket is behind the remote
+    Behind,
     /// Local and remote are congruent
     MetadataSynced,
     /// Local and remote are congruent
     AllSynced,
-    /// Local bucket is N commits ahead of the remote
-    Ahead(usize),
+    /// Local bucket is ahead of the remote
+    Ahead,
 }
 
 impl Display for SyncState {
@@ -47,13 +55,10 @@ impl Display for SyncState {
         let description = match self {
             SyncState::Unpublished => "Bucket metadata does not exist remotely".red(),
             SyncState::Unlocalized => "Bucket metadata not exist locally".red(),
-            SyncState::Behind(n) => format!("Bucket is {} commits behind remote", n).red(),
-            SyncState::MetadataSynced => {
-                "Bucket metadata is in sync with remote but has not been reconstructed locally"
-                    .blue()
-            }
+            SyncState::Behind => "Bucket is behind remote".red(),
+            SyncState::MetadataSynced => "Metadata Synced; File System not reconstructed".blue(),
             SyncState::AllSynced => "Bucket is in sync with remote".green(),
-            SyncState::Ahead(n) => format!("Bucket is {} commits ahead of remote", n).red(),
+            SyncState::Ahead => "Bucket is ahead of remote".red(),
         };
 
         f.write_fmt(format_args!("{}", description))
@@ -73,23 +78,28 @@ pub async fn determine_sync_state(
     };
     // Grab the local bucket, or return Unlocalized if unavailable
     if let Ok(local) = omni.get_local() {
-        let local_root_cid = local.metadata.get_root().map(|cid| cid.to_string());
+        let local_metadata_cid = local.metadata.get_root().map(|cid| cid.to_string());
+        let local_content_cid = local.content.get_root().map(|cid| cid.to_string());
         // If the metadata root CIDs match
-        if local_root_cid == Some(current_remote.root_cid) {
-            // TODO determine a reliable way to check if the content is synced too
-            omni.sync_state = Some(SyncState::MetadataSynced);
+        if local_metadata_cid == Some(current_remote.metadata_cid) {
+            // If the block is also persisted locally in content
+            if local_content_cid == Some(current_remote.root_cid) {
+                omni.sync_state = Some(SyncState::AllSynced)
+            } else {
+                omni.sync_state = Some(SyncState::MetadataSynced);
+            }
             Ok(())
         } else {
             let all_metadatas = Metadata::read_all(bucket_id, client).await?;
             // If the current Metadata id exists in the list of remotely persisted ones
             if all_metadatas
                 .iter()
-                .any(|metadata| Some(metadata.root_cid.clone()) == local_root_cid)
+                .any(|metadata| Some(metadata.metadata_cid.clone()) == local_metadata_cid)
             {
-                omni.sync_state = Some(SyncState::Behind(1));
+                omni.sync_state = Some(SyncState::Behind);
                 Ok(())
             } else {
-                omni.sync_state = Some(SyncState::Ahead(1));
+                omni.sync_state = Some(SyncState::Ahead);
                 Ok(())
             }
         }
@@ -113,9 +123,11 @@ pub async fn sync_bucket(
         );
     }
 
+    println!("syncing {:?}", omni.sync_state);
+
     match &omni.sync_state {
         // Download the Bucket
-        Some(SyncState::Unlocalized) | Some(SyncState::Behind(_)) => {
+        Some(SyncState::Unlocalized) | Some(SyncState::Behind) => {
             let current = Metadata::read_current(omni.get_id()?, client).await?;
             let mut byte_stream = current.pull(client).await?;
 
@@ -152,7 +164,7 @@ pub async fn sync_bucket(
             let mut metadata_file =
                 tokio::fs::File::create(&omni.get_local()?.metadata.path).await?;
             metadata_file.write_all(&metadata.get_data()).await?;
-            // Write that data out to the metadata
+            // Write that data out to the metadatas
 
             info!("{}", "<< METADATA RECONSTRUCTED >>".green());
             omni.sync_state = Some(SyncState::MetadataSynced);
@@ -162,7 +174,7 @@ pub async fn sync_bucket(
             ))
         }
         // Upload the Bucket
-        Some(SyncState::Unpublished | SyncState::Ahead(_)) => {
+        Some(SyncState::Unpublished | SyncState::Ahead) => {
             let mut local = omni.get_local()?;
             let wrapping_key = global.wrapping_key().await?;
             let fs = local.unlock_fs(&wrapping_key).await?;
@@ -286,17 +298,28 @@ pub async fn sync_bucket(
                 };
                 storage_ticket.create_grant(client).await?;
             }
-
-            let local = omni.get_local()?;
             // Reconstruct the data on disk
             let reconstruction_result =
                 reconstruct::pipeline(global, &local, &banyan_api_blockstore, &local.origin).await;
+            // If we succeed at reconstructing
             if reconstruction_result.is_ok() {
+                // Save the metadata in the content store as well
+                let metadata_cid = local.metadata.get_root().unwrap();
+                let ipld = local
+                    .metadata
+                    .get_deserializable::<Ipld>(&metadata_cid)
+                    .await?;
+                let content_cid = local.content.put_serializable(&ipld).await?;
+                local.content.set_root(&content_cid);
+                assert_eq!(metadata_cid, content_cid);
+                // We're now all synced up
                 omni.sync_state = Some(SyncState::AllSynced);
             }
+
+            info!("{omni}");
             reconstruction_result
         }
-        Some(SyncState::AllSynced) => Ok("already synced".into()),
+        Some(SyncState::AllSynced) => Ok("This Bucket data is already synced :)".into()),
         None => Err(TombError::custom_error("Unable to determine sync state")),
     }
 }
