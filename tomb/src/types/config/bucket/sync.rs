@@ -203,17 +203,21 @@ pub async fn sync_bucket(
             let bucket_id = local
                 .remote_id
                 .ok_or(TombError::custom_error("Bucket has no remote ID"))?;
-            let root_cid = local
-                .metadata
+            let local_content_cid = local
+                .content
                 .get_root()
                 .ok_or(TombError::custom_error("Bucket has no root CID"))?;
+            let local_metadata_cid = local
+                .metadata
+                .get_root()
+                .ok_or(TombError::custom_error("Bucket has no metadata CID"))?;
             let delta = local.content.get_delta()?;
 
             // Push the metadata
             let (metadata, host, authorization) = Metadata::push(
                 bucket_id,
-                root_cid.to_string(),
-                root_cid.to_string(),
+                local_content_cid.to_string(),
+                local_metadata_cid.to_string(),
                 delta.data_size(),
                 fs.share_manager.public_fingerprints(),
                 local
@@ -258,7 +262,7 @@ pub async fn sync_bucket(
                 // Push content to the storage provider
                 match local.content.upload(host_url, metadata.id, client).await {
                     // Upload succeeded
-                    Ok(_) => {
+                    Ok(()) => {
                         omni.sync_state = Some(SyncState::AllSynced);
                         Metadata::read_current(bucket_id, client)
                             .await
@@ -339,7 +343,10 @@ pub async fn sync_bucket(
             info!("{omni}");
             reconstruction_result
         }
-        Some(SyncState::AllSynced) => Ok("This Bucket data is already synced :)".into()),
+        Some(SyncState::AllSynced) => Ok(format!(
+            "{}",
+            "This Bucket data is already synced :)".green()
+        )),
         None => Err(TombError::custom_error("Unable to determine sync state")),
     }
 }

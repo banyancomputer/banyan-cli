@@ -95,7 +95,7 @@ pub async fn pipeline(
     global.to_disk()?;
 
     Ok(format!(
-        "successfully prepared data into {}",
-        local.origin.display()
+        "Prepared data successfully; Encrypted in {}",
+        local.content.path.display()
     ))
 }
