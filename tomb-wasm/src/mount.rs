@@ -345,11 +345,6 @@ impl WasmMount {
             self.bucket.id,
         ));
 
-        // Get the metadata
-        let fs_metadata = FsMetadata::unlock(key, &self.metadata_blockstore)
-            .await
-            .map_err(|err| TombWasmError(format!("could not unlock fs metadata: {err}")))?;
-
         log!(format!(
             "tomb-wasm: mount/unlock()/{} - checking versioning",
             self.bucket.id,
@@ -366,6 +361,11 @@ impl WasmMount {
 
         assert_eq!(metadata_cid.to_string(), metadata.metadata_cid);
         assert_eq!(root_cid.to_string(), metadata.root_cid);
+
+        // Now try unlocking the metadata
+        let fs_metadata = FsMetadata::unlock(key, &self.metadata_blockstore)
+            .await
+            .map_err(|err| TombWasmError(format!("could not unlock fs metadata: {err}")))?;
 
         log!(format!(
             "tomb-wasm: mount/unlock()/{} - unlocked",
