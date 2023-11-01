@@ -367,13 +367,24 @@ impl TombWasm {
                 ));
 
                 // Unlock the mount
-                mount.unlock(&key).await?;
-                log!(format!(
-                    "tomb-wasm: mount / {} / unlocked mount",
-                    &bucket_id
-                ));
+                let unlock_result = mount.unlock(&key).await;
 
-                // Ok
+                // TODO: This should be checking against a defined error type,
+                // but it's pretty safe to assume here that a failure here means the key just
+                // doesn't have access to the bucket.
+
+                // Check the result
+                match unlock_result {
+                    Ok(_) => log!(format!(
+                        "tomb-wasm: mount / {} / unlocked mount",
+                        &bucket_id
+                    )),
+                    Err(_) => log!(format!(
+                        "tomb-wasm: mount / {} / could not unlock mount",
+                        &bucket_id
+                    )),
+                };
+
                 mount
             }
             Err(_) => {
