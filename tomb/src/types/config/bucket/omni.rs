@@ -5,7 +5,12 @@ use crate::{
     types::config::globalconfig::GlobalConfig,
 };
 use colored::{ColoredString, Colorize};
-use std::{collections::HashMap, fmt::Display, path::Path};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    fs::{create_dir_all, remove_dir_all},
+    path::{Path, PathBuf},
+};
 use tomb_common::banyan_api::{
     client::Client,
     models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
@@ -255,6 +260,34 @@ impl OmniBucket {
 
         let omnis: Vec<OmniBucket> = map.into_values().collect();
         omnis
+    }
+
+    /// Get the origin for this bucket or create one in the default tomb directory if a local bucket does not yet exist
+    pub async fn get_or_init_origin(
+        &mut self,
+        global: &mut GlobalConfig,
+    ) -> Result<PathBuf, TombError> {
+        if let Ok(local) = self.get_local() {
+            Ok(local.origin)
+        } else {
+            let new_local_origin = PathBuf::from(env!("HOME"))
+                .join("tomb")
+                .join(self.get_remote()?.name);
+            // Remove existing contents and create a enw directory
+            remove_dir_all(&new_local_origin).ok();
+            create_dir_all(&new_local_origin)?;
+
+            // Create a new local bucket
+            self.set_local({
+                let mut value = global
+                    .get_or_init_bucket(&self.get_remote()?.name, &new_local_origin)
+                    .await?;
+                value.remote_id = Some(self.get_remote()?.id);
+                value
+            });
+
+            Ok(new_local_origin)
+        }
     }
 }
 

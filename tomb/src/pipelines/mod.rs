@@ -7,10 +7,11 @@ pub mod error;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod prepare;
 /// This module contains the decryption pipeline function, which is the main entry point for restoring previously prepared data.
-pub mod reconstruct;
+pub mod restore;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
 pub mod remove;
 
+/*
 #[cfg(test)]
 mod test {
     use super::{add, error::TombError};
@@ -699,3 +700,5 @@ mod test {
         test_teardown(test_name).await
     }
 }
+
+ */

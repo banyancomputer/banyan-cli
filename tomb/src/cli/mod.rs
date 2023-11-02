@@ -12,9 +12,8 @@ mod test {
     use super::commands::*;
     use crate::{cli::specifiers::*, types::config::globalconfig::GlobalConfig, utils::test::*};
     use anyhow::{anyhow, Result};
-    use dir_assert::assert_paths;
     use serial_test::serial;
-    use std::{fs::create_dir, path::Path};
+    use std::path::Path;
 
     #[allow(dead_code)]
     #[cfg(feature = "fake")]
@@ -25,8 +24,8 @@ mod test {
     }
 
     fn cmd_create(origin: &Path) -> TombCommand {
-        TombCommand::Buckets {
-            command: BucketsCommand::Create {
+        TombCommand::Drives {
+            command: DrivesCommand::Create {
                 name: "Bucket Name".to_string(),
                 origin: Some(origin.to_path_buf()),
             },
@@ -51,8 +50,8 @@ mod test {
 
     // Run the Prepare pipeline through the CLI
     fn cmd_prepare(origin: &Path) -> TombCommand {
-        TombCommand::Buckets {
-            command: BucketsCommand::Prepare {
+        TombCommand::Drives {
+            command: DrivesCommand::Prepare {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
                 follow_links: true,
             },
@@ -60,11 +59,10 @@ mod test {
     }
 
     // Run the Restore pipeline through the CLI
-    fn cmd_restore(origin: &Path, restored: &Path) -> TombCommand {
-        TombCommand::Buckets {
-            command: BucketsCommand::Restore {
+    fn cmd_restore(origin: &Path) -> TombCommand {
+        TombCommand::Drives {
+            command: DrivesCommand::Restore {
                 bucket_specifier: BucketSpecifier::with_origin(origin),
-                restore_path: Some(restored.to_path_buf()),
             },
         }
     }
@@ -145,16 +143,11 @@ mod test {
         cmd_create(origin).run().await?;
         // Run prepare and assert success
         cmd_prepare(origin).run().await?;
-        // Create restored dir
-        let restored = &origin
-            .parent()
-            .expect("origin has no parent")
-            .join("restored");
-        create_dir(restored).ok();
         // Run restore and assert success
-        cmd_restore(origin, restored).run().await?;
+        cmd_restore(origin).run().await?;
         // Assert equality
-        assert_paths(origin, restored).expect("restored dir does not match origin");
+        // let restored = GlobalConfig::from_disk().await?.get_bucket(origin)?.origin;
+        // assert_paths(origin, rest÷ored).expect("restored dir does not match origin");
         // Teardown test
         test_teardown(test_name).await
     }

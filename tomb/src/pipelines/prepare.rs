@@ -1,13 +1,17 @@
 use std::path::PathBuf;
 
 use super::error::TombError;
-use crate::types::config::bucket::LocalBucket;
+use crate::types::config::bucket::OmniBucket;
+use crate::types::config::globalconfig::GlobalConfig;
 use crate::types::spider::PreparePipelinePlan;
-use crate::{
-    types::config::globalconfig::GlobalConfig,
-    utils::prepare::{create_plans, process_plans},
-};
+use crate::utils::prepare::{create_plans, process_plans};
 use anyhow::Result;
+use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
+use tomb_common::banyan_api::client::Client;
+use tomb_common::banyan_api::models::metadata::Metadata;
+use tomb_common::blockstore::split::DoubleSplitStore;
+use tomb_common::blockstore::RootedBlockStore;
+use tomb_common::metadata::FsMetadata;
 use tomb_common::utils::wnfsio::path_to_segments;
 use wnfs::private::PrivateNode;
 /// Given the input directory, the output directory, the manifest file, and other metadata,
@@ -25,12 +29,32 @@ use wnfs::private::PrivateNode;
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
 pub async fn pipeline(
-    global: &mut GlobalConfig,
-    mut local: LocalBucket,
+    mut fs: FsMetadata,
+    omni: &mut OmniBucket,
+    client: &mut Client,
     follow_links: bool,
 ) -> Result<String, TombError> {
-    let wrapping_key = global.wrapping_key().await?;
-    let mut fs = local.unlock_fs(&wrapping_key).await?;
+    // Local is non-optional
+    let mut local = omni.get_local()?;
+
+    // If there is a remote Bucket with metadatas that include a content root cid which has already been persisted
+    if client.is_authenticated().await {
+        if let Ok(remote) = omni.get_remote() {
+            if let Ok(metadatas) = Metadata::read_all(remote.id, client).await {
+                if metadatas
+                    .iter()
+                    .any(|metadata| {
+                        Some(metadata.root_cid.clone())
+                            == local.content.get_root().map(|cid| cid.to_string())
+                    })
+                {
+                    info!("Starting a new delta...");
+                    local.content.add_delta()?;
+                    omni.set_local(local.clone());
+                }
+            }
+        }
+    }
 
     // Create bundling plan
     let bundling_plan = create_plans(&local.origin, follow_links).await?;
@@ -72,19 +96,22 @@ pub async fn pipeline(
         }
     }
 
-    // Create a new delta for this bundling operation
-    local.content.add_delta()?;
-
-    // Process all of the PreparePipelinePlans
-    process_plans(&mut fs, bundling_plan, &local.metadata, &local.content).await?;
+    // If we're online, let's also spin up a BanyanApiBlockStore for getting content
+    if let Ok(client) = GlobalConfig::from_disk().await?.get_client().await {
+        let banyan_api_blockstore = BanyanApiBlockStore::from(client);
+        let split_store = DoubleSplitStore::new(&local.content, &banyan_api_blockstore);
+        info!("Using online server as backup to check for file differences...");
+        process_plans(&mut fs, bundling_plan, &local.metadata, &split_store).await?;
+    } else {
+        warn!("We notice you're offline or unauthenticated, preparing may fail to detect content changes and require repreparation of old files.");
+        process_plans(&mut fs, bundling_plan, &local.metadata, &local.content).await?;
+    }
 
     local.save_fs(&mut fs).await?;
-
-    global.update_config(&local)?;
-    global.to_disk()?;
+    omni.set_local(local);
 
     Ok(format!(
         "Prepared data successfully; Encrypted in {}",
-        local.content.path.display()
+        omni.get_local()?.content.path.display()
     ))
 }

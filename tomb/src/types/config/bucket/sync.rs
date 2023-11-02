@@ -1,5 +1,5 @@
 use crate::{
-    pipelines::{error::TombError, reconstruct},
+    pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
 };
 use colored::Colorize;
@@ -7,8 +7,6 @@ use futures_util::StreamExt;
 use std::{
     collections::BTreeSet,
     fmt::Display,
-    fs::{create_dir_all, remove_dir_all},
-    path::PathBuf,
 };
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
@@ -26,8 +24,7 @@ use tomb_common::{
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
-use wnfs::{common::BlockStore, libipld::Ipld};
-
+use wnfs::common::BlockStore;
 use super::OmniBucket;
 
 /// Sync State
@@ -132,21 +129,7 @@ pub async fn sync_bucket(
             let current = Metadata::read_current(omni.get_id()?, client).await?;
             let mut byte_stream = current.pull(client).await?;
 
-            let new_local_origin = PathBuf::from(env!("HOME"))
-                .join("tomb")
-                .join(omni.get_remote()?.name);
-            // Remove existing contents and create a enw directory
-            remove_dir_all(&new_local_origin).ok();
-            create_dir_all(&new_local_origin)?;
-
-            // Create a new
-            omni.set_local({
-                let mut value = global
-                    .get_or_init_bucket(&omni.get_remote()?.name, &new_local_origin)
-                    .await?;
-                value.remote_id = Some(omni.get_remote()?.id);
-                value
-            });
+            omni.get_or_init_origin(global).await.ok();
 
             let mut buffer = <Vec<u8>>::new();
             // Write every chunk to it
@@ -200,9 +183,7 @@ pub async fn sync_bucket(
             }
 
             // Extract variables or error
-            let bucket_id = local
-                .remote_id
-                .ok_or(TombError::custom_error("Bucket has no remote ID"))?;
+            let bucket_id = omni.get_id()?;
             let local_content_cid = local
                 .content
                 .get_root()
@@ -322,26 +303,28 @@ pub async fn sync_bucket(
                 };
                 storage_ticket.create_grant(client).await?;
             }
-            // Reconstruct the data on disk
-            let reconstruction_result =
-                reconstruct::pipeline(global, &local, &banyan_api_blockstore, &local.origin).await;
-            // If we succeed at reconstructing
-            if reconstruction_result.is_ok() {
-                // Save the metadata in the content store as well
-                let metadata_cid = local.metadata.get_root().unwrap();
-                let ipld = local
-                    .metadata
-                    .get_deserializable::<Ipld>(&metadata_cid)
-                    .await?;
-                let content_cid = local.content.put_serializable(&ipld).await?;
-                local.content.set_root(&content_cid);
-                assert_eq!(metadata_cid, content_cid);
-                // We're now all synced up
-                omni.sync_state = Some(SyncState::AllSynced);
-            }
 
-            info!("{omni}");
-            reconstruction_result
+            todo!("meme");
+            // Reconstruct the data on disk
+            // let reconstruction_result =
+            //     reconstruct::pipeline(global, &local, &banyan_api_blockstore, &local.origin).await;
+            // // If we succeed at reconstructing
+            // if reconstruction_result.is_ok() {
+            //     // Save the metadata in the content store as well
+            //     let metadata_cid = local.metadata.get_root().unwrap();
+            //     let ipld = local
+            //         .metadata
+            //         .get_deserializable::<Ipld>(&metadata_cid)
+            //         .await?;
+            //     let content_cid = local.content.put_serializable(&ipld).await?;
+            //     local.content.set_root(&content_cid);
+            //     assert_eq!(metadata_cid, content_cid);
+            //     // We're now all synced up
+            //     omni.sync_state = Some(SyncState::AllSynced);
+            // }
+
+            // info!("{omni}");
+            // reconstruction_result
         }
         Some(SyncState::AllSynced) => Ok(format!(
             "{}",

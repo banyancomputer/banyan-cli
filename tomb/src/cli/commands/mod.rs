@@ -1,6 +1,6 @@
 mod account;
 mod api;
-mod buckets;
+mod drives;
 mod keys;
 mod metadata;
 mod runnable_command;
@@ -9,7 +9,7 @@ use std::io::Read;
 
 pub use account::*;
 pub use api::*;
-pub use buckets::*;
+pub use drives::*;
 pub use keys::*;
 pub use metadata::*;
 pub use runnable_command::RunnableCommand;
@@ -48,11 +48,11 @@ pub enum TombCommand {
         #[clap(subcommand)]
         command: AccountCommand,
     },
-    /// Bucket management
-    Buckets {
+    /// Drive management
+    Drives {
         /// Subcommand
         #[clap(subcommand)]
-        command: BucketsCommand,
+        command: DrivesCommand,
     },
 }
 
@@ -66,7 +66,7 @@ impl RunnableCommand<TombError> for TombCommand {
         match self {
             TombCommand::Api { command } => Ok(command.run_internal(global, client).await?),
             TombCommand::Account { command } => Ok(command.run_internal(global, client).await?),
-            TombCommand::Buckets { command } => command.run_internal(global, client).await,
+            TombCommand::Drives { command } => command.run_internal(global, client).await,
         }
     }
 }

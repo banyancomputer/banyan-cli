@@ -1,25 +1,22 @@
 use crate::{
-    pipelines::{error::TombError, prepare, reconstruct},
+    pipelines::{error::TombError, prepare, restore},
     types::config::{
         bucket::{sync_bucket, OmniBucket},
         globalconfig::GlobalConfig,
     },
 };
 
-use super::{
-    super::specifiers::BucketSpecifier, prompt_for_bool, KeyCommand, MetadataCommand,
-    RunnableCommand,
-};
+use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
 use async_trait::async_trait;
 use bytesize::ByteSize;
 use clap::Subcommand;
 use colored::Colorize;
-use std::{env::current_dir, fs::remove_dir_all, path::PathBuf};
-use tomb_common::banyan_api::client::Client;
+use std::{env::current_dir, path::PathBuf};
+use tomb_common::{banyan_api::client::Client, metadata::FsMetadata};
 
 /// Subcommand for Bucket Management
 #[derive(Subcommand, Clone, Debug)]
-pub enum BucketsCommand {
+pub enum DrivesCommand {
     /// List all Buckets
     Ls,
     /// Initialize a new Bucket locally
@@ -46,10 +43,6 @@ pub enum BucketsCommand {
         /// Bucket in question
         #[clap(flatten)]
         bucket_specifier: BucketSpecifier,
-
-        /// Output Directory
-        #[arg(short, long)]
-        restore_path: Option<PathBuf>,
     },
     /// Sync Bucket data to or from remote
     Sync(BucketSpecifier),
@@ -74,7 +67,7 @@ pub enum BucketsCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<TombError> for BucketsCommand {
+impl RunnableCommand<TombError> for DrivesCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
@@ -82,7 +75,7 @@ impl RunnableCommand<TombError> for BucketsCommand {
     ) -> Result<String, TombError> {
         match self {
             // List all Buckets tracked remotely and locally
-            BucketsCommand::Ls => {
+            DrivesCommand::Ls => {
                 let omnis = OmniBucket::ls(global, client).await;
                 let str = omnis
                     .iter()
@@ -90,36 +83,34 @@ impl RunnableCommand<TombError> for BucketsCommand {
                 Ok(str)
             }
             // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
-            BucketsCommand::Create { name, origin } => {
+            DrivesCommand::Create { name, origin } => {
                 let origin = origin.unwrap_or(current_dir()?);
                 let omni = OmniBucket::create(global, client, &name, &origin).await?;
                 let output = format!("{}\n{}", "<< NEW BUCKET CREATED >>".green(), omni);
                 Ok(output)
             }
-            BucketsCommand::Prepare {
+            DrivesCommand::Prepare {
                 bucket_specifier,
                 follow_links,
             } => {
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                let local = omni.get_local()?;
-                prepare::pipeline(global, local, follow_links).await
+                let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let fs =
+                    FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
+                        .await?;
+                let result = prepare::pipeline(fs, &mut omni, client, follow_links).await;
+                global.update_config(&omni.get_local()?)?;
+                result
             }
-            BucketsCommand::Restore {
-                bucket_specifier,
-                restore_path,
-            } => {
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
-                let local = omni.get_local()?;
-                if let Some(restore_path) = restore_path {
-                    reconstruct::pipeline(global, &local, &local.content, &restore_path).await
-                } else if prompt_for_bool("delete data currently in unprepared Bucket origin?") {
-                    remove_dir_all(&local.origin)?;
-                    reconstruct::pipeline(global, &local, &local.content, &local.origin).await
-                } else {
-                    Ok("did nothing".into())
-                }
+            DrivesCommand::Restore { bucket_specifier } => {
+                let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let fs =
+                    FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
+                        .await?;
+                let result = restore::pipeline(fs, &mut omni, client).await;
+                global.update_config(&omni.get_local()?)?;
+                result
             }
-            BucketsCommand::Sync(bucket_specifier) => {
+            DrivesCommand::Sync(bucket_specifier) => {
                 let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let result = sync_bucket(&mut omni, client, global).await;
                 if let Ok(local) = omni.get_local() {
@@ -127,15 +118,15 @@ impl RunnableCommand<TombError> for BucketsCommand {
                 }
                 result
             }
-            BucketsCommand::Delete(bucket_specifier) => {
+            DrivesCommand::Delete(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 omni.delete(global, client).await
             }
-            BucketsCommand::Info(bucket_specifier) => {
+            DrivesCommand::Info(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 Ok(format!("{omni}"))
             }
-            BucketsCommand::Usage(bucket_specifier) => {
+            DrivesCommand::Usage(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let remote = omni.get_remote()?;
                 remote
@@ -151,10 +142,8 @@ impl RunnableCommand<TombError> for BucketsCommand {
                     })
                     .map_err(TombError::client_error)
             }
-            BucketsCommand::Metadata { subcommand } => {
-                subcommand.run_internal(global, client).await
-            }
-            BucketsCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,
+            DrivesCommand::Metadata { subcommand } => subcommand.run_internal(global, client).await,
+            DrivesCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,
         }
     }
 }

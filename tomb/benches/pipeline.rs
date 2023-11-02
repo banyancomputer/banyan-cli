@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::runtime::Runtime;
 use tomb::{
-    pipelines::{prepare, reconstruct},
+    pipelines::{prepare, restore},
     types::config::globalconfig::GlobalConfig,
 };
 
@@ -341,7 +341,7 @@ fn restore_benchmark(c: &mut Criterion, prepared_path: &PathBuf, restored_path: 
                     .get_or_init_bucket(input_name, &prepared_path)
                     .await?;
 
-                reconstruct::pipeline(
+                restore::pipeline(
                     black_box(&global),
                     black_box(&local),
                     black_box(&local.content),

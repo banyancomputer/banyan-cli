@@ -501,7 +501,7 @@ impl FsMetadata {
 
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn read(
-        &mut self,
+        &self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,

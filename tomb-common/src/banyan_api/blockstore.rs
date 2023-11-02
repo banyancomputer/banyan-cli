@@ -48,8 +48,7 @@ impl BanyanApiBlockStore {
 impl BlockStore for BanyanApiBlockStore {
     /// Stores an array of bytes in the block store.
     async fn put_block(&self, _bytes: Vec<u8>, _codec: IpldCodec) -> Result<Cid> {
-        // TODO
-        panic!("Not yet implemented");
+        Err(anyhow!("Cannot put block in API store"))
     }
 
     /// Retrieves an array of bytes from the block store with given CID.

@@ -1,5 +1,6 @@
 use super::{
     error::ClientError,
+    models::account::Account,
     requests::{ApiRequest, StreamableApiRequest},
 };
 use bytes::Bytes;
@@ -159,6 +160,11 @@ impl Client {
                 _ => Err(ClientError::auth_unavailable()),
             },
         }
+    }
+
+    /// Simple shortcut for checking if a user is authenticated via the who am i route
+    pub async fn is_authenticated(&mut self) -> bool {
+        Account::who_am_i(self).await.is_ok()
     }
 
     /// Get the current subject based on the set credentials
