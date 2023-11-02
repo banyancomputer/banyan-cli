@@ -113,6 +113,9 @@ impl Metadata {
             state: response.state,
             snapshot_id: None,
         };
+
+        println!("metadata response: {:?}", response);
+
         Ok((
             metadata,
             response.storage_host,

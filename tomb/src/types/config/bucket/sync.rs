@@ -192,6 +192,12 @@ pub async fn sync_bucket(
                 .ok_or(TombError::custom_error("Bucket has no metadata CID"))?;
             let delta = local.content.get_delta()?;
 
+            info!(
+                "the most recent delta has a data size of {}; all deltas: {:?}",
+                delta.data_size(),
+                local.content.deltas
+            );
+
             // Push the metadata
             let (metadata, host, authorization) = Metadata::push(
                 bucket_id,

@@ -636,7 +636,7 @@ impl WasmMount {
                 .get_cids(&fs.forest, &self.metadata_blockstore)
                 .await
                 .expect("cant get cids");
-            banyan_api_blockstore.find_cids(cids).await;
+            banyan_api_blockstore.find_cids(cids).await.ok();
         }
 
         log!(format!(

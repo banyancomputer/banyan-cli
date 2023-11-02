@@ -50,6 +50,9 @@ impl MultiCarV2DiskBlockStore {
                 }
             }
 
+            // Sort so that the most recent delta is last in the list
+            deltas.sort_by(|a, b| a.path.cmp(&b.path));
+
             // Ok
             Ok(Self {
                 path: dir.to_path_buf(),
