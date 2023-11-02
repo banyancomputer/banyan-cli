@@ -1,13 +1,8 @@
-use crate::{
-    pipelines::error::TombError,
-    types::config::globalconfig::GlobalConfig,
-};
+use super::OmniBucket;
+use crate::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig};
 use colored::Colorize;
 use futures_util::StreamExt;
-use std::{
-    collections::BTreeSet,
-    fmt::Display,
-};
+use std::{collections::BTreeSet, fmt::Display};
 use tokio::io::AsyncWriteExt;
 use tomb_common::{
     banyan_api::{
@@ -25,7 +20,6 @@ use tomb_common::{
 };
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
 use wnfs::common::BlockStore;
-use super::OmniBucket;
 
 /// Sync State
 #[derive(Debug, Clone, PartialEq)]

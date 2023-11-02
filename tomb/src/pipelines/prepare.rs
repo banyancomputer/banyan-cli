@@ -41,13 +41,10 @@ pub async fn pipeline(
     if client.is_authenticated().await {
         if let Ok(remote) = omni.get_remote() {
             if let Ok(metadatas) = Metadata::read_all(remote.id, client).await {
-                if metadatas
-                    .iter()
-                    .any(|metadata| {
-                        Some(metadata.root_cid.clone())
-                            == local.content.get_root().map(|cid| cid.to_string())
-                    })
-                {
+                if metadatas.iter().any(|metadata| {
+                    Some(metadata.root_cid.clone())
+                        == local.content.get_root().map(|cid| cid.to_string())
+                }) {
                     info!("Starting a new delta...");
                     local.content.add_delta()?;
                     omni.set_local(local.clone());

@@ -61,7 +61,7 @@ impl RunnableCommand<TombError> for KeyCommand {
                         .iter()
                         .find(|key| key.fingerprint == fingerprint)
                     {
-                        info!("\n{existing_key}\n");
+                        info!("\n{}\n", existing_key.context_fmt(&fingerprint));
                         Err(TombError::custom_error(
                             "You've already requested access on this Bucket!",
                         ))
@@ -81,21 +81,39 @@ impl RunnableCommand<TombError> for KeyCommand {
             KeyCommand::Ls(bucket_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
                 let id = omni.get_id().unwrap();
-
+                let my_fingerprint = hex_fingerprint(
+                    &global
+                        .wrapping_key()
+                        .await?
+                        .public_key()?
+                        .fingerprint()
+                        .await?
+                        .to_vec(),
+                );
                 BucketKey::read_all(id, client)
                     .await
                     .map(|keys| {
-                        keys.iter()
-                            .fold(String::new(), |acc, key| format!("{}\n\n{}", acc, key))
+                        keys.iter().fold(String::new(), |acc, key| {
+                            format!("{}\n\n{}", acc, key.context_fmt(&my_fingerprint))
+                        })
                     })
                     .map_err(TombError::client_error)
             }
             // Get info about a Key
             KeyCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
+                let my_fingerprint = hex_fingerprint(
+                    &global
+                        .wrapping_key()
+                        .await?
+                        .public_key()?
+                        .fingerprint()
+                        .await?
+                        .to_vec(),
+                );
                 BucketKey::read(bucket_id, id, client)
                     .await
-                    .map(|key| format!("{}", key))
+                    .map(|key| key.context_fmt(&my_fingerprint))
                     .map_err(TombError::client_error)
             }
             // Delete an already approved key
@@ -103,7 +121,7 @@ impl RunnableCommand<TombError> for KeyCommand {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::delete_by_id(bucket_id, id, client)
                     .await
-                    .map(|id| format!("deleted key!\nid:\t{}", id))
+                    .map(|id| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
                     .map_err(TombError::client_error)
             }
             // Reject a Key pending approval

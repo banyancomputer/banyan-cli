@@ -117,6 +117,15 @@ impl BucketKey {
             .call_no_content(RejectBucketKey { bucket_id, id })
             .await
     }
+
+    /// Context aware fingerprint using the locally known device fingerprint
+    pub fn context_fmt(&self, my_fingerprint: &String) -> String {
+        if &self.fingerprint == my_fingerprint {
+            format!("{}\n{}", "| THIS IS YOUR KEY |".green(), self)
+        } else {
+            format!("{}", self)
+        }
+    }
 }
 
 #[cfg(feature = "fake")]
