@@ -93,15 +93,17 @@ pub async fn pipeline(
         }
     }
 
+    let split_store_local = DoubleSplitStore::new(&local.content, &local.metadata);
+
     // If we're online, let's also spin up a BanyanApiBlockStore for getting content
     if let Ok(client) = GlobalConfig::from_disk().await?.get_client().await {
         let banyan_api_blockstore = BanyanApiBlockStore::from(client);
-        let split_store = DoubleSplitStore::new(&local.content, &banyan_api_blockstore);
+        let split_store_remote = DoubleSplitStore::new(&split_store_local, &banyan_api_blockstore);
         info!("Using online server as backup to check for file differences...");
-        process_plans(&mut fs, bundling_plan, &local.metadata, &split_store).await?;
+        process_plans(&mut fs, bundling_plan, &local.metadata, &split_store_remote).await?;
     } else {
         warn!("We notice you're offline or unauthenticated, preparing may fail to detect content changes and require repreparation of old files.");
-        process_plans(&mut fs, bundling_plan, &local.metadata, &local.content).await?;
+        process_plans(&mut fs, bundling_plan, &local.metadata, &split_store_local).await?;
     }
 
     local.save_fs(&mut fs).await?;

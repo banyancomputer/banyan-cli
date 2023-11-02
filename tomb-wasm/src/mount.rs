@@ -296,28 +296,39 @@ impl WasmMount {
         let metadata_id = metadata.id;
         self.metadata = Some(metadata);
 
-        if let Some(host) = host.clone() {
-            if let Some(authorization) = authorization {
-                let storage_ticket = StorageTicket {
+        match (host, authorization) {
+            // New storage ticket
+            (Some(host), Some(authorization)) => {
+                // First create a grant
+                StorageTicket {
                     host,
                     authorization,
-                };
-                storage_ticket
-                    .clone()
-                    .create_grant(&mut self.client)
+                }
+                .create_grant(&mut self.client)
+                .await
+                .map_err(|err| TombWasmError(format!("unable to register storage grant: {err}")))?;
+
+                // Then perform upload
+                self.content_blockstore
+                    .upload(host, metadata_id, &mut self.client)
                     .await
                     .map_err(|err| {
-                        TombWasmError(format!("unable to register storage grant: {err}"))
+                        TombWasmError(format!("created grant but unable to upload: {err}"))
                     })?;
             }
-        }
-
-        // If we are doing an upload
-        if let Some(host_url) = host {
-            self.content_blockstore
-                .upload(host_url, metadata_id, &mut self.client)
-                .await
-                .map_err(|err| TombWasmError(format!("unable to upload content: {err}")))?;
+            // Already granted, still upload
+            (Some(host), None) => {
+                self.content_blockstore
+                    .upload(host, metadata_id, &mut self.client)
+                    .await
+                    .map_err(|err| {
+                        TombWasmError(format!("no grant needed but unable to upload: {err}"))
+                    })?;
+            }
+            // No uploading required
+            _ => {
+                log!("tomb-wasm: mount/sync()/ - no need to push content");
+            }
         }
 
         self.dirty = false;

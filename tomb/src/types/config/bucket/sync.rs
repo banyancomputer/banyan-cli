@@ -17,7 +17,7 @@ use tomb_common::{
             metadata::Metadata,
             storage_ticket::StorageTicket,
         },
-        requests::staging::upload::content::UploadContent,
+        requests::{core::auth, staging::upload::content::UploadContent},
     },
     blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
     metadata::FsMetadata,
@@ -223,53 +223,56 @@ pub async fn sync_bucket(
                 local.storage_ticket = None;
             }
 
-            // If a full storage ticket was returned
-            if let Some(host) = host.clone() {
-                if let Some(authorization) = authorization {
+            let upload_result = match (host, authorization) {
+                // New storage ticket
+                (Some(host), Some(authorization)) => {
+                    // Update the storage ticket locally and create grant
                     let storage_ticket = StorageTicket {
                         host,
                         authorization,
                     };
-
-                    // Update the storage ticket locally
-                    local.storage_ticket = Some(storage_ticket.clone());
-
-                    // Create a grant
                     storage_ticket.create_grant(client).await?;
+                    local.storage_ticket = Some(storage_ticket.clone());
+                    local
+                        .content
+                        .upload(storage_ticket.host, metadata.id, client)
+                        .await
                 }
-            }
+                // Already granted, still upload
+                (Some(host), None) => local.content.upload(host, metadata.id, client).await,
+                // No uploading required
+                _ => {
+                    global.update_config(&local)?;
+                    omni.set_local(local);
+                    return Ok("METADATA PUSHED; NO CONTENT PUSH NEEDED".to_string());
+                }
+            };
 
-            // Update global and local configs
             global.update_config(&local)?;
-            omni.set_local(local.clone());
+            omni.set_local(local);
 
-            if let Some(host_url) = host {
-                // Push content to the storage provider
-                match local.content.upload(host_url, metadata.id, client).await {
-                    // Upload succeeded
-                    Ok(()) => {
-                        omni.sync_state = SyncState::AllSynced;
-                        Metadata::read_current(bucket_id, client)
-                            .await
-                            .map(|new_metadata| {
-                                format!(
-                                    "{}\n{}",
-                                    "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
-                                    new_metadata
-                                )
-                            })
-                            .map_err(TombError::client_error)
-                    }
-                    // Upload failed
-                    Err(_) => Ok(format!(
-                        "{}\n{}\n{}\n",
-                        "<< FAILED TO PUSH CONTENT >>".red(),
-                        "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
-                        metadata
-                    )),
+            match upload_result {
+                // Upload succeeded
+                Ok(()) => {
+                    omni.sync_state = SyncState::AllSynced;
+                    Metadata::read_current(bucket_id, client)
+                        .await
+                        .map(|new_metadata| {
+                            format!(
+                                "{}\n{}",
+                                "<< SUCCESSFULLY UPLOADED METADATA & CONTENT >>".green(),
+                                new_metadata
+                            )
+                        })
+                        .map_err(TombError::client_error)
                 }
-            } else {
-                Ok("METADATA PUSHED; NO CONTENT PUSH NEEDED".to_string())
+                // Upload failed
+                Err(_) => Ok(format!(
+                    "{}\n{}\n{}\n",
+                    "<< FAILED TO PUSH CONTENT >>".red(),
+                    "<< SUCCESSFULLY PUSHED PENDING METADATA >>".green(),
+                    metadata
+                )),
             }
         }
         // Reconstruct the Bucket locally
