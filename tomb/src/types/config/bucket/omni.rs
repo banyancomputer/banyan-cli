@@ -26,7 +26,7 @@ pub struct OmniBucket {
     /// The remote Bucket
     remote: Option<RemoteBucket>,
     /// The sync state
-    pub sync_state: Option<SyncState>,
+    pub sync_state: SyncState,
 }
 
 impl OmniBucket {
@@ -39,7 +39,7 @@ impl OmniBucket {
         let mut omni = Self {
             local: None,
             remote: None,
-            sync_state: None,
+            sync_state: SyncState::Unknown,
         };
 
         // Search for a local bucket
@@ -77,7 +77,7 @@ impl OmniBucket {
         Self {
             local: Some(bucket.clone()),
             remote: None,
-            sync_state: Some(SyncState::Unpublished),
+            sync_state: SyncState::Unpublished,
         }
     }
 
@@ -86,7 +86,7 @@ impl OmniBucket {
         Self {
             local: None,
             remote: Some(bucket.clone()),
-            sync_state: Some(SyncState::Unlocalized),
+            sync_state: SyncState::Unlocalized,
         }
     }
 
@@ -136,7 +136,7 @@ impl OmniBucket {
         let mut omni = OmniBucket {
             local: None,
             remote: None,
-            sync_state: None,
+            sync_state: SyncState::Unknown,
         };
         // If this bucket already exists both locally and remotely
         if let Some(bucket) = global.get_bucket(origin)
@@ -247,7 +247,7 @@ impl OmniBucket {
                 let mut omni = OmniBucket {
                     local: omni.local.clone(),
                     remote: Some(remote),
-                    sync_state: None,
+                    sync_state: SyncState::Unknown,
                 };
 
                 let _ = determine_sync_state(&mut omni, client).await;
@@ -336,11 +336,7 @@ impl Display for OmniBucket {
 
         f.write_fmt(format_args!(
             "{info}\nsync_status:\t\t{}\n",
-            if let Some(sync) = self.sync_state.clone() {
-                sync.to_string()
-            } else {
-                format!("{}", "Unknown".red())
-            }
+            self.sync_state
         ))
     }
 }
