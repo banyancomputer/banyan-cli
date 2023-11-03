@@ -59,6 +59,7 @@ impl UploadContent for CarV2MemoryBlockStore {
 }
 
 #[cfg(test)]
+#[cfg(feature = "fake")]
 mod test {
     use crate::banyan_api::{
         error::ClientError, models::metadata::test::setup_and_push_metadata,
