@@ -161,6 +161,11 @@ impl Client {
         }
     }
 
+    /// Simple shortcut for checking if a user is authenticated
+    pub async fn is_authenticated(&mut self) -> bool {
+        self.bearer_token().await.is_ok()
+    }
+
     /// Get the current subject based on the set credentials
     pub fn subject(&self) -> Result<String, ClientError> {
         match &self.claims {
@@ -328,57 +333,14 @@ impl Client {
         }
     }
 
-    // /// Call a multipart method that implements ApiRequest
-    // #[cfg(target_arch = "wasm32")]
-    // pub async fn multipart<T: ApiRequest>(
-    //     &mut self,
-    //     request: T,
-    // ) -> Result<T::ResponseType, ClientError> {
-    //     let add_authentication = request.requires_authentication();
-    //     let mut request_builder = request.build_request(&self.remote, &self.reqwest_client);
-    //     if add_authentication {
-    //         let bearer_token = self.bearer_token().await?;
-    //         request_builder = request_builder.bearer_auth(bearer_token);
-    //     }
-    //
-    //     // Unset the content type header. The browser will set it automatically.
-    //     // If using in node environment ... 🤷‍♂️
-    //     let request_builder = request_builder.header("Content-Type", "");
-    //
-    //     let response = request_builder
-    //         .send()
-    //         .await
-    //         .map_err(ClientError::http_error)?;
-    //
-    //     if response.status().is_success() {
-    //         response
-    //             .json::<T::ResponseType>()
-    //             .await
-    //             .map_err(ClientError::bad_format)
-    //     } else {
-    //         if response.status() == reqwest::StatusCode::NOT_FOUND {
-    //             // Handle 404 specifically
-    //             // You can extend this part to handle other status codes differently if needed
-    //             return Err(ClientError::http_response_error(response.status()));
-    //         }
-    //         // For other error responses, try to deserialize the error
-    //         let err = response
-    //             .json::<T::ErrorType>()
-    //             .await
-    //             .map_err(ClientError::bad_format)?;
-    //
-    //         let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-    //         Err(ClientError::from(err))
-    //     }
-    // }
-
     /// Stream a response from the API that implements StreamableApiRequest
     pub async fn stream<T: StreamableApiRequest>(
         &mut self,
         request: T,
+        base_url: &Url,
     ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ClientError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
+        let mut request_builder = request.build_request(base_url, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);

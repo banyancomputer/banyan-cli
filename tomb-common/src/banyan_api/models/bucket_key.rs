@@ -26,12 +26,12 @@ pub struct BucketKey {
 impl Display for BucketKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let status = if self.approved {
-            "approved"
+            "Approved".green()
         } else {
-            "unapproved"
+            "Unapproved".red()
         };
         f.write_fmt(format_args!(
-            "\n{}\nbucket_id: {}\nfingerprint: {}\nstatus: {}",
+            "{}\ndrive_id:\t{}\nfingerprint:\t{}\nstatus:\t\t{}",
             "| KEY INFO |".yellow(),
             self.bucket_id,
             self.fingerprint,
@@ -116,6 +116,15 @@ impl BucketKey {
         client
             .call_no_content(RejectBucketKey { bucket_id, id })
             .await
+    }
+
+    /// Context aware fingerprint using the locally known device fingerprint
+    pub fn context_fmt(&self, my_fingerprint: &String) -> String {
+        if &self.fingerprint == my_fingerprint {
+            format!("{}\n{}", "| THIS IS YOUR KEY |".green(), self)
+        } else {
+            format!("{}", self)
+        }
     }
 }
 

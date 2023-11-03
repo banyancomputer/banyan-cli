@@ -13,7 +13,7 @@ use wnfs::common::BlockStoreError;
 use wnfs::libipld::{Cid, IpldCodec};
 
 /// CARv2 MultiCarV2DiskBlockStore across multiple CAR files using File IO
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MultiCarV2DiskBlockStore {
     /// CAR directory path
     pub path: PathBuf,
@@ -49,6 +49,9 @@ impl MultiCarV2DiskBlockStore {
                     deltas.push(car);
                 }
             }
+
+            // Sort so that the most recent delta is last in the list
+            deltas.sort_by(|a, b| a.path.cmp(&b.path));
 
             // Ok
             Ok(Self {
@@ -127,9 +130,7 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
     }
 
     fn set_root(&self, root: &Cid) {
-        println!("setting root: {}", root);
         if !self.deltas.is_empty() {
-            println!("yay! there is a delta!");
             let current_delta = self.get_delta().unwrap();
             current_delta.set_root(root);
             current_delta.to_disk().expect("failed to write to disk");
@@ -153,6 +154,27 @@ impl UploadContent for MultiCarV2DiskBlockStore {
 
     fn get_length(&self) -> Result<u64> {
         Ok(self.get_delta()?.path.metadata()?.len())
+    }
+}
+
+impl Serialize for MultiCarV2DiskBlockStore {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.path.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let path = PathBuf::deserialize(deserializer)?;
+        Self::new(&path).map_err(|err| {
+            serde::de::Error::custom(format!("MultiCARv2 Deserialization error: {err}"))
+        })
     }
 }
 

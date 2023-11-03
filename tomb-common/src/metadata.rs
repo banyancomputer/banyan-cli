@@ -501,7 +501,7 @@ impl FsMetadata {
 
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
     pub async fn read(
-        &mut self,
+        &self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
@@ -577,7 +577,7 @@ impl FsMetadata {
 
     /// Get a node from the Fs
     pub async fn get_node(
-        &mut self,
+        &self,
         path_segments: &[String],
         store: &impl RootedBlockStore,
     ) -> Result<Option<PrivateNode>> {
@@ -814,7 +814,7 @@ mod test {
 
         // Save the metadata
         fs_metadata.save(&metadata_store, &metadata_store).await?;
-        let mut fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
+        let fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
         // Make sure the original file is gone
         let file_node = fs_metadata.get_node(&file_path, &metadata_store).await?;
         if file_node.is_some() {

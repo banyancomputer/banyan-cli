@@ -4,6 +4,6 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum KeyError {
     /// Missing a key
-    #[error("There is no key in this bucket matching your PrivateKey")]
+    #[error("You are not authorized to decrypt this Drive, request key access first.")]
     Missing,
 }

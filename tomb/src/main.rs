@@ -17,10 +17,8 @@ async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
     let cli = cli::args::Args::parse();
 
-    // Determine the command being executed run appropriate subcommand
-    let _ = cli.command.run().await;
-
     // TODO eventually make options to format it differently?
+    std::env::set_var("RUST_LOG", "info");
     env_logger::Builder::new()
         .filter_level(cli.verbose.into())
         .format(|buf, record| writeln!(buf, "[{}] {}", record.level(), record.args()))
@@ -28,6 +26,9 @@ async fn main() -> Result<()> {
         .format_level(true)
         .format_module_path(false)
         .init();
+
+    // Determine the command being executed run appropriate subcommand
+    let _ = cli.command.run().await;
 
     Ok(())
 }

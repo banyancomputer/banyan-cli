@@ -6,6 +6,8 @@ pub mod custom_fclones_logger;
 pub mod grouper;
 /// Utils specific to the Prepare pipeline
 pub mod prepare;
+/// Utils specific to the Reconstruct pipeline
+pub mod restore;
 /// This module contains code designed to traverse directory structure and get a bundling plan for directories and symlinks.
 pub mod spider;
 /// This module contains testing fns

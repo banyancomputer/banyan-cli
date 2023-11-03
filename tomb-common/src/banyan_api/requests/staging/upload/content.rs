@@ -4,14 +4,12 @@ use uuid::Uuid;
 
 use super::push::PushContent;
 use crate::banyan_api::{client::Client, error::ClientError};
-
-#[cfg(target_arch = "wasm32")]
-use {crate::blockstore::carv2_memory::CarV2MemoryBlockStore, std::io::Cursor};
+use crate::blockstore::carv2_memory::CarV2MemoryBlockStore;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type ContentType = reqwest::Body;
 #[cfg(target_arch = "wasm32")]
-pub type ContentType = Cursor<Vec<u8>>;
+pub type ContentType = std::io::Cursor<Vec<u8>>;
 
 #[async_trait(?Send)]
 pub trait UploadContent {
@@ -37,7 +35,6 @@ pub trait UploadContent {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
 impl UploadContent for CarV2MemoryBlockStore {
     fn get_hash(&self) -> anyhow::Result<String> {
@@ -49,10 +46,45 @@ impl UploadContent for CarV2MemoryBlockStore {
 
     #[allow(refining_impl_trait)]
     async fn get_body(&self) -> anyhow::Result<ContentType> {
-        Ok(Cursor::new(self.get_data()))
+        #[cfg(target_arch = "wasm32")]
+        return Ok(std::io::Cursor::new(self.get_data()));
+
+        #[cfg(not(target_arch = "wasm32"))]
+        return Ok(self.get_data().into());
     }
 
     fn get_length(&self) -> Result<u64> {
         Ok(self.get_data().len() as u64)
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "fake")]
+mod test {
+    use crate::banyan_api::{
+        error::ClientError, models::metadata::test::setup_and_push_metadata,
+        requests::staging::upload::content::UploadContent,
+    };
+    use serial_test::serial;
+
+    #[tokio::test]
+    #[serial]
+    async fn upload_content() -> Result<(), ClientError> {
+        let mut setup = setup_and_push_metadata("upload_content").await?;
+        // Create a grant and upload content
+        setup
+            .storage_ticket
+            .clone()
+            .create_grant(&mut setup.client)
+            .await?;
+        setup
+            .content_store
+            .upload(
+                setup.storage_ticket.host.clone(),
+                setup.metadata.id,
+                &mut setup.client,
+            )
+            .await?;
+        Ok(())
     }
 }

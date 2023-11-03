@@ -1,11 +1,16 @@
 use super::{determine_sync_state, LocalBucket, SyncState};
 use crate::{
-    cli::{commands::prompt_for_bool, specifiers::BucketSpecifier},
+    cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
     pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
 };
 use colored::{ColoredString, Colorize};
-use std::{collections::HashMap, fmt::Display, path::Path};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    fs::{create_dir_all, remove_dir_all},
+    path::{Path, PathBuf},
+};
 use tomb_common::banyan_api::{
     client::Client,
     models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
@@ -21,7 +26,7 @@ pub struct OmniBucket {
     /// The remote Bucket
     remote: Option<RemoteBucket>,
     /// The sync state
-    pub sync_state: Option<SyncState>,
+    pub sync_state: SyncState,
 }
 
 impl OmniBucket {
@@ -29,51 +34,42 @@ impl OmniBucket {
     pub async fn from_specifier(
         global: &GlobalConfig,
         client: &mut Client,
-        bucket_specifier: &BucketSpecifier,
+        drive_specifier: &DriveSpecifier,
     ) -> Self {
-        let mut new_object = Self {
+        let mut omni = Self {
             local: None,
             remote: None,
-            sync_state: None,
+            sync_state: SyncState::Unknown,
         };
 
         // Search for a local bucket
         let local_result = global.buckets.clone().into_iter().find(|bucket| {
-            bucket.remote_id == bucket_specifier.bucket_id
-                && (if let Some(origin) = &bucket_specifier.origin {
-                    bucket.origin == *origin
-                } else {
-                    true
-                })
-                && (if let Some(name) = &bucket_specifier.name {
-                    bucket.name == *name
-                } else {
-                    true
-                })
+            let check_remote = bucket.remote_id == drive_specifier.drive_id;
+            let check_origin = Some(bucket.origin.clone()) == drive_specifier.origin;
+            let check_name = Some(bucket.name.clone()) == drive_specifier.name;
+            check_remote || check_origin || check_name
         });
+        omni.local = local_result;
 
-        // Search for a remote bucket id
-        let mut remote_id = None;
-        if let Some(id) = bucket_specifier.bucket_id {
-            remote_id = Some(id);
-        }
-        if let Some(bucket) = local_result {
-            if let Some(id) = bucket.remote_id {
-                remote_id = Some(id);
-            }
-            new_object.local = Some(bucket);
-        }
-        // If we found one
-        if let Some(remote_id) = remote_id
-            && let Ok(bucket) = RemoteBucket::read(client, remote_id).await
-        {
-            new_object.remote = Some(bucket)
+        // Search for a remote bucket
+        let all_remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
+        let remote_result = all_remote_buckets.into_iter().find(|bucket| {
+            let check_id = Some(bucket.id) == drive_specifier.drive_id;
+            let check_name = Some(bucket.name.clone()) == drive_specifier.name;
+            check_id || check_name
+        });
+        omni.remote = remote_result;
+
+        if omni.local.is_some() && omni.remote.is_some() {
+            let mut local = omni.get_local().unwrap();
+            local.remote_id = Some(omni.get_remote().unwrap().id);
+            omni.local = Some(local);
         }
 
         // Determine the sync state
-        let _ = determine_sync_state(&mut new_object, client).await;
+        let _ = determine_sync_state(&mut omni, client).await;
 
-        new_object
+        omni
     }
 
     /// Initialize w/ local
@@ -81,7 +77,7 @@ impl OmniBucket {
         Self {
             local: Some(bucket.clone()),
             remote: None,
-            sync_state: Some(SyncState::Unpublished),
+            sync_state: SyncState::Unpublished,
         }
     }
 
@@ -90,13 +86,13 @@ impl OmniBucket {
         Self {
             local: None,
             remote: Some(bucket.clone()),
-            sync_state: Some(SyncState::Unlocalized),
+            sync_state: SyncState::Unlocalized,
         }
     }
 
     /// Get the ID from wherever it might be found
     pub fn get_id(&self) -> Result<Uuid, TombError> {
-        let err = TombError::custom_error("No bucket ID found with these properties");
+        let err = TombError::custom_error("Unable to find remote Bucket ID with that query");
         if let Some(remote) = self.remote.clone() {
             Ok(remote.id)
         } else if let Some(local) = self.local.clone() {
@@ -109,20 +105,25 @@ impl OmniBucket {
     /// Get the local config
     pub fn get_local(&self) -> Result<LocalBucket, TombError> {
         self.local.clone().ok_or(TombError::custom_error(
-            "No local Bucket with these properties",
+            "Unable to find a local Bucket with that query",
         ))
     }
 
     /// Get the remote config
     pub fn get_remote(&self) -> Result<RemoteBucket, TombError> {
         self.remote.clone().ok_or(TombError::custom_error(
-            "No remote Bucket with these properties",
+            "Unable to find a remote Bucket with that query",
         ))
     }
 
     /// Update the LocalBucket
     pub fn set_local(&mut self, local: LocalBucket) {
         self.local = Some(local);
+    }
+
+    /// Update the RemoteBucket
+    pub fn set_remote(&mut self, remote: RemoteBucket) {
+        self.remote = Some(remote);
     }
 
     /// Create a new bucket
@@ -135,7 +136,7 @@ impl OmniBucket {
         let mut omni = OmniBucket {
             local: None,
             remote: None,
-            sync_state: None,
+            sync_state: SyncState::Unknown,
         };
         // If this bucket already exists both locally and remotely
         if let Some(bucket) = global.get_bucket(origin)
@@ -165,13 +166,13 @@ impl OmniBucket {
         .await
         {
             // Update in obj
-            omni.remote = Some(remote);
+            omni.set_remote(remote);
         }
 
         // Initialize locally
         if let Ok(mut local) = global.get_or_init_bucket(name, origin).await {
             // If a remote bucket was made successfully
-            if let Some(remote) = omni.remote.clone() {
+            if let Ok(remote) = omni.get_remote() {
                 // Also save that in the local obj
                 local.remote_id = Some(remote.id);
             }
@@ -190,33 +191,30 @@ impl OmniBucket {
         global: &mut GlobalConfig,
         client: &mut Client,
     ) -> Result<String, TombError> {
-        let local_deletion = if let Some(local) = &self.local
-            && prompt_for_bool("are you sure you want to delete this Bucket locally?")
-        {
-            local.remove_data()?;
-            // Find index of bucket
-            let index = global
-                .buckets
-                .iter()
-                .position(|b| b == local)
-                .expect("cannot find index in buckets");
-            // Remove bucket config from global config
-            global.buckets.remove(index);
-            true
-        } else {
-            false
-        };
+        let mut local_deletion = false;
+        let mut remote_deletion = false;
 
-        let remote_deletion = if let Some(remote) = &self.remote
-            && prompt_for_bool("are you sure you want to delete this Bucket remotely?")
-        {
-            RemoteBucket::delete_by_id(client, remote.id).await.is_ok()
-        } else {
-            false
-        };
+        if let Ok(local) = self.get_local() {
+            if prompt_for_bool("Are you sure you want to delete this Bucket locally?") {
+                local.remove_data()?;
+                // Find index of bucket
+                let index = global.buckets.iter().position(|b| b == &local).ok_or(
+                    TombError::custom_error("omni had local bucket but not present in config"),
+                )?;
+                // Remove bucket config from global config
+                global.buckets.remove(index);
+                local_deletion = true;
+            }
+        }
+
+        if let Ok(remote) = self.get_remote() {
+            if prompt_for_bool("Are you sure you want to delete this Bucket remotely?") {
+                remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
+            }
+        }
 
         Ok(format!(
-            "{}\nlocal:\t{}\nremote:\t{}",
+            "{}\ndeleted locally:\t{}\ndeleted remotely:\t{}",
             "<< BUCKET DELETION >>".blue(),
             bool_colorized(local_deletion),
             bool_colorized(remote_deletion)
@@ -226,7 +224,16 @@ impl OmniBucket {
     /// List all available Buckets
     pub async fn ls(global: &GlobalConfig, client: &mut Client) -> Vec<OmniBucket> {
         let local_buckets = &global.buckets;
-        let remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
+        let remote_buckets = match RemoteBucket::read_all(client).await {
+            Ok(buckets) => buckets,
+            Err(_) => {
+                error!(
+                    "{}",
+                    "Unable to fetch remote Buckets. Check your authentication!".red()
+                );
+                <Vec<RemoteBucket>>::new()
+            }
+        };
 
         let mut map: HashMap<Option<Uuid>, OmniBucket> = HashMap::new();
 
@@ -240,7 +247,7 @@ impl OmniBucket {
                 let mut omni = OmniBucket {
                     local: omni.local.clone(),
                     remote: Some(remote),
-                    sync_state: None,
+                    sync_state: SyncState::Unknown,
                 };
 
                 let _ = determine_sync_state(&mut omni, client).await;
@@ -254,51 +261,82 @@ impl OmniBucket {
         let omnis: Vec<OmniBucket> = map.into_values().collect();
         omnis
     }
+
+    /// Get the origin for this bucket or create one in the default tomb directory if a local bucket does not yet exist
+    pub async fn get_or_init_origin(
+        &mut self,
+        global: &mut GlobalConfig,
+    ) -> Result<PathBuf, TombError> {
+        if let Ok(local) = self.get_local() {
+            Ok(local.origin)
+        } else {
+            let new_local_origin = PathBuf::from(env!("HOME"))
+                .join("tomb")
+                .join(self.get_remote()?.name);
+            // Remove existing contents and create a enw directory
+            remove_dir_all(&new_local_origin).ok();
+            create_dir_all(&new_local_origin)?;
+
+            // Create a new local bucket
+            self.set_local({
+                let mut value = global
+                    .get_or_init_bucket(&self.get_remote()?.name, &new_local_origin)
+                    .await?;
+                value.remote_id = Some(self.get_remote()?.id);
+                value
+            });
+
+            Ok(new_local_origin)
+        }
+    }
 }
 
 #[inline]
 fn bool_colorized(value: bool) -> ColoredString {
     if value {
-        "true".green()
+        "Yes".green()
     } else {
-        "false".red()
+        "No".red()
     }
 }
 
 impl Display for OmniBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut info = format!(
-            "{}\ntracked locally:  {}\ntracked remotely: {}",
-            "| BUCKET INFO |".yellow(),
+            "{}\nlocally tracked:\t{}\nremotely tracked:\t{}",
+            "| DRIVE INFO |".yellow(),
             bool_colorized(self.local.is_some()),
             bool_colorized(self.remote.is_some()),
         );
 
-        // If we have both present
-        if let Some(local) = &self.local
-            && let Some(remote) = &self.remote
-        {
-            info = format!(
-                "{info}\nname:\t\t{}\norigin:\t\t{}\nremote_id:\t{}\ntype:\t{}\nstorage_class:\t{}",
-                local.name,
-                local.origin.display(),
-                remote.id,
-                remote.r#type,
-                remote.storage_class
-            );
-        } else if let Some(local) = &self.local {
-            info = format!("{info}\n{}", local);
-        } else if let Some(remote) = &self.remote {
-            info = format!("{info}\n{}", remote);
+        match (self.get_local(), self.get_remote()) {
+            (Ok(local), Ok(remote)) => {
+                info = format!(
+                    "{info}\nname:\t\t\t{}\ndrive_id:\t\t{}\norigin:\t\t\t{}\ntype:\t\t\t{}\nstorage_class:\t\t{}\nstorage_ticket:\t\t{}",
+                    remote.name,
+                    remote.id,
+                    local.origin.display(),
+                    remote.r#type,
+                    remote.storage_class,
+                    if let Some(storage_ticket) = local.storage_ticket.clone() {
+                        storage_ticket.host
+                    } else {
+                        format!("{}", "None".yellow())
+                    }
+                );
+            }
+            (Ok(local), Err(_)) => {
+                info = format!("{info}\n{}", local);
+            }
+            (Err(_), Ok(remote)) => {
+                info = format!("{info}\n{}", remote);
+            }
+            (Err(_), Err(_)) => {}
         }
 
         f.write_fmt(format_args!(
-            "{info}\nsync_status:\t{}\n",
-            if let Some(sync) = self.sync_state.clone() {
-                sync.to_string()
-            } else {
-                "Unknown".into()
-            }
+            "{info}\nsync_status:\t\t{}\n",
+            self.sync_state
         ))
     }
 }

@@ -67,12 +67,12 @@ impl Display for ClientError {
         use ClientErrorKind::*;
 
         let prefix = match &self.kind {
-            ApiResponseError(err) => format!("api response error: {err}"),
-            AuthUnavailable => "Auth is required for this operation".into(),
-            HttpClientError(_) => "http client error".into(),
-            HttpResponseError(status_code) => format!("http response error: {status_code:?}"),
-            ResponseFormatError(_) => "response format error".into(),
-            CryptoError(_) => "crypto error".into(),
+            ApiResponseError(err) => format!("API Response Error: {err}"),
+            AuthUnavailable => "Auth is required for this operation.".into(),
+            HttpClientError(_) => "HTTP Client Error".into(),
+            HttpResponseError(status_code) => format!("HTTP Response Error: {status_code:?}"),
+            ResponseFormatError(_) => "Response Format Error".into(),
+            CryptoError(_) => "Cryptographic Error".into(),
             CustomError(message) => message.into(),
         };
 

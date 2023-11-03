@@ -46,7 +46,7 @@ extern crate log;
 
 /// This module contains the CLI
 pub mod cli;
-/// This module contains both the prepare_pipeline and the restore_pipeline, which allow the main CLI to run bundling an restoreing pipelines.
+/// This module contains both the prepare_pipeline and the restore_pipeline, which allow the main CLI to run bundling an restoring pipelines.
 pub mod pipelines;
 /// This module contains types unique to this project.
 pub mod types;

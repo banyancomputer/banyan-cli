@@ -21,7 +21,6 @@ where
 
     /// Run the internal command, passing a reference to a global configuration which is saved after completion
     async fn run(self) -> Result<(), ErrorType> {
-        println!("starting a run");
         // Grab global config
         let mut global = GlobalConfig::from_disk()
             .await
@@ -32,16 +31,16 @@ where
             .save_client(client)
             .await
             .expect("unable to save client to config");
-        global.to_disk().expect("Unable to save global config");
+        global.to_disk().expect("unable to save global config");
 
         // Provide output based on that
         match result {
             Ok(message) => {
-                println!("{}", message);
+                info!("{}", message);
                 Ok(())
             }
             Err(error) => {
-                println!("{}", format!("{}", error).red());
+                error!("{}", format!("{}", error).red());
                 Err(error)
             }
         }

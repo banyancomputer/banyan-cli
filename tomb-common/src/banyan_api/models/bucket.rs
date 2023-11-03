@@ -92,7 +92,7 @@ pub struct Bucket {
 impl Display for Bucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "name:\t\t{}\nid:\t\t{}\ntype:\t\t{}\nstorage class:\t{}",
+            "name:\t\t\t{}\ndrive_id:\t\t{}\ntype:\t\t\t{}\nstorage class:\t\t{}",
             self.name, self.id, self.r#type, self.storage_class
         ))
     }

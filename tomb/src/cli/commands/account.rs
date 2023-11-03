@@ -70,15 +70,12 @@ impl RunnableCommand<ClientError> for AccountCommand {
                         client_1.call(start_regwait).await
                     });
 
-                // Open this url with firefox
-                open::with(
-                    format!(
-                        "{}/completedevicekey?spki={}",
-                        GlobalConfig::from_disk().await?.endpoints.frontend,
-                        der_url
-                    ),
-                    "firefox",
-                )
+                // Open this url
+                open::that(format!(
+                    "{}/completedevicekey?spki={}",
+                    GlobalConfig::from_disk().await?.endpoints.frontend,
+                    der_url
+                ))
                 .expect("failed to open browser");
 
                 // Now await the completion of the original request
@@ -146,7 +143,9 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 let usage_limit_result = Account::usage_limit(client).await;
 
                 if usage_current_result.is_err() && usage_limit_result.is_err() {
-                    return Err(ClientError::custom_error("Unable to obtain usage stats"));
+                    return Err(ClientError::custom_error(
+                        "Unable to obtain usage stats. Check your authentication!",
+                    ));
                 }
 
                 if let Ok(usage_current) = usage_current_result {
