@@ -45,3 +45,52 @@ impl Display for PullBlockError {
 }
 
 impl Error for PullBlockError {}
+
+#[cfg(test)]
+#[cfg(feature = "fake")]
+mod test {
+    use std::collections::BTreeSet;
+
+    use crate::banyan_api::{
+        blockstore::BanyanApiBlockStore, error::ClientError,
+        models::metadata::test::setup_and_push_metadata,
+        requests::staging::upload::content::UploadContent,
+    };
+    use cid::Cid;
+    use serial_test::serial;
+    use wnfs::common::BlockStore;
+
+    #[tokio::test]
+    #[serial]
+    async fn download_content() -> Result<(), ClientError> {
+        let mut setup = setup_and_push_metadata("download_content").await?;
+        // Create a grant and upload content
+        setup
+            .storage_ticket
+            .clone()
+            .create_grant(&mut setup.client)
+            .await?;
+        setup
+            .content_store
+            .upload(
+                setup.storage_ticket.host.clone(),
+                setup.metadata.id,
+                &mut setup.client,
+            )
+            .await?;
+
+        let mut cids = <BTreeSet<Cid>>::new();
+        for bucket in setup.content_store.car.car.index.borrow().clone().buckets {
+            cids.extend(bucket.map.into_keys().collect::<BTreeSet<Cid>>());
+        }
+
+        let banyan_api_store = BanyanApiBlockStore::from(setup.client);
+        banyan_api_store.find_cids(cids.clone()).await?;
+
+        for cid in &cids {
+            assert!(banyan_api_store.get_block(cid).await.is_ok());
+        }
+
+        Ok(())
+    }
+}

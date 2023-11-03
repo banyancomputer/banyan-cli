@@ -1,3 +1,4 @@
+use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
 use crate::{
     pipelines::{error::TombError, prepare, restore},
     types::config::{
@@ -5,8 +6,6 @@ use crate::{
         globalconfig::GlobalConfig,
     },
 };
-
-use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
 use async_trait::async_trait;
 use bytesize::ByteSize;
 use clap::Subcommand;
@@ -77,10 +76,13 @@ impl RunnableCommand<TombError> for DrivesCommand {
             // List all Buckets tracked remotely and locally
             DrivesCommand::Ls => {
                 let omnis = OmniBucket::ls(global, client).await;
-                let str = omnis
-                    .iter()
-                    .fold(String::new(), |acc, bucket| format!("{acc}\n{bucket}"));
-                Ok(str)
+                if !omnis.is_empty() {
+                    Ok(omnis
+                        .iter()
+                        .fold(String::new(), |acc, bucket| format!("{acc}\n{bucket}")))
+                } else {
+                    Ok("No known Drives locally or remotely.".to_string())
+                }
             }
             // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
             DrivesCommand::Create { name, origin } => {

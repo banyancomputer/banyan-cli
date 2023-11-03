@@ -1,2 +1,3 @@
 /// Block read requests
-pub mod pull;
+mod pull;
+pub use pull::*;

@@ -301,7 +301,7 @@ impl WasmMount {
             (Some(host), Some(authorization)) => {
                 // First create a grant
                 StorageTicket {
-                    host,
+                    host: host.clone(),
                     authorization,
                 }
                 .create_grant(&mut self.client)

@@ -1,5 +1,5 @@
 use crate::banyan_api::client::Client;
-use crate::banyan_api::requests::staging::blocks::pull::*;
+use crate::banyan_api::requests::staging::blocks::*;
 use crate::blockstore::BlockStore;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
