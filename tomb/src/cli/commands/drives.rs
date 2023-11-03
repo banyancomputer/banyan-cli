@@ -136,7 +136,7 @@ impl RunnableCommand<TombError> for DrivesCommand {
                     .await
                     .map(|v| {
                         format!(
-                            "{}bucket_id:\t\t{}\nusage:\t\t{}",
+                            "{}drive_id:\t\t{}\nusage:\t\t{}",
                             "| USAGE INFO |".blue(),
                             remote.id,
                             ByteSize(v)

@@ -54,7 +54,6 @@ pub async fn process_plans(
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
 ) -> Result<()> {
-    info!("processing...");
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
     // Create vectors of direct and indirect plans

@@ -63,7 +63,7 @@ pub struct LocalBucket {
 impl Display for LocalBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "name:\t\t\t{}\nbucket_id:\t\t{}\norigin:\t\t\t{}\nstorage_ticket:\t\t{}",
+            "name:\t\t\t{}\ndrive_id:\t\t{}\norigin:\t\t\t{}\nstorage_ticket:\t\t{}",
             self.name,
             if let Some(remote_id) = self.remote_id {
                 remote_id.to_string()

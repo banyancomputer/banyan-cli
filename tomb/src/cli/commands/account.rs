@@ -70,7 +70,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                         client_1.call(start_regwait).await
                     });
 
-                // Open this url with firefox
+                // Open this url
                 open::that(format!(
                     "{}/completedevicekey?spki={}",
                     GlobalConfig::from_disk().await?.endpoints.frontend,

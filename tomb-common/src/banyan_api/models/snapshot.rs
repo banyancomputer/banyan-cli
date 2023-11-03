@@ -26,7 +26,7 @@ pub struct Snapshot {
 impl Display for Snapshot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n{}\nsnapshot_id:\t{}\nbucket_id:\t{}\nmetadata_id:\t{}\ncreated_at:\t{}",
+            "\n{}\nsnapshot_id:\t{}\ndrive_id:\t{}\nmetadata_id:\t{}\ncreated_at:\t{}",
             "| SNAPSHOT INFO |".yellow(),
             self.id,
             self.bucket_id,

@@ -44,7 +44,7 @@ impl OmniBucket {
 
         // Search for a local bucket
         let local_result = global.buckets.clone().into_iter().find(|bucket| {
-            let check_remote = bucket.remote_id == drive_specifier.bucket_id;
+            let check_remote = bucket.remote_id == drive_specifier.drive_id;
             let check_origin = Some(bucket.origin.clone()) == drive_specifier.origin;
             let check_name = Some(bucket.name.clone()) == drive_specifier.name;
             check_remote || check_origin || check_name
@@ -54,7 +54,7 @@ impl OmniBucket {
         // Search for a remote bucket
         let all_remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
         let remote_result = all_remote_buckets.into_iter().find(|bucket| {
-            let check_id = Some(bucket.id) == drive_specifier.bucket_id;
+            let check_id = Some(bucket.id) == drive_specifier.drive_id;
             let check_name = Some(bucket.name.clone()) == drive_specifier.name;
             check_id || check_name
         });
@@ -312,7 +312,7 @@ impl Display for OmniBucket {
         match (self.get_local(), self.get_remote()) {
             (Ok(local), Ok(remote)) => {
                 info = format!(
-                    "{info}\nname:\t\t\t{}\nbucket_id:\t\t{}\norigin:\t\t\t{}\ntype:\t\t\t{}\nstorage_class:\t\t{}\nstorage_ticket:\t\t{}",
+                    "{info}\nname:\t\t\t{}\ndrive_id:\t\t{}\norigin:\t\t\t{}\ntype:\t\t\t{}\nstorage_class:\t\t{}\nstorage_ticket:\t\t{}",
                     remote.name,
                     remote.id,
                     local.origin.display(),

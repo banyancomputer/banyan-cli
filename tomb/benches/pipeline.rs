@@ -16,8 +16,9 @@ use std::{
 use tokio::runtime::Runtime;
 use tomb::{
     pipelines::{prepare, restore},
-    types::config::globalconfig::GlobalConfig,
+    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };
+use tomb_common::banyan_api::client::Client;
 
 // Configure the Benching Framework from the Environment -- or use defaults
 lazy_static! {
@@ -296,10 +297,17 @@ fn prepare_benchmark(c: &mut Criterion, input_path: &Path, prepared_path: &Path)
             // The routine to benchmark
             |_| async {
                 let mut global = GlobalConfig::from_disk().await?;
-                let local = global
-                    .get_or_init_bucket(input_name, &prepared_path)
-                    .await?;
-                prepare::pipeline(black_box(&mut global), black_box(local), black_box(false)).await
+                let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002")?;
+                let wrapping_key = global.wrapping_key().await?;
+                let omni =
+                    OmniBucket::create(&mut global, &mut client, input_name, &prepared_path).await;
+                let fs = local.unlock_fs(&wrapping_key).await;
+                prepare::pipeline(
+                    black_box(fs),
+                    black_box(local),
+                    black_box(&mut Client::new("", "")?),
+                )
+                .await
             },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration
@@ -336,18 +344,19 @@ fn restore_benchmark(c: &mut Criterion, prepared_path: &PathBuf, restored_path: 
             || prep_restore(restored_path),
             // The routine to benchmark
             |_| async {
-                let mut global = GlobalConfig::from_disk().await?;
-                let local = global
-                    .get_or_init_bucket(input_name, &prepared_path)
-                    .await?;
 
-                restore::pipeline(
-                    black_box(&global),
-                    black_box(&local),
-                    black_box(&local.content),
-                    black_box(restored_path),
-                )
-                .await
+                // let mut global = GlobalConfig::from_disk().await?;
+                // let local = global
+                //     .get_or_init_bucket(input_name, &prepared_path)
+                //     .await?;
+
+                // restore::pipeline(
+                //     black_box(&global),
+                //     black_box(&local),
+                //     black_box(&local.content),
+                //     black_box(restored_path),
+                // )
+                // .await
             },
             // We need to make sure this data is cleared between iterations
             // We only want to use one iteration

@@ -31,7 +31,7 @@ impl Display for BucketKey {
             "Unapproved".red()
         };
         f.write_fmt(format_args!(
-            "{}\nbucket_id:\t{}\nfingerprint:\t{}\nstatus:\t\t{}",
+            "{}\ndrive_id:\t{}\nfingerprint:\t{}\nstatus:\t\t{}",
             "| KEY INFO |".yellow(),
             self.bucket_id,
             self.fingerprint,

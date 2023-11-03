@@ -11,19 +11,22 @@ pub mod remove;
 /// This module contains the decryption pipeline function, which is the main entry point for restoring previously prepared data.
 pub mod restore;
 
-/*
 #[cfg(test)]
 mod test {
     use super::{add, error::TombError};
     use crate::{
-        pipelines::{configure, prepare, reconstruct, remove},
-        types::config::globalconfig::GlobalConfig,
+        cli::specifiers::DriveSpecifier,
+        pipelines::{configure, prepare, remove, restore},
+        types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
         utils::{
             test::{test_setup, test_setup_structured, test_teardown},
             wnfsio::compute_directory_size,
         },
     };
-    use tomb_common::utils::wnfsio::{decompress_bytes, path_to_segments};
+    use tomb_common::{
+        banyan_api::client::Client,
+        utils::wnfsio::{decompress_bytes, path_to_segments},
+    };
 
     use anyhow::Result;
     use dir_assert::assert_paths;
@@ -42,25 +45,44 @@ mod test {
     /// Simplified Prepare call function
     async fn prepare_pipeline(origin: &Path) -> Result<String, TombError> {
         let mut global = GlobalConfig::from_disk().await?;
-        let local = global
-            .get_bucket(origin)
-            .ok_or(TombError::custom_error("no local"))?;
-        prepare::pipeline(&mut global, local, true).await
+        let wrapping_key = global.wrapping_key().await?;
+        let mut client = Client::new("http://google.com", "http://google.com")?;
+        let name = origin.file_name().unwrap().to_string_lossy().to_string();
+        let mut omni = OmniBucket::create(&mut global, &mut client, &name, origin).await?;
+        let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
+        let result = prepare::pipeline(fs, &mut omni, &mut client, true).await;
+        global.save_client(client).await?;
+        global.update_config(&omni.get_local()?)?;
+        global.to_disk()?;
+        result
     }
 
     /// Simplified Restore call function
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, TombError> {
-        let global = GlobalConfig::from_disk().await?;
-        let local = global
-            .get_bucket(origin)
-            .ok_or(TombError::custom_error("no local"))?;
-        reconstruct::pipeline(
-            &GlobalConfig::from_disk().await?,
-            &local,
-            &local.content,
-            restored,
+        println!("restoring");
+        let mut global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.wrapping_key().await?;
+        let mut client = Client::new("http://google.com", "http://google.com")?;
+        let mut omni = OmniBucket::from_specifier(
+            &global,
+            &mut client,
+            &DriveSpecifier {
+                drive_id: None,
+                name: None,
+                origin: Some(origin.to_path_buf()),
+            },
         )
-        .await
+        .await;
+        let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
+        let tmp = origin.parent().unwrap().join("tmp");
+        rename(origin, &tmp)?;
+        let result = restore::pipeline(fs, &mut omni, &mut client).await;
+        rename(origin, restored)?;
+        rename(tmp, origin)?;
+        global.save_client(client).await?;
+        global.update_config(&omni.get_local()?)?;
+        global.to_disk()?;
+        result
     }
 
     #[tokio::test]
@@ -71,8 +93,11 @@ mod test {
         let origin = &test_setup(test_name).await?;
         // Deinitialize for user
         configure::deinit(origin).await?;
-        // Assert that bundling fails
-        assert!(prepare_pipeline(origin).await.is_err());
+        // Assert that a config exists for this bucket now
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_none());
         // Initialize for this user
         configure::init("init", origin).await?;
         // Assert that a config exists for this bucket now
@@ -339,6 +364,7 @@ mod test {
     //TODO (organizedgrime) - This test is a bit longer than I would like, might modify it to be more modular / reusable
     #[tokio::test]
     #[serial]
+    #[ignore = "refactor for new pipeline structure"]
     async fn deduplication_size() -> Result<()> {
         let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
@@ -439,6 +465,7 @@ mod test {
             .await?
             .get_bucket(&origin)
             .expect("no bucket at origin");
+
         assert!(!config.deleted_block_cids.is_empty());
 
         // Teardown
@@ -700,5 +727,3 @@ mod test {
         test_teardown(test_name).await
     }
 }
-
- */
