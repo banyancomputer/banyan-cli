@@ -14,14 +14,14 @@ use tomb_crypt::{
 };
 use uuid::Uuid;
 
-/// Subcommand for Bucket Keys
+/// Subcommand for Drive Keys
 #[derive(Subcommand, Clone, Debug)]
 pub enum KeyCommand {
-    /// Request Access to a Bucket if you dont already have it
-    RequestAccess(BucketSpecifier),
-    /// List all Keys in a Bucket
-    Ls(BucketSpecifier),
-    /// Get information about an individual Bucket Key
+    /// Request Access to a Drive if you dont already have it
+    RequestAccess(DriveSpecifier),
+    /// List all Keys in a Drive
+    Ls(DriveSpecifier),
+    /// Get information about an individual Drive Key
     Info(KeySpecifier),
     /// Delete a given Key
     Delete(KeySpecifier),
@@ -37,8 +37,7 @@ impl RunnableCommand<TombError> for KeyCommand {
         client: &mut Client,
     ) -> Result<String, TombError> {
         match self {
-            // Request access to a bucket
-            KeyCommand::RequestAccess(bucket_specifier) => {
+            KeyCommand::RequestAccess(drive_specifier) => {
                 let private_key = global.wrapping_key().await?;
                 let public_key = private_key
                     .public_key()
@@ -53,8 +52,8 @@ impl RunnableCommand<TombError> for KeyCommand {
                 )
                 .unwrap();
 
-                // Get Bucket
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                // Get Drive
+                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 if let Ok(id) = omni.get_id() {
                     let existing_keys = BucketKey::read_all(id, client).await?;
                     if let Some(existing_key) = existing_keys
@@ -77,9 +76,8 @@ impl RunnableCommand<TombError> for KeyCommand {
                     ))
                 }
             }
-            // List Keys
-            KeyCommand::Ls(bucket_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+            KeyCommand::Ls(drive_specifier) => {
+                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 let id = omni.get_id().unwrap();
                 let my_fingerprint = hex_fingerprint(
                     &global
@@ -99,7 +97,6 @@ impl RunnableCommand<TombError> for KeyCommand {
                     })
                     .map_err(TombError::client_error)
             }
-            // Get info about a Key
             KeyCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 let my_fingerprint = hex_fingerprint(
@@ -116,7 +113,6 @@ impl RunnableCommand<TombError> for KeyCommand {
                     .map(|key| key.context_fmt(&my_fingerprint))
                     .map_err(TombError::client_error)
             }
-            // Delete an already approved key
             KeyCommand::Delete(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::delete_by_id(bucket_id, id, client)
@@ -124,7 +120,6 @@ impl RunnableCommand<TombError> for KeyCommand {
                     .map(|id| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
                     .map_err(TombError::client_error)
             }
-            // Reject a Key pending approval
             KeyCommand::Reject(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::reject(bucket_id, id, client)
@@ -141,7 +136,7 @@ async fn get_key_info(
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
 ) -> anyhow::Result<(Uuid, Uuid)> {
-    let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.bucket_specifier)
+    let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.drive_specifier)
         .await
         .get_id()
         .unwrap();

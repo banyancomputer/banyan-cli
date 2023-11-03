@@ -48,12 +48,12 @@ impl Display for SyncState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let description = match self {
             SyncState::Unknown => "Unknown".red(),
-            SyncState::Unpublished => "Bucket does not exist remotely".red(),
-            SyncState::Unlocalized => "Bucket does not exist locally".red(),
-            SyncState::Behind => "Bucket is behind remote".red(),
+            SyncState::Unpublished => "Drive does not exist remotely".red(),
+            SyncState::Unlocalized => "Drive does not exist locally".red(),
+            SyncState::Behind => "Drive is behind remote".red(),
             SyncState::MetadataSynced => "Metadata Synced; File System not reconstructed".blue(),
-            SyncState::AllSynced => "Bucket is in sync with remote".green(),
-            SyncState::Ahead => "Bucket is ahead of remote".red(),
+            SyncState::AllSynced => "Drive is in sync with remote".green(),
+            SyncState::Ahead => "Drive is ahead of remote".red(),
         };
 
         f.write_fmt(format_args!("{}", description))
@@ -65,7 +65,6 @@ pub async fn determine_sync_state(
     omni: &mut OmniBucket,
     client: &mut Client,
 ) -> Result<(), TombError> {
-    info!("determining sync state... {:?}", omni.get_id());
     let bucket_id = match omni.get_id() {
         Ok(bucket_id) => bucket_id,
         Err(err) => {
@@ -74,11 +73,10 @@ pub async fn determine_sync_state(
             return Ok(());
         }
     };
-    info!("bucket id {}", bucket_id);
+
     // Grab the current remote Metadata, or return Unpublished if that operation fails
     let Ok(current_remote) = Metadata::read_current(bucket_id, client).await else {
         omni.sync_state = SyncState::Unpublished;
-        info!("sync state should be unpublished: {}", omni.sync_state);
         return Ok(());
     };
     // Grab the local bucket, or return Unlocalized if unavailable
@@ -120,7 +118,6 @@ pub async fn sync_bucket(
     client: &mut Client,
     global: &mut GlobalConfig,
 ) -> Result<String, TombError> {
-    info!("SYNC STATE: {}", omni.sync_state);
     match &omni.sync_state {
         // Download the Bucket
         SyncState::Unlocalized | SyncState::Behind => {
@@ -192,12 +189,6 @@ pub async fn sync_bucket(
                 .ok_or(TombError::custom_error("Bucket has no metadata CID"))?;
             let delta = local.content.get_delta()?;
 
-            info!(
-                "the most recent delta has a data size of {}; all deltas: {:?}",
-                delta.data_size(),
-                local.content.deltas
-            );
-
             // Push the metadata
             let (metadata, host, authorization) = Metadata::push(
                 bucket_id,
@@ -222,6 +213,8 @@ pub async fn sync_bucket(
             if host.is_none() && authorization.is_none() {
                 local.storage_ticket = None;
             }
+
+            info!("Uploading your new data now...");
 
             let upload_result = match (host, authorization) {
                 // New storage ticket

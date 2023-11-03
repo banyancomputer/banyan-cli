@@ -1,4 +1,4 @@
-use super::BucketSpecifier;
+use super::DriveSpecifier;
 use clap::Args;
 use uuid::Uuid;
 
@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Args)]
 pub struct MetadataSpecifier {
     #[clap(flatten)]
-    pub(crate) bucket_specifier: BucketSpecifier,
+    pub(crate) drive_specifier: DriveSpecifier,
     /// Uuid of the Metadata
     #[arg(short, long)]
     pub(crate) metadata_id: Uuid,

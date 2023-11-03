@@ -1,4 +1,4 @@
-use super::{super::specifiers::BucketSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
+use super::{super::specifiers::DriveSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
 use crate::{
     pipelines::{error::TombError, prepare, restore},
     types::config::{
@@ -13,51 +13,51 @@ use colored::Colorize;
 use std::{env::current_dir, path::PathBuf};
 use tomb_common::{banyan_api::client::Client, metadata::FsMetadata};
 
-/// Subcommand for Bucket Management
+/// Subcommand for Drive Management
 #[derive(Subcommand, Clone, Debug)]
 pub enum DrivesCommand {
-    /// List all Buckets
+    /// List all Drives
     Ls,
-    /// Initialize a new Bucket locally
+    /// Initialize a new Drive
     Create {
-        /// Bucket Name
+        /// Drive Name
         #[arg(short, long)]
         name: String,
-        /// Bucket Root
+        /// Drive Root
         #[arg(short, long)]
         origin: Option<PathBuf>,
     },
-    /// Prepare a Bucket for Pushing by encrypting new data
+    /// Prepare a Drive for Pushing by encrypting new data
     Prepare {
-        /// Bucket in question
+        /// Drive in question
         #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
+        drive_specifier: DriveSpecifier,
 
         /// Follow symbolic links
         #[arg(short, long)]
         follow_links: bool,
     },
-    /// Reconstruct a filesystem using an encrypted Bucket
+    /// Reconstruct a Drive filesystem locally
     Restore {
-        /// Bucket in question
+        /// Drive in question
         #[clap(flatten)]
-        bucket_specifier: BucketSpecifier,
+        drive_specifier: DriveSpecifier,
     },
-    /// Sync Bucket data to or from remote
-    Sync(BucketSpecifier),
-    /// Delete Bucket
-    Delete(BucketSpecifier),
-    /// Bucket info
-    Info(BucketSpecifier),
-    /// Bucket data usage
-    Usage(BucketSpecifier),
-    /// Get information on Bucket Metadata
+    /// Sync Drive data to or from remote
+    Sync(DriveSpecifier),
+    /// Delete a Drive
+    Delete(DriveSpecifier),
+    /// Drive info
+    Info(DriveSpecifier),
+    /// Drive data usage
+    Usage(DriveSpecifier),
+    /// Get information on Drive Metadata
     Metadata {
         /// Subcommand
         #[clap(subcommand)]
         subcommand: MetadataCommand,
     },
-    /// Bucket Key management
+    /// Drive Key management
     Keys {
         /// Subcommand
         #[clap(subcommand)]
@@ -88,14 +88,14 @@ impl RunnableCommand<TombError> for DrivesCommand {
             DrivesCommand::Create { name, origin } => {
                 let origin = origin.unwrap_or(current_dir()?);
                 let omni = OmniBucket::create(global, client, &name, &origin).await?;
-                let output = format!("{}\n{}", "<< NEW BUCKET CREATED >>".green(), omni);
+                let output = format!("{}\n{}", "<< NEW DRIVE CREATED >>".green(), omni);
                 Ok(output)
             }
             DrivesCommand::Prepare {
-                bucket_specifier,
+                drive_specifier,
                 follow_links,
             } => {
-                let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+                let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 let fs =
                     FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
                         .await?;
@@ -103,8 +103,8 @@ impl RunnableCommand<TombError> for DrivesCommand {
                 global.update_config(&omni.get_local()?)?;
                 result
             }
-            DrivesCommand::Restore { bucket_specifier } => {
-                let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+            DrivesCommand::Restore { drive_specifier } => {
+                let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 let fs =
                     FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
                         .await?;
@@ -112,24 +112,24 @@ impl RunnableCommand<TombError> for DrivesCommand {
                 global.update_config(&omni.get_local()?)?;
                 result
             }
-            DrivesCommand::Sync(bucket_specifier) => {
-                let mut omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+            DrivesCommand::Sync(drive_specifier) => {
+                let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 let result = sync_bucket(&mut omni, client, global).await;
                 if let Ok(local) = omni.get_local() {
                     global.update_config(&local)?;
                 }
                 result
             }
-            DrivesCommand::Delete(bucket_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+            DrivesCommand::Delete(drive_specifier) => {
+                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 omni.delete(global, client).await
             }
-            DrivesCommand::Info(bucket_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+            DrivesCommand::Info(drive_specifier) => {
+                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 Ok(format!("{omni}"))
             }
-            DrivesCommand::Usage(bucket_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &bucket_specifier).await;
+            DrivesCommand::Usage(drive_specifier) => {
+                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 let remote = omni.get_remote()?;
                 remote
                     .usage(client)

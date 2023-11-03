@@ -90,10 +90,8 @@ pub async fn process_plans(
                 let mut content = <Vec<u8>>::new();
                 file.read_to_end(&mut content)?;
                 // Add the file contents
-                println!("about to write...");
                 fs.write(&path_segments, metadata_store, content_store, content)
                     .await?;
-                println!("wrote...");
 
                 // Duplicates need to be linked no matter what
                 for meta in &metadatas[1..] {

@@ -36,14 +36,17 @@ pub enum MetadataState {
 }
 impl Display for MetadataState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MetadataState::Uploading => write!(f, "uploading"),
-            MetadataState::UploadFailed => write!(f, "upload_failed"),
-            MetadataState::Pending => write!(f, "pending"),
-            MetadataState::Current => write!(f, "current"),
-            MetadataState::Outdated => write!(f, "outdated"),
-            MetadataState::Deleted => write!(f, "deleted"),
-        }
+        f.write_fmt(format_args!(
+            "{}",
+            match self {
+                MetadataState::Uploading => "Uploading".to_string(),
+                MetadataState::UploadFailed => format!("{}", "Upload Failed".red()),
+                MetadataState::Pending => "Pending".to_string(),
+                MetadataState::Current => format!("{}", "Current".green()),
+                MetadataState::Outdated => format!("{}", "Outdated".red()),
+                MetadataState::Deleted => format!("{}", "Deleted".red()),
+            }
+        ))
     }
 }
 
@@ -69,7 +72,7 @@ pub struct Metadata {
 impl Display for Metadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "\n{}\nmetadata_id:\t{}\nroot_cid:\t{}\ndata_size:\t{}\nstatus:\t\t{}",
+            "{}\nmetadata_id:\t{}\nroot_cid:\t{}\ndata_size:\t{}\nstatus:\t\t{}",
             "| METADATA INFO |".yellow(),
             self.id,
             self.root_cid,
@@ -113,8 +116,6 @@ impl Metadata {
             state: response.state,
             snapshot_id: None,
         };
-
-        println!("metadata response: {:?}", response);
 
         Ok((
             metadata,

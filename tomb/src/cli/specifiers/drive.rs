@@ -8,7 +8,7 @@ use uuid::Uuid;
 #[clap(
     after_help = "If no bucket is specified manually, tomb will try to use the current directory."
 )]
-pub struct BucketSpecifier {
+pub struct DriveSpecifier {
     /// Bucket Id
     #[arg(short, long)]
     pub bucket_id: Option<Uuid>,
@@ -20,7 +20,7 @@ pub struct BucketSpecifier {
     pub origin: Option<PathBuf>,
 }
 
-impl BucketSpecifier {
+impl DriveSpecifier {
     /// Create a new BucketSpecifier with an Id
     pub fn with_id(id: Uuid) -> Self {
         Self {

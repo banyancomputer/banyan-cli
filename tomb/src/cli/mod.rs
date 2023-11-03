@@ -52,7 +52,7 @@ mod test {
     fn cmd_prepare(origin: &Path) -> TombCommand {
         TombCommand::Drives {
             command: DrivesCommand::Prepare {
-                bucket_specifier: BucketSpecifier::with_origin(origin),
+                drive_specifier: DriveSpecifier::with_origin(origin),
                 follow_links: true,
             },
         }
@@ -62,7 +62,7 @@ mod test {
     fn cmd_restore(origin: &Path) -> TombCommand {
         TombCommand::Drives {
             command: DrivesCommand::Restore {
-                bucket_specifier: BucketSpecifier::with_origin(origin),
+                drive_specifier: DriveSpecifier::with_origin(origin),
             },
         }
     }

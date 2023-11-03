@@ -5,7 +5,7 @@ use tomb_common::banyan_api::error::ClientError;
 use tomb_crypt::prelude::TombCryptError;
 use uuid::Uuid;
 
-use crate::cli::specifiers::BucketSpecifier;
+use crate::cli::specifiers::DriveSpecifier;
 
 /// Errors for the Tomb CLI & Native program
 #[derive(Error, Debug)]
@@ -25,14 +25,14 @@ impl TombError {
     /// Unknown Bucket path
     pub fn unknown_path(path: PathBuf) -> Self {
         Self {
-            kind: TombErrorKind::UnknownBucket(BucketSpecifier::with_origin(&path)),
+            kind: TombErrorKind::UnknownBucket(DriveSpecifier::with_origin(&path)),
         }
     }
 
     /// Unknown Bucket ID
     pub fn unknown_id(id: Uuid) -> Self {
         Self {
-            kind: TombErrorKind::UnknownBucket(BucketSpecifier::with_id(id)),
+            kind: TombErrorKind::UnknownBucket(DriveSpecifier::with_id(id)),
         }
     }
 
@@ -64,7 +64,7 @@ pub enum TombErrorKind {
     /// Error sending Client requests
     Client(ClientError),
     /// User simply never configured this directory
-    UnknownBucket(BucketSpecifier),
+    UnknownBucket(DriveSpecifier),
     /// Missing File when searching for it during restoring
     FileMissing(PathBuf),
     /// IO Operation Error

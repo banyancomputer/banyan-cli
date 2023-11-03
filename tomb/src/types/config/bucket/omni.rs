@@ -1,6 +1,6 @@
 use super::{determine_sync_state, LocalBucket, SyncState};
 use crate::{
-    cli::{commands::prompt_for_bool, specifiers::BucketSpecifier},
+    cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
     pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
 };
@@ -34,7 +34,7 @@ impl OmniBucket {
     pub async fn from_specifier(
         global: &GlobalConfig,
         client: &mut Client,
-        bucket_specifier: &BucketSpecifier,
+        drive_specifier: &DriveSpecifier,
     ) -> Self {
         let mut omni = Self {
             local: None,
@@ -44,9 +44,9 @@ impl OmniBucket {
 
         // Search for a local bucket
         let local_result = global.buckets.clone().into_iter().find(|bucket| {
-            let check_remote = bucket.remote_id == bucket_specifier.bucket_id;
-            let check_origin = Some(bucket.origin.clone()) == bucket_specifier.origin;
-            let check_name = Some(bucket.name.clone()) == bucket_specifier.name;
+            let check_remote = bucket.remote_id == drive_specifier.bucket_id;
+            let check_origin = Some(bucket.origin.clone()) == drive_specifier.origin;
+            let check_name = Some(bucket.name.clone()) == drive_specifier.name;
             check_remote || check_origin || check_name
         });
         omni.local = local_result;
@@ -54,8 +54,8 @@ impl OmniBucket {
         // Search for a remote bucket
         let all_remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
         let remote_result = all_remote_buckets.into_iter().find(|bucket| {
-            let check_id = Some(bucket.id) == bucket_specifier.bucket_id;
-            let check_name = Some(bucket.name.clone()) == bucket_specifier.name;
+            let check_id = Some(bucket.id) == drive_specifier.bucket_id;
+            let check_name = Some(bucket.name.clone()) == drive_specifier.name;
             check_id || check_name
         });
         omni.remote = remote_result;
@@ -304,7 +304,7 @@ impl Display for OmniBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut info = format!(
             "{}\nlocally tracked:\t{}\nremotely tracked:\t{}",
-            "| BUCKET INFO |".yellow(),
+            "| DRIVE INFO |".yellow(),
             bool_colorized(self.local.is_some()),
             bool_colorized(self.remote.is_some()),
         );
