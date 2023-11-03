@@ -23,7 +23,7 @@ reqwest.workspace = true
 tokio-util = { version = "^0.7", features = ["compat", "codec"] }
 uuid = { version = "^1", features = ["serde", "v4"] }
 futures-util = "0.3.28"
-fclones = "^0.30"
+fclones = "^0.34"
 indicatif = { version = "^0.17", features = ["improved_unicode"] }
 log = "^0.4"
 async-recursion = "^1"
