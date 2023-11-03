@@ -51,11 +51,6 @@ fake-file = { workspace = true }
 
 serial_test = "^2"
 
-# Benchmark for packing -> unpacking an input directory
-[[bench]]
-name = "pipeline"
-harness = false
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
