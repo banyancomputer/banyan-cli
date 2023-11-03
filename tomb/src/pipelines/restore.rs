@@ -15,8 +15,9 @@ use tomb_common::{
 ///
 /// # Arguments
 ///
-/// * `output_dir` - &Path representing the relative path of the output directory in which to restore the data
-/// * `manifest_file` - &Path representing the relative path of the manifest file
+/// * `fs` - FileSystem to modify
+/// * `omni` - Context aware online / offline Drive
+/// * `client` - Means of connecting to the server if need be
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.

@@ -20,10 +20,9 @@ use wnfs::private::PrivateNode;
 ///
 /// # Arguments
 ///
-/// * `input_dir` - &Path representing the relative path of the input directory to prepare.
-/// * `output_dir` - &Path representing the relative path of where to store the prepared data.
-/// * `manifest_file` - &Path representing the relative path of where to store the manifest file.
-/// * `chunk_size` - The maximum size of a prepared file / chunk in bytes.
+/// * `fs` - FileSystem to modify
+/// * `omni` - Context aware online / offline Drive
+/// * `client` - Means of connecting to the server if need be
 /// * `follow_links` - Whether or not to follow symlinks when bundling.
 ///
 /// # Return Type
