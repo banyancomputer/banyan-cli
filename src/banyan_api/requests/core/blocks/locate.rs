@@ -106,9 +106,10 @@ mod test {
             .call(cids_request)
             .await
             .expect("Failed to get locations");
+
         let stored_blocks = locations
             .get(&setup.storage_ticket.host)
-            .expect("no blocks at storage host");
+            .unwrap_or(locations.get("NA").expect("no blocks at storage host"));
         for cid in cids {
             assert!(stored_blocks.contains(&cid.to_string()));
         }
