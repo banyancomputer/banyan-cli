@@ -5,7 +5,6 @@ mod split;
 
 /// Use the WnfsBlockStore and BlockStore traits to define a BlockStore
 /// Makes it so that downstream crates don't need to know about the underlying traits
-pub use crate::banyan_common::traits::blockstore::RootedBlockStore;
 pub use wnfs::common::blockstore::BlockStore;
 
 /// Api BlockStore
@@ -23,3 +22,19 @@ mod io;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use io::*;
+
+use async_trait::async_trait;
+use wnfs::libipld::Cid;
+// TODO: Use better error types
+/// Wrap a BlockStore with additional functionality to get / set a root CID
+#[async_trait(?Send)]
+pub trait RootedBlockStore: BlockStore {
+    /// Get the root CID
+    fn get_root(&self) -> Option<Cid>;
+    /// Set the root CID
+    fn set_root(&self, root: &Cid);
+    // TODO: This is never called, and is not a consistent applicable to all blockstores
+    // Commenting out for now but eventually we should remove it
+    // / Update the bytes of a block in-place
+    // async fn update_block(&self, cid: &Cid, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid>;
+}

@@ -1,3 +1,4 @@
+use crate::banyan_blockstore::{MemoryBlockStore, RootedBlockStore};
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
@@ -10,10 +11,6 @@ use wnfs::{
     libipld::Cid,
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest},
-};
-
-use crate::{
-    banyan_blockstore::MemoryBlockStore, banyan_common::traits::blockstore::RootedBlockStore,
 };
 
 /// Macro for testing streamable implementations
