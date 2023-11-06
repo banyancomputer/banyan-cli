@@ -19,14 +19,6 @@
 * 7. TODO (laudiacay): Make car file with it.
 */
 
-// We only use this in main.rs
-use env_logger as _;
-
-#[cfg(test)]
-use criterion as _;
-#[cfg(test)]
-use lazy_static as _;
-
 #[allow(unused_extern_crates)]
 extern crate core;
 
