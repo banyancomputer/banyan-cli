@@ -1,7 +1,7 @@
 use super::OmniBucket;
 use crate::banyan_native::{
-    pipelines::{error::TombError, restore},
-    types::config::globalconfig::GlobalConfig,
+    configuration::globalconfig::GlobalConfig,
+    operations::{error::TombError, restore},
 };
 use crate::{
     banyan_api::{

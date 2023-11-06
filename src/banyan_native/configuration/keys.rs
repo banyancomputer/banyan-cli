@@ -1,22 +1,14 @@
-/// Bucket level configuration
-pub mod bucket;
-/// Global level configurations
-pub mod globalconfig;
-
 use anyhow::{anyhow, Result};
-mod endpoints;
 use std::{
     fs::File,
     io::{Read, Write},
     path::PathBuf,
 };
-
-pub use endpoints::Endpoints;
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey};
 
 /// Generate a new Ecdsa key to use for authentication
 /// Writes the key to the config path
-async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
+pub async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
     if path.exists() {
         load_api_key(path).await?;
     }
@@ -28,7 +20,7 @@ async fn new_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
 }
 
 /// Read the API key from disk
-async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
+pub async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
     if let Ok(mut reader) = File::open(path) {
         let mut pem_bytes = Vec::new();
         reader.read_to_end(&mut pem_bytes)?;
@@ -40,7 +32,7 @@ async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey> {
 }
 
 /// Save the API key to disk
-async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
+pub async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
     if let Ok(mut writer) = File::create(path) {
         // Write the PEM bytes
         writer.write_all(&key.export().await?)?;
@@ -52,7 +44,7 @@ async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<()> {
 
 /// Generate a new Ecdh key to use for key wrapping
 /// Writes the key to the config path
-async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
+pub async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
     if path.exists() {
         wrapping_key(path).await?;
     }
@@ -64,7 +56,7 @@ async fn new_wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
 }
 
 /// Read the Wrapping key from disk
-async fn wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
+pub async fn wrapping_key(path: &PathBuf) -> Result<EcEncryptionKey> {
     if let Ok(mut reader) = File::open(path) {
         let mut pem_bytes = Vec::new();
         reader.read_to_end(&mut pem_bytes)?;

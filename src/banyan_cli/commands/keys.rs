@@ -1,7 +1,7 @@
 use crate::banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey};
 use crate::banyan_native::{
-    pipelines::error::TombError,
-    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
+    configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+    operations::error::TombError,
 };
 
 use super::{super::specifiers::*, RunnableCommand};

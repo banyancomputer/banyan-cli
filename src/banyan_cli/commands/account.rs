@@ -8,7 +8,7 @@ use crate::{
             StartRegwait, StartRegwaitResponse,
         },
     },
-    banyan_native::types::config::globalconfig::GlobalConfig,
+    banyan_native::configuration::globalconfig::GlobalConfig,
 };
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};

@@ -1,4 +1,7 @@
-use crate::banyan_native::types::spider::{PreparePipelinePlan, SpiderMetadata};
+use crate::banyan_native::file_scanning::{
+    spider_plans::{PreparePipelinePlan, SpiderMetadata},
+    FClonesLogger,
+};
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
 use std::{
@@ -7,8 +10,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-use super::custom_fclones_logger::CustomLogger;
 
 /// Creates a bundling plan by grouping files from the input directory according to their similarities.
 ///
@@ -31,7 +32,7 @@ pub fn grouper(
     // Construct the group config
     let group_config = create_group_config(input_dir, follow_links);
 
-    let file_groups = group_files(&group_config, &CustomLogger::default())?;
+    let file_groups = group_files(&group_config, &FClonesLogger::default())?;
     // Vector holding all the PreparePipelinePlans for bundling
     let mut bundling_plan = vec![];
     // go over the files- do it in groups

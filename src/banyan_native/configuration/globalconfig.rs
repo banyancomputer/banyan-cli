@@ -1,22 +1,17 @@
 use crate::{
     banyan_api::client::{Client, Credentials},
     banyan_blockstore::utils::get_read,
-    banyan_native::utils::config::*,
+    banyan_native::configuration::{bucket::LocalBucket, keys::*, xdg::*, Endpoints},
 };
 use anyhow::{anyhow, Result};
-use tomb_crypt::prelude::*;
-use uuid::Uuid;
-
-use super::{
-    bucket::LocalBucket, load_api_key, new_api_key, new_wrapping_key, save_api_key, wrapping_key,
-    Endpoints,
-};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir_all, remove_file, OpenOptions},
     path::{Path, PathBuf},
     str::FromStr,
 };
+use tomb_crypt::prelude::*;
+use uuid::Uuid;
 
 /// Represents the Global contents of the tomb configuration file in a user's .config
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

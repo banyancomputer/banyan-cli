@@ -1,7 +1,5 @@
 use std::{env, fs::create_dir_all, path::PathBuf};
-
 const HOME_ERROR: &str = "cant find home directory";
-
 const GLOBAL_CONFIG_FILE_NAME: &str = "config.json";
 const DEVICE_API_KEY_FILE_NAME: &str = "device_api_key.pem";
 const DEVICE_WRAPPING_KEY_FILE_NAME: &str = "wrapping_key.pem";

@@ -2,7 +2,7 @@ use crate::{
     banyan_api::models::storage_ticket::StorageTicket,
     banyan_blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
     banyan_filesystem::metadata::FsMetadata,
-    banyan_native::utils::config::xdg_data_home,
+    banyan_native::configuration::xdg::xdg_data_home,
 };
 use anyhow::{Ok, Result};
 use colored::Colorize;
@@ -160,7 +160,7 @@ mod test {
         path::Path,
     };
 
-    use crate::banyan_native::types::config::globalconfig::GlobalConfig;
+    use crate::banyan_native::configuration::globalconfig::GlobalConfig;
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;

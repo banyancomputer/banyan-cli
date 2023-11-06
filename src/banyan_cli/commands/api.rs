@@ -1,7 +1,7 @@
 use super::RunnableCommand;
 use crate::{
     banyan_api::client::Client,
-    banyan_native::types::config::{globalconfig::GlobalConfig, Endpoints},
+    banyan_native::configuration::{globalconfig::GlobalConfig, Endpoints},
 };
 use async_trait::async_trait;
 use clap::Subcommand;

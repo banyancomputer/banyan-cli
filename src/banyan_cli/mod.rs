@@ -12,7 +12,7 @@ mod test {
     use super::commands::*;
     use crate::{
         banyan_cli::specifiers::*,
-        banyan_native::{types::config::globalconfig::GlobalConfig, utils::test::*},
+        banyan_native::{configuration::globalconfig::GlobalConfig, test::*},
     };
     use anyhow::{anyhow, Result};
     use serial_test::serial;

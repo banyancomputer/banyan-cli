@@ -7,9 +7,9 @@ use std::sync::Arc;
 
 /// A custom logger for fclones that uses the normal-person logging crate
 #[derive(Debug, Default)]
-pub struct CustomLogger {}
+pub struct FClonesLogger {}
 
-impl Log for CustomLogger {
+impl Log for FClonesLogger {
     fn progress_bar(&self, _msg: &str, _len: ProgressBarLength) -> Arc<dyn ProgressTracker> {
         Arc::new(fclones::progress::NoProgressBar)
     }

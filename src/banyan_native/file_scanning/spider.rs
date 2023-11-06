@@ -1,4 +1,4 @@
-use crate::banyan_native::types::spider::{PreparePipelinePlan, SpiderMetadata};
+use crate::banyan_native::file_scanning::spider_plans::{PreparePipelinePlan, SpiderMetadata};
 use anyhow::Result;
 use jwalk::WalkDir;
 use std::{

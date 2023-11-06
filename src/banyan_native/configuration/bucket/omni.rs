@@ -5,7 +5,7 @@ use crate::banyan_api::{
 };
 use crate::{
     banyan_cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
-    banyan_native::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig},
+    banyan_native::{configuration::globalconfig::GlobalConfig, operations::error::TombError},
 };
 use colored::{ColoredString, Colorize};
 use std::{

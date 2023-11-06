@@ -1,4 +1,4 @@
-use crate::banyan_native::pipelines::configure;
+use crate::banyan_native::operations::configure;
 use anyhow::Result;
 use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use std::{fs::remove_dir_all, path::PathBuf};
@@ -37,23 +37,3 @@ pub async fn test_teardown(test_name: &str) -> Result<()> {
         PathBuf::from("test").join(test_name),
     )?)
 }
-
-// TODO: Is this still needed?
-// pub async fn setup_v2(
-//     test_name: &str,
-// ) -> Result<(
-//     BlockStore,
-//     BlockStore,
-//     Rc<PrivateForest>,
-//     Rc<PrivateForest>,
-//     Rc<PrivateDirectory>,
-// )> {
-//     let path = &Path::new("test").join("v2_serial");
-//     if path.exists() {
-//         remove_dir_all(path)?;
-//     }
-//     create_dir_all(path)?;
-//     let metadata = BlockStore::new(&path.join("metadata.car"))?;
-//     let content = BlockStore::new(&path.join("content.car"))?;
-//     setup(test_name, metadata, content).await
-// }

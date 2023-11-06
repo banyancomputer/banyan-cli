@@ -1,7 +1,9 @@
 use crate::{
     banyan_filesystem::wnfsio::{compress_file, path_to_segments},
-    banyan_native::pipelines::error::TombError,
-    banyan_native::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig},
+    banyan_native::{
+        configuration::{bucket::LocalBucket, globalconfig::GlobalConfig},
+        operations::error::TombError,
+    },
 };
 use anyhow::Result;
 use chrono::Utc;

@@ -1,4 +1,4 @@
-use crate::banyan_native::types::config::globalconfig::GlobalConfig;
+use crate::banyan_native::configuration::globalconfig::GlobalConfig;
 use anyhow::Result;
 use std::path::Path;
 

@@ -16,7 +16,7 @@ pub use runnable_command::RunnableCommand;
 
 use crate::{
     banyan_api::client::Client,
-    banyan_native::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig},
+    banyan_native::{configuration::globalconfig::GlobalConfig, operations::error::TombError},
 };
 use async_trait::async_trait;
 use clap::Subcommand;

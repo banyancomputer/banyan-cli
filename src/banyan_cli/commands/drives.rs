@@ -6,11 +6,11 @@ use crate::{
     },
     banyan_filesystem::metadata::FsMetadata,
     banyan_native::{
-        pipelines::{error::TombError, prepare, restore},
-        types::config::{
+        configuration::{
             bucket::{sync_bucket, OmniBucket},
             globalconfig::GlobalConfig,
         },
+        operations::{error::TombError, prepare, restore},
     },
 };
 use async_trait::async_trait;
