@@ -176,6 +176,7 @@ impl<'de> Deserialize<'de> for EncRefMapper {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
     use super::*;

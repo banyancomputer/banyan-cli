@@ -7,6 +7,7 @@ pub mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
     use crate::banyan_common::share::manager::ShareManager;

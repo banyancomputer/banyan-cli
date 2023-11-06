@@ -116,6 +116,7 @@ impl Streamable for Header {
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::*;
 

@@ -78,6 +78,7 @@ pub async fn load_dir<BS: BlockStore>(
         .as_dir()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
     use crate::banyan_common::utils::{serialize::*, tests::*};

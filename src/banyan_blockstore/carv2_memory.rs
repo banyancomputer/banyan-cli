@@ -117,6 +117,7 @@ impl<'de> Deserialize<'de> for CarV2MemoryBlockStore {
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::banyan_blockstore::RootedBlockStore;
     use anyhow::Result;

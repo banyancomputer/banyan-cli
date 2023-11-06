@@ -94,6 +94,7 @@ impl Streamable for Block {
 }
 
 #[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
 mod test {
     #[allow(unused_imports)]
     use super::Block;

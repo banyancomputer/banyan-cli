@@ -9,6 +9,7 @@
 #![deny(private_interfaces)]
 // #![deny(unreachable_pub)]
 #![feature(seek_stream_len)]
+#![feature(imported_main)]
 
 #[cfg(not(target_arch = "wasm32"))]
 /// CLI Parsing

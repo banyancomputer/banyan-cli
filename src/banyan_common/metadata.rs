@@ -669,6 +669,7 @@ pub struct FsMetadataEntry {
     pub metadata: Metadata,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
     use super::*;
