@@ -29,7 +29,7 @@ pub enum AccountCommand {
     /// Log out from this device
     Logout,
     /// Register
-    #[cfg(feature = "fake")]
+    #[cfg(feature = "integration-tests")]
     Register,
     /// Ask the server who I am
     WhoAmI,
@@ -109,7 +109,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                     "<< SUCCESSFULLY LOGGED OUT OF REMOTE ACCESS >>".green()
                 ))
             }
-            #[cfg(feature = "fake")]
+            #[cfg(feature = "integration-tests")]
             AccountCommand::Register => {
                 // Additional imports
                 use crate::banyan_api::requests::core::auth::fake_account::create::{

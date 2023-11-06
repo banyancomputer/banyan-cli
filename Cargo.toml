@@ -79,7 +79,7 @@ bytes = "1.5.0"
 
 # Native features
 [features]
-fake = []
+integration-tests = []
 
 # Dependencies that only need to exist when we are in WASM
 [target.'cfg(target_arch = "wasm32")'.dependencies]

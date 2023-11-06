@@ -4,7 +4,7 @@ pub mod authorization;
 pub mod create;
 
 #[cfg(test)]
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 mod test {
     use serial_test::serial;
 

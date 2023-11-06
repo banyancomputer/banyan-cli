@@ -75,7 +75,7 @@ impl Account {
     }
 }
 
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 #[cfg(test)]
 pub mod test {
     use super::*;

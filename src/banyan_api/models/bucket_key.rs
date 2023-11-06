@@ -128,7 +128,7 @@ impl BucketKey {
     }
 }
 
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 #[cfg(test)]
 mod test {
     use std::collections::BTreeSet;

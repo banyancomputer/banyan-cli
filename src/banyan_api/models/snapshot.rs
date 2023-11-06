@@ -53,7 +53,7 @@ impl Snapshot {
 }
 
 #[cfg(test)]
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 mod test {
     use super::*;
     use crate::banyan_api::models::account::test::authenticated_client;

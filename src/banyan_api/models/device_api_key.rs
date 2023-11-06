@@ -71,7 +71,7 @@ impl DeviceApiKey {
 // TODO: wasm tests
 
 #[cfg(test)]
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 
 mod test {
     use super::*;

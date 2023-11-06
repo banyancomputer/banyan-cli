@@ -47,7 +47,7 @@ impl Display for PullBlockError {
 impl Error for PullBlockError {}
 
 #[cfg(test)]
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 mod test {
     use std::collections::BTreeSet;
 

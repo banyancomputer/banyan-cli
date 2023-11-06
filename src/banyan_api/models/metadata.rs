@@ -200,7 +200,7 @@ impl Metadata {
     }
 }
 
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 #[cfg(test)]
 pub mod test {
     use futures_util::stream::StreamExt;

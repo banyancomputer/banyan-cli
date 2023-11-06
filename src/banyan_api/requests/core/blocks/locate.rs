@@ -49,7 +49,7 @@ impl Display for LocationRequestError {
 impl Error for LocationRequestError {}
 
 #[cfg(test)]
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 mod test {
     use std::collections::BTreeSet;
 

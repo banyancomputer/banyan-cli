@@ -19,7 +19,7 @@ mod test {
     use std::path::Path;
 
     #[allow(dead_code)]
-    #[cfg(feature = "fake")]
+    #[cfg(feature = "integration-tests")]
     fn cmd_register() -> TombCommand {
         TombCommand::Account {
             command: AccountCommand::Register,

@@ -222,7 +222,7 @@ impl Bucket {
 }
 
 #[cfg(test)]
-#[cfg(feature = "fake")]
+#[cfg(feature = "integration-tests")]
 pub mod test {
     use tomb_crypt::hex_fingerprint;
     use tomb_crypt::prelude::PrivateKey;
