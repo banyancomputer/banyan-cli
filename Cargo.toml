@@ -74,7 +74,6 @@ wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", ver
 # Dependencies that must exist independent of architecture for testing
 [dev-dependencies]
 
-
 # Native features
 [features]
 integration-tests = []
@@ -94,10 +93,6 @@ wasm-bindgen-futures = { version = "^0.4" }
 # Dependencies that only need to exist when we are testing WASM
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { version = "^0.3" }
-
-# WASM Features
-[target.'cfg(target_arch = "wasm32")'.features]
-default = ["console_error_panic_hook"]
 
 [[bin]]
 name = "banyan"

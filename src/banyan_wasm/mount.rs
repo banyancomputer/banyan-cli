@@ -235,12 +235,17 @@ impl WasmMount {
                 "tomb-wasm: mount/sync()/{} - saving changes to fs",
                 self.bucket.id.to_string()
             );
-            let _ = self
+            let result = self
                 .fs_metadata
                 .as_mut()
                 .unwrap()
                 .save(&self.metadata_blockstore, &self.content_blockstore)
                 .await;
+            log!(format!(
+                "tomb-wasm: mount/sync()/{} - save result: {:?}",
+                self.bucket.id.to_string(),
+                result
+            ));
         } else {
             log!(
                 "tomb-wasm: mount/sync()/{} - no changes to fs",

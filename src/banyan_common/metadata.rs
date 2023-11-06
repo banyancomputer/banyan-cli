@@ -14,7 +14,6 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    env::var,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -128,15 +127,15 @@ impl FsMetadata {
         // Link our build metadata
         root_map.insert(
             TOMB_BUILD_FEATURES_LABEL.to_string(),
-            Ipld::String(var("BUILD_FEATURES")?.to_string()),
+            Ipld::String(env!("BUILD_FEATURES").to_string()),
         );
         root_map.insert(
             TOMB_BUILD_PROFILE_LABEL.to_string(),
-            Ipld::String(var("BUILD_PROFILE")?.to_string()),
+            Ipld::String(env!("BUILD_PROFILE").to_string()),
         );
         root_map.insert(
             TOMB_REPO_VERSION_LABEL.to_string(),
-            Ipld::String(var("REPO_VERSION")?.to_string()),
+            Ipld::String(env!("REPO_VERSION").to_string()),
         );
 
         // Put the map into BlockStores

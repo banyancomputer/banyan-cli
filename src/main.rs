@@ -1,7 +1,7 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 #[cfg(target_arch = "wasm32")]
-fn main() -> TombletResult<()> {
-    Err(TombletError("no main for wasm builds"))
+fn main() {
+    panic!("there is no main in wasm!");
 }
 
 #[cfg(not(target_arch = "wasm32"))]
