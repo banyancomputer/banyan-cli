@@ -1,29 +1,42 @@
-use crate::log;
+use gloo::console::log;
 use futures_util::StreamExt;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
-use tomb_common::banyan_api::blockstore::BanyanApiBlockStore;
-use tomb_common::banyan_api::client::Client;
-use tomb_common::banyan_api::models::snapshot::Snapshot;
-use tomb_common::banyan_api::models::storage_ticket::StorageTicket;
-use tomb_common::banyan_api::models::{bucket::Bucket, bucket_key::BucketKey, metadata::Metadata};
-use tomb_common::banyan_api::requests::staging::upload::content::UploadContent;
-use tomb_common::blockstore::carv2_memory::CarV2MemoryBlockStore as BlockStore;
-use tomb_common::blockstore::RootedBlockStore;
-use tomb_common::metadata::FsMetadata;
 use tomb_crypt::prelude::*;
 use wasm_bindgen::prelude::*;
 use wnfs::private::PrivateNode;
 
-use crate::error::TombWasmError;
-use crate::types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot};
-use crate::{TombResult, WasmBucket};
+use crate::{
+    banyan_common::{
+        blockstore::{carv2_memory::CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
+        metadata::FsMetadata,
+        banyan_api::{
+            blockstore::BanyanApiBlockStore,
+            client::Client,
+            models::{
+                snapshot::Snapshot,
+                storage_ticket::StorageTicket,
+                bucket::Bucket,
+                bucket_key::BucketKey,
+                metadata::Metadata,
+            },
+            requests::staging::upload::content::UploadContent,
+        }
+    },
+    banyan_wasm::{
+        error::TombWasmError,
+        types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot},
+        TombResult,
+        WasmBucket,
+    }
+};
 
 /// Mount point for a Bucket in WASM
 ///
 /// Enables to call Fs methods on a Bucket, pulling metadata from a remote
+#[derive(Debug)]
 #[wasm_bindgen]
 pub struct WasmMount {
     client: Client,

@@ -108,7 +108,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
             #[cfg(feature = "fake")]
             AccountCommand::Register => {
                 // Additional imports
-                use tomb_common::banyan_api::requests::core::auth::fake_account::create::{
+                use crate::banyan_common::banyan_api::requests::core::auth::fake_account::create::{
                     CreateAccountResponse, CreateFakeAccount,
                 };
                 use tomb_crypt::prelude::EcSignatureKey;

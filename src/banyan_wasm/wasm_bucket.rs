@@ -2,27 +2,32 @@ use std::ops::Deref;
 
 use wasm_bindgen::prelude::*;
 
-use tomb_common::banyan_api::models::bucket::Bucket;
+use crate::banyan_common::banyan_api::models::bucket::Bucket;
 
+/// WASM Compatible version of the Bucket struct
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct WasmBucket(Bucket);
 
 #[wasm_bindgen]
 impl WasmBucket {
+    /// Type of the Bucket
     #[wasm_bindgen(js_name = "bucketType")]
     pub fn bucket_type(&self) -> String {
         self.r#type.to_string()
     }
 
+    /// Id of the Bucket
     pub fn id(&self) -> String {
         self.id.to_string()
     }
 
+    /// Name of the Bucket
     pub fn name(&self) -> String {
         self.name.clone()
     }
 
+    /// Storage Class of the Bucket
     #[wasm_bindgen(js_name = "storageClass")]
     pub fn storage_class(&self) -> String {
         self.storage_class.to_string()

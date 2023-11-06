@@ -1,12 +1,14 @@
 //! This crate contains modules which are compiled to WASM
 mod error;
+/// Mountable FileSystem
 pub mod mount;
+/// Types
 pub mod types;
+/// Utilities
 pub mod utils;
 
 mod wasm_bucket;
 mod wasm_bucket_key;
-use tomb_common::banyan_api::requests::core::auth::device_api_key::regwait::end::EndRegwait;
 pub use wasm_bucket::WasmBucket;
 pub use wasm_bucket_key::WasmBucketKey;
 
@@ -16,23 +18,32 @@ use std::str::FromStr;
 
 use gloo::console::log;
 use js_sys::Array;
-use tomb_common::banyan_api::client::{Client, Credentials};
-use tomb_common::banyan_api::models::account::Account;
-use tomb_common::banyan_api::models::{
-    bucket::{Bucket, BucketType, StorageClass},
-    bucket_key::*,
-};
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
-use crate::error::TombWasmError;
-use crate::mount::WasmMount;
-use crate::types::*;
-use crate::utils::*;
+use crate::{
+    banyan_common::banyan_api::{
+        requests::core::auth::device_api_key::regwait::end::EndRegwait,
+        client::{Client, Credentials},
+        models::{
+            account::Account,
+            bucket::{Bucket, BucketType, StorageClass},
+            bucket_key::*,
+        },
+    },
+    banyan_wasm::{
+        error::TombWasmError,
+        mount::WasmMount,
+        types::*
+    }
+};
 
+/// Special Result type for WASM builds
 pub type TombResult<T> = Result<T, js_sys::Error>;
 
+/// Wrapper around a Client
+#[derive(Debug)]
 #[wasm_bindgen]
 pub struct TombWasm(pub(crate) Client);
 

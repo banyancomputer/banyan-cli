@@ -4,14 +4,23 @@ use js_sys::{Object, Reflect};
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
+use crate::{
+    banyan_common::{
+        banyan_api::models::{
+            metadata::*,
+            snapshot::*,
+        },
+        metadata::{FsMetadataEntry, FsMetadataEntryType}
+    },
+    banyan_wasm::{
+        error::TombWasmError,
+        log,
+    },
+    value
+};
 
-use tomb_common::banyan_api::models::metadata::*;
-use tomb_common::banyan_api::models::snapshot::*;
-use tomb_common::metadata::{FsMetadataEntry, FsMetadataEntryType};
-
-use crate::error::TombWasmError;
-use crate::{log, value};
-
+/// Wrapper around a NodeMetadata
+#[derive(Debug)]
 pub struct WasmNodeMetadata(pub(crate) NodeMetadata);
 
 impl TryFrom<JsValue> for WasmNodeMetadata {
@@ -79,6 +88,8 @@ impl TryFrom<WasmNodeMetadata> for JsValue {
     }
 }
 
+/// WASM Compatible Snapshot struct
+#[derive(Debug)]
 #[wasm_bindgen]
 pub struct WasmSnapshot {
     id: Uuid,
@@ -92,26 +103,31 @@ pub struct WasmSnapshot {
 
 #[wasm_bindgen]
 impl WasmSnapshot {
+    /// Bucket ID
     #[wasm_bindgen(getter = bucketId)]
     pub fn bucket_id(&self) -> String {
         self.bucket_id.to_string()
     }
 
+    /// Creation time
     #[wasm_bindgen(getter = createdAt)]
     pub fn created_at(&self) -> f64 {
         self.created_at as f64
     }
 
+    /// Snapshot ID
     #[wasm_bindgen(getter)]
     pub fn id(&self) -> String {
         self.id.to_string()
     }
 
+    /// Metadata ID
     #[wasm_bindgen(getter = metadataId)]
     pub fn metadata_id(&self) -> String {
         self.metadata_id.to_string()
     }
 
+    /// Size of Snapshot data
     #[wasm_bindgen(getter)]
     pub fn size(&self) -> f64 {
         self.size as f64
@@ -146,6 +162,8 @@ impl From<WasmSnapshot> for Snapshot {
     }
 }
 
+/// Wrapper around an FsMetadataEntry
+#[derive(Debug)]
 pub struct WasmFsMetadataEntry(pub(crate) FsMetadataEntry);
 
 impl From<FsMetadataEntry> for WasmFsMetadataEntry {
@@ -161,6 +179,7 @@ impl From<WasmFsMetadataEntry> for FsMetadataEntry {
 }
 
 impl WasmFsMetadataEntry {
+    /// Node type
     pub fn entry_type(&self) -> String {
         match self.0.entry_type {
             FsMetadataEntryType::File => "file".to_string(),
@@ -168,10 +187,12 @@ impl WasmFsMetadataEntry {
         }
     }
 
+    /// Node Metadata
     pub fn metadata(&self) -> WasmNodeMetadata {
         WasmNodeMetadata(self.0.metadata.clone())
     }
 
+    /// Node Name
     pub fn name(&self) -> String {
         self.0.name.clone()
     }
@@ -258,23 +279,27 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
     }
 }
 
-/// A wrapper around a bucket metadata
+/// A wrapper around a Bucket Metadata
+#[derive(Debug)]
 #[wasm_bindgen]
 pub struct WasmBucketMetadata(pub(crate) Metadata);
 
 /// Getters
 #[wasm_bindgen]
 impl WasmBucketMetadata {
+    /// Metadata ID
     #[wasm_bindgen(getter)]
     pub fn id(&self) -> String {
         self.0.id.to_string()
     }
 
+    /// Bucket ID
     #[wasm_bindgen(getter = bucketId)]
     pub fn bucket_id(&self) -> String {
         self.0.bucket_id.to_string()
     }
 
+    /// Snapshot ID
     #[wasm_bindgen(getter = snapshotId)]
     pub fn snapshot_id(&self) -> String {
         self.0.snapshot_id.expect("no snapshot").to_string()

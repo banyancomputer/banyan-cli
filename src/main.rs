@@ -1,11 +1,3 @@
-#![feature(io_error_more)]
-#![feature(let_chains)]
-#![feature(buf_read_has_data_left)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
-#![deny(private_interfaces)]
-#![deny(unreachable_pub)]
-
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 use anyhow::Result;
 use banyan_cli::banyan_cli::cli::{self, commands::RunnableCommand};

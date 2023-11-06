@@ -10,11 +10,16 @@
 // #![deny(unreachable_pub)]
 #![feature(seek_stream_len)]
 
+/// Command line library
+#[cfg(not(target_arch = "wasm32"))]
 pub mod banyan_cli;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[macro_use]
+extern crate log;
+
+/// Common functionality
 pub mod banyan_common;
 
 #[cfg(target_arch = "wasm32")]
 pub mod banyan_wasm;
-
-#[macro_use]
-extern crate log;
