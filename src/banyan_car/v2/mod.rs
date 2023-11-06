@@ -10,7 +10,7 @@ use self::{header::Header, index::indexable::Indexable};
 use crate::banyan_car::{
     v1::{block::Block, CarV1},
     v2::index::{indexsorted::Bucket, Index},
-    Streamable
+    Streamable,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -223,8 +223,8 @@ impl CarV2 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
+        banyan_blockstore::{test::car_test_setup, utils::get_read_write},
         banyan_car::{v1::block::Block, v2::CarV2},
-        banyan_common::utils::{io::get_read_write, tests::car_test_setup},
     };
     use anyhow::Result;
     use serial_test::serial;

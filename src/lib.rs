@@ -27,8 +27,8 @@ pub mod banyan_api;
 pub mod banyan_blockstore;
 /// CAR Format Parsing
 pub mod banyan_car;
-/// Architecture-Independent functionality
-pub mod banyan_common;
+/// FileSystem
+pub mod banyan_filesystem;
 
 #[cfg(target_arch = "wasm32")]
 pub mod banyan_wasm;

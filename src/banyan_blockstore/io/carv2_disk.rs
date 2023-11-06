@@ -1,7 +1,6 @@
 use crate::{
-    banyan_blockstore::{BlockStore, RootedBlockStore},
+    banyan_blockstore::{utils::*, BlockStore, RootedBlockStore},
     banyan_car::{v1::block::Block, v2::CarV2},
-    banyan_common::utils::io::{get_read, get_read_write, get_write},
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -143,10 +142,7 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        banyan_blockstore::{BlockStore, RootedBlockStore},
-        banyan_common::utils::tests::car_test_setup,
-    };
+    use crate::banyan_blockstore::{test::*, BlockStore, RootedBlockStore};
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};

@@ -1,7 +1,4 @@
-use crate::banyan_car::{
-    error::CARError, v2::index::indexable::Indexable, varint::*,
-    Streamable
-};
+use crate::banyan_car::{error::CARError, v2::index::indexable::Indexable, varint::*, Streamable};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{

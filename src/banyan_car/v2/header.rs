@@ -1,6 +1,6 @@
 use crate::banyan_car::{
-    varint::{read_leu128, read_leu64},
     streamable::Streamable,
+    varint::{read_leu128, read_leu64},
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -78,8 +78,8 @@ impl<'de> Deserialize<'de> for Header {
 mod test {
     use super::*;
     use crate::{
+        banyan_blockstore::test::car_test_setup,
         banyan_car::v2::{PRAGMA, PRAGMA_SIZE},
-        banyan_common::utils::tests::car_test_setup,
     };
 
     use super::Header;

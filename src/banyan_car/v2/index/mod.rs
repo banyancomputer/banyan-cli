@@ -17,7 +17,7 @@ use crate::banyan_car::{
     error::CARError,
     v1::block::Block,
     varint::{encode_varint_u128, read_varint_u128},
-    Streamable
+    Streamable,
 };
 use indexsorted::Bucket;
 

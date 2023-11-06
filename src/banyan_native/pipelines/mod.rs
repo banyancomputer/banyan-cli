@@ -17,7 +17,7 @@ mod test {
     use crate::{
         banyan_api::client::Client,
         banyan_cli::specifiers::DriveSpecifier,
-        banyan_common::utils::wnfsio::{decompress_bytes, path_to_segments},
+        banyan_filesystem::wnfsio::{decompress_bytes, path_to_segments},
         banyan_native::{
             pipelines::{configure, prepare, remove, restore},
             types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},

@@ -1,6 +1,6 @@
 use crate::{
     banyan_blockstore::RootedBlockStore,
-    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
+    banyan_filesystem::{metadata::FsMetadata, wnfsio::path_to_segments},
     banyan_native::{
         types::spider::PreparePipelinePlan,
         utils::{grouper::grouper, spider},

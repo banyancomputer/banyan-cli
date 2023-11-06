@@ -1,11 +1,12 @@
-use std::path::Path;
-
-use super::error::TombError;
-use crate::banyan_common::utils::wnfsio::{compress_file, path_to_segments};
-use crate::banyan_native::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
+use crate::{
+    banyan_filesystem::wnfsio::{compress_file, path_to_segments},
+    banyan_native::pipelines::error::TombError,
+    banyan_native::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig},
+};
 use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
+use std::path::Path;
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(

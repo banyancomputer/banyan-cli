@@ -2,7 +2,7 @@ use super::error::TombError;
 use crate::{
     banyan_api::{client::Client, models::metadata::Metadata},
     banyan_blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
-    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
+    banyan_filesystem::{metadata::FsMetadata, wnfsio::path_to_segments},
     banyan_native::{
         types::{
             config::{bucket::OmniBucket, globalconfig::GlobalConfig},

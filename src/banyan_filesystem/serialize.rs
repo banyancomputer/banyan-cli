@@ -1,4 +1,4 @@
-use crate::banyan_common::sharing::manager::ShareManager;
+use crate::banyan_filesystem::sharing::manager::ShareManager;
 use anyhow::Result;
 use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;
@@ -81,7 +81,7 @@ pub async fn load_dir<BS: BlockStore>(
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use crate::banyan_common::utils::{serialize::*, tests::*};
+    use crate::{banyan_blockstore::test::*, banyan_filesystem::serialize::*};
     use anyhow::Result;
     use chrono::Utc;
     use serial_test::serial;

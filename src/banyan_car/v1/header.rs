@@ -1,7 +1,7 @@
 use crate::banyan_car::{
     error::CARError,
     varint::{encode_varint_u64, read_varint_u64},
-    Streamable
+    Streamable,
 };
 use anyhow::Result;
 

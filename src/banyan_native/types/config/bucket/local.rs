@@ -1,7 +1,7 @@
 use crate::{
     banyan_api::models::storage_ticket::StorageTicket,
     banyan_blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
-    banyan_common::metadata::FsMetadata,
+    banyan_filesystem::metadata::FsMetadata,
     banyan_native::utils::config::xdg_data_home,
 };
 use anyhow::{Ok, Result};

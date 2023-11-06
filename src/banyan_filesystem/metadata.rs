@@ -1,9 +1,7 @@
 use crate::{
     banyan_blockstore::{CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
-    banyan_common::{
-        sharing::manager::ShareManager,
-        utils::serialize::*,
-        utils::{error::SerialError, wnfsio::path_to_segments},
+    banyan_filesystem::{
+        error::SerialError, serialize::*, sharing::manager::ShareManager, wnfsio::path_to_segments,
     },
 };
 use anyhow::{anyhow, Result};

@@ -15,7 +15,7 @@ use crate::{
         requests::staging::upload::content::UploadContent,
     },
     banyan_blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore, RootedBlockStore},
-    banyan_common::metadata::FsMetadata,
+    banyan_filesystem::metadata::FsMetadata,
 };
 use colored::Colorize;
 use futures_util::StreamExt;

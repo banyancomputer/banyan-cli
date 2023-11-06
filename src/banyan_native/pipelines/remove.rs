@@ -1,5 +1,5 @@
 use super::error::TombError;
-use crate::banyan_common::utils::wnfsio::path_to_segments;
+use crate::banyan_filesystem::wnfsio::path_to_segments;
 use crate::banyan_native::types::config::{bucket::LocalBucket, globalconfig::GlobalConfig};
 use anyhow::Result;
 use std::path::Path;

@@ -10,7 +10,7 @@ pub mod mapper;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use crate::banyan_common::sharing::manager::ShareManager;
+    use crate::banyan_filesystem::sharing::manager::ShareManager;
     use anyhow::{anyhow, Result};
     use rand::Rng;
     use serial_test::serial;

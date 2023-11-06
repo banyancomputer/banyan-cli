@@ -13,10 +13,6 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-// TODO: Is anything using this?
-/// Macro for testing whether a type can be serialized into DagCbor
-pub mod serialize;
-
 /// Create a copy of a given fixture to play around with
 pub fn car_test_setup(
     version: usize,

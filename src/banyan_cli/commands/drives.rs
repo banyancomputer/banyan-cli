@@ -4,7 +4,7 @@ use crate::{
         commands::{KeyCommand, MetadataCommand, RunnableCommand},
         specifiers::DriveSpecifier,
     },
-    banyan_common::metadata::FsMetadata,
+    banyan_filesystem::metadata::FsMetadata,
     banyan_native::{
         pipelines::{error::TombError, prepare, restore},
         types::config::{

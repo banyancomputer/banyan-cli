@@ -13,10 +13,7 @@ use std::{
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
-use crate::banyan_car::{
-    v2::index::INDEX_SORTED_CODEC, 
-    Streamable,
-};
+use crate::banyan_car::{v2::index::INDEX_SORTED_CODEC, Streamable};
 
 use self::{block::Block, header::Header};
 use super::v2::index::{indexable::Indexable, indexsorted::Bucket, Index};
@@ -200,8 +197,8 @@ impl CarV1 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
+        banyan_blockstore::{test::*, utils::*},
         banyan_car::v1::{block::Block, CarV1},
-        banyan_common::utils::{io::get_read_write, tests::car_test_setup},
     };
     use anyhow::Result;
     use serial_test::serial;

@@ -20,6 +20,10 @@ pub use split::DoubleSplitStore;
 #[cfg(not(target_arch = "wasm32"))]
 mod io;
 
+/// Testing helper functions
+#[cfg(not(target_arch = "wasm32"))]
+pub mod test;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use io::*;
 

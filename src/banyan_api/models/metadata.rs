@@ -216,7 +216,7 @@ pub mod test {
             storage_ticket::StorageTicket,
         },
         banyan_blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
-        banyan_common::metadata::FsMetadata,
+        banyan_filesystem::metadata::FsMetadata,
     };
 
     use super::*;
