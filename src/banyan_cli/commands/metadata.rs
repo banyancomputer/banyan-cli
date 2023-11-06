@@ -1,7 +1,9 @@
-use crate::banyan_api::{client::Client, models::metadata::Metadata};
-use crate::banyan_native::{
-    configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-    operations::error::TombError,
+use crate::{
+    banyan_api::{client::Client, models::metadata::Metadata},
+    banyan_native::{
+        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+        operations::error::TombError,
+    },
 };
 
 use super::{super::specifiers::*, RunnableCommand};

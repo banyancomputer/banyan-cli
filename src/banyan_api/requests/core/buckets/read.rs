@@ -4,8 +4,10 @@ use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::banyan_api::models::bucket::{BucketType, StorageClass};
-use crate::banyan_api::requests::ApiRequest;
+use crate::banyan_api::{
+    models::bucket::{BucketType, StorageClass},
+    requests::ApiRequest,
+};
 
 #[derive(Debug, Serialize)]
 pub struct ReadBucket {

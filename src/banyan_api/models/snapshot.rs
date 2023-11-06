@@ -56,10 +56,10 @@ impl Snapshot {
 #[cfg(feature = "integration-tests")]
 mod test {
     use super::*;
-    use crate::banyan_api::models::account::test::authenticated_client;
-    use crate::banyan_api::models::bucket::test::create_bucket;
-    use crate::banyan_api::models::metadata::test::push_empty_metadata;
-    //use crate::banyan_api::models::metadata::{Metadata, MetadataState};
+    use crate::banyan_api::models::{
+        account::test::authenticated_client, bucket::test::create_bucket,
+        metadata::test::push_empty_metadata,
+    };
 
     #[tokio::test]
     async fn restore() -> Result<(), ClientError> {

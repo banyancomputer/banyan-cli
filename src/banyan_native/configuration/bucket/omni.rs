@@ -1,9 +1,9 @@
 use super::{determine_sync_state, LocalBucket, SyncState};
-use crate::banyan_api::{
-    client::Client,
-    models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
-};
 use crate::{
+    banyan_api::{
+        client::Client,
+        models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
+    },
     banyan_cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
     banyan_native::{configuration::globalconfig::GlobalConfig, operations::error::TombError},
 };

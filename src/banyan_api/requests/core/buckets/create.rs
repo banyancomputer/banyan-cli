@@ -5,9 +5,10 @@ use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::banyan_api::models::bucket::{BucketType, StorageClass};
-use crate::banyan_api::requests::core::buckets::keys::create::CreateBucketKeyResponse;
-use crate::banyan_api::requests::ApiRequest;
+use crate::banyan_api::{
+    models::bucket::{BucketType, StorageClass},
+    requests::{core::buckets::keys::create::CreateBucketKeyResponse, ApiRequest},
+};
 
 #[derive(Debug, Serialize)]
 pub struct CreateBucket {

@@ -155,16 +155,15 @@ impl LocalBucket {
 
 #[cfg(test)]
 mod test {
-    use std::{
-        fs::{create_dir_all, remove_dir_all},
-        path::Path,
-    };
-
     use crate::banyan_native::configuration::globalconfig::GlobalConfig;
     use anyhow::Result;
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
+    use std::{
+        fs::{create_dir_all, remove_dir_all},
+        path::Path,
+    };
 
     #[tokio::test]
     #[serial]

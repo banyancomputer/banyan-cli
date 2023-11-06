@@ -118,9 +118,8 @@ impl Streamable for Header {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    use crate::banyan_car::Streamable;
-
     use super::Header;
+    use crate::banyan_car::Streamable;
     use anyhow::Result;
     use serial_test::serial;
     use std::{

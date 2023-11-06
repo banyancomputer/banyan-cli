@@ -75,8 +75,7 @@ impl DeviceApiKey {
 
 mod test {
     use super::*;
-    use crate::banyan_api::models::account::test::authenticated_client;
-    use crate::banyan_api::utils::generate_api_key;
+    use crate::banyan_api::{models::account::test::authenticated_client, utils::generate_api_key};
 
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {

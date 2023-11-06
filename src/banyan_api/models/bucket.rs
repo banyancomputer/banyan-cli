@@ -228,9 +228,13 @@ pub mod test {
     use tomb_crypt::prelude::PrivateKey;
 
     use super::*;
-    use crate::banyan_api::models::account::test::{authenticated_client, unauthenticated_client};
-    use crate::banyan_api::models::metadata::test::push_metadata_and_snapshot;
-    use crate::banyan_api::utils::generate_bucket_key;
+    use crate::banyan_api::{
+        models::{
+            account::test::{authenticated_client, unauthenticated_client},
+            metadata::test::push_metadata_and_snapshot,
+        },
+        utils::generate_bucket_key,
+    };
 
     pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ClientError> {
         let (key, pem) = generate_bucket_key().await;

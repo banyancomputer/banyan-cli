@@ -138,10 +138,12 @@ mod test {
     use tomb_crypt::prelude::PrivateKey;
 
     use super::*;
-    use crate::banyan_api::models::account::test::authenticated_client;
-    use crate::banyan_api::models::bucket::test::create_bucket;
-    use crate::banyan_api::models::metadata::Metadata;
-    use crate::banyan_api::utils::generate_bucket_key;
+    use crate::banyan_api::{
+        models::{
+            account::test::authenticated_client, bucket::test::create_bucket, metadata::Metadata,
+        },
+        utils::generate_bucket_key,
+    };
 
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {

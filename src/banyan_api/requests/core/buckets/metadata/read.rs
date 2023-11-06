@@ -5,8 +5,7 @@ use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::banyan_api::models::metadata::MetadataState;
-use crate::banyan_api::requests::ApiRequest;
+use crate::banyan_api::{models::metadata::MetadataState, requests::ApiRequest};
 
 #[derive(Debug, Serialize)]
 pub struct ReadMetadata {

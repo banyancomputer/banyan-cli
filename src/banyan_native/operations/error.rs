@@ -1,11 +1,9 @@
-use crate::banyan_api::error::ClientError;
+use crate::{banyan_api::error::ClientError, banyan_cli::specifiers::DriveSpecifier};
 use colored::Colorize;
 use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;
 use tomb_crypt::prelude::TombCryptError;
 use uuid::Uuid;
-
-use crate::banyan_cli::specifiers::DriveSpecifier;
 
 /// Errors for the Tomb CLI & Native program
 #[derive(Error, Debug)]
