@@ -20,7 +20,7 @@ use crate::{
     banyan_blockstore::{
         BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore,
     },
-    banyan_common::metadata::FsMetadata,
+    banyan_filesystem::metadata::FsMetadata,
     banyan_wasm::{
         error::TombWasmError,
         types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot},

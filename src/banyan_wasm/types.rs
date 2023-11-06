@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     banyan_api::models::{metadata::*, snapshot::*},
-    banyan_common::metadata::{FsMetadataEntry, FsMetadataEntryType},
+    banyan_filesystem::metadata::{FsMetadataEntry, FsMetadataEntryType},
     banyan_wasm::{error::TombWasmError, log},
     value,
 };
