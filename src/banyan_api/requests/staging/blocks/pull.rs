@@ -51,14 +51,16 @@ impl Error for PullBlockError {}
 mod test {
     use std::collections::BTreeSet;
 
-    use crate::banyan_api::{
-        blockstore::BanyanApiBlockStore, error::ClientError,
-        models::metadata::test::setup_and_push_metadata,
-        requests::staging::upload::content::UploadContent,
+    use crate::{
+        banyan_api::{
+            error::ClientError, models::metadata::test::setup_and_push_metadata,
+            requests::staging::upload::content::UploadContent,
+        },
+        banyan_blockstore::BanyanApiBlockStore,
     };
-    use cid::Cid;
     use serial_test::serial;
     use wnfs::common::BlockStore;
+    use wnfs::libipld::Cid;
 
     #[tokio::test]
     #[serial]

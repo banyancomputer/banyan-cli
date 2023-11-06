@@ -215,8 +215,8 @@ pub mod test {
             bucket::{test::create_bucket, Bucket, BucketType, StorageClass},
             storage_ticket::StorageTicket,
         },
-        blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
-        metadata::FsMetadata,
+        banyan_blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
+        banyan_common::metadata::FsMetadata,
     };
 
     use super::*;

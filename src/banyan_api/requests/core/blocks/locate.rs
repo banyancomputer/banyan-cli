@@ -55,7 +55,6 @@ mod test {
 
     use crate::{
         banyan_api::{
-            blockstore::BanyanApiBlockStore,
             error::ClientError,
             models::{
                 account::test::authenticated_client, metadata::test::setup_and_push_metadata,
@@ -64,10 +63,10 @@ mod test {
                 core::blocks::locate::LocationRequest, staging::upload::content::UploadContent,
             },
         },
-        blockstore::split::DoubleSplitStore,
+        banyan_blockstore::{BanyanApiBlockStore, DoubleSplitStore},
     };
-    use cid::Cid;
     use serial_test::serial;
+    use wnfs::libipld::Cid;
 
     #[tokio::test]
     #[serial]
