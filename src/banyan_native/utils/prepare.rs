@@ -1,10 +1,10 @@
 use crate::{
     banyan_blockstore::RootedBlockStore,
-    banyan_cli::{
+    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
+    banyan_native::{
         types::spider::PreparePipelinePlan,
         utils::{grouper::grouper, spider},
     },
-    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
 };
 use anyhow::Result;
 use std::{

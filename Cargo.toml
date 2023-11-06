@@ -1,5 +1,5 @@
 [package]
-name = "banyan-cli"
+name = "banyan"
 license = "MIT"
 description = "tomb compresses and encrypts data for Filecoin"
 homepage = "https://banyan.computer"

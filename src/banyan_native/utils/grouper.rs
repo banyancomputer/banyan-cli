@@ -1,4 +1,4 @@
-use crate::banyan_cli::types::spider::{PreparePipelinePlan, SpiderMetadata};
+use crate::banyan_native::types::spider::{PreparePipelinePlan, SpiderMetadata};
 use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
 use std::{

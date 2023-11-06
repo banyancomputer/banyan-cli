@@ -1,8 +1,8 @@
 use super::wnfsio::get_progress_bar;
 use crate::{
     banyan_blockstore::RootedBlockStore,
-    banyan_cli::pipelines::error::TombError,
     banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
+    banyan_native::pipelines::error::TombError,
 };
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::PathBuf};
 use wnfs::private::PrivateNode;

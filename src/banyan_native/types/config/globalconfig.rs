@@ -1,7 +1,7 @@
 use crate::{
     banyan_api::client::{Client, Credentials},
-    banyan_cli::utils::config::*,
     banyan_common::utils::io::get_read,
+    banyan_native::utils::config::*,
 };
 use anyhow::{anyhow, Result};
 use tomb_crypt::prelude::*;

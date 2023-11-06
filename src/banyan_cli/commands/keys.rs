@@ -1,5 +1,5 @@
 use crate::banyan_api::{client::Client, error::ClientError, models::bucket_key::BucketKey};
-use crate::banyan_cli::{
+use crate::banyan_native::{
     pipelines::error::TombError,
     types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };

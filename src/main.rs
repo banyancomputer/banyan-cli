@@ -1,13 +1,16 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 use anyhow::Result;
-use banyan_cli::banyan_cli::cli::{self, commands::RunnableCommand};
+use banyan::{
+    self,
+    banyan_cli::{args::Args, commands::RunnableCommand},
+};
 use clap::Parser;
 use std::io::Write;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
-    let cli = cli::args::Args::parse();
+    let cli = Args::parse();
 
     // TODO eventually make options to format it differently?
     std::env::set_var("RUST_LOG", "info");

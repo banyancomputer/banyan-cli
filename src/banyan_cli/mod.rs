@@ -1,40 +1,157 @@
-/* General Project Chores */
-/* Bugs */
-// TODO (amiller68 and laudiacay): Pipeline restores single file input to a empty directory with the same name as the file, instead of the file
-
-/* Speculative Lifts */
-// TODO (laudiacay): Can / Should we include an option to prepare chunks into a CAR file? Look into this.
-// TODO (laudiacay) : Handle pinning threads to CPU cores (with tokio localsets and runtimes?) correctly so that disk throughput is maximized
-
-/* tomb:
-* 1. Copy files to scratch space from `input` directories to 'output-dir' directory
-* 2. Partition files into chunks of max size `target-chunk-size`
-* 3. Compress and encrypt each chunk in place. These chunks should be randomly named.
-* 4. Write out a manifest file that maps:
-*      - original file path to random chunk name / path
-*      - random chunk paths point to the key-path used to encrypt the chunk.
-*      - keys stored in csv file
-* 5. Encyprpt the manifest file in place with some master key. (later, optional)
-* 6. Use manifest file to repopulate the original directory structure
-* 7. TODO (laudiacay): Make car file with it.
-*/
-
-// We only use this in main.rs
-use env_logger as _;
+/// Arguments consist of Command an Verbosity
+pub mod args;
+/// Commands to run
+pub mod commands;
+/// Ways of specifying resources
+pub mod specifiers;
+/// Debug level
+pub mod verbosity;
 
 #[cfg(test)]
-use criterion as _;
-#[cfg(test)]
-use lazy_static as _;
+mod test {
+    use super::commands::*;
+    use crate::{
+        banyan_cli::specifiers::*,
+        banyan_native::{types::config::globalconfig::GlobalConfig, utils::test::*},
+    };
+    use anyhow::{anyhow, Result};
+    use serial_test::serial;
+    use std::path::Path;
 
-#[allow(unused_extern_crates)]
-extern crate core;
+    #[allow(dead_code)]
+    #[cfg(feature = "fake")]
+    fn cmd_register() -> TombCommand {
+        TombCommand::Account {
+            command: AccountCommand::Register,
+        }
+    }
 
-/// This module contains the CLI
-pub mod cli;
-/// This module contains both the prepare_pipeline and the restore_pipeline, which allow the main CLI to run bundling an restoring pipelines.
-pub mod pipelines;
-/// This module contains types unique to this project.
-pub mod types;
-/// This module contains filesytem helper functions and hasher helper functions.
-pub mod utils;
+    fn cmd_create(origin: &Path) -> TombCommand {
+        TombCommand::Drives {
+            command: DrivesCommand::Create {
+                name: "Bucket Name".to_string(),
+                origin: Some(origin.to_path_buf()),
+            },
+        }
+    }
+
+    async fn cmd_delete(origin: &Path) -> Result<()> {
+        let mut global = GlobalConfig::from_disk().await?;
+        let local = global.get_bucket(origin).ok_or(anyhow!("no bucket"))?;
+        local.remove_data()?;
+        // Find index of bucket
+        let index = global
+            .buckets
+            .iter()
+            .position(|b| b == &local)
+            .expect("cannot find index in buckets");
+        // Remove bucket config from global config
+        global.buckets.remove(index);
+        global.to_disk()?;
+        Ok(())
+    }
+
+    // Run the Prepare pipeline through the CLI
+    fn cmd_prepare(origin: &Path) -> TombCommand {
+        TombCommand::Drives {
+            command: DrivesCommand::Prepare {
+                drive_specifier: DriveSpecifier::with_origin(origin),
+                follow_links: true,
+            },
+        }
+    }
+
+    // Run the Restore pipeline through the CLI
+    fn cmd_restore(origin: &Path) -> TombCommand {
+        TombCommand::Drives {
+            command: DrivesCommand::Restore {
+                drive_specifier: DriveSpecifier::with_origin(origin),
+            },
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn init() -> Result<()> {
+        let test_name = "cli_init";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Deinitialize for user
+        cmd_delete(origin).await.ok();
+        // Assert failure
+        assert!(cmd_prepare(origin).run().await.is_err());
+        // Initialization worked
+        cmd_create(origin).run().await?;
+        // Assert the bucket exists now
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
+        // Teardown test
+        test_teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn init_deinit() -> Result<()> {
+        let test_name = "cli_init_deinit";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Deinit if present
+        cmd_delete(origin).await.ok();
+        // Assert no bucket exists yet
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_none());
+        // Initialization worked
+        cmd_create(origin).run().await?;
+        // Assert the bucket exists now
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_some());
+        // Deinitialize the directory
+        cmd_delete(origin).await?;
+        // Assert the bucket is gone again
+        assert!(GlobalConfig::from_disk()
+            .await?
+            .get_bucket(origin)
+            .is_none());
+        // Teardown test
+        test_teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn prepare() -> Result<()> {
+        let test_name = "cli_prepare";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Initialize tomb
+        cmd_create(origin).run().await?;
+        // Run prepare and assert success
+        cmd_prepare(origin).run().await?;
+        // Teardown test
+        test_teardown(test_name).await
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn restore() -> Result<()> {
+        let test_name = "cli_restore";
+        // Setup test
+        let origin = &test_setup(test_name).await?;
+        // Initialize tomb
+        cmd_create(origin).run().await?;
+        // Run prepare and assert success
+        cmd_prepare(origin).run().await?;
+        // Run restore and assert success
+        cmd_restore(origin).run().await?;
+        // Assert equality
+        // let restored = GlobalConfig::from_disk().await?.get_bucket(origin)?.origin;
+        // assert_paths(origin, rest÷ored).expect("restored dir does not match origin");
+        // Teardown test
+        test_teardown(test_name).await
+    }
+}

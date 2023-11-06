@@ -5,7 +5,7 @@ use thiserror::Error;
 use tomb_crypt::prelude::TombCryptError;
 use uuid::Uuid;
 
-use crate::banyan_cli::cli::specifiers::DriveSpecifier;
+use crate::banyan_cli::specifiers::DriveSpecifier;
 
 /// Errors for the Tomb CLI & Native program
 #[derive(Error, Debug)]

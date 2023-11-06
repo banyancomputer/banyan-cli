@@ -14,18 +14,18 @@ pub mod restore;
 #[cfg(test)]
 mod test {
     use super::{add, error::TombError};
-    use crate::banyan_cli::{
-        cli::specifiers::DriveSpecifier,
-        pipelines::{configure, prepare, remove, restore},
-        types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
-        utils::{
-            test::{test_setup, test_setup_structured, test_teardown},
-            wnfsio::compute_directory_size,
-        },
-    };
     use crate::{
         banyan_api::client::Client,
+        banyan_cli::specifiers::DriveSpecifier,
         banyan_common::utils::wnfsio::{decompress_bytes, path_to_segments},
+        banyan_native::{
+            pipelines::{configure, prepare, remove, restore},
+            types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
+            utils::{
+                test::{test_setup, test_setup_structured, test_teardown},
+                wnfsio::compute_directory_size,
+            },
+        },
     };
 
     use anyhow::Result;

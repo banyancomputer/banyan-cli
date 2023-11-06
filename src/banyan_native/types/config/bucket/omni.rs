@@ -3,10 +3,9 @@ use crate::banyan_api::{
     client::Client,
     models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
 };
-use crate::banyan_cli::{
-    cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
-    pipelines::error::TombError,
-    types::config::globalconfig::GlobalConfig,
+use crate::{
+    banyan_cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
+    banyan_native::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig},
 };
 use colored::{ColoredString, Colorize};
 use std::{

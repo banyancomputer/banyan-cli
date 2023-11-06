@@ -2,14 +2,14 @@ use super::error::TombError;
 use crate::{
     banyan_api::{client::Client, models::metadata::Metadata},
     banyan_blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
-    banyan_cli::{
+    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
+    banyan_native::{
         types::{
             config::{bucket::OmniBucket, globalconfig::GlobalConfig},
             spider::PreparePipelinePlan,
         },
         utils::prepare::{create_plans, process_plans},
     },
-    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
 };
 use anyhow::Result;
 use std::path::PathBuf;

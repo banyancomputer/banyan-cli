@@ -1,5 +1,5 @@
 use super::OmniBucket;
-use crate::banyan_cli::{
+use crate::banyan_native::{
     pipelines::{error::TombError, restore},
     types::config::globalconfig::GlobalConfig,
 };

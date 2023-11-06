@@ -1,12 +1,18 @@
-use super::{super::specifiers::DriveSpecifier, KeyCommand, MetadataCommand, RunnableCommand};
-use crate::banyan_cli::{
-    pipelines::{error::TombError, prepare, restore},
-    types::config::{
-        bucket::{sync_bucket, OmniBucket},
-        globalconfig::GlobalConfig,
+use crate::{
+    banyan_api::client::Client,
+    banyan_cli::{
+        commands::{KeyCommand, MetadataCommand, RunnableCommand},
+        specifiers::DriveSpecifier,
+    },
+    banyan_common::metadata::FsMetadata,
+    banyan_native::{
+        pipelines::{error::TombError, prepare, restore},
+        types::config::{
+            bucket::{sync_bucket, OmniBucket},
+            globalconfig::GlobalConfig,
+        },
     },
 };
-use crate::{banyan_api::client::Client, banyan_common::metadata::FsMetadata};
 use async_trait::async_trait;
 use bytesize::ByteSize;
 use clap::Subcommand;

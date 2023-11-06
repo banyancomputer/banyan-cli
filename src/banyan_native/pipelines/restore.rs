@@ -2,11 +2,11 @@ use super::error::TombError;
 use crate::{
     banyan_api::client::Client,
     banyan_blockstore::{BanyanApiBlockStore, DoubleSplitStore},
-    banyan_cli::{
+    banyan_common::metadata::FsMetadata,
+    banyan_native::{
         types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
         utils::restore::restore_nodes,
     },
-    banyan_common::metadata::FsMetadata,
 };
 use anyhow::Result;
 

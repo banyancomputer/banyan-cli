@@ -14,8 +14,10 @@ pub use keys::*;
 pub use metadata::*;
 pub use runnable_command::RunnableCommand;
 
-use crate::banyan_api::client::Client;
-use crate::banyan_cli::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig};
+use crate::{
+    banyan_api::client::Client,
+    banyan_native::{pipelines::error::TombError, types::config::globalconfig::GlobalConfig},
+};
 use async_trait::async_trait;
 use clap::Subcommand;
 

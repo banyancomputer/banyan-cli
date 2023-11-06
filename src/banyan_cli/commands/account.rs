@@ -1,11 +1,15 @@
 use super::RunnableCommand;
-use crate::banyan_api::{
-    client::{Client, Credentials},
-    error::ClientError,
-    models::account::Account,
-    requests::core::auth::device_api_key::regwait::start::{StartRegwait, StartRegwaitResponse},
+use crate::{
+    banyan_api::{
+        client::{Client, Credentials},
+        error::ClientError,
+        models::account::Account,
+        requests::core::auth::device_api_key::regwait::start::{
+            StartRegwait, StartRegwaitResponse,
+        },
+    },
+    banyan_native::types::config::globalconfig::GlobalConfig,
 };
-use crate::banyan_cli::types::config::globalconfig::GlobalConfig;
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
 use bytesize::ByteSize;
