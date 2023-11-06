@@ -32,7 +32,7 @@ test-case = "^3"
 thiserror = "^1"
 uuid = { version = "^1", features = ["serde", "v4"] }
 wasm-bindgen = "^0.2"
-unsigned-varint = "^0.7"
+unsigned-varint = "^0.8"
 bytes = "1.5.0"
 async-recursion = "1.0.5"
 mime_guess = "^2"
