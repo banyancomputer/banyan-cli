@@ -10,7 +10,7 @@
 // #![deny(unreachable_pub)]
 #![feature(seek_stream_len)]
 
-pub mod banyan;
+pub mod banyan_cli;
 pub mod banyan_common;
 
 #[cfg(target_arch = "wasm32")]

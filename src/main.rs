@@ -8,7 +8,7 @@
 
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
 use anyhow::Result;
-use banyan_cli::banyan::cli::{self, commands::RunnableCommand};
+use banyan_cli::banyan_cli::cli::{self, commands::RunnableCommand};
 use clap::Parser;
 use std::io::Write;
 
