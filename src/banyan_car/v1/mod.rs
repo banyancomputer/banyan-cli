@@ -2,8 +2,6 @@
 pub mod block;
 /// CARv1 Header
 pub mod header;
-/// Custom Index of CARv1 content
-// pub mod index;
 
 // Code
 use anyhow::Result;
@@ -15,8 +13,9 @@ use std::{
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
 
-use crate::{
-    banyan_car::v2::index::INDEX_SORTED_CODEC, banyan_common::traits::streamable::Streamable,
+use crate::banyan_car::{
+    v2::index::INDEX_SORTED_CODEC, 
+    Streamable,
 };
 
 use self::{block::Block, header::Header};

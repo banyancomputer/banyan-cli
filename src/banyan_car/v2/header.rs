@@ -1,6 +1,6 @@
-use crate::{
-    banyan_car::varint::{read_leu128, read_leu64},
-    banyan_common::traits::streamable::Streamable,
+use crate::banyan_car::{
+    varint::{read_leu128, read_leu64},
+    streamable::Streamable,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -127,7 +127,7 @@ mod test {
         Ok(())
     }
 
-    crate::banyan_common::utils::tests::streamable_tests! {
+    crate::banyan_car::streamable_tests! {
         Header:
         v2header: Header {
             characteristics: 0,

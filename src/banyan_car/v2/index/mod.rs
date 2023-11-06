@@ -13,13 +13,11 @@ use std::{
 use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
-use crate::{
-    banyan_car::{
-        error::CARError,
-        v1::block::Block,
-        varint::{encode_varint_u128, read_varint_u128},
-    },
-    banyan_common::traits::streamable::Streamable,
+use crate::banyan_car::{
+    error::CARError,
+    v1::block::Block,
+    varint::{encode_varint_u128, read_varint_u128},
+    Streamable
 };
 use indexsorted::Bucket;
 
@@ -162,7 +160,7 @@ mod test {
         }
     }
 
-    crate::banyan_common::utils::tests::streamable_tests! {
+    crate::banyan_car::streamable_tests! {
         Bucket:
         indexsorted: index_sorted_example(),
 

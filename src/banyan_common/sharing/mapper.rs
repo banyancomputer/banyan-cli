@@ -8,7 +8,7 @@ use wnfs::private::PrivateRef;
 use std::collections::{BTreeMap, HashMap};
 use wnfs::libipld::Ipld;
 
-use crate::banyan_common::share::enc_ref::EncryptedPrivateRef;
+use crate::banyan_common::sharing::enc_ref::EncryptedPrivateRef;
 
 const PUBLIC_KEY_LABEL: &str = "PUBLIC_KEY";
 const ENCRYPTED_PRIVATE_REF_LABEL: &str = "ENCRYPTED_PRIVATE_REF";

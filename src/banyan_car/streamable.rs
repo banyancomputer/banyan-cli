@@ -1,3 +1,14 @@
+use anyhow::Result;
+use std::io::{Read, Seek, Write};
+
+/// Custom Stream-Based Serialization
+pub trait Streamable: Sized {
+    /// Read the bytes
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self>;
+    /// Write the bytes
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()>;
+}
+
 /// Macro for generating a serialization test for any type which conforms to the Streamable trait
 #[allow(unused_macros)]
 macro_rules! streamable_tests {
@@ -8,7 +19,7 @@ macro_rules! streamable_tests {
     $(
         mod $name {
             #[allow(unused_imports)]
-            use $crate::banyan_common::traits::streamable::Streamable;
+            use $crate::banyan_car::Streamable;
             #[allow(unused_imports)]
             use anyhow::Result;
             #[allow(unused_imports)]

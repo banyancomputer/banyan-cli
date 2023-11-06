@@ -7,12 +7,10 @@ pub mod index;
 
 // Code
 use self::{header::Header, index::indexable::Indexable};
-use crate::{
-    banyan_car::{
-        v1::{block::Block, CarV1},
-        v2::index::{indexsorted::Bucket, Index},
-    },
-    banyan_common::traits::streamable::Streamable,
+use crate::banyan_car::{
+    v1::{block::Block, CarV1},
+    v2::index::{indexsorted::Bucket, Index},
+    Streamable
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

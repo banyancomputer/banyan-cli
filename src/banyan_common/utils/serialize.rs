@@ -1,4 +1,4 @@
-use crate::banyan_common::share::manager::ShareManager;
+use crate::banyan_common::sharing::manager::ShareManager;
 use anyhow::Result;
 use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::rc::Rc;

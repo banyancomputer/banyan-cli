@@ -1,4 +1,4 @@
-use crate::banyan_common::traits::streamable::Streamable;
+use crate::banyan_car::Streamable;
 use std::fmt::Debug;
 use wnfs::libipld::Cid;
 

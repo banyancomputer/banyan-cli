@@ -13,15 +13,9 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-/// Macro for testing streamable implementations
-pub mod streamable;
 // TODO: Is anything using this?
 /// Macro for testing whether a type can be serialized into DagCbor
 pub mod serialize;
-
-// Allows us to use this macro within this crate
-#[allow(unused_imports)]
-pub(crate) use streamable::streamable_tests;
 
 /// Create a copy of a given fixture to play around with
 pub fn car_test_setup(

@@ -6,3 +6,6 @@ pub mod v1;
 pub mod v2;
 /// Varint functionality used by both CARs
 mod varint;
+/// Streamable Trait and testing Macro
+mod streamable;
+pub use streamable::*;

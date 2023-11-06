@@ -1,8 +1,8 @@
 use crate::banyan_car::{
     error::CARError,
     varint::{encode_varint_u64, read_varint_u64},
+    Streamable
 };
-use crate::banyan_common::traits::streamable::Streamable;
 use anyhow::Result;
 
 use serde::{Deserialize, Serialize};
@@ -118,7 +118,7 @@ impl Streamable for Header {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    use super::*;
+    use crate::banyan_car::Streamable;
 
     use super::Header;
     use anyhow::Result;
@@ -169,7 +169,7 @@ mod test {
         Ok(())
     }
 
-    crate::banyan_common::utils::tests::streamable_tests! {
+    crate::banyan_car::streamable_tests! {
         Header:
         v1header: {
             let header = Header::default(1);

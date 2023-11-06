@@ -1,6 +1,6 @@
-use crate::{
-    banyan_car::varint::{encode_varint_u128, read_varint_u128},
-    banyan_common::traits::streamable::Streamable,
+use crate::banyan_car::{
+    varint::{encode_varint_u128, read_varint_u128},
+    Streamable
 };
 use anyhow::Result;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -101,7 +101,7 @@ mod test {
     #[allow(unused_imports)]
     use wnfs::libipld::IpldCodec;
 
-    crate::banyan_common::utils::tests::streamable_tests! {
+    crate::banyan_car::streamable_tests! {
         Block:
         carblock: {
             // Raw bytes
