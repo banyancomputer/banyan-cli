@@ -16,7 +16,7 @@ use uuid::Uuid;
 /// Credentials in order to sign and verify messages for a Banyan account
 pub struct Credentials {
     /// The unique account id (used as a JWT subject)
-    pub account_id: Uuid,
+    pub user_id: Uuid,
     /// The signing key (used to sign JWTs)
     pub signing_key: EcSignatureKey,
 }
@@ -25,17 +25,17 @@ impl Debug for Credentials {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Get the pem string for the signing key
         f.debug_struct("Credentials")
-            .field("account_id", &self.account_id)
+            .field("user_id", &self.user_id)
             .finish()
     }
 }
 
 impl Credentials {
     /// Create a new set of credentials
-    pub fn new(account_id: String, signing_key: EcSignatureKey) -> anyhow::Result<Self> {
-        let account_id = Uuid::parse_str(&account_id).expect("invalid account_id");
+    pub fn new(user_id: String, signing_key: EcSignatureKey) -> anyhow::Result<Self> {
+        let user_id = Uuid::parse_str(&user_id).expect("invalid user_id");
         Ok(Self {
-            account_id,
+            user_id,
             signing_key,
         })
     }
@@ -102,7 +102,7 @@ impl Client {
         self.bearer_token = None;
         self.claims = Some(ApiToken::new(
             AUDIENCE.to_string(),
-            credentials.account_id.to_string(),
+            credentials.user_id.to_string(),
         ));
         self.signing_key = Some(credentials.signing_key);
     }

@@ -25,7 +25,7 @@ impl ApiRequest for CreateAccount {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         // Note: This endpoint is only exposed for testing purposes, and should not be used in production.
-        let full_url = base_url.join("/api/v1/auth/fake_account").unwrap();
+        let full_url = base_url.join("/api/v1/auth/fake_user").unwrap();
         client.post(full_url).json(&self)
     }
 
@@ -40,7 +40,7 @@ impl ApiRequest for CreateFakeAccount {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         // Note: This endpoint is only exposed for testing purposes, and should not be used in production.
-        let full_url = base_url.join("/api/v1/auth/fake_account").unwrap();
+        let full_url = base_url.join("/api/v1/auth/fake_user").unwrap();
         client.post(full_url).json(&self)
     }
 

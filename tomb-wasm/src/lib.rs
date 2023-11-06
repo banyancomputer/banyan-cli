@@ -49,7 +49,7 @@ impl TombWasm {
     /// # Arguments
     ///
     /// * `web_signing_key` - The CryptoKeyPair to use for signing requests
-    /// * `account_id` - The id of the account to use
+    /// * `user_id` - The id of the account to use
     /// * `core_endpoint` - The API endpoint to use for core
     /// * `data_endpoint` - The API endpoint to use for data
     ///
@@ -60,7 +60,7 @@ impl TombWasm {
     /// Don't call it from multiple threads in parallel!
     pub async fn new(
         signing_key_pem: String,
-        account_id: String,
+        user_id: String,
         core_endpoint: String,
         data_endpoint: String,
     ) -> Self {
@@ -78,9 +78,9 @@ impl TombWasm {
             .map_err(|err| TombWasmError(format!("unable to create signature key from pem: {err}")))
             .unwrap();
 
-        let account_id = Uuid::parse_str(&account_id).unwrap();
+        let user_id = Uuid::parse_str(&user_id).unwrap();
         let banyan_credentials = Credentials {
-            account_id,
+            user_id,
             signing_key,
         };
         banyan_client.with_credentials(banyan_credentials);

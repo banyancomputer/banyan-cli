@@ -31,7 +31,7 @@ pub struct GlobalConfig {
     /// Remote endpoints
     pub endpoints: Endpoints,
     /// Remote account id
-    pub remote_account_id: Option<Uuid>,
+    pub remote_user_id: Option<Uuid>,
     /// Bucket Configurations
     pub(crate) buckets: Vec<LocalBucket>,
 }
@@ -43,7 +43,7 @@ impl Default for GlobalConfig {
             endpoints: Endpoints::default(),
             wrapping_key_path: default_wrapping_key_path(),
             api_key_path: default_api_key_path(),
-            remote_account_id: None,
+            remote_user_id: None,
             buckets: Vec::new(),
         }
     }
@@ -74,11 +74,11 @@ impl GlobalConfig {
     // Get the Gredentials
     async fn get_credentials(&self) -> Result<Credentials> {
         if let Ok(signing_key) = self.api_key().await
-            && let Some(account_id) = self.remote_account_id
+            && let Some(user_id) = self.remote_user_id
         {
             Ok(Credentials {
                 signing_key,
-                account_id,
+                user_id,
             })
         } else {
             Err(anyhow!("No credentials."))
@@ -106,9 +106,9 @@ impl GlobalConfig {
         // If there is a Claim
         if let Some(token) = client.claims {
             // Update the remote account ID
-            self.remote_account_id = Some(Uuid::from_str(token.sub()?)?);
+            self.remote_user_id = Some(Uuid::from_str(token.sub()?)?);
         } else {
-            self.remote_account_id = None;
+            self.remote_user_id = None;
         }
 
         // If the Client has an API key
