@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use wasm_bindgen::prelude::*;
 
-use crate::banyan_common::banyan_api::models::bucket_key::BucketKey;
+use crate::banyan_api::models::bucket_key::BucketKey;
 
 /// WASM Compatible version of the BucketKey struct
 #[derive(Debug)]

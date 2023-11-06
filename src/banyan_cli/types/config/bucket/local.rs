@@ -1,5 +1,8 @@
-use crate::banyan_common::{
-    banyan_api::models::storage_ticket::StorageTicket, metadata::FsMetadata,
+use crate::{
+    banyan_api::models::storage_ticket::StorageTicket,
+    banyan_blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
+    banyan_cli::utils::config::xdg_data_home,
+    banyan_common::metadata::FsMetadata,
 };
 use anyhow::{Ok, Result};
 use colored::Colorize;
@@ -14,11 +17,6 @@ use std::{
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
 use wnfs::{libipld::Cid, private::PrivateNodeOnPathHistory};
-
-use crate::banyan_cli::{
-    types::blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
-    utils::config::xdg_data_home,
-};
 
 const BUCKET_METADATA_FILE_NAME: &str = "metadata.car";
 const BUCKET_CONTENT_DIR_NAME: &str = "deltas";

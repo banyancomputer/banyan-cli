@@ -1,8 +1,10 @@
-use crate::banyan_common::{
-    blockstore::{carv2_memory::CarV2MemoryBlockStore, split::DoubleSplitStore, RootedBlockStore},
-    share::manager::ShareManager,
-    utils::serialize::*,
-    utils::{error::SerialError, wnfsio::path_to_segments},
+use crate::{
+    banyan_blockstore::{CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
+    banyan_common::{
+        share::manager::ShareManager,
+        utils::serialize::*,
+        utils::{error::SerialError, wnfsio::path_to_segments},
+    },
 };
 use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
@@ -670,7 +672,7 @@ pub struct FsMetadataEntry {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::banyan_common::blockstore::memory::MemoryBlockStore;
+    use crate::banyan_blockstore::MemoryBlockStore;
     use anyhow::Result;
 
     async fn _init_save_unlock(

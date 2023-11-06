@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
+use crate::banyan_api::client::Client;
 use crate::banyan_cli::types::config::globalconfig::GlobalConfig;
-use crate::banyan_common::banyan_api::client::Client;
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;

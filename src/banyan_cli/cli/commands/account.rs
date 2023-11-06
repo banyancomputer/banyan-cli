@@ -1,11 +1,11 @@
 use super::RunnableCommand;
-use crate::banyan_cli::types::config::globalconfig::GlobalConfig;
-use crate::banyan_common::banyan_api::{
+use crate::banyan_api::{
     client::{Client, Credentials},
     error::ClientError,
     models::account::Account,
     requests::core::auth::device_api_key::regwait::start::{StartRegwait, StartRegwaitResponse},
 };
+use crate::banyan_cli::types::config::globalconfig::GlobalConfig;
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
 use bytesize::ByteSize;
@@ -108,7 +108,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
             #[cfg(feature = "fake")]
             AccountCommand::Register => {
                 // Additional imports
-                use crate::banyan_common::banyan_api::requests::core::auth::fake_account::create::{
+                use crate::banyan_api::requests::core::auth::fake_account::create::{
                     CreateAccountResponse, CreateFakeAccount,
                 };
                 use tomb_crypt::prelude::EcSignatureKey;

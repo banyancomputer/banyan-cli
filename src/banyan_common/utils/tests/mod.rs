@@ -12,8 +12,9 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest},
 };
 
-use crate::banyan_common::blockstore::memory::MemoryBlockStore;
-use crate::banyan_common::traits::blockstore::RootedBlockStore;
+use crate::{
+    banyan_blockstore::MemoryBlockStore, banyan_common::traits::blockstore::RootedBlockStore,
+};
 
 /// Macro for testing streamable implementations
 pub mod streamable;

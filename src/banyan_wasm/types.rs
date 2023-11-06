@@ -1,23 +1,15 @@
 use std::collections::BTreeMap;
 
+use crate::{
+    banyan_api::models::{metadata::*, snapshot::*},
+    banyan_common::metadata::{FsMetadataEntry, FsMetadataEntryType},
+    banyan_wasm::{error::TombWasmError, log},
+    value,
+};
 use js_sys::{Object, Reflect};
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
-use crate::{
-    banyan_common::{
-        banyan_api::models::{
-            metadata::*,
-            snapshot::*,
-        },
-        metadata::{FsMetadataEntry, FsMetadataEntryType}
-    },
-    banyan_wasm::{
-        error::TombWasmError,
-        log,
-    },
-    value
-};
 
 /// Wrapper around a NodeMetadata
 #[derive(Debug)]

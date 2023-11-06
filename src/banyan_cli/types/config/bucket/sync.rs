@@ -3,7 +3,7 @@ use crate::banyan_cli::{
     pipelines::{error::TombError, restore},
     types::config::globalconfig::GlobalConfig,
 };
-use crate::banyan_common::{
+use crate::{
     banyan_api::{
         blockstore::BanyanApiBlockStore,
         client::Client,
@@ -15,8 +15,8 @@ use crate::banyan_common::{
         },
         requests::staging::upload::content::UploadContent,
     },
-    blockstore::{carv2_memory::CarV2MemoryBlockStore, RootedBlockStore},
-    metadata::FsMetadata,
+    banyan_blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
+    banyan_common::metadata::FsMetadata,
 };
 use colored::Colorize;
 use futures_util::StreamExt;

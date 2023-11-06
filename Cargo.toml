@@ -69,7 +69,6 @@ futures-util = "^0.3"
 futures-core = "0.3.29"
 bytes = "1.5.0"
 
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 uuid = { version = "^1", features = ["serde", "v4"] }
 async-trait = "^0.1"

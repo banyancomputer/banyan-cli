@@ -1,5 +1,7 @@
 use super::error::TombError;
 use crate::{
+    banyan_api::{blockstore::BanyanApiBlockStore, client::Client, models::metadata::Metadata},
+    banyan_blockstore::{DoubleSplitStore, RootedBlockStore},
     banyan_cli::{
         types::{
             config::{bucket::OmniBucket, globalconfig::GlobalConfig},
@@ -7,12 +9,7 @@ use crate::{
         },
         utils::prepare::{create_plans, process_plans},
     },
-    banyan_common::{
-        banyan_api::{blockstore::BanyanApiBlockStore, client::Client, models::metadata::Metadata},
-        blockstore::{split::DoubleSplitStore, RootedBlockStore},
-        metadata::FsMetadata,
-        utils::wnfsio::path_to_segments,
-    },
+    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
 };
 use anyhow::Result;
 use std::path::PathBuf;

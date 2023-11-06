@@ -1,12 +1,12 @@
 use super::error::TombError;
-use crate::banyan_cli::{
-    types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
-    utils::restore::restore_nodes,
-};
-use crate::banyan_common::{
+use crate::{
     banyan_api::{blockstore::BanyanApiBlockStore, client::Client},
-    blockstore::split::DoubleSplitStore,
-    metadata::FsMetadata,
+    banyan_blockstore::DoubleSplitStore,
+    banyan_cli::{
+        types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
+        utils::restore::restore_nodes,
+    },
+    banyan_common::metadata::FsMetadata,
 };
 use anyhow::Result;
 

@@ -6,7 +6,7 @@ use crate::banyan_cli::{
         globalconfig::GlobalConfig,
     },
 };
-use crate::banyan_common::{banyan_api::client::Client, metadata::FsMetadata};
+use crate::{banyan_api::client::Client, banyan_common::metadata::FsMetadata};
 use async_trait::async_trait;
 use bytesize::ByteSize;
 use clap::Subcommand;

@@ -1,5 +1,5 @@
-use gloo::console::log;
 use futures_util::StreamExt;
+use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
@@ -9,28 +9,22 @@ use wasm_bindgen::prelude::*;
 use wnfs::private::PrivateNode;
 
 use crate::{
-    banyan_common::{
-        blockstore::{carv2_memory::CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
-        metadata::FsMetadata,
-        banyan_api::{
-            blockstore::BanyanApiBlockStore,
-            client::Client,
-            models::{
-                snapshot::Snapshot,
-                storage_ticket::StorageTicket,
-                bucket::Bucket,
-                bucket_key::BucketKey,
-                metadata::Metadata,
-            },
-            requests::staging::upload::content::UploadContent,
-        }
+    banyan_api::{
+        blockstore::BanyanApiBlockStore,
+        client::Client,
+        models::{
+            bucket::Bucket, bucket_key::BucketKey, metadata::Metadata, snapshot::Snapshot,
+            storage_ticket::StorageTicket,
+        },
+        requests::staging::upload::content::UploadContent,
     },
+    banyan_blockstore::{CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
+    banyan_common::metadata::FsMetadata,
     banyan_wasm::{
         error::TombWasmError,
         types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot},
-        TombResult,
-        WasmBucket,
-    }
+        TombResult, WasmBucket,
+    },
 };
 
 /// Mount point for a Bucket in WASM

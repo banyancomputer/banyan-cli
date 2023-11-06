@@ -23,20 +23,16 @@ use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    banyan_common::banyan_api::{
-        requests::core::auth::device_api_key::regwait::end::EndRegwait,
+    banyan_api::{
         client::{Client, Credentials},
         models::{
             account::Account,
             bucket::{Bucket, BucketType, StorageClass},
             bucket_key::*,
         },
+        requests::core::auth::device_api_key::regwait::end::EndRegwait,
     },
-    banyan_wasm::{
-        error::TombWasmError,
-        mount::WasmMount,
-        types::*
-    }
+    banyan_wasm::{error::TombWasmError, mount::WasmMount, types::*},
 };
 
 /// Special Result type for WASM builds

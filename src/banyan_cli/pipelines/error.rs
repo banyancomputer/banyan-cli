@@ -1,4 +1,4 @@
-use crate::banyan_common::banyan_api::error::ClientError;
+use crate::banyan_api::error::ClientError;
 use colored::Colorize;
 use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;

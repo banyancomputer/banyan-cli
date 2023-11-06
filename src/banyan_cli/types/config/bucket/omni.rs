@@ -1,12 +1,12 @@
 use super::{determine_sync_state, LocalBucket, SyncState};
+use crate::banyan_api::{
+    client::Client,
+    models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
+};
 use crate::banyan_cli::{
     cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
     pipelines::error::TombError,
     types::config::globalconfig::GlobalConfig,
-};
-use crate::banyan_common::banyan_api::{
-    client::Client,
-    models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
 };
 use colored::{ColoredString, Colorize};
 use std::{

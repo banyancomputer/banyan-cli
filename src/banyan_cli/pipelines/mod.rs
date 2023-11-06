@@ -23,9 +23,9 @@ mod test {
             wnfsio::compute_directory_size,
         },
     };
-    use crate::banyan_common::{
+    use crate::{
         banyan_api::client::Client,
-        utils::wnfsio::{decompress_bytes, path_to_segments},
+        banyan_common::utils::wnfsio::{decompress_bytes, path_to_segments},
     };
 
     use anyhow::Result;

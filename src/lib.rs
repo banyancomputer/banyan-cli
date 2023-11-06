@@ -18,7 +18,13 @@ pub mod banyan_cli;
 #[macro_use]
 extern crate log;
 
-/// Common functionality
+/// API Interaction
+pub mod banyan_api;
+/// BlockStores
+pub mod banyan_blockstore;
+/// CAR Format Parsing
+pub mod banyan_car;
+/// Architecture-Independent functionality
 pub mod banyan_common;
 
 #[cfg(target_arch = "wasm32")]

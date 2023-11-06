@@ -1,9 +1,10 @@
-use crate::banyan_cli::{
-    types::spider::PreparePipelinePlan,
-    utils::{grouper::grouper, spider},
-};
-use crate::banyan_common::{
-    blockstore::RootedBlockStore, metadata::FsMetadata, utils::wnfsio::path_to_segments,
+use crate::{
+    banyan_blockstore::RootedBlockStore,
+    banyan_cli::{
+        types::spider::PreparePipelinePlan,
+        utils::{grouper::grouper, spider},
+    },
+    banyan_common::{metadata::FsMetadata, utils::wnfsio::path_to_segments},
 };
 use anyhow::Result;
 use std::{

@@ -1,8 +1,8 @@
+use crate::banyan_api::{client::Client, models::metadata::Metadata};
 use crate::banyan_cli::{
     pipelines::error::TombError,
     types::config::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };
-use crate::banyan_common::banyan_api::{client::Client, models::metadata::Metadata};
 
 use super::{super::specifiers::*, RunnableCommand};
 use async_trait::async_trait;

@@ -4,8 +4,8 @@ use std::convert::TryFrom;
 
 use gloo::console::log;
 use js_sys::{Array, Uint8Array};
-use crate::banyan_common::banyan_api::client::Client;
-use crate::banyan_common::banyan_api::models::account::Account;
+use crate::banyan_api::client::Client;
+use crate::banyan_api::models::account::Account;
 use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
 use tomb_wasm::types::WasmFsMetadataEntry;
 use tomb_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey};
