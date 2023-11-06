@@ -1,5 +1,3 @@
-/// Our api blockstore implementation
-pub mod blockstore;
 /// Our API client
 pub mod client;
 /// Error

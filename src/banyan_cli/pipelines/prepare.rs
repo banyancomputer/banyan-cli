@@ -1,7 +1,7 @@
 use super::error::TombError;
 use crate::{
-    banyan_api::{blockstore::BanyanApiBlockStore, client::Client, models::metadata::Metadata},
-    banyan_blockstore::{DoubleSplitStore, RootedBlockStore},
+    banyan_api::{client::Client, models::metadata::Metadata},
+    banyan_blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     banyan_cli::{
         types::{
             config::{bucket::OmniBucket, globalconfig::GlobalConfig},

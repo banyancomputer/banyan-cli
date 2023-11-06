@@ -1,3 +1,4 @@
+mod api;
 mod carv2_memory;
 mod memory;
 mod split;
@@ -7,19 +8,18 @@ mod split;
 pub use crate::banyan_common::traits::blockstore::RootedBlockStore;
 pub use wnfs::common::blockstore::BlockStore;
 
+/// Api BlockStore
+pub use api::BanyanApiBlockStore;
+/// Memory based CarV2 formatted BlockStore implementation
+pub use carv2_memory::CarV2MemoryBlockStore;
 /// Disk based BlockStore implementation
 /// Memory based BlockStore implementation
 pub use memory::MemoryBlockStore;
-/// Memory based CarV2 formatted BlockStore implementation
-pub use carv2_memory::CarV2MemoryBlockStore;
-/// Split blockstore
+/// Split BlockStore
 pub use split::DoubleSplitStore;
 
-// #[cfg(not(target_arch="wasm32"))]
-pub mod disk;
-pub mod carv2_disk;
-pub mod multi_carv2_disk;
+#[cfg(not(target_arch = "wasm32"))]
+mod io;
 
-pub use disk::DiskBlockStore;
-pub use carv2_disk::CarV2DiskBlockStore;
-pub use multi_carv2_disk::MultiCarV2DiskBlockStore;
+#[cfg(not(target_arch = "wasm32"))]
+pub use io::*;

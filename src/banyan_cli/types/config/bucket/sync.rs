@@ -5,7 +5,6 @@ use crate::banyan_cli::{
 };
 use crate::{
     banyan_api::{
-        blockstore::BanyanApiBlockStore,
         client::Client,
         error::ClientError,
         models::{
@@ -15,7 +14,7 @@ use crate::{
         },
         requests::staging::upload::content::UploadContent,
     },
-    banyan_blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
+    banyan_blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore, RootedBlockStore},
     banyan_common::metadata::FsMetadata,
 };
 use colored::Colorize;

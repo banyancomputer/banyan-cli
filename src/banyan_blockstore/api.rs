@@ -1,5 +1,8 @@
 use crate::{
-    banyan_api::{client::Client, requests::staging::blocks::*},
+    banyan_api::{
+        client::Client,
+        requests::{core::blocks::locate::LocationRequest, staging::blocks::*},
+    },
     banyan_blockstore::BlockStore,
 };
 use anyhow::{anyhow, Result};
@@ -12,8 +15,6 @@ use std::{
     collections::{BTreeSet, HashMap},
 };
 use wnfs::libipld::{Cid, IpldCodec};
-
-use super::requests::core::blocks::locate::LocationRequest;
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
 

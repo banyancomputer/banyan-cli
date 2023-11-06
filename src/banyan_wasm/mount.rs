@@ -10,7 +10,6 @@ use wnfs::private::PrivateNode;
 
 use crate::{
     banyan_api::{
-        blockstore::BanyanApiBlockStore,
         client::Client,
         models::{
             bucket::Bucket, bucket_key::BucketKey, metadata::Metadata, snapshot::Snapshot,
@@ -18,7 +17,9 @@ use crate::{
         },
         requests::staging::upload::content::UploadContent,
     },
-    banyan_blockstore::{CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
+    banyan_blockstore::{
+        BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore,
+    },
     banyan_common::metadata::FsMetadata,
     banyan_wasm::{
         error::TombWasmError,
