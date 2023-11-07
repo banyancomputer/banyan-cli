@@ -138,19 +138,19 @@ impl BucketKey {
 #[cfg(feature = "integration-tests")]
 #[cfg(test)]
 mod test {
-    use std::collections::BTreeSet;
-
-    use reqwest::Body;
-    use tomb_crypt::hex_fingerprint;
-    use tomb_crypt::prelude::PrivateKey;
-
-    use super::*;
     use crate::api::{
         models::{
-            account::test::authenticated_client, bucket::test::create_bucket, metadata::Metadata,
+            account::test::authenticated_client,
+            bucket::test::create_bucket,
+            bucket_key::{BucketKey, ClientError},
+            metadata::Metadata,
         },
         utils::generate_bucket_key,
     };
+    use reqwest::Body;
+    use std::collections::BTreeSet;
+    use tomb_crypt::{hex_fingerprint, prelude::PrivateKey};
+    use uuid::Uuid;
 
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {

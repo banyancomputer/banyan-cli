@@ -202,24 +202,28 @@ impl Metadata {
 
 #[cfg(feature = "integration-tests")]
 #[cfg(test)]
-pub mod test {
+pub(crate) mod test {
     use futures_util::stream::StreamExt;
     use reqwest::Body;
     use serial_test::serial;
+    use std::collections::BTreeSet;
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
     use uuid::Uuid;
 
     use crate::{
-        api::models::{
-            account::test::authenticated_client,
-            bucket::{test::create_bucket, Bucket, BucketType, StorageClass},
-            storage_ticket::StorageTicket,
+        api::{
+            client::Client,
+            error::ClientError,
+            models::{
+                account::test::authenticated_client,
+                bucket::{test::create_bucket, Bucket, BucketType, StorageClass},
+                metadata::{Metadata, MetadataState},
+                storage_ticket::StorageTicket,
+            },
         },
         blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
         filesystem::metadata::FsMetadata,
     };
-
-    use super::*;
 
     pub async fn push_empty_metadata(
         bucket_id: Uuid,

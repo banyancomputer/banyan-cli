@@ -49,9 +49,15 @@ impl RootedBlockStore for MemoryBlockStore {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::blockstore::{MemoryBlockStore, RootedBlockStore};
     use anyhow::Result;
-    use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test};
+    use wnfs::{
+        common::{
+            blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test},
+            BlockStore,
+        },
+        libipld::IpldCodec,
+    };
 
     #[tokio::test]
     async fn memory_blockstore() -> Result<()> {

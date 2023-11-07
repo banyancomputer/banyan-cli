@@ -55,10 +55,12 @@ impl Snapshot {
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
-    use super::*;
-    use crate::api::models::{
-        account::test::authenticated_client, bucket::test::create_bucket,
-        metadata::test::push_empty_metadata,
+    use crate::api::{
+        error::ClientError,
+        models::{
+            account::test::authenticated_client, bucket::test::create_bucket,
+            metadata::test::push_empty_metadata,
+        },
     };
 
     #[tokio::test]

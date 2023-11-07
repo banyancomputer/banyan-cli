@@ -182,11 +182,19 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
-    use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
+    use wnfs::{
+        common::{
+            blockstore::{bs_duplication_test, bs_retrieval_test},
+            BlockStore,
+        },
+        libipld::IpldCodec,
+    };
+
+    use crate::blockstore::MultiCarV2DiskBlockStore;
 
     #[tokio::test]
     #[serial]

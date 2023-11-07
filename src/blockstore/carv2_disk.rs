@@ -1,6 +1,6 @@
 use crate::{
     blockstore::{BlockStore, RootedBlockStore},
-    car::{v1::block::Block, v2::CarV2},
+    car::{v1::Block, v2::CarV2},
     utils::{get_read, get_read_write, get_write},
 };
 use anyhow::{anyhow, Result};
@@ -142,8 +142,8 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::blockstore::{test::*, BlockStore, RootedBlockStore};
+
+    use crate::blockstore::{test::*, BlockStore, CarV2DiskBlockStore, RootedBlockStore};
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};

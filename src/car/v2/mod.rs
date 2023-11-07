@@ -1,14 +1,18 @@
 /// Fixture
-pub mod fixture;
+#[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod fixture;
 /// CarV2 Header
-pub(crate) mod header;
+pub mod header;
 /// CarV2 Index
 pub mod index;
 
+pub use header::{Header, HEADER_SIZE};
+
 // Code
-use self::{header::Header, index::indexable::Indexable};
+use self::index::indexable::Indexable;
 use crate::car::{
-    v1::{block::Block, CarV1},
+    v1::{Block, CarV1},
     v2::index::{indexsorted::Bucket, Index},
     Streamable,
 };
@@ -224,7 +228,7 @@ impl CarV2 {
 mod test {
     use crate::{
         blockstore::test::car_test_setup,
-        car::{v1::block::Block, v2::CarV2},
+        car::{v1::Block, v2::CarV2},
         utils::get_read_write,
     };
     use anyhow::Result;

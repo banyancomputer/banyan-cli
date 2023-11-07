@@ -14,7 +14,7 @@ use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
 use uuid::Uuid;
 use wnfs::{libipld::Cid, private::PrivateNodeOnPathHistory};
 

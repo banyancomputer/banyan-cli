@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey};
 use uuid::Uuid;
 
 /// Represents the Global contents of the tomb configuration file in a user's .config
@@ -216,10 +216,15 @@ impl GlobalConfig {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path};
+
+    use crate::native::configuration::{
+        globalconfig::GlobalConfig,
+        xdg::{config_path, default_api_key_path, default_wrapping_key_path},
+    };
 
     #[tokio::test]
     #[serial]

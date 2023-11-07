@@ -1,9 +1,8 @@
+use crate::api::{client::Client, error::ClientError, requests::staging::client_grant::create::*};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-
-use crate::api::{client::Client, error::ClientError, requests::staging::client_grant::create::*};
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{PrivateKey, PublicKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// StorageTicket is a ticket that can be used authenticate requests to stage data to a storage host

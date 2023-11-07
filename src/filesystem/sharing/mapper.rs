@@ -1,8 +1,10 @@
 use super::error::KeyError;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use tomb_crypt::hex_fingerprint;
-use tomb_crypt::prelude::*;
+use tomb_crypt::{
+    hex_fingerprint,
+    prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey},
+};
 use wnfs::private::PrivateRef;
 
 use std::collections::{BTreeMap, HashMap};
@@ -179,13 +181,16 @@ impl<'de> Deserialize<'de> for EncRefMapper {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use super::*;
+
     use anyhow::Result;
+    use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::{
         common::dagcbor,
         libipld::Cid,
-        private::{AesKey, TemporalKey},
+        private::{AesKey, PrivateRef, TemporalKey},
     };
+
+    use crate::filesystem::sharing::mapper::EncRefMapper;
 
     #[tokio::test]
     async fn to_from_ipld() -> Result<()> {

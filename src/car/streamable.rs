@@ -25,7 +25,7 @@ macro_rules! streamable_tests {
             #[allow(unused_imports)]
             use std::io::{Read, Write, Cursor, SeekFrom, Seek};
             #[allow(unused_imports)]
-            use super::*;
+
             #[test]
             fn to_from_bytes() -> Result<()> {
                 // Serialize

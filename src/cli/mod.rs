@@ -9,9 +9,11 @@ pub mod verbosity;
 
 #[cfg(test)]
 mod test {
-    use super::commands::*;
     use crate::{
-        cli::specifiers::*,
+        cli::{
+            commands::{AccountCommand, DrivesCommand, RunnableCommand, TombCommand},
+            specifiers::DriveSpecifier,
+        },
         native::{configuration::globalconfig::GlobalConfig, test::*},
     };
     use anyhow::{anyhow, Result};

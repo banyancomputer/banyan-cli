@@ -1,6 +1,6 @@
 use crate::{
     blockstore::{BlockStore, RootedBlockStore},
-    car::{v1::block::Block, v2::CarV2},
+    car::{v1::Block, v2::CarV2},
 };
 use anyhow::Result;
 use async_trait::async_trait;

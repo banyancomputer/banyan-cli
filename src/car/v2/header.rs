@@ -76,13 +76,13 @@ impl<'de> Deserialize<'de> for Header {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::{
         blockstore::test::car_test_setup,
-        car::v2::{PRAGMA, PRAGMA_SIZE},
+        car::{
+            v2::{header::Header, PRAGMA, PRAGMA_SIZE},
+            Streamable,
+        },
     };
-
-    use super::Header;
     use anyhow::Result;
     use serial_test::serial;
     use std::{
@@ -128,8 +128,8 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        Header:
-        v2header: Header {
+        crate::car::v2::Header:
+        v2header: crate::car::v2::Header {
             characteristics: 0,
             data_offset: 50,
             data_size: 50,

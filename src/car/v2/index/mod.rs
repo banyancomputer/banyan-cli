@@ -15,7 +15,7 @@ use wnfs::libipld::Cid;
 use self::indexable::Indexable;
 use crate::car::{
     error::CARError,
-    v1::block::Block,
+    v1::Block,
     varint::{encode_varint_u128, read_varint_u128},
     Streamable,
 };
@@ -161,10 +161,10 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        Bucket:
-        indexsorted: index_sorted_example(),
+        crate::car::v2::Bucket:
+        indexsorted: crate::car::v2::index::test::index_sorted_example(),
 
-        Index<Bucket>:
-        carv2sortedindex: v2_sorted_index_example(),
+        crate::car::v2::Index<crate::car::v2::Bucket>:
+        carv2sortedindex: crate::car::v2::index::test::v2_sorted_index_example(),
     }
 }

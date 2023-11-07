@@ -14,7 +14,7 @@ mod test {
     use anyhow::{anyhow, Result};
     use rand::Rng;
     use serial_test::serial;
-    use tomb_crypt::prelude::*;
+    use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::{AesKey, PrivateRef, TemporalKey};
 
     fn random_private_ref() -> PrivateRef {

@@ -1,9 +1,16 @@
 /// CARv1 Block
-pub mod block;
+mod block;
 /// CARv1 Header
-pub mod header;
+mod header;
+
+pub use block::Block;
+pub use header::Header;
 
 // Code
+use crate::car::{
+    v2::index::{indexable::Indexable, indexsorted::Bucket, Index, INDEX_SORTED_CODEC},
+    Streamable,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,11 +19,6 @@ use std::{
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
-
-use crate::car::{v2::index::INDEX_SORTED_CODEC, Streamable};
-
-use self::{block::Block, header::Header};
-use super::v2::index::{indexable::Indexable, indexsorted::Bucket, Index};
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -1,9 +1,7 @@
-#[cfg(test)]
-#[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::car::{
-        v1::header::Header,
-        v2::{header::HEADER_SIZE, CarV2, PH_SIZE},
+        v1::Header,
+        v2::{CarV2, HEADER_SIZE, PH_SIZE},
     };
     use anyhow::Result;
     use base58::ToBase58;

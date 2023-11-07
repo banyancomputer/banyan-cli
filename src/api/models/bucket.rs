@@ -224,17 +224,19 @@ impl Bucket {
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 pub mod test {
-    use tomb_crypt::hex_fingerprint;
-    use tomb_crypt::prelude::PrivateKey;
-
-    use super::*;
     use crate::api::{
+        client::Client,
+        error::ClientError,
         models::{
             account::test::{authenticated_client, unauthenticated_client},
+            bucket::{Bucket, BucketType, StorageClass},
+            bucket_key::BucketKey,
             metadata::test::push_metadata_and_snapshot,
         },
         utils::generate_bucket_key,
     };
+    use tomb_crypt::{hex_fingerprint, prelude::PrivateKey};
+    use uuid::Uuid;
 
     pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ClientError> {
         let (key, pem) = generate_bucket_key().await;

@@ -15,7 +15,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PrivateKey};
 use wnfs::{
     common::{BlockStore, Metadata},
     libipld::{Cid, Ipld},
@@ -669,9 +669,11 @@ pub struct FsMetadataEntry {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::blockstore::MemoryBlockStore;
+
+    use crate::{blockstore::MemoryBlockStore, filesystem::metadata::FsMetadata};
     use anyhow::Result;
+    use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
+    use wnfs::private::PrivateNode;
 
     async fn _init_save_unlock(
         wrapping_key: &EcEncryptionKey,

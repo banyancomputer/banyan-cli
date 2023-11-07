@@ -169,12 +169,12 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        Header:
+        crate::car::v1::Header:
         v1header: {
-            let header = Header::default(1);
+            let header = crate::car::v1::Header::default(1);
             {
                 let mut roots = header.roots.borrow_mut();
-                roots.push(Cid::default());
+                roots.push(wnfs::libipld::Cid::default());
             }
             header
         },

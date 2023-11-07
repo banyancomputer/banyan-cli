@@ -78,14 +78,13 @@ pub enum TombErrorKind {
 
 impl Display for TombError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use TombErrorKind::*;
         let prefix = match &self.kind {
-            Client(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
+            TombErrorKind::Client(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
             #[cfg(feature = "cli")]
-            UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
-            FileMissing(path) => format!("missing file at path: {}", path.display()),
-            IoError(err) => format!("{} {err}", "IO ERROR:".underline()),
-            CustomError(err) => err.to_string(),
+            TombErrorKind::UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
+            TombErrorKind::FileMissing(path) => format!("missing file at path: {}", path.display()),
+            TombErrorKind::IoError(err) => format!("{} {err}", "IO ERROR:".underline()),
+            TombErrorKind::CustomError(err) => err.to_string(),
         };
 
         write!(f, "{}", prefix)?;

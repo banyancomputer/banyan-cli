@@ -96,18 +96,13 @@ impl Streamable for Block {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    #[allow(unused_imports)]
-    use super::Block;
-    #[allow(unused_imports)]
-    use wnfs::libipld::IpldCodec;
-
     crate::car::streamable_tests! {
-        Block:
+        crate::car::v1::Block:
         carblock: {
             // Raw bytes
             let data_example = "Hello Kitty!".as_bytes().to_vec();
             // Create new Block with these content bytes
-            Block::new(data_example, IpldCodec::Raw).expect("unable to create new Block")
+            crate::car::v1::Block::new(data_example, wnfs::libipld::IpldCodec::Raw).expect("unable to create new Block")
         },
     }
 }

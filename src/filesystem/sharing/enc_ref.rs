@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{
+    EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, SymmetricKey,
+};
 use wnfs::{
     common::HashOutput,
     libipld::Cid,

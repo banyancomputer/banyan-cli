@@ -72,10 +72,12 @@ impl DeviceApiKey {
 
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
-
 mod test {
-    use super::*;
-    use crate::api::{models::account::test::authenticated_client, utils::generate_api_key};
+    use crate::api::{
+        error::ClientError,
+        models::{account::test::authenticated_client, device_api_key::DeviceApiKey},
+        utils::generate_api_key,
+    };
 
     #[tokio::test]
     async fn create() -> Result<(), ClientError> {
