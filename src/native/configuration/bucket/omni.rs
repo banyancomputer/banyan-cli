@@ -1,4 +1,3 @@
-use super::{determine_sync_state, LocalBucket, SyncState};
 #[cfg(feature = "cli")]
 use crate::cli::{commands::prompt_for_bool, specifiers::DriveSpecifier};
 use crate::{
@@ -6,7 +5,13 @@ use crate::{
         client::Client,
         models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
     },
-    native::{configuration::globalconfig::GlobalConfig, operations::error::TombError},
+    native::{
+        configuration::{
+            bucket::{determine_sync_state, LocalBucket, SyncState},
+            globalconfig::GlobalConfig,
+        },
+        operations::error::TombError,
+    },
 };
 use colored::{ColoredString, Colorize};
 use std::{

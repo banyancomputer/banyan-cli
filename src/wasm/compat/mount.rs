@@ -20,7 +20,7 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::metadata::FsMetadata,
-    wasm::*,
+    wasm::{TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSnapshot},
 };
 
 /// Mount point for a Bucket in WASM

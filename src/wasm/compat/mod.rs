@@ -3,18 +3,11 @@ mod mount;
 /// Types with WASM wrappers
 mod types;
 
-pub use mount::*;
-pub use types::*;
-
-use gloo::console::log;
-use js_sys::Array;
-use std::{
-    convert::{From, TryFrom},
-    str::FromStr,
+pub use mount::WasmMount;
+pub use types::{
+    TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry,
+    WasmNodeMetadata, WasmSnapshot,
 };
-use tomb_crypt::prelude::*;
-use uuid::Uuid;
-use wasm_bindgen::prelude::*;
 
 use crate::api::{
     client::{Client, Credentials},
@@ -25,6 +18,15 @@ use crate::api::{
     },
     requests::core::auth::device_api_key::regwait::end::EndRegwait,
 };
+use gloo::console::log;
+use js_sys::Array;
+use std::{
+    convert::{From, TryFrom},
+    str::FromStr,
+};
+use tomb_crypt::prelude::*;
+use uuid::Uuid;
+use wasm_bindgen::prelude::*;
 
 /// Special Result type for WASM builds
 pub type TombResult<T> = Result<T, js_sys::Error>;

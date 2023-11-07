@@ -3,6 +3,6 @@ mod key;
 mod metadata;
 mod snapshot;
 
-pub use drive::*;
-pub use key::*;
-pub use metadata::*;
+pub use drive::DriveSpecifier;
+pub use key::KeySpecifier;
+pub use metadata::MetadataSpecifier;

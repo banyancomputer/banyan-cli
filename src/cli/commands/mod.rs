@@ -7,11 +7,11 @@ mod runnable_command;
 
 use std::io::Read;
 
-pub use account::*;
-pub use api::*;
-pub use drives::*;
-pub use keys::*;
-pub use metadata::*;
+pub use account::AccountCommand;
+pub use api::ApiCommand;
+pub use drives::DrivesCommand;
+pub use keys::KeyCommand;
+pub use metadata::MetadataCommand;
 pub use runnable_command::RunnableCommand;
 
 use crate::{
