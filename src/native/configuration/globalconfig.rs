@@ -1,6 +1,11 @@
 use crate::{
     api::client::{Client, Credentials},
-    native::configuration::{bucket::LocalBucket, keys::*, xdg::*, Endpoints},
+    native::configuration::{
+        bucket::LocalBucket,
+        keys::{load_api_key, new_api_key, new_wrapping_key, save_api_key, wrapping_key},
+        xdg::{config_path, default_api_key_path, default_wrapping_key_path},
+        Endpoints,
+    },
     utils::get_read,
 };
 use anyhow::{anyhow, Result};

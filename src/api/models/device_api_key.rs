@@ -4,7 +4,14 @@ use uuid::Uuid;
 use crate::api::{
     client::Client,
     error::ClientError,
-    requests::core::auth::device_api_key::{create::*, delete::*, read::*},
+    requests::core::auth::device_api_key::{
+        create::{CreateDeviceApiKey, CreateDeviceApiKeyResponse},
+        delete::DeleteDeviceApiKey,
+        read::{
+            ReadAllDeviceApiKeys, ReadAllDeviceApiKeysResponse, ReadDeviceApiKey,
+            ReadDeviceApiKeyResponse,
+        },
+    },
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -6,7 +6,10 @@ use crate::{
     },
 };
 
-use super::{super::specifiers::*, RunnableCommand};
+use super::{
+    super::specifiers::{DriveSpecifier, KeySpecifier},
+    RunnableCommand,
+};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;

@@ -11,7 +11,7 @@ mod test {
         std::convert::TryFrom,
         tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey},
         wasm_bindgen::JsValue,
-        wasm_bindgen_test::*,
+        wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure},
     };
     wasm_bindgen_test_configure!(run_in_browser);
     const USAGE_LIMIT: u64 = 53_687_091_200;

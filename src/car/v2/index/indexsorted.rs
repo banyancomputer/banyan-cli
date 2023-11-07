@@ -1,4 +1,9 @@
-use crate::car::{error::CARError, v2::index::indexable::Indexable, varint::*, Streamable};
+use crate::car::{
+    error::CARError,
+    v2::index::indexable::Indexable,
+    varint::{read_leu32, read_leu64},
+    Streamable,
+};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{

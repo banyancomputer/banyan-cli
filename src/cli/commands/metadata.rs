@@ -6,7 +6,10 @@ use crate::{
     },
 };
 
-use super::{super::specifiers::*, RunnableCommand};
+use super::{
+    super::specifiers::{DriveSpecifier, MetadataSpecifier},
+    RunnableCommand,
+};
 use async_trait::async_trait;
 use clap::Subcommand;
 

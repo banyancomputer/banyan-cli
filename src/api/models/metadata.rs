@@ -9,8 +9,12 @@ use {
         client::Client,
         error::ClientError,
         requests::core::buckets::{
-            metadata::{pull::*, push::*, read::*},
-            snapshots::create::*,
+            metadata::{
+                pull::PullMetadata,
+                push::{MetadataStreamType, PushMetadata},
+                read::{ReadAllMetadata, ReadCurrentMetadata, ReadMetadata},
+            },
+            snapshots::create::CreateSnapshot,
         },
     },
     bytes::Bytes,

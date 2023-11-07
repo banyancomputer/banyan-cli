@@ -81,9 +81,13 @@ pub async fn load_dir<BS: BlockStore>(
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use crate::{blockstore::test::*, filesystem::serialize::*};
+    use crate::{
+        blockstore::test::{setup_memory_test, teardown_test},
+        filesystem::serialize::{load_dir, load_forest, store_dir, store_forest},
+    };
     use anyhow::Result;
     use chrono::Utc;
+    use rand::thread_rng;
     use serial_test::serial;
 
     #[tokio::test]

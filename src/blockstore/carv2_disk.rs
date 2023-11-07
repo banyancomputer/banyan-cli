@@ -143,7 +143,9 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
 
-    use crate::blockstore::{test::*, BlockStore, CarV2DiskBlockStore, RootedBlockStore};
+    use crate::blockstore::{
+        test::car_test_setup, BlockStore, CarV2DiskBlockStore, RootedBlockStore,
+    };
     use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};

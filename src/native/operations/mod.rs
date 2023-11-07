@@ -22,7 +22,7 @@ mod test {
         native::{
             configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
             operations::{configure, prepare, remove, restore},
-            test::*,
+            test::{test_setup, test_setup_structured, test_teardown},
             utils::compute_directory_size,
         },
     };

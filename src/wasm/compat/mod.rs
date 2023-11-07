@@ -14,7 +14,7 @@ use crate::api::{
     models::{
         account::Account,
         bucket::{Bucket, BucketType, StorageClass},
-        bucket_key::*,
+        bucket_key::BucketKey,
     },
     requests::core::auth::device_api_key::regwait::end::EndRegwait,
 };

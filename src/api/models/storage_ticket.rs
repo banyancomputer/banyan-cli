@@ -1,4 +1,6 @@
-use crate::api::{client::Client, error::ClientError, requests::staging::client_grant::create::*};
+use crate::api::{
+    client::Client, error::ClientError, requests::staging::client_grant::create::CreateGrant,
+};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;

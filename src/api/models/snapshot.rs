@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::api::{
     client::Client, error::ClientError, models::metadata::Metadata,
-    requests::core::buckets::snapshots::restore::*,
+    requests::core::buckets::snapshots::restore::RestoreSnapshot,
 };
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]

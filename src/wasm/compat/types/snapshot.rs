@@ -1,6 +1,6 @@
-use crate::api::models::snapshot::*;
+use crate::api::models::snapshot::Snapshot;
 use uuid::Uuid;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 pub struct WasmSnapshot {

@@ -14,7 +14,10 @@ mod test {
             commands::{AccountCommand, DrivesCommand, RunnableCommand, TombCommand},
             specifiers::DriveSpecifier,
         },
-        native::{configuration::globalconfig::GlobalConfig, test::*},
+        native::{
+            configuration::globalconfig::GlobalConfig,
+            test::{test_setup, test_teardown},
+        },
     };
     use anyhow::{anyhow, Result};
     use serial_test::serial;
