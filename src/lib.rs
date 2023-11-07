@@ -13,24 +13,26 @@
 /// CLI Parsing
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
-pub mod banyan_cli;
+pub mod cli;
 
 /// Native functionality
 #[cfg(not(target_arch = "wasm32"))]
-pub mod banyan_native;
+pub mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[macro_use]
 extern crate log;
 
 /// API Interaction
-pub mod banyan_api;
+pub mod api;
 /// BlockStores
-pub mod banyan_blockstore;
+pub mod blockstore;
 /// CAR Format Parsing
-pub mod banyan_car;
+pub mod car;
 /// FileSystem
-pub mod banyan_filesystem;
+pub mod filesystem;
+/// Utilities
+pub mod utils;
 
 #[cfg(target_arch = "wasm32")]
-pub mod banyan_wasm;
+pub mod wasm;

@@ -3,8 +3,8 @@
 mod test {
     use {
         banyan::{
-            banyan_api::{client::Client, models::account::Account},
-            banyan_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmFsMetadataEntry},
+            api::{client::Client, models::account::Account},
+            wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmFsMetadataEntry},
         },
         gloo::console::log,
         js_sys::{Array, Uint8Array},

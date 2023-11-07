@@ -12,7 +12,7 @@ use anyhow::Result;
 use {
     banyan::{
         self,
-        banyan_cli::{args::Args, commands::RunnableCommand},
+        cli::{args::Args, commands::RunnableCommand},
     },
     clap::Parser,
     std::io::Write,
