@@ -5,8 +5,8 @@ use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
-use tomb_crypt::prelude::*;
-use wasm_bindgen::prelude::*;
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey};
+use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wnfs::private::PrivateNode;
 
 use crate::{

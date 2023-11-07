@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use tomb_crypt::{
     hex_fingerprint,
-    prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey},
+    prelude::{EcEncryptionKey, EcPublicEncryptionKey, PrivateKey, PublicKey},
 };
 use wnfs::private::PrivateRef;
 

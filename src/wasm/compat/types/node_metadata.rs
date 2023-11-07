@@ -2,11 +2,9 @@ use crate::{value, wasm::TombWasmError};
 use gloo::console::log;
 use js_sys::{Object, Reflect};
 use std::collections::BTreeMap;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::{JsCast, JsValue};
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
-/// Wrapper around a NodeMetadata
-#[derive(Debug)]
 pub struct WasmNodeMetadata(pub(crate) NodeMetadata);
 
 impl TryFrom<JsValue> for WasmNodeMetadata {

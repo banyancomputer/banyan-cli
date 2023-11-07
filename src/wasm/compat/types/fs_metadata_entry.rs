@@ -4,10 +4,8 @@ use crate::{
     wasm::{TombWasmError, WasmNodeMetadata},
 };
 use js_sys::{Object, Reflect};
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::{JsCast, JsValue};
 
-/// Wrapper around an FsMetadataEntry
-#[derive(Debug)]
 pub struct WasmFsMetadataEntry(pub(crate) FsMetadataEntry);
 
 impl From<FsMetadataEntry> for WasmFsMetadataEntry {
@@ -23,7 +21,6 @@ impl From<WasmFsMetadataEntry> for FsMetadataEntry {
 }
 
 impl WasmFsMetadataEntry {
-    /// Node type
     pub fn entry_type(&self) -> String {
         match self.0.entry_type {
             FsMetadataEntryType::File => "file".to_string(),
@@ -31,12 +28,10 @@ impl WasmFsMetadataEntry {
         }
     }
 
-    /// Node Metadata
     pub fn metadata(&self) -> WasmNodeMetadata {
         WasmNodeMetadata(self.0.metadata.clone())
     }
 
-    /// Node Name
     pub fn name(&self) -> String {
         self.0.name.clone()
     }

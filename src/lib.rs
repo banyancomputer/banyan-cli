@@ -5,7 +5,7 @@
 #![feature(async_closure)]
 #![feature(dec2flt)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(missing_debug_implementations, missing_docs, rust_2018_idioms)]
+#![warn(rust_2018_idioms)]
 #![deny(private_interfaces)]
 // #![deny(unreachable_pub)]
 #![feature(seek_stream_len)]

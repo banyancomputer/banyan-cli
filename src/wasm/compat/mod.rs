@@ -24,9 +24,9 @@ use std::{
     convert::{From, TryFrom},
     str::FromStr,
 };
-use tomb_crypt::prelude::*;
+use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
 use uuid::Uuid;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 /// Special Result type for WASM builds
 pub type TombResult<T> = Result<T, js_sys::Error>;

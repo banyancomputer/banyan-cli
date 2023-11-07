@@ -1,31 +1,25 @@
 use crate::api::models::bucket_key::BucketKey;
 use std::ops::Deref;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::wasm_bindgen;
 
-/// WASM Compatible version of the BucketKey struct
-#[derive(Debug)]
 #[wasm_bindgen]
 pub struct WasmBucketKey(pub(crate) BucketKey);
 
 #[wasm_bindgen]
 impl WasmBucketKey {
-    /// The approval status of the Bucket Key
     pub fn approved(&self) -> bool {
         self.0.approved
     }
 
-    /// The Bucket ID of the Bucket Key
     #[wasm_bindgen(js_name = "bucketId")]
     pub fn bucket_id(&self) -> String {
         self.0.bucket_id.to_string()
     }
 
-    /// The ID of the Bucket Key
     pub fn id(&self) -> String {
         self.0.id.to_string()
     }
 
-    /// The PEM of the Bucket Key
     pub fn pem(&self) -> String {
         self.0.pem.clone()
     }

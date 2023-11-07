@@ -1,9 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-
 use wasm_bindgen::JsValue;
 
-/// Wrapper around a simple String error type
 #[derive(Debug)]
 pub struct TombWasmError(pub(crate) String);
 
