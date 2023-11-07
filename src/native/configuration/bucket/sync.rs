@@ -112,6 +112,7 @@ pub async fn determine_sync_state(
 }
 
 /// Sync
+#[allow(unused)]
 pub async fn sync_bucket(
     omni: &mut OmniBucket,
     client: &mut Client,

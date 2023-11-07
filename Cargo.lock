@@ -252,7 +252,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "banyan"
+name = "banyan-cli"
 version = "1.1.1"
 dependencies = [
  "anyhow",

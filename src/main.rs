@@ -10,7 +10,7 @@ use anyhow::Result;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
 use {
-    banyan::{
+    banyan_cli::{
         self,
         cli::{args::Args, commands::RunnableCommand},
     },

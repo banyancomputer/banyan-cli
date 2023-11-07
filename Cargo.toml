@@ -1,5 +1,5 @@
 [package]
-name = "banyan"
+name = "banyan-cli"
 license = "MIT"
 description = "Banyan manages data and security for use with Filecoin"
 homepage = "https://banyan.computer"
