@@ -1,3 +1,4 @@
+use crate::banyan_wasm::WasmBucketMetadata;
 use futures_util::StreamExt;
 use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
@@ -21,11 +22,7 @@ use crate::{
         BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore,
     },
     banyan_filesystem::metadata::FsMetadata,
-    banyan_wasm::{
-        error::TombWasmError,
-        types::{WasmBucketMetadata, WasmFsMetadataEntry, WasmSnapshot},
-        TombResult, WasmBucket,
-    },
+    banyan_wasm::*,
 };
 
 /// Mount point for a Bucket in WASM

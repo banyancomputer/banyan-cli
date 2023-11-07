@@ -41,6 +41,7 @@ pub async fn main() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "cli"))]
 #[tokio::main]
 pub async fn main() -> Result<()> {

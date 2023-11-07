@@ -5,7 +5,7 @@ mod test {
         banyan::{
             banyan_api::{client::Client, models::account::Account},
             banyan_wasm::{
-                types::WasmFsMetadataEntry, TombResult, TombWasm, WasmBucket, WasmBucketKey,
+                WasmFsMetadataEntry, TombResult, TombWasm, WasmBucket, WasmBucketKey,
             },
         },
         gloo::console::log,

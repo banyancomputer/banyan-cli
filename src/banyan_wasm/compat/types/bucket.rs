@@ -1,7 +1,5 @@
 use std::ops::Deref;
-
 use wasm_bindgen::prelude::*;
-
 use crate::banyan_api::models::bucket::Bucket;
 
 /// WASM Compatible version of the Bucket struct
