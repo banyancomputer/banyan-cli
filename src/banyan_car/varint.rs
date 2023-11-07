@@ -1,15 +1,9 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::{
     io::{Read, Seek, SeekFrom},
     u32,
 };
 use unsigned_varint::{decode, encode};
-
-// impl From<unsigned_varint::decode::Error> for anyhow::Error {
-//     fn from(value: unsigned_varint::decode::Error) -> Self {
-//         todo!()
-//     }
-// }
 
 #[allow(dead_code)]
 pub(crate) fn read_varint_u32<R: Read + Seek>(r: &mut R) -> Result<u32> {
@@ -18,7 +12,8 @@ pub(crate) fn read_varint_u32<R: Read + Seek>(r: &mut R) -> Result<u32> {
     // Read from stream
     let _ = r.read(&mut buf)?;
     // Decode
-    let (result, remaining) = decode::u32(&buf).unwrap();
+    let (result, remaining) =
+        decode::u32(&buf).map_err(|err| anyhow!(format!("varint_err: {err}")))?;
     // Rewind
     r.seek(SeekFrom::Current(-(remaining.len() as i64)))?;
     // Ok
@@ -31,7 +26,8 @@ pub(crate) fn read_varint_u64<R: Read + Seek>(r: &mut R) -> Result<u64> {
     // Read from stream
     let _ = r.read(&mut buf)?;
     // Decode
-    let (result, remaining) = decode::u64(&buf).unwrap();
+    let (result, remaining) =
+        decode::u64(&buf).map_err(|err| anyhow!(format!("varint_err: {err}")))?;
     // Rewind
     r.seek(SeekFrom::Current(-(remaining.len() as i64)))?;
     // Ok
@@ -44,7 +40,8 @@ pub(crate) fn read_varint_u128<R: Read + Seek>(r: &mut R) -> Result<u128> {
     // Read from stream
     let _ = r.read(&mut buf)?;
     // Decode
-    let (result, remaining) = decode::u128(&buf).unwrap();
+    let (result, remaining) =
+        decode::u128(&buf).map_err(|err| anyhow!(format!("varint_err: {err}")))?;
     // Rewind
     r.seek(SeekFrom::Current(-(remaining.len() as i64)))?;
     // Ok
