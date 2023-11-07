@@ -1,5 +1,5 @@
 /// CAR Errors
-pub mod error;
+mod error;
 /// Streamable Trait and testing Macro
 mod streamable;
 /// CARv1

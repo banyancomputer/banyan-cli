@@ -23,7 +23,6 @@ pub use memory::MemoryBlockStore;
 pub use multi_carv2_disk::MultiCarV2DiskBlockStore;
 /// Split BlockStore
 pub use split::DoubleSplitStore;
-/// Use the WnfsBlockStore and BlockStore traits to define a BlockStore
 /// Makes it so that downstream crates don't need to know about the underlying traits
 pub use wnfs::common::blockstore::BlockStore;
 

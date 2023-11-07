@@ -3,7 +3,7 @@ pub mod add;
 /// This module contains configuration functions for the cli
 pub mod configure;
 /// Pipeline Errors
-pub mod error;
+pub(crate) mod error;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod prepare;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.

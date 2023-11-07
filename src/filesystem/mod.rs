@@ -1,5 +1,5 @@
 /// Error
-pub mod error;
+mod error;
 /// Describes how to read and write fs metadata
 pub mod metadata;
 /// Serialization
