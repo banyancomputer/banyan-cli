@@ -2,9 +2,7 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-use crate::api::{
-    client::Client, error::ClientError, requests::staging::client_grant::create::*,
-};
+use crate::api::{client::Client, error::ClientError, requests::staging::client_grant::create::*};
 use tomb_crypt::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

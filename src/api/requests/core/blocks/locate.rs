@@ -109,7 +109,7 @@ mod test {
 
         let stored_blocks = locations
             .get(&setup.storage_ticket.host)
-            .unwrap_or(locations.get("NA").expect("no blocks at storage host"));
+            .expect("no blocks at storage host");
         for cid in cids {
             assert!(stored_blocks.contains(&cid.to_string()));
         }

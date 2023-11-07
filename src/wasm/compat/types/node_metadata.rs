@@ -1,4 +1,4 @@
-use crate::{wasm::TombWasmError, value};
+use crate::{value, wasm::TombWasmError};
 use gloo::console::log;
 use js_sys::{Object, Reflect};
 use std::collections::BTreeMap;

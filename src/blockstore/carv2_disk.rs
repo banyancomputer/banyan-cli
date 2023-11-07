@@ -1,6 +1,7 @@
 use crate::{
-    blockstore::{BlockStore, RootedBlockStore, get_read, get_read_write, get_write},
+    blockstore::{BlockStore, RootedBlockStore},
     car::{v1::block::Block, v2::CarV2},
+    utils::{get_read, get_read_write, get_write},
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;

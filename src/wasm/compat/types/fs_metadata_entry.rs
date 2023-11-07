@@ -1,7 +1,7 @@
 use crate::{
     filesystem::metadata::{FsMetadataEntry, FsMetadataEntryType},
-    wasm::{TombWasmError, WasmNodeMetadata},
     value,
+    wasm::{TombWasmError, WasmNodeMetadata},
 };
 use js_sys::{Object, Reflect};
 use wasm_bindgen::prelude::*;

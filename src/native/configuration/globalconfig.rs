@@ -1,7 +1,7 @@
 use crate::{
     api::client::{Client, Credentials},
-    utils::get_read,
     native::configuration::{bucket::LocalBucket, keys::*, xdg::*, Endpoints},
+    utils::get_read,
 };
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};

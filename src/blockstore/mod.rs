@@ -1,35 +1,34 @@
 mod api;
+#[cfg(not(target_arch = "wasm32"))]
+mod carv2_disk;
 mod carv2_memory;
 mod memory;
+#[cfg(not(target_arch = "wasm32"))]
+mod multi_carv2_disk;
 mod split;
-
-/// Use the WnfsBlockStore and BlockStore traits to define a BlockStore
-/// Makes it so that downstream crates don't need to know about the underlying traits
-pub use wnfs::common::blockstore::BlockStore;
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+pub mod test;
 
 /// Api BlockStore
 pub use api::BanyanApiBlockStore;
+#[cfg(not(target_arch = "wasm32"))]
+pub use carv2_disk::CarV2DiskBlockStore;
 /// Memory based CarV2 formatted BlockStore implementation
 pub use carv2_memory::CarV2MemoryBlockStore;
 /// Disk based BlockStore implementation
 /// Memory based BlockStore implementation
 pub use memory::MemoryBlockStore;
+#[cfg(not(target_arch = "wasm32"))]
+pub use multi_carv2_disk::MultiCarV2DiskBlockStore;
 /// Split BlockStore
 pub use split::DoubleSplitStore;
-
-#[cfg(not(target_arch = "wasm32"))]
-mod io;
-
-/// Testing helper functions
-#[cfg(not(target_arch = "wasm32"))]
-pub mod test;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use io::*;
+/// Use the WnfsBlockStore and BlockStore traits to define a BlockStore
+/// Makes it so that downstream crates don't need to know about the underlying traits
+pub use wnfs::common::blockstore::BlockStore;
 
 use async_trait::async_trait;
 use wnfs::libipld::Cid;
-// TODO: Use better error types
 /// Wrap a BlockStore with additional functionality to get / set a root CID
 #[async_trait(?Send)]
 pub trait RootedBlockStore: BlockStore {

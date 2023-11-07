@@ -18,9 +18,7 @@ use crate::{
         },
         requests::staging::upload::content::UploadContent,
     },
-    blockstore::{
-        BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore,
-    },
+    blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::metadata::FsMetadata,
     wasm::*,
 };
@@ -666,11 +664,7 @@ impl WasmMount {
         ));
 
         let vec = fs
-            .read(
-                &path_segments,
-                &self.metadata_blockstore,
-                &api_blockstore,
-            )
+            .read(&path_segments, &self.metadata_blockstore, &api_blockstore)
             .await
             .expect("could not read bytes");
 
