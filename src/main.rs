@@ -21,7 +21,7 @@ use {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
 #[tokio::main]
-pub async fn main() -> Result<()> {
+async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
     let cli = Args::parse();
 
@@ -44,7 +44,7 @@ pub async fn main() -> Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "cli"))]
 #[tokio::main]
-pub async fn main() -> Result<()> {
+async fn main() -> Result<()> {
     println!("Enable the CLI feature to interact with the CLI");
     Ok(())
 }
