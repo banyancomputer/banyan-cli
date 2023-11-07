@@ -22,9 +22,9 @@
 #[allow(unused_extern_crates)]
 extern crate core;
 /// Local configurations
-pub mod configuration;
+pub(crate) mod configuration;
 /// Scanning local filesystems
-pub mod file_scanning;
+pub(crate) mod file_scanning;
 /// Operations which can be performed
 pub mod operations;
 /// Simple helper utils
