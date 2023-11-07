@@ -1,20 +1,20 @@
-/// Types with WASM wrappers
-mod types;
 /// Mounted FileSystem functionality
 mod mount;
+/// Types with WASM wrappers
+mod types;
 
-pub use types::*;
 pub use mount::*;
+pub use types::*;
 
-use wasm_bindgen::prelude::*;
-use std::{
-    convert::{From, TryFrom},
-    str::FromStr
-};
 use gloo::console::log;
 use js_sys::Array;
+use std::{
+    convert::{From, TryFrom},
+    str::FromStr,
+};
 use tomb_crypt::prelude::*;
 use uuid::Uuid;
+use wasm_bindgen::prelude::*;
 
 use crate::banyan_api::{
     client::{Client, Credentials},

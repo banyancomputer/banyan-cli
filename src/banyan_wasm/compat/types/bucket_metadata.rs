@@ -1,5 +1,5 @@
-use wasm_bindgen::prelude::*;
 use crate::banyan_api::models::metadata::Metadata;
+use wasm_bindgen::prelude::*;
 
 /// A wrapper around a Bucket Metadata
 #[derive(Debug)]

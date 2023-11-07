@@ -1,6 +1,6 @@
-use wasm_bindgen::prelude::*;
 use crate::banyan_api::models::snapshot::*;
 use uuid::Uuid;
+use wasm_bindgen::prelude::*;
 
 /// WASM Compatible Snapshot struct
 #[derive(Debug)]

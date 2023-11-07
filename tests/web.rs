@@ -4,9 +4,7 @@ mod test {
     use {
         banyan::{
             banyan_api::{client::Client, models::account::Account},
-            banyan_wasm::{
-                WasmFsMetadataEntry, TombResult, TombWasm, WasmBucket, WasmBucketKey,
-            },
+            banyan_wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmFsMetadataEntry},
         },
         gloo::console::log,
         js_sys::{Array, Uint8Array},

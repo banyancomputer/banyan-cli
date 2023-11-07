@@ -1,9 +1,9 @@
 use crate::{banyan_wasm::TombWasmError, value};
 use gloo::console::log;
+use js_sys::{Object, Reflect};
+use std::collections::BTreeMap;
 use wasm_bindgen::prelude::*;
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
-use std::collections::BTreeMap;
-use js_sys::{Object, Reflect};
 
 /// Wrapper around a NodeMetadata
 #[derive(Debug)]

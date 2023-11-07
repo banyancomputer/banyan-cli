@@ -1,10 +1,10 @@
-use wasm_bindgen::prelude::*;
 use crate::{
     banyan_filesystem::metadata::{FsMetadataEntry, FsMetadataEntryType},
-    banyan_wasm::{WasmNodeMetadata, TombWasmError},
-    value
+    banyan_wasm::{TombWasmError, WasmNodeMetadata},
+    value,
 };
-use js_sys::{Reflect, Object};
+use js_sys::{Object, Reflect};
+use wasm_bindgen::prelude::*;
 
 /// Wrapper around an FsMetadataEntry
 #[derive(Debug)]
