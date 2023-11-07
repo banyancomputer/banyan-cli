@@ -1,5 +1,5 @@
 #[cfg(feature = "cli")]
-use crate::cli::{commands::prompt_for_bool, specifiers::DriveSpecifier};
+use crate::cli::specifiers::DriveSpecifier;
 use crate::{
     api::{
         client::Client,
@@ -196,37 +196,30 @@ impl OmniBucket {
         &self,
         global: &mut GlobalConfig,
         client: &mut Client,
+        local_deletion: bool,
+        mut remote_deletion: bool,
     ) -> Result<String, TombError> {
-        let mut local_deletion = false;
-        let mut remote_deletion = false;
-
-        if let Ok(local) = self.get_local() {
-            #[cfg(not(feature = "cli"))]
-            let response = true;
-            #[cfg(feature = "cli")]
-            let response = prompt_for_bool("Are you sure you want to delete this Bucket locally?");
-
-            if response {
-                local.remove_data()?;
-                // Find index of bucket
-                let index = global.buckets.iter().position(|b| b == &local).ok_or(
-                    TombError::custom_error("omni had local bucket but not present in config"),
-                )?;
-                // Remove bucket config from global config
-                global.buckets.remove(index);
-                local_deletion = true;
-            }
+        if let Ok(local) = self.get_local()
+            && local_deletion
+        {
+            local.remove_data()?;
+            // Find index of bucket
+            let index =
+                global
+                    .buckets
+                    .iter()
+                    .position(|b| b == &local)
+                    .ok_or(TombError::custom_error(
+                        "omni had local bucket but not present in config",
+                    ))?;
+            // Remove bucket config from global config
+            global.buckets.remove(index);
         }
 
-        if let Ok(remote) = self.get_remote() {
-            #[cfg(not(feature = "cli"))]
-            let response = true;
-            #[cfg(feature = "cli")]
-            let response = prompt_for_bool("Are you sure you want to delete this Bucket remotely?");
-
-            if response {
-                remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
-            }
+        if let Ok(remote) = self.get_remote()
+            && remote_deletion
+        {
+            remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
         }
 
         Ok(format!(
