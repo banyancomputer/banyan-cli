@@ -1,10 +1,11 @@
 use super::{determine_sync_state, LocalBucket, SyncState};
+#[cfg(feature = "cli")]
+use crate::banyan_cli::{commands::prompt_for_bool, specifiers::DriveSpecifier};
 use crate::{
     banyan_api::{
         client::Client,
         models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
     },
-    banyan_cli::{commands::prompt_for_bool, specifiers::DriveSpecifier},
     banyan_native::{configuration::globalconfig::GlobalConfig, operations::error::TombError},
 };
 use colored::{ColoredString, Colorize};
@@ -30,6 +31,7 @@ pub struct OmniBucket {
 
 impl OmniBucket {
     /// Use local and remote to find
+    #[cfg(feature = "cli")]
     pub async fn from_specifier(
         global: &GlobalConfig,
         client: &mut Client,
@@ -194,7 +196,12 @@ impl OmniBucket {
         let mut remote_deletion = false;
 
         if let Ok(local) = self.get_local() {
-            if prompt_for_bool("Are you sure you want to delete this Bucket locally?") {
+            #[cfg(not(feature = "cli"))]
+            let response = true;
+            #[cfg(feature = "cli")]
+            let response = prompt_for_bool("Are you sure you want to delete this Bucket locally?");
+
+            if response {
                 local.remove_data()?;
                 // Find index of bucket
                 let index = global.buckets.iter().position(|b| b == &local).ok_or(
@@ -207,7 +214,12 @@ impl OmniBucket {
         }
 
         if let Ok(remote) = self.get_remote() {
-            if prompt_for_bool("Are you sure you want to delete this Bucket remotely?") {
+            #[cfg(not(feature = "cli"))]
+            let response = true;
+            #[cfg(feature = "cli")]
+            let response = prompt_for_bool("Are you sure you want to delete this Bucket remotely?");
+
+            if response {
                 remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
             }
         }

@@ -12,6 +12,7 @@ pub mod remove;
 pub mod restore;
 
 #[cfg(test)]
+#[cfg(feature = "cli")]
 mod test {
     use super::{add, error::TombError};
     use crate::{

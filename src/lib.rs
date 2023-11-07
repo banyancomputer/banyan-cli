@@ -10,11 +10,13 @@
 // #![deny(unreachable_pub)]
 #![feature(seek_stream_len)]
 
-#[cfg(not(target_arch = "wasm32"))]
 /// CLI Parsing
-pub mod banyan_cli;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "cli")]
+pub mod banyan_cli;
+
 /// Native functionality
+#[cfg(not(target_arch = "wasm32"))]
 pub mod banyan_native;
 
 #[cfg(not(target_arch = "wasm32"))]

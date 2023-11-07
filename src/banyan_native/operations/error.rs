@@ -1,9 +1,11 @@
-use crate::{banyan_api::error::ClientError, banyan_cli::specifiers::DriveSpecifier};
+use crate::banyan_api::error::ClientError;
 use colored::Colorize;
 use std::{error::Error, fmt::Display, path::PathBuf};
 use thiserror::Error;
 use tomb_crypt::prelude::TombCryptError;
-use uuid::Uuid;
+
+#[cfg(feature = "cli")]
+use {crate::banyan_cli::specifiers::DriveSpecifier, uuid::Uuid};
 
 /// Errors for the Tomb CLI & Native program
 #[derive(Error, Debug)]
@@ -21,6 +23,7 @@ impl TombError {
     }
 
     /// Unknown Bucket path
+    #[cfg(feature = "cli")]
     pub fn unknown_path(path: PathBuf) -> Self {
         Self {
             kind: TombErrorKind::UnknownBucket(DriveSpecifier::with_origin(&path)),
@@ -28,6 +31,7 @@ impl TombError {
     }
 
     /// Unknown Bucket ID
+    #[cfg(feature = "cli")]
     pub fn unknown_id(id: Uuid) -> Self {
         Self {
             kind: TombErrorKind::UnknownBucket(DriveSpecifier::with_id(id)),
@@ -62,6 +66,7 @@ pub enum TombErrorKind {
     /// Error sending Client requests
     Client(ClientError),
     /// User simply never configured this directory
+    #[cfg(feature = "cli")]
     UnknownBucket(DriveSpecifier),
     /// Missing File when searching for it during restoring
     FileMissing(PathBuf),
@@ -76,6 +81,7 @@ impl Display for TombError {
         use TombErrorKind::*;
         let prefix = match &self.kind {
             Client(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
+            #[cfg(feature = "cli")]
             UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
             FileMissing(path) => format!("missing file at path: {}", path.display()),
             IoError(err) => format!("{} {err}", "IO ERROR:".underline()),

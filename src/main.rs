@@ -5,8 +5,11 @@ fn main() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+use anyhow::Result;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "cli")]
 use {
-    anyhow::Result,
     banyan::{
         self,
         banyan_cli::{args::Args, commands::RunnableCommand},
@@ -16,6 +19,7 @@ use {
 };
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "cli")]
 #[tokio::main]
 pub async fn main() -> Result<()> {
     // Parse command line arguments. see args.rs
@@ -34,5 +38,12 @@ pub async fn main() -> Result<()> {
     // Determine the command being executed run appropriate subcommand
     let _ = cli.command.run().await;
 
+    Ok(())
+}
+
+#[cfg(not(feature = "cli"))]
+#[tokio::main]
+pub async fn main() -> Result<()> {
+    println!("Enable the CLI feature to interact with the CLI");
     Ok(())
 }

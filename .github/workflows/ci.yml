@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cargo test
+      - run: RUST_BACKTRACE=1 && cargo test --features cli
 
   # TODO: wasm tests once we don't need a remote to run them
 

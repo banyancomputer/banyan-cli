@@ -76,6 +76,7 @@ wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", ver
 
 # Native features
 [features]
+cli = []
 integration-tests = []
 
 # Dependencies that only need to exist when we are in WASM
