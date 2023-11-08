@@ -128,10 +128,9 @@ impl RunnableCommand<TombError> for DrivesCommand {
             }
             DrivesCommand::Delete(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let local_deletion =
-                    prompt_for_bool("Are you sure you want to delete this Bucket locally?");
+                let local_deletion = prompt_for_bool("Do you want to delete this Bucket locally?");
                 let remote_deletion =
-                    prompt_for_bool("Are you sure you want to delete this Bucket remotely?");
+                    prompt_for_bool("Do you want to delete this Bucket remotely?");
 
                 omni.delete(global, client, local_deletion, remote_deletion)
                     .await
