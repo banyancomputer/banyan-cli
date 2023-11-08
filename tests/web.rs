@@ -2,7 +2,7 @@
 #[cfg(target_arch = "wasm32")]
 mod test {
     use {
-        banyan::{
+        banyan_cli::prelude::{
             api::{client::Client, models::account::Account},
             wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmFsMetadataEntry},
         },

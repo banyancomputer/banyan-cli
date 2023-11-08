@@ -23,16 +23,29 @@ pub mod native;
 #[macro_use]
 extern crate log;
 
-/// API Interaction
-pub mod api;
-/// BlockStores
-pub mod blockstore;
-/// CAR Format Parsing
-pub mod car;
-/// FileSystem
-pub mod filesystem;
-/// Utilities
-pub mod utils;
-
+pub(crate) mod api;
+pub(crate) mod blockstore;
+pub(crate) mod car;
+pub(crate) mod filesystem;
+pub(crate) mod utils;
 #[cfg(target_arch = "wasm32")]
-pub mod wasm;
+pub(crate) mod wasm;
+
+pub mod prelude {
+    pub mod api {
+        pub use crate::api::*;
+    }
+    pub mod blockstore {
+        pub use crate::blockstore::*;
+    }
+    pub mod car {
+        pub use crate::car::*;
+    }
+    pub mod filesystem {
+        pub use crate::filesystem::*;
+    }
+    #[cfg(target_arch = "wasm32")]
+    pub mod wasm {
+        pub use crate::wasm::*;
+    }
+}
