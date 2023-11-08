@@ -8,47 +8,31 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: cargo check --workspace --examples
+      - run: cargo check --all-targets --examples
 
   lints:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: rustup component add rustfmt clippy && cargo fmt --all -- --check ; cd tomb && cargo clippy --all-features --tests -- -D warnings ; cd ../tomb-common && cargo clippy --all-features --tests -- -D warnings; rustup target add wasm32-unknown-unknown && cd ../tomb-wasm && cargo clippy --all-features --tests -- -D warnings
+      - run: rustup component add rustfmt clippy && cargo fmt --all -- --check; cargo clippy --all-targets --all-features --tests -- -D warnings
 
-  cli:
-    name: cli tests
+  tests:
+    name: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cd tomb && cargo test; cd ..
+      - run: RUST_BACKTRACE=1 && cargo test --features cli
 
-  common:
-    name: common tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cd tomb-common && cargo test; cd ..
-  
   # TODO: wasm tests once we don't need a remote to run them
 
-  docs-cli:
-    name: cli docs tests
+  docs:
+    name: docs tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cd tomb && cargo test --all-features --doc; cd ..
-
-  docs-common:
-    name: common docs tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: RUST_BACKTRACE=1 && cd tomb-common && cargo test --all-features --doc; cd ..
+      - run: RUST_BACKTRACE=1 && cargo test --all-features --doc
 
   # TODO: wasm docs tests once we figure out how to properly run them. Right now they assume target is NOT wasm32-unknown-unknown

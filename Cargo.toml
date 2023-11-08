@@ -1,22 +1,12 @@
-[workspace]
-members = [
-    "tomb",
-    "tomb-common",
-    "tomb-wasm"
-]
-resolver = "2"
-
-[workspace.package]
-# All packages in the workspace will have the same version (for now)
-version = "1.1.0"
-edition = "2021"
-
-# Cargo publication necessities
+[package]
+name = "banyan-cli"
 license = "MIT"
-description = "tomb compresses and encrypts data for Filecoin"
+description = "Banyan manages data and security for use with Filecoin"
 homepage = "https://banyan.computer"
 repository = "https://github.com/banyancomputer/tomb"
+version = "1.1.1"
 readme = "README.md"
+edition = "2021"
 
 # Cargo publication optionals
 categories = [
@@ -32,28 +22,86 @@ keywords = [
     "storage"
 ]
 
-[workspace.dependencies]
-anyhow = { version = "^1", features = ["backtrace"] }
-blake3 = "^1"
-chrono = { version = "^0.4", default-features = false, features = ["clock", "std"] }
+# These dependencies are specific to the CLI or would break WASM
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+base58 = { version = "^0.2" }
+base64 = { version = "^0.21" }
+bytesize = { version = "^1.3" }
 clap = { version = "^4", features = ["derive"] }
-criterion = { version = "^0.4", features = ["async_tokio"] }
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "^0.2" }
-fake-file = "^0.1"
-fs_extra = "^1"
-jwalk = "^0.8"
-lazy_static = "^1"
-lz4_flex = "^0.11"
-rand = "^0.8"
-reqwest = { version = "^0.11", features = ["blocking", "multipart", "json", "stream"] }
-serde_json = { version = "^1", features = ["std"]}
-serde = {version= "^1", features = ["derive"]}
+env_logger = { version = "^0.10" }
+fclones = { version = "^0.34" }
+fs_extra = { version = "^1" }
+futures-core = { version = "^0.3" }
+hex = { version = "^0.4" }
+indicatif = { version = "^0.17" }
+jwalk = { version = "^0.8" }
+log = { version = "^0.4" }
+open = { version = "^5" }
+sha1 = { version = "^0.10" }
+sha2 = { version = "^0.10" }
 tokio = { version = "^1", features = ["full", "io-util", "fs"]}
-tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main", version = "^0.1" }
 
-# For local dev if needed..
-#wnfs = { path = "../rs-wnfs/wnfs" }
+# These dependencies are specific to the CLI or would break WASM for testing
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+fake-file = { version = "^0.1" }
+serial_test = { version = "^2" }
+
+# Dependencies that must exist independent of architecture
+[dependencies]
+anyhow = { version = "^1", features = ["backtrace"] }
+async-recursion = { version = "^1" }
+async-trait = { version = "^0.1" }
+blake3 = { version = "^1" }
+bytes = { version = "^1.5" }
+chrono = { version = "^0.4", default-features = false, features = ["clock", "std"] }
+colored = { version = "^2" }
+futures = { version = "^0.3" }
+futures-core = { version = "^0.3" }
+futures-util = { version = "^0.3" }
+lz4_flex = { version = "^0.11" }
+mime_guess = { version = "^2" }
+rand = { version = "^0.8" }
+reqwest = { version = "^0.11", features = ["blocking", "multipart", "json", "stream"] }
+serde = {version= "^1", features = ["derive"]}
+serde_json = { version = "^1", features = ["std"]}
+thiserror = { version = "^1" }
+tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main", version = "^0.1" }
+unsigned-varint = { version = "^0.8" }
+uuid = { version = "^1", features = ["serde", "v4"] }
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", version = "^0.1" }
+
+# Dependencies that must exist independent of architecture for testing
+# [dev-dependencies]
+
+# Native features
+[features]
+cli = []
+integration-tests = []
+
+# Dependencies that only need to exist when we are in WASM
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+async-trait = { version = "^0.1" }
+console_error_panic_hook = { version = "^0.1", optional = true }
+getrandom = { version = "^0.2", features = ["js"] }
+gloo = { version = "^0.10", features = ["net"] }
+js-sys = { version = "^0.3" }
+pem = { version = "^3" }
+tokio-util = { version = "^0.7", features = ["compat"] }
+wasm-bindgen = { version = "^0.2" }
+wasm-bindgen-futures = { version = "^0.4" }
+
+# Dependencies that only need to exist when we are testing WASM
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = { version = "^0.3" }
+
+[[bin]]
+name = "banyan"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [profile.dev]
 split-debuginfo = "unpacked"
