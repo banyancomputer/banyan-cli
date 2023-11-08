@@ -10,7 +10,7 @@ pub struct ReadWhoAmI;
 
 #[derive(Debug, Deserialize)]
 pub struct ReadWhoAmIResponse {
-    pub account_id: Uuid,
+    pub user_id: Uuid,
 }
 
 impl ApiRequest for ReadWhoAmI {

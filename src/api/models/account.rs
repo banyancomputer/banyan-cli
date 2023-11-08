@@ -26,7 +26,7 @@ pub struct Account {
 impl Display for Account {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "{}\naccount_id:\t{}",
+            "{}\nuser_id:\t{}",
             "| ACCOUNT INFO |".yellow(),
             self.id
         ))
@@ -45,7 +45,7 @@ impl Account {
 
         // Associate the returned account ID with the key material and initialize the client with these credentials
         client.with_credentials(Credentials {
-            account_id: response.id,
+            user_id: response.id,
             signing_key: api_key.clone(),
         });
         // Return the account
@@ -57,7 +57,7 @@ impl Account {
         // Uhh we don't acutally need the ID for this one. There is probably a better pattern for this.
         let response: ReadWhoAmIResponse = client.call(ReadWhoAmI).await?;
         Ok(Self {
-            id: response.account_id,
+            id: response.user_id,
         })
     }
 

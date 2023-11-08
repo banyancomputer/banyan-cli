@@ -10,7 +10,7 @@ pub struct StartRegwait {
 
 #[derive(Debug, Deserialize)]
 pub struct StartRegwaitResponse {
-    pub account_id: Uuid,
+    pub user_id: Uuid,
 }
 
 #[derive(Debug, Deserialize)]

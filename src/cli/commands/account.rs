@@ -90,15 +90,15 @@ impl RunnableCommand<ClientError> for AccountCommand {
 
                 // Update the client's credentials
                 client.with_credentials(Credentials {
-                    account_id: start_response.account_id,
+                    user_id: start_response.user_id,
                     signing_key: private_device_key,
                 });
 
                 // Respond
                 Ok(format!(
-                    "{}\naccount_id:\t{}\ndevice_key_fingerprint:\t{}",
+                    "{}\nuser_id:\t{}\ndevice_key_fingerprint:\t{}",
                     "<< DEVICE KEY SUCCESSFULLY ADDED TO ACCOUNT >>".green(),
-                    start_response.account_id,
+                    start_response.user_id,
                     fingerprint
                 ))
             }
@@ -129,12 +129,12 @@ impl RunnableCommand<ClientError> for AccountCommand {
                     })
                     .await?;
                 client.with_credentials(Credentials {
-                    account_id: response.id,
+                    user_id: response.id,
                     signing_key: api_key.clone(),
                 });
 
                 Ok(format!(
-                    "{}\naccount_id:\t{}",
+                    "{}\nuser_id:\t{}",
                     "<< CREATED NEW ACCOUNT >>".green(),
                     response.id
                 ))
