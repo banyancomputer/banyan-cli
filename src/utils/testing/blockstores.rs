@@ -14,7 +14,7 @@ use wnfs::{
 };
 
 /// Create a copy of a given fixture to play around with
-pub fn car_test_setup(
+pub(crate) fn car_test_setup(
     version: usize,
     fixture_suffix: &str,
     test_name: &str,
@@ -37,7 +37,7 @@ pub fn car_test_setup(
 }
 
 /// Create a copy of a given fixture to play around with
-pub fn car_index_test_setup(
+pub(crate) fn car_index_test_setup(
     version: usize,
     fixture_suffix: &str,
     test_name: &str,
@@ -61,7 +61,7 @@ pub fn car_index_test_setup(
 }
 
 /// Setup using a MemoryBlockStore
-pub async fn setup_memory_test(
+pub(crate) async fn setup_memory_test(
     test_name: &str,
 ) -> Result<(
     MemoryBlockStore,
@@ -73,7 +73,7 @@ pub async fn setup_memory_test(
 }
 
 /// Create all of the relevant objects, using real BlockStores and real data
-pub async fn setup_test<RBS: RootedBlockStore>(
+pub(crate) async fn setup_test<RBS: RootedBlockStore>(
     test_name: &str,
     metadata: RBS,
     content: RBS,
@@ -122,7 +122,7 @@ pub async fn setup_test<RBS: RootedBlockStore>(
 }
 
 /// Delete the temporary directory
-pub async fn teardown_test(test_name: &str) -> Result<()> {
+pub(crate) async fn teardown_test(test_name: &str) -> Result<()> {
     let path = Path::new("test").join(test_name);
     std::fs::remove_dir_all(path)?;
     Ok(())

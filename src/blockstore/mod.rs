@@ -6,24 +6,16 @@ mod memory;
 #[cfg(not(target_arch = "wasm32"))]
 mod multi_carv2_disk;
 mod split;
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(test)]
-pub mod test;
 
-/// Api BlockStore
 pub use api::BanyanApiBlockStore;
 #[cfg(not(target_arch = "wasm32"))]
 pub use carv2_disk::CarV2DiskBlockStore;
-/// Memory based CarV2 formatted BlockStore implementation
 pub use carv2_memory::CarV2MemoryBlockStore;
-/// Disk based BlockStore implementation
-/// Memory based BlockStore implementation
 pub use memory::MemoryBlockStore;
 #[cfg(not(target_arch = "wasm32"))]
 pub use multi_carv2_disk::MultiCarV2DiskBlockStore;
-/// Split BlockStore
 pub use split::DoubleSplitStore;
-/// Makes it so that downstream crates don't need to know about the underlying traits
+/// Makes it so that downstream crates don't need to know about the underlying trait
 pub use wnfs::common::blockstore::BlockStore;
 
 use async_trait::async_trait;

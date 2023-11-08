@@ -142,9 +142,9 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 
 #[cfg(test)]
 mod test {
-
-    use crate::blockstore::{
-        test::car_test_setup, BlockStore, CarV2DiskBlockStore, RootedBlockStore,
+    use crate::{
+        blockstore::{BlockStore, CarV2DiskBlockStore, RootedBlockStore},
+        utils::testing::blockstores::car_test_setup,
     };
     use anyhow::Result;
     use serial_test::serial;

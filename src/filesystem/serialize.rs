@@ -82,8 +82,8 @@ pub async fn load_dir<BS: BlockStore>(
 #[cfg(test)]
 mod test {
     use crate::{
-        blockstore::test::{setup_memory_test, teardown_test},
         filesystem::serialize::{load_dir, load_forest, store_dir, store_forest},
+        utils::testing::blockstores::{setup_memory_test, teardown_test},
     };
     use anyhow::Result;
     use chrono::Utc;

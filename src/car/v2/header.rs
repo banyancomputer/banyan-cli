@@ -77,11 +77,11 @@ impl<'de> Deserialize<'de> for Header {
 #[cfg(test)]
 mod test {
     use crate::{
-        blockstore::test::car_test_setup,
         car::{
             v2::{header::Header, PRAGMA, PRAGMA_SIZE},
             Streamable,
         },
+        utils::testing::blockstores::car_test_setup,
     };
     use anyhow::Result;
     use serial_test::serial;

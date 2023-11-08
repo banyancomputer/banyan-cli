@@ -199,9 +199,8 @@ impl CarV1 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
-        blockstore::test::car_test_setup,
         car::v1::{block::Block, CarV1},
-        utils::get_read_write,
+        utils::{get_read_write, testing::blockstores::car_test_setup},
     };
     use anyhow::Result;
     use serial_test::serial;
