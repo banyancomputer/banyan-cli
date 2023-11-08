@@ -1,10 +1,7 @@
-/// Error
 mod error;
-/// Describes how to read and write fs metadata
-pub mod metadata;
-/// Serialization
+mod metadata;
+#[allow(unused)]
+pub use metadata::{FsMetadata, FsMetadataEntry, FsMetadataEntryType};
 pub mod serialize;
-/// Our encyption key types and helpers
 pub mod sharing;
-/// WNFS Data Pipes
 pub mod wnfsio;

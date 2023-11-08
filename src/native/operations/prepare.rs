@@ -2,7 +2,7 @@ use super::error::TombError;
 use crate::{
     api::{client::Client, models::metadata::Metadata},
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
-    filesystem::{metadata::FsMetadata, wnfsio::path_to_segments},
+    filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
         file_scanning::{grouper, spider, spider_plans::PreparePipelinePlan},

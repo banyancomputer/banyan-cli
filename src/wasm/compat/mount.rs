@@ -19,7 +19,7 @@ use crate::{
         requests::staging::upload::content::UploadContent,
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
-    filesystem::metadata::FsMetadata,
+    filesystem::FsMetadata,
     wasm::{TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSnapshot},
 };
 

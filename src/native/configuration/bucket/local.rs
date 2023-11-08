@@ -1,7 +1,7 @@
 use crate::{
     api::models::storage_ticket::StorageTicket,
     blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
-    filesystem::metadata::FsMetadata,
+    filesystem::FsMetadata,
     native::configuration::xdg::xdg_data_home,
 };
 use anyhow::{Ok, Result};

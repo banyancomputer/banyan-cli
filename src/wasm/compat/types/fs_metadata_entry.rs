@@ -1,5 +1,5 @@
 use crate::{
-    filesystem::metadata::{FsMetadataEntry, FsMetadataEntryType},
+    filesystem::{FsMetadataEntry, FsMetadataEntryType},
     value,
     wasm::{TombWasmError, WasmNodeMetadata},
 };

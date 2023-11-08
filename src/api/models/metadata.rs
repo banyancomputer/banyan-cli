@@ -226,7 +226,7 @@ pub(crate) mod test {
             },
         },
         blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
-        filesystem::metadata::FsMetadata,
+        filesystem::FsMetadata,
     };
 
     pub async fn push_empty_metadata(

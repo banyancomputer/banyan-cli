@@ -11,7 +11,7 @@ use crate::{
         requests::staging::upload::content::UploadContent,
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore, RootedBlockStore},
-    filesystem::metadata::FsMetadata,
+    filesystem::FsMetadata,
     native::{
         configuration::globalconfig::GlobalConfig,
         operations::{error::TombError, restore},

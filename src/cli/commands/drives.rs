@@ -4,7 +4,7 @@ use crate::{
         commands::{prompt_for_bool, KeyCommand, MetadataCommand, RunnableCommand},
         specifiers::DriveSpecifier,
     },
-    filesystem::metadata::FsMetadata,
+    filesystem::FsMetadata,
     native::{
         configuration::{
             bucket::{sync_bucket, OmniBucket},
