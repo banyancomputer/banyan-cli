@@ -33,19 +33,27 @@ pub(crate) mod wasm;
 
 pub mod prelude {
     pub mod api {
-        pub use crate::api::*;
+        pub use crate::api::{client, models, requests};
     }
     pub mod blockstore {
-        pub use crate::blockstore::*;
+        pub use crate::blockstore::{
+            BanyanApiBlockStore, BlockStore, CarV2MemoryBlockStore, DoubleSplitStore,
+            MemoryBlockStore, RootedBlockStore,
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        pub use crate::blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore};
     }
     pub mod car {
-        pub use crate::car::*;
+        pub use crate::car::{v1, v2};
     }
     pub mod filesystem {
-        pub use crate::filesystem::*;
+        pub use crate::filesystem::{metadata, serialize, sharing, wnfsio};
     }
     #[cfg(target_arch = "wasm32")]
     pub mod wasm {
-        pub use crate::wasm::*;
+        pub use crate::wasm::{
+            TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata,
+            WasmFsMetadataEntry, WasmMount, WasmNodeMetadata, WasmSnapshot,
+        };
     }
 }
