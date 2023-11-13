@@ -19,8 +19,7 @@ mod test {
             test::{test_setup, test_teardown},
         },
     };
-    use anyhow::{anyhow, Result};
-    use serial_test::serial;
+        use serial_test::serial;
     use std::path::Path;
 
     #[allow(dead_code)]

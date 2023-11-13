@@ -8,7 +8,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Url,
 };
-use std::fmt::Debug;
+use std::{fmt::Debug, string::ParseError};
 use tomb_crypt::prelude::{ApiToken, EcSignatureKey};
 use uuid::Uuid;
 
@@ -32,8 +32,8 @@ impl Debug for Credentials {
 
 impl Credentials {
     /// Create a new set of credentials
-    pub fn new(user_id: String, signing_key: EcSignatureKey) -> anyhow::Result<Self> {
-        let user_id = Uuid::parse_str(&user_id).expect("invalid user_id");
+    pub fn new(user_id: String, signing_key: EcSignatureKey) -> Result<Self, uuid::Error> {
+        let user_id = Uuid::parse_str(&user_id)?;
         Ok(Self {
             user_id,
             signing_key,
@@ -67,13 +67,12 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn new(remote_core: &str, remote_data: &str) -> anyhow::Result<Self> {
+    pub fn new(remote_core: &str, remote_data: &str) -> Result<Self, ParseError> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
             .default_headers(default_headers)
-            .build()
-            .unwrap();
+            .build()?;
 
         Ok(Self {
             remote_core: Url::parse(remote_core)?,
@@ -90,7 +89,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn with_remote(&mut self, remote: &str) -> anyhow::Result<()> {
+    pub fn with_remote(&mut self, remote: &str) -> Result<(), ParseError> {
         self.remote_core = Url::parse(remote)?;
         Ok(())
     }

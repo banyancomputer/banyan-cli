@@ -1,12 +1,11 @@
-use anyhow::Result;
-use std::io::{Read, Seek, Write};
+use std::io::{Read, Seek, Write, Error};
 
 /// Custom Stream-Based Serialization
 pub trait Streamable: Sized {
     /// Read the bytes
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self>;
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Error>;
     /// Write the bytes
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()>;
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Error>;
 }
 
 /// Macro for generating a serialization test for any type which conforms to the Streamable trait
@@ -21,13 +20,12 @@ macro_rules! streamable_tests {
             #[allow(unused_imports)]
             use $crate::car::Streamable;
             #[allow(unused_imports)]
-            use anyhow::Result;
-            #[allow(unused_imports)]
+                        #[allow(unused_imports)]
             use std::io::{Read, Write, Cursor, SeekFrom, Seek};
             #[allow(unused_imports)]
 
             #[test]
-            fn to_from_bytes() -> Result<()> {
+            fn to_from_bytes() -> Result<(), std::io::Error> {
                 // Serialize
                 let mut bytes = Cursor::new(<Vec<u8>>::new());
                 $value.write_bytes(&mut bytes)?;

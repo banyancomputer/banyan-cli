@@ -11,8 +11,7 @@ pub mod mapper;
 #[cfg(test)]
 mod test {
     use crate::filesystem::sharing::manager::ShareManager;
-    use anyhow::{anyhow, Result};
-    use rand::Rng;
+        use rand::Rng;
     use serial_test::serial;
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::{AesKey, PrivateRef, TemporalKey};

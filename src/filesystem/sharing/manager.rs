@@ -1,5 +1,4 @@
 use super::mapper::EncRefMapper;
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::PrivateRef;

@@ -3,7 +3,6 @@ use crate::{
     filesystem::wnfsio::path_to_segments,
     native::configuration::{bucket::LocalBucket, globalconfig::GlobalConfig},
 };
-use anyhow::Result;
 use std::path::Path;
 
 /// The pipeline for removing an individual file from a WNFS

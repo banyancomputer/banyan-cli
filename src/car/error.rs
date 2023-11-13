@@ -1,18 +1,52 @@
-use thiserror::Error;
+use wnfs::libipld::Cid;
 
-#[derive(Debug, Error)]
-/// CAR errors.
-pub enum CARError {
-    #[error("CARv1 had a malformed header")]
+#[derive(Debug)]
+pub(crate) struct CarError {
+    pub kind: CarErrorKind,
+}
+
+impl CarError {
+    pub fn missing_root() -> Self {
+        Self {
+            kind: CarErrorKind::MissingRoot
+        }
+    }
+
+    pub fn v1_header() -> Self {
+        Self {
+            kind: CarErrorKind::V1Header
+        }
+    }
+
+    pub fn index() -> Self {
+        Self {
+            kind: CarErrorKind::Index
+        }
+    }
+
+    pub fn codec() -> Self {
+        Self {
+            kind: CarErrorKind::Codec
+        }
+    }
+
+    pub fn end_of_data() -> Self {
+        Self {
+            kind: CarErrorKind::EndOfData
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CarErrorKind {
+    /// No Root Cid even though expected
+    MissingRoot,
     /// The CARv1 Header was not correct
     V1Header,
-    #[error("CARv2 had a malformed index")]
     /// The CARv2 Index was not correct
     Index,
     /// Index codec
-    #[error("CARv2 Index codec was wrong")]
     Codec,
     /// Index codec
-    #[error("No more data blocks")]
     EndOfData,
 }

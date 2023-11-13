@@ -1,8 +1,7 @@
 use crate::{
-    blockstore::{BlockStore, RootedBlockStore},
+    blockstore::{BlockStore, RootedBlockStore, BlockStoreError},
     car::{v1::Block, v2::CarV2},
 };
-use anyhow::Result;
 use async_trait::async_trait;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -41,7 +40,7 @@ impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
 
 impl CarV2MemoryBlockStore {
     /// Create a new CarV2BlockStore from a readable stream
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, BlockStoreError> {
         // Read data
         let mut rw = Cursor::new(<Vec<u8>>::new());
         let car = CarV2::new(&mut rw)?;
@@ -119,9 +118,8 @@ impl<'de> Deserialize<'de> for CarV2MemoryBlockStore {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    use crate::blockstore::RootedBlockStore;
-    use anyhow::Result;
-    use wnfs::{
+    use crate::blockstore::{RootedBlockStore, BlockStoreError};
+        use wnfs::{
         common::{bs_duplication_test, bs_retrieval_test, bs_serialization_test, BlockStore},
         libipld::IpldCodec,
     };
@@ -131,7 +129,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn put_block() -> Result<()> {
+    async fn put_block() -> Result<(), BlockStoreError> {
         let store = CarV2MemoryBlockStore::new()?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
@@ -142,7 +140,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn from_scratch() -> Result<()> {
+    async fn from_scratch() -> Result<(), BlockStoreError> {
         // Open
         let original = CarV2MemoryBlockStore::new()?;
         // Put a block in
@@ -170,7 +168,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn carv2memoryblockstore() -> Result<()> {
+    async fn carv2memoryblockstore() -> Result<(), BlockStoreError> {
         let store = &CarV2MemoryBlockStore::new()?;
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;

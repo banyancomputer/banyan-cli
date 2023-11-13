@@ -16,7 +16,6 @@ use crate::car::{
     v2::index::{indexsorted::Bucket, Index},
     Streamable,
 };
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::{
@@ -24,6 +23,8 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
+
+use super::error::CarError;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CarV1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;
@@ -50,7 +51,7 @@ impl CarV2 {
     }
 
     /// Load in the CarV2
-    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(mut r: R) -> Result<Self, CarError> {
         // Verify the pragma
         Self::verify_pragma(&mut r)?;
         // Load in the header
@@ -78,7 +79,7 @@ impl CarV2 {
     }
 
     /// Write the CarV2 out to a writer, reading in the content required to write as we go
-    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<()> {
+    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<(), CarError> {
         // Determine part where the CarV1 will go
         let data_offset = self.header.borrow().data_offset;
         // Skip to it
@@ -104,7 +105,7 @@ impl CarV2 {
     }
 
     /// Export the CarV2 as bytes to a Vec<u8>
-    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, CarError> {
         // Create a new vec
         let vec = Vec::new();
         // Read everything in the car to the vec
@@ -115,7 +116,7 @@ impl CarV2 {
     }
 
     /// Ensure the validity of the CarV2 PRAGMA in a given stream
-    pub(crate) fn verify_pragma<R: Read + Seek>(mut r: R) -> Result<()> {
+    pub(crate) fn verify_pragma<R: Read + Seek>(mut r: R) -> Result<(), CarError> {
         // Move to the start of the file
         r.seek(SeekFrom::Start(0))?;
         // Read the pragma
@@ -128,7 +129,7 @@ impl CarV2 {
     }
 
     /// Get a Block directly from the CarV2
-    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
+    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block, CarError> {
         // If there is a V2Index
         if let Some(block_offset) = self.car.index.borrow().get_offset(cid) {
             // Move to the start of the block
@@ -141,7 +142,7 @@ impl CarV2 {
     }
 
     /// Set a Block directly in the CarV2
-    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
+    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<(), CarError> {
         // Grab the header
         let header = *self.header.borrow();
         // Determine offset of the next block
@@ -167,7 +168,7 @@ impl CarV2 {
     }
 
     /// Create a new CarV2 struct by writing into a stream, then deserializing it
-    pub fn new<RW: Read + Write + Seek>(mut rw: RW) -> Result<Self> {
+    pub fn new<RW: Read + Write + Seek>(mut rw: RW) -> Result<Self, CarError> {
         // Move to CarV1 no padding
         rw.seek(SeekFrom::Start(PH_SIZE))?;
         // Construct a CarV1
@@ -195,7 +196,7 @@ impl CarV2 {
         Self::read_bytes(&mut rw)
     }
 
-    fn update_header(&self, data_end: u64) -> Result<()> {
+    fn update_header(&self, data_end: u64) -> Result<(), CarError> {
         let mut header = self.header.borrow_mut();
         // Update the data size
         header.data_size = if data_end > PH_SIZE {
@@ -227,11 +228,10 @@ impl CarV2 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
-        car::{v1::Block, v2::CarV2},
+        car::{v1::Block, v2::CarV2, error::CarError},
         utils::{get_read_write, testing::blockstores::car_test_setup},
     };
-    use anyhow::Result;
-    use serial_test::serial;
+        use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
         io::{Seek, SeekFrom},
@@ -242,7 +242,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn from_disk_broken_index() -> Result<()> {
+    fn from_disk_broken_index() -> Result<(), CarError> {
         let car_path = car_test_setup(2, "basic", "from_disk_basic")?;
         let mut file = File::open(car_path)?;
         // Read the v2 header
@@ -296,7 +296,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn put_get_block() -> Result<()> {
+    fn put_get_block() -> Result<(), CarError> {
         let car_path = &car_test_setup(2, "indexless", "put_get_block")?;
 
         // Define reader and writer
@@ -337,7 +337,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_no_offset() -> Result<()> {
+    fn to_from_disk_no_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(2, "indexless", "to_from_disk_no_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
@@ -361,7 +361,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_with_data() -> Result<()> {
+    fn to_from_disk_with_data() -> Result<(), CarError> {
         let car_path = &car_test_setup(2, "indexless", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;

@@ -11,7 +11,6 @@ use crate::car::{
     v2::index::{indexable::Indexable, indexsorted::Bucket, Index, INDEX_SORTED_CODEC},
     Streamable,
 };
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -19,6 +18,8 @@ use std::{
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
 use wnfs::{common::BlockStoreError, libipld::Cid};
+
+use super::error::CarError;
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -31,7 +32,7 @@ pub struct CarV1 {
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
-    pub fn read_bytes<R: Read + Seek>(index_offset: Option<u64>, mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(index_offset: Option<u64>, mut r: R) -> Result<Self, CarError> {
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
         // End of the header
@@ -56,7 +57,7 @@ impl CarV1 {
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
-    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64> {
+    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64, CarError> {
         // Save our starting point
         let carv1_start = rw.stream_position()?;
         // Read the old header
@@ -126,7 +127,7 @@ impl CarV1 {
     }
 
     /// Get a Block directly from the CarV1
-    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
+    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block, CarError> {
         if let Some(block_offset) = self.index.borrow().get_offset(cid) {
             r.seek(SeekFrom::Start(block_offset))?;
             Block::read_bytes(&mut r)
@@ -136,7 +137,7 @@ impl CarV1 {
     }
 
     /// Set a Block directly in the CarV1
-    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
+    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<(), CarError> {
         let mut index = self.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::End(0))?;
@@ -149,7 +150,7 @@ impl CarV1 {
     }
 
     /// Create a new CARv1 struct by writing into a stream, then deserializing it
-    pub fn new<RW: Read + Write + Seek>(index_offset: Option<u64>, mut rw: RW) -> Result<Self> {
+    pub fn new<RW: Read + Write + Seek>(index_offset: Option<u64>, mut rw: RW) -> Result<Self, CarError> {
         let car = Self::default(if index_offset.is_none() { 1 } else { 2 });
         car.header.write_bytes(&mut rw)?;
         rw.seek(SeekFrom::Start(0))?;
@@ -199,11 +200,10 @@ impl CarV1 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
-        car::v1::{block::Block, CarV1},
+        car::{v1::{block::Block, CarV1}, error::CarError},
         utils::{get_read_write, testing::blockstores::car_test_setup},
     };
-    use anyhow::Result;
-    use serial_test::serial;
+        use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
         io::{Seek, SeekFrom},
@@ -213,7 +213,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn from_disk_basic() -> Result<()> {
+    fn from_disk_basic() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "from_disk_basic")?;
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
@@ -274,7 +274,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn set_root() -> Result<()> {
+    fn set_root() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "set_root_original")?;
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
@@ -300,7 +300,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn put_get_block() -> Result<()> {
+    fn put_get_block() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "put_get_block")?;
         // Define reader and writer
         let mut original_file = File::open(car_path)?;
@@ -340,7 +340,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_no_offset() -> Result<()> {
+    fn to_from_disk_no_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_no_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
@@ -365,7 +365,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_with_offset() -> Result<()> {
+    fn to_from_disk_with_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_with_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
@@ -395,7 +395,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_with_data() -> Result<()> {
+    fn to_from_disk_with_data() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;

@@ -1,9 +1,8 @@
 use super::CarV2DiskBlockStore;
 use crate::{
     api::requests::staging::upload::content::{ContentType, UploadContent},
-    blockstore::{BlockStore, RootedBlockStore},
+    blockstore::{BlockStore, RootedBlockStore, BlockStoreError}, car::error::CarError,
 };
-use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all};
@@ -11,7 +10,6 @@ use std::{
     borrow::Cow,
     path::{Path, PathBuf},
 };
-use wnfs::common::BlockStoreError;
 use wnfs::libipld::{Cid, IpldCodec};
 
 /// CARv2 MultiCarV2DiskBlockStore across multiple CAR files using File IO
@@ -25,9 +23,9 @@ pub struct MultiCarV2DiskBlockStore {
 
 impl MultiCarV2DiskBlockStore {
     /// Create a new CARv2 MultifileMultiCarV2DiskBlockStore from a directory
-    pub fn new(dir: &Path) -> Result<Self> {
+    pub fn new(dir: &Path) -> Result<Self, BlockStoreError> {
         if dir.is_file() {
-            Err(anyhow!("{} is a file", dir.display()))
+            Err(BlockStoreError::expected_directory(dir))
         } else {
             // If the folder doesn't already exist
             if !dir.exists() {
@@ -64,7 +62,7 @@ impl MultiCarV2DiskBlockStore {
     }
 
     /// Add a new delta file / CAR file
-    pub fn add_delta(&mut self) -> Result<()> {
+    pub fn add_delta(&mut self) -> Result<(), BlockStoreError> {
         // Create a new delta for writing
         let new_store =
             CarV2DiskBlockStore::new(&self.path.join(format!("{}.car", self.deltas.len() + 1)))?;
@@ -75,7 +73,9 @@ impl MultiCarV2DiskBlockStore {
                 &self
                     .get_delta()?
                     .get_root()
-                    .ok_or(anyhow!("No root in previous delta"))?,
+                    .ok_or(
+                        BlockStoreError::car(CarError::missing_root())
+                    )?,
             );
         } else {
             new_store.set_root(&Cid::default());
@@ -89,14 +89,14 @@ impl MultiCarV2DiskBlockStore {
     }
 
     /// Get the most recent delta
-    pub fn get_delta(&self) -> Result<&CarV2DiskBlockStore> {
-        self.deltas.last().ok_or(anyhow!("No delta to upload"))
+    pub fn get_delta(&self) -> Result<&CarV2DiskBlockStore, BlockStoreError> {
+        self.deltas.last().ok_or(BlockStoreError::NoSuchFile)
     }
 }
 
 #[async_trait(?Send)]
 impl BlockStore for MultiCarV2DiskBlockStore {
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> anyhow::Result<Cow<'_, Vec<u8>>> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
             // If block is retrieved
@@ -110,7 +110,7 @@ impl BlockStore for MultiCarV2DiskBlockStore {
         Err(BlockStoreError::CIDNotFound(*cid).into())
     }
 
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> anyhow::Result<Cid> {
         // If there is a delta
         if let Ok(current_delta) = self.get_delta() {
             let cid = current_delta.put_block(bytes, codec).await?;
@@ -142,7 +142,9 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
 
 #[async_trait(?Send)]
 impl UploadContent for MultiCarV2DiskBlockStore {
-    fn get_hash(&self) -> anyhow::Result<String> {
+    type UploadError = anyhow::Error;
+
+    fn get_hash(&self) -> Result<String, Self::UploadError> {
         let reader = std::fs::File::open(&self.get_delta()?.path)?;
         let mut hasher = blake3::Hasher::new();
         hasher.update_reader(&reader)?;
@@ -150,11 +152,11 @@ impl UploadContent for MultiCarV2DiskBlockStore {
     }
 
     #[allow(refining_impl_trait)]
-    async fn get_body(&self) -> anyhow::Result<ContentType> {
+    async fn get_body(&self) -> Result<ContentType, Self::UploadError> {
         Ok(tokio::fs::File::open(&self.get_delta()?.path).await?.into())
     }
 
-    fn get_length(&self) -> Result<u64> {
+    fn get_length(&self) -> Result<u64, Self::UploadError> {
         Ok(self.get_delta()?.path.metadata()?.len())
     }
 }
@@ -183,8 +185,7 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
 
-    use anyhow::Result;
-    use serial_test::serial;
+        use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
     use wnfs::{
         common::{
@@ -194,11 +195,11 @@ mod test {
         libipld::IpldCodec,
     };
 
-    use crate::blockstore::MultiCarV2DiskBlockStore;
+    use crate::blockstore::{MultiCarV2DiskBlockStore, BlockStoreError};
 
     #[tokio::test]
     #[serial]
-    async fn multidelta() -> Result<()> {
+    async fn multidelta() -> Result<(), BlockStoreError> {
         let path = &Path::new("test").join("multidelta");
         // Delete this if it exists
         if path.exists() {
@@ -240,7 +241,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn unidelta() -> Result<()> {
+    async fn unidelta() -> Result<(), BlockStoreError> {
         let path = &Path::new("test").join("unidelta");
         // Delete this if it exists
         if path.exists() {
@@ -277,7 +278,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn multifileblockstore() -> Result<()> {
+    async fn multifileblockstore() -> Result<(), BlockStoreError> {
         let test_dir = &Path::new("test").join("car").join("multifile_blockstore");
         if test_dir.exists() {
             remove_dir_all(test_dir)?;

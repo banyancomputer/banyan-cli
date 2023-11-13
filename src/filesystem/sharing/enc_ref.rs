@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{
     EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, SymmetricKey,

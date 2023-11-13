@@ -1,10 +1,11 @@
-use crate::car::{
-    error::CARError,
-    v2::index::indexable::Indexable,
-    varint::{read_leu32, read_leu64},
-    Streamable,
+use crate::{
+    utils::varint::{read_leu32, read_leu64},
+    car::{
+        error::CarError,
+        v2::index::indexable::Indexable,
+        Streamable,
+    }
 };
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -21,7 +22,7 @@ pub struct Bucket {
 }
 
 impl Streamable for Bucket {
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, std::io::Error> {
         // Start pos
         let start = r.stream_position()?;
         // Width of each digest offset pair
@@ -53,7 +54,7 @@ impl Streamable for Bucket {
             // Unread these remaining bytes
             r.seek(SeekFrom::Start(start))?;
             // This is not a bucket
-            Err(CARError::EndOfData.into())
+            Err(CarError::EndOfData.into())
         }
         // Otherwise that was fine
         else {
@@ -64,7 +65,7 @@ impl Streamable for Bucket {
         }
     }
 
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), std::io::Error> {
         w.write_all(&(self.cid_width + 8).to_le_bytes())?;
         w.write_all(&(self.map.len() as u64).to_le_bytes())?;
         // For each cid offset pairing

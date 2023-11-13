@@ -1,5 +1,4 @@
 use crate::native::file_scanning::spider_plans::{PreparePipelinePlan, SpiderMetadata};
-use anyhow::Result;
 use jwalk::WalkDir;
 use std::{
     collections::HashSet,

@@ -2,7 +2,6 @@ use crate::native::file_scanning::{
     spider_plans::{PreparePipelinePlan, SpiderMetadata},
     FClonesLogger,
 };
-use anyhow::Result;
 use fclones::{config::GroupConfig, group_files};
 use std::{
     collections::HashSet,

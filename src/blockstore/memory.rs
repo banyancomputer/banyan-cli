@@ -1,5 +1,4 @@
 use crate::blockstore::{BlockStore, RootedBlockStore};
-use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cell::RefCell};
@@ -25,12 +24,12 @@ impl MemoryBlockStore {
 #[async_trait(?Send)]
 impl BlockStore for MemoryBlockStore {
     /// Retrieves an array of bytes from the block store with given CID.
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> anyhow::Result<Cow<'_, Vec<u8>>> {
         self.store.get_block(cid).await
     }
 
     /// Stores an array of bytes in the block store.
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid> {
+    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> anyhow::Result<Cid> {
         self.store.put_block(bytes, codec).await
     }
 }
@@ -49,9 +48,8 @@ impl RootedBlockStore for MemoryBlockStore {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use crate::blockstore::{MemoryBlockStore, RootedBlockStore};
-    use anyhow::Result;
-    use wnfs::{
+    use crate::blockstore::{MemoryBlockStore, RootedBlockStore, BlockStoreError};
+        use wnfs::{
         common::{
             blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test},
             BlockStore,
@@ -60,7 +58,7 @@ mod test {
     };
 
     #[tokio::test]
-    async fn memory_blockstore() -> Result<()> {
+    async fn memory_blockstore() -> Result<(), BlockStoreError> {
         let store = &MemoryBlockStore::default();
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
@@ -68,7 +66,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn memory_rooted_blockstore() -> Result<()> {
+    async fn memory_rooted_blockstore() -> Result<(), BlockStoreError> {
         let store = &MemoryBlockStore::default();
         // Put a block in the store
         let cid = store.put_block(vec![1, 2, 3], IpldCodec::Raw).await?;

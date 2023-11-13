@@ -5,7 +5,6 @@ use crate::{
         operations::error::TombError,
     },
 };
-use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use std::path::Path;

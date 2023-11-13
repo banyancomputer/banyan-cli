@@ -1,5 +1,4 @@
 use super::error::KeyError;
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use tomb_crypt::{
     hex_fingerprint,
@@ -182,8 +181,7 @@ impl<'de> Deserialize<'de> for EncRefMapper {
 #[cfg(test)]
 mod test {
 
-    use anyhow::Result;
-    use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
+        use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::{
         common::dagcbor,
         libipld::Cid,

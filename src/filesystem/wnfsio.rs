@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::{
     io::{BufReader, Read, Write},
     path::Path,

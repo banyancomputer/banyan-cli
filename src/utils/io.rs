@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::{
     fs::{File, OpenOptions},
     path::Path,

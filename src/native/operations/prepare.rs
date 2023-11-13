@@ -9,7 +9,6 @@ use crate::{
         utils::get_progress_bar,
     },
 };
-use anyhow::Result;
 use std::{
     collections::HashSet,
     fs::File,

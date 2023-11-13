@@ -7,7 +7,6 @@ use crate::{
         wnfsio::path_to_segments,
     },
 };
-use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use chrono::Utc;
 use futures_util::future::join_all;
@@ -674,8 +673,7 @@ pub struct FsMetadataEntry {
 mod test {
 
     use crate::{blockstore::MemoryBlockStore, filesystem::metadata::FsMetadata};
-    use anyhow::Result;
-    use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
+        use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::PrivateNode;
 
     async fn _init_save_unlock(

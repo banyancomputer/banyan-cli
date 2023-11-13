@@ -8,7 +8,6 @@ use crate::{
         utils::get_progress_bar,
     },
 };
-use anyhow::Result;
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::PathBuf};
 use wnfs::private::PrivateNode;
 

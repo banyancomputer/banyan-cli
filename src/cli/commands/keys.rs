@@ -140,16 +140,17 @@ async fn get_key_info(
     client: &mut Client,
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
-) -> anyhow::Result<(Uuid, Uuid)> {
+) -> Result<(Uuid, Uuid), TombError> {
     let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.drive_specifier)
         .await
-        .get_id()
-        .unwrap();
+        .get_id()?;
+
     let all_keys = BucketKey::read_all(bucket_id, client).await?;
     let key_index = all_keys
         .iter()
         .position(|key| key.fingerprint == key_specifier.fingerprint)
         .unwrap();
+    
     let key = all_keys[key_index].clone();
 
     Ok((bucket_id, key.id))

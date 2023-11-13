@@ -8,7 +8,6 @@ use crate::{
     },
     utils::get_read,
 };
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir_all, remove_file, OpenOptions},
@@ -222,8 +221,7 @@ impl GlobalConfig {
 #[cfg(test)]
 mod test {
 
-    use anyhow::Result;
-    use serial_test::serial;
+        use serial_test::serial;
     use std::{fs::remove_file, path::Path};
 
     use crate::native::configuration::{

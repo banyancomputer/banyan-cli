@@ -1,3 +1,5 @@
+use std::string::ParseError;
+
 use super::RunnableCommand;
 use crate::{
     api::client::Client,
@@ -77,7 +79,7 @@ fn process_field(
     label: &str,
     field: &mut String,
     address: Option<AddressCommand>,
-) -> anyhow::Result<String> {
+) -> Result<String, ParseError> {
     match address {
         None => Ok(format!(
             "{}\n{}\n",
@@ -99,9 +101,8 @@ fn process_field(
 }
 
 /// Verify the integrity of a provided address
-fn verify_address(address: &str) -> anyhow::Result<()> {
+fn verify_address(address: &str) -> Result<(), ParseError> {
     // Update if the address is valid
     Url::parse(address)
         .map(|_| ())
-        .map_err(|_| anyhow::anyhow!("ADDRESS WAS NOT FORMATTED CORRECTLY"))
 }

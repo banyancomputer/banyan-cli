@@ -4,7 +4,6 @@ use crate::{
     filesystem::FsMetadata,
     native::configuration::xdg::xdg_data_home,
 };
-use anyhow::{Ok, Result};
 use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
@@ -156,8 +155,7 @@ impl LocalBucket {
 #[cfg(test)]
 mod test {
     use crate::native::configuration::globalconfig::GlobalConfig;
-    use anyhow::Result;
-    use chrono::Utc;
+        use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
     use std::{

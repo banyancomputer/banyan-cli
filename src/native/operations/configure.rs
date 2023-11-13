@@ -1,5 +1,4 @@
 use crate::native::configuration::globalconfig::GlobalConfig;
-use anyhow::Result;
 use std::path::Path;
 
 /// Create a default config for this user

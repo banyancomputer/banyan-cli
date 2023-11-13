@@ -1,8 +1,10 @@
-use crate::car::{
-    streamable::Streamable,
-    varint::{read_leu128, read_leu64},
+use crate::{
+    utils::varint::{read_leu128, read_leu64},
+    car::{
+        streamable::Streamable,
+        error::CarError,
+    }
 };
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
 
@@ -18,7 +20,7 @@ pub struct Header {
 }
 
 impl Streamable for Header {
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), std::io::Error> {
         let start = w.stream_position()?;
         // Write
         w.write_all(&self.characteristics.to_le_bytes())?;
@@ -32,7 +34,7 @@ impl Streamable for Header {
         Ok(())
     }
 
-    fn read_bytes<R: Read>(r: &mut R) -> Result<Self> {
+    fn read_bytes<R: Read>(r: &mut R) -> Result<Self, std::io::Error> {
         Ok(Self {
             characteristics: read_leu128(r)?,
             data_offset: read_leu64(r)?,
@@ -43,7 +45,7 @@ impl Streamable for Header {
 }
 
 impl Header {
-    pub fn to_bytes(self) -> Result<Vec<u8>> {
+    pub fn to_bytes(self) -> Result<Vec<u8>, CarError> {
         let mut header_bytes = Cursor::new(<Vec<u8>>::new());
         self.write_bytes(&mut header_bytes)?;
         Ok(header_bytes.into_inner())
@@ -79,12 +81,11 @@ mod test {
     use crate::{
         car::{
             v2::{header::Header, PRAGMA, PRAGMA_SIZE},
-            Streamable,
+            Streamable, error::CarError,
         },
         utils::testing::blockstores::car_test_setup,
     };
-    use anyhow::Result;
-    use serial_test::serial;
+        use serial_test::serial;
     use std::{
         fs::File,
         io::{Seek, Write},
@@ -93,7 +94,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn read_disk() -> Result<()> {
+    fn read_disk() -> Result<(), CarError> {
         let car_path = car_test_setup(2, "basic", "read_disk")?;
         let mut file = File::open(car_path)?;
         // Skip the pragma
@@ -109,7 +110,7 @@ mod test {
     }
 
     #[test]
-    fn from_scratch() -> Result<()> {
+    fn from_scratch() -> Result<(), CarError> {
         let path = &Path::new("test")
             .join("car")
             .join("carv2_header_from_scratch.car");

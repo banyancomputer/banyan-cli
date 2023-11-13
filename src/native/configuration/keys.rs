@@ -1,4 +1,3 @@
-use anyhow::{anyhow, Result};
 use std::{
     fs::File,
     io::{Read, Write},

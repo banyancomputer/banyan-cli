@@ -1,9 +1,10 @@
-use crate::car::{
-    error::CARError,
-    varint::{encode_varint_u64, read_varint_u64},
-    Streamable,
+use crate::{
+    utils::varint::{encode_varint_u64, read_varint_u64},
+    car::{
+        error::CarError,
+        Streamable,
+    }
 };
-use anyhow::Result;
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -28,7 +29,7 @@ pub struct Header {
 
 impl Header {
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
-    pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self> {
+    pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self, CarError> {
         // If the IPLD is a true map and the correct keys exist within it
         if let Ok(ipld) = dagcbor::decode(bytes)
             && let Ipld::Map(map) = ipld
@@ -36,18 +37,18 @@ impl Header {
             && let Some(Ipld::List(roots_ipld)) = map.get("roots")
         {
             // Helper function for interpreting a given Cid as a Link
-            fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CARError> {
+            fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CarError> {
                 if let Ipld::Link(cid) = ipld {
                     Ok(*cid)
                 } else {
-                    Err(CARError::V1Header)
+                    Err(CarError::V1Header)
                 }
             }
             // Interpret all of the roots as CIDs
             let roots = roots_ipld
                 .iter()
                 .map(ipld_to_cid)
-                .collect::<Result<Vec<Cid>, CARError>>()?;
+                .collect::<Result<Vec<Cid>, CarError>>()?;
 
             // Return Ok with new Self
             Ok(Self {
@@ -55,12 +56,12 @@ impl Header {
                 roots: RefCell::new(roots),
             })
         } else {
-            Err(CARError::V1Header.into())
+            Err(CarError::V1Header.into())
         }
     }
 
     /// Transforms this object into a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1
-    pub fn to_ipld_bytes(&self) -> Result<Vec<u8>> {
+    pub fn to_ipld_bytes(&self) -> Result<Vec<u8>, CarError> {
         let mut map = BTreeMap::new();
         map.insert("version".to_string(), Ipld::Integer(self.version as i128));
         // Represent the root CIDs as IPLD Links
@@ -89,7 +90,7 @@ impl Header {
 
 impl Streamable for Header {
     /// Write a Header to a byte stream
-    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<()> {
+    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<(), std::io::Error> {
         // Represent as DAGCBOR IPLD
         let ipld_buf = self.to_ipld_bytes()?;
         // Tally bytes in this DAGCBOR, encode as u64
@@ -101,7 +102,7 @@ impl Streamable for Header {
     }
 
     /// Read a Header from a byte stream
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, std::io::Error> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(r)?;
         // Allocate that space
@@ -119,9 +120,8 @@ impl Streamable for Header {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::Header;
-    use crate::car::Streamable;
-    use anyhow::Result;
-    use serial_test::serial;
+    use crate::car::{Streamable, error::CarError};
+        use serial_test::serial;
     use std::{
         cell::RefCell,
         fs::File,
@@ -134,7 +134,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn read_disk() -> Result<()> {
+    fn read_disk() -> Result<(), CarError> {
         let car_path = Path::new("car-fixtures").join("carv1-basic.car");
         // Open the CARv1
         let mut file = BufReader::new(File::open(car_path)?);
@@ -154,7 +154,7 @@ mod test {
     }
 
     #[test]
-    fn output() -> Result<()> {
+    fn output() -> Result<(), CarError> {
         let cid1 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
         let cid2 = Cid::from_str("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi")?;
 

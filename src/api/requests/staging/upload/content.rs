@@ -1,4 +1,3 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
 
@@ -15,9 +14,11 @@ pub type ContentType = std::io::Cursor<Vec<u8>>;
 
 #[async_trait(?Send)]
 pub trait UploadContent {
-    fn get_hash(&self) -> Result<String>;
-    async fn get_body(&self) -> Result<ContentType>;
-    fn get_length(&self) -> Result<u64>;
+    type UploadError;
+
+    fn get_hash(&self) -> Result<String, Self::UploadError>;
+    async fn get_body(&self) -> Result<ContentType, Self::UploadError>;
+    fn get_length(&self) -> Result<u64, Self::UploadError>;
 
     async fn upload(
         &self,
@@ -39,7 +40,9 @@ pub trait UploadContent {
 
 #[async_trait(?Send)]
 impl UploadContent for CarV2MemoryBlockStore {
-    fn get_hash(&self) -> anyhow::Result<String> {
+    type UploadError = ();
+
+    fn get_hash(&self) -> Result<String, Self::UploadError> {
         let data = self.get_data();
         let mut hasher = blake3::Hasher::new();
         hasher.update(&data);
@@ -47,7 +50,7 @@ impl UploadContent for CarV2MemoryBlockStore {
     }
 
     #[allow(refining_impl_trait)]
-    async fn get_body(&self) -> anyhow::Result<ContentType> {
+    async fn get_body(&self) -> Result<ContentType, Self::UploadError> {
         #[cfg(target_arch = "wasm32")]
         return Ok(std::io::Cursor::new(self.get_data()));
 
@@ -55,7 +58,7 @@ impl UploadContent for CarV2MemoryBlockStore {
         return Ok(self.get_data().into());
     }
 
-    fn get_length(&self) -> Result<u64> {
+    fn get_length(&self) -> Result<u64, Self::UploadError> {
         Ok(self.get_data().len() as u64)
     }
 }
