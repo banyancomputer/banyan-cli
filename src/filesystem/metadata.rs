@@ -23,7 +23,11 @@ use wnfs::{
     common::{BlockStore, Metadata},
     libipld::{Cid, Ipld},
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory},
+    private::{
+        share::{Share, SharePayload, Sharer, SnapshotSharePointer, TemporalSharePointer},
+        AesKey, PrivateDirectory, PrivateFile, PrivateForest, PrivateNode,
+        PrivateNodeOnPathHistory, PrivateRef, SnapshotKey, TemporalKey,
+    },
 };
 
 const SHARE_MANAGER_LABEL: &str = "SHARE_MANAGER";
@@ -46,6 +50,16 @@ pub struct FsMetadata {
     /// Loaded Metadata
     pub metadata: Option<BTreeMap<String, Ipld>>,
 }
+
+// #[async_trait::async_trait(?Send)]
+// impl wnfs::private::ExchangeKey for EcPublicEncryptionKey {
+//     async fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>> {
+//         self.encrypt(data).await
+//     }
+//     async fn from_modulus(modulus: &[u8]) -> Result<Self> {
+
+//     }
+// }
 
 impl FsMetadata {
     /// Initialize a new FsMetadata with a wrapping key in memory
@@ -217,7 +231,7 @@ impl FsMetadata {
         })
     }
 
-    /// Share with
+    /// Share read write access with another key bearer
     pub async fn share_with(
         &mut self,
         recipient: &EcPublicEncryptionKey,
@@ -247,6 +261,51 @@ impl FsMetadata {
         store.set_root(&metadata_cid);
         // Update the metadata
         Ok(())
+    }
+
+    /// Share a single version of an individual node
+    pub async fn share_file(
+        &mut self,
+        path_segments: &[String],
+        metadata_store: &impl BlockStore,
+        content_store: &impl BlockStore,
+    ) -> Result<SharePayload> {
+        let mut rng = thread_rng();
+        let node = self
+            .get_node(path_segments, metadata_store)
+            .await?
+            .ok_or(anyhow!("No node!"))?;
+
+        // Store a snapshot of the PrivateFile
+        match node.clone() {
+            PrivateNode::File(file) => {
+                file.store_snapshot(&mut self.forest, content_store, &mut rng)
+                    .await?;
+            }
+            PrivateNode::Dir(_) => {
+                panic!("oh fuck thats a directory!");
+            }
+        }
+
+        let sharer_payload =
+            SharePayload::from_node(&node, false, &mut self.forest, content_store, &mut rng)
+                .await?;
+        Ok(sharer_payload)
+    }
+
+    pub async fn receive_file(
+        &self,
+        payload: SharePayload,
+        store: &impl BlockStore,
+    ) -> Result<Rc<PrivateFile>> {
+        // Grab node using share label.
+        match payload {
+            SharePayload::Temporal(_) => todo!(),
+            SharePayload::Snapshot(snapshot) => {
+                let node = PrivateNode::load_from_snapshot(snapshot, &self.forest, store).await?;
+                Ok(node.as_file()?)
+            }
+        }
     }
 
     /// Get the original root directory
@@ -582,7 +641,7 @@ impl FsMetadata {
     pub async fn get_node(
         &self,
         path_segments: &[String],
-        store: &impl RootedBlockStore,
+        store: &impl BlockStore,
     ) -> Result<Option<PrivateNode>> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
@@ -743,6 +802,40 @@ mod test {
         let new_kitty_bytes = fs_metadata
             .read(&cat_path, &metadata_store, &content_store)
             .await?;
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn add_share_receive() -> Result<()> {
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
+
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
+        // Add a new file
+        fs_metadata
+            .write(
+                &cat_path,
+                &metadata_store,
+                &content_store,
+                kitty_bytes.clone(),
+            )
+            .await?;
+
+        let payload = fs_metadata
+            .share_file(&cat_path, &metadata_store, &content_store)
+            .await?;
+
+        let file = fs_metadata.receive_file(payload, &content_store).await?;
+        let new_kitty_bytes = file
+            .get_content(&fs_metadata.forest, &content_store)
+            .await?;
+
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
         Ok(())

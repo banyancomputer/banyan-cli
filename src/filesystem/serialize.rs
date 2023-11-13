@@ -19,8 +19,8 @@ pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     let seed = thread_rng().gen::<[u8; 32]>();
     let mut rng = StdRng::from_seed(seed);
     // Store the PrivateDirectory in both PrivateForests
-    let metadata_ref = dir.store(forest, metadata_store, &mut rng).await?;
-    let content_ref = dir.store(forest, content_store, &mut rng).await?;
+    let metadata_ref = dir.store_temporal(forest, metadata_store, &mut rng).await?;
+    let content_ref = dir.store_temporal(forest, content_store, &mut rng).await?;
     // Assert that the PrivateRefs are the same
     assert_eq!(metadata_ref, content_ref);
     // Return Ok

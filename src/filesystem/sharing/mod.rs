@@ -6,6 +6,8 @@ mod error;
 pub mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
+/// Takes snapshots of data
+pub mod snapshot;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
