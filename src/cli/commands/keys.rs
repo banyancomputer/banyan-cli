@@ -2,7 +2,7 @@ use crate::{
     api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
     cli::CliError,
     native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig, ConfigurationError},
         operations::OperationError,
     },
 };
@@ -77,9 +77,7 @@ impl RunnableCommand<CliError> for KeyCommand {
                             .map_err(CliError::client_error)
                     }
                 } else {
-                    Err(NativeError::custom_error(
-                        "Cannot request key access on a Bucket with no known remote correlate.",
-                    ))
+                    Err(ConfigurationError::missing_remote_drive())
                 }
             }
             KeyCommand::Ls(drive_specifier) => {

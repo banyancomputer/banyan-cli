@@ -16,10 +16,12 @@ pub use runnable_command::RunnableCommand;
 
 use crate::{
     api::client::Client,
-    native::{configuration::globalconfig::GlobalConfig, operations::error::NativeError},
+    native::{configuration::globalconfig::GlobalConfig, operations::OperationError},
 };
 use async_trait::async_trait;
 use clap::Subcommand;
+
+use super::CliError;
 
 /// Prompt the user for a y/n answer
 pub fn prompt_for_bool(msg: &str) -> bool {
@@ -59,12 +61,12 @@ pub enum TombCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<NativeError> for TombCommand {
+impl RunnableCommand<CliError> for TombCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, NativeError> {
+    ) -> Result<String, CliError> {
         match self {
             TombCommand::Api { command } => Ok(command.run_internal(global, client).await?),
             TombCommand::Account { command } => Ok(command.run_internal(global, client).await?),

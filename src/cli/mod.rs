@@ -18,7 +18,7 @@ mod test {
             specifiers::DriveSpecifier,
         },
         native::{
-            configuration::globalconfig::GlobalConfig,
+            configuration::{globalconfig::GlobalConfig, ConfigurationError},
             test::{test_setup, test_teardown},
         },
     };
@@ -46,7 +46,7 @@ mod test {
 
     async fn cmd_delete(origin: &Path) -> Result<(), CliError> {
         let mut global = GlobalConfig::from_disk().await?;
-        let local = global.get_bucket(origin).ok_or(anyhow!("no bucket"))?;
+        let local = global.get_bucket(origin).ok_or(ConfigurationError::missing_local_drive())?;
         local.remove_data()?;
         // Find index of bucket
         let index = global

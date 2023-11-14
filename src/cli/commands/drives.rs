@@ -150,7 +150,7 @@ impl RunnableCommand<CliError> for DrivesCommand {
                         remote.id,
                         ByteSize(v)
                     )
-                })?
+                })
             }
             DrivesCommand::Metadata { subcommand } => subcommand.run_internal(global, client).await,
             DrivesCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,

@@ -2,8 +2,7 @@ use crate::{
     api::{client::Client, models::metadata::Metadata},
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-        operations::error::NativeError,
-    },
+    }, cli::CliError,
 };
 
 use super::{
@@ -27,17 +26,17 @@ pub enum MetadataCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<NativeError> for MetadataCommand {
+impl RunnableCommand<CliError> for MetadataCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, NativeError> {
+    ) -> Result<String, CliError> {
         match self {
             // List all Metadata for a Bucket
             MetadataCommand::Ls(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let bucket_id = omni.get_id().expect("no remote id");
+                let bucket_id = omni.get_id()?;
                 Metadata::read_all(bucket_id, client)
                     .await
                     .map(|metadatas| {
@@ -45,7 +44,6 @@ impl RunnableCommand<NativeError> for MetadataCommand {
                             format!("{}\n\n{}", acc, metadata)
                         })
                     })
-                    .map_err(NativeError::client_error)
             }
             // Read an existing metadata
             MetadataCommand::Read(metadata_specifier) => {
