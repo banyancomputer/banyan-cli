@@ -1,8 +1,9 @@
 use crate::{
     api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
+    cli::CliError,
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-        operations::error::TombError,
+        operations::OperationError,
     },
 };
 
@@ -35,12 +36,12 @@ pub enum KeyCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<TombError> for KeyCommand {
+impl RunnableCommand<CliError> for KeyCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, TombError> {
+    ) -> Result<String, CliError> {
         match self {
             KeyCommand::RequestAccess(drive_specifier) => {
                 let private_key = global.wrapping_key().await?;
@@ -66,17 +67,17 @@ impl RunnableCommand<TombError> for KeyCommand {
                         .find(|key| key.fingerprint == fingerprint)
                     {
                         info!("\n{}\n", existing_key.context_fmt(&fingerprint));
-                        Err(TombError::custom_error(
+                        Err(NativeError::custom_error(
                             "You've already requested access on this Bucket!",
                         ))
                     } else {
                         BucketKey::create(id, pem, client)
                             .await
                             .map(|key| format!("\n{}", key))
-                            .map_err(TombError::client_error)
+                            .map_err(CliError::client_error)
                     }
                 } else {
-                    Err(TombError::custom_error(
+                    Err(NativeError::custom_error(
                         "Cannot request key access on a Bucket with no known remote correlate.",
                     ))
                 }
@@ -100,7 +101,7 @@ impl RunnableCommand<TombError> for KeyCommand {
                             format!("{}\n\n{}", acc, key.context_fmt(&my_fingerprint))
                         })
                     })
-                    .map_err(TombError::client_error)
+                    .map_err(CliError::client_error)
             }
             KeyCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
@@ -116,21 +117,21 @@ impl RunnableCommand<TombError> for KeyCommand {
                 BucketKey::read(bucket_id, id, client)
                     .await
                     .map(|key| key.context_fmt(&my_fingerprint))
-                    .map_err(TombError::client_error)
+                    .map_err(CliError::client_error)
             }
             KeyCommand::Delete(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::delete_by_id(bucket_id, id, client)
                     .await
                     .map(|id| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
-                    .map_err(TombError::client_error)
+                    .map_err(CliError::client_error)
             }
             KeyCommand::Reject(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::reject(bucket_id, id, client)
                     .await
                     .map(|_| format!("{}", "<< REJECTED KEY SUCCESSFULLY >>".green()))
-                    .map_err(TombError::client_error)
+                    .map_err(CliError::client_error)
             }
         }
     }
@@ -140,7 +141,7 @@ async fn get_key_info(
     client: &mut Client,
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
-) -> Result<(Uuid, Uuid), TombError> {
+) -> Result<(Uuid, Uuid), CliError> {
     let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.drive_specifier)
         .await
         .get_id()?;

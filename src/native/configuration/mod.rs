@@ -9,3 +9,7 @@ pub mod keys;
 /// XDG config
 pub mod xdg;
 pub use endpoints::Endpoints;
+
+mod error;
+
+pub(crate) use error::ConfigurationError;

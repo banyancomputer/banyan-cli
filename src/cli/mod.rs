@@ -2,10 +2,13 @@
 pub mod args;
 /// Commands to run
 pub mod commands;
+mod error;
 /// Ways of specifying resources
 pub mod specifiers;
 /// Debug level
 pub mod verbosity;
+
+pub(crate) use error::CliError;
 
 #[cfg(test)]
 mod test {
@@ -21,6 +24,8 @@ mod test {
     };
     use serial_test::serial;
     use std::path::Path;
+
+    use super::CliError;
 
     #[allow(dead_code)]
     #[cfg(feature = "integration-tests")]
@@ -39,7 +44,7 @@ mod test {
         }
     }
 
-    async fn cmd_delete(origin: &Path) -> Result<()> {
+    async fn cmd_delete(origin: &Path) -> Result<(), CliError> {
         let mut global = GlobalConfig::from_disk().await?;
         let local = global.get_bucket(origin).ok_or(anyhow!("no bucket"))?;
         local.remove_data()?;
@@ -76,7 +81,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init() -> Result<()> {
+    async fn init() -> Result<(), CliError> {
         let test_name = "cli_init";
         // Setup test
         let origin = &test_setup(test_name).await?;
@@ -97,7 +102,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init_deinit() -> Result<()> {
+    async fn init_deinit() -> Result<(), CliError> {
         let test_name = "cli_init_deinit";
         // Setup test
         let origin = &test_setup(test_name).await?;
@@ -128,7 +133,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn prepare() -> Result<()> {
+    async fn prepare() -> Result<(), CliError> {
         let test_name = "cli_prepare";
         // Setup test
         let origin = &test_setup(test_name).await?;
@@ -142,7 +147,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn restore() -> Result<()> {
+    async fn restore() -> Result<(), CliError> {
         let test_name = "cli_restore";
         // Setup test
         let origin = &test_setup(test_name).await?;

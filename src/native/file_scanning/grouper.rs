@@ -27,7 +27,7 @@ pub fn grouper(
     input_dir: &Path,
     follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<PreparePipelinePlan>> {
+) -> Result<Vec<PreparePipelinePlan>, std::io::Error> {
     // Construct the group config
     let group_config = create_group_config(input_dir, follow_links);
 

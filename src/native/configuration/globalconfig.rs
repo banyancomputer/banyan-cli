@@ -17,6 +17,8 @@ use std::{
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey};
 use uuid::Uuid;
 
+use super::ConfigurationError;
+
 /// Represents the Global contents of the tomb configuration file in a user's .config
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct GlobalConfig {
@@ -49,7 +51,7 @@ impl Default for GlobalConfig {
 
 // Self
 impl GlobalConfig {
-    async fn create() -> Result<Self> {
+    async fn create() -> Result<Self, std::io::Error> {
         // Create a default config
         let config = Self::default();
         // Create the key files referenced
@@ -60,17 +62,17 @@ impl GlobalConfig {
     }
 
     /// Get the wrapping key
-    pub async fn wrapping_key(&self) -> Result<EcEncryptionKey> {
+    pub async fn wrapping_key(&self) -> Result<EcEncryptionKey, ConfigurationError> {
         wrapping_key(&self.wrapping_key_path).await
     }
 
     /// Get the api key
-    pub async fn api_key(&self) -> Result<EcSignatureKey> {
+    pub async fn api_key(&self) -> Result<EcSignatureKey, std::io::Error> {
         load_api_key(&self.api_key_path).await
     }
 
     // Get the Gredentials
-    async fn get_credentials(&self) -> Result<Credentials> {
+    async fn get_credentials(&self) -> Result<Credentials, ConfigurationError> {
         if let Ok(signing_key) = self.api_key().await
             && let Some(user_id) = self.remote_user_id
         {
@@ -79,12 +81,12 @@ impl GlobalConfig {
                 user_id,
             })
         } else {
-            Err(anyhow!("No credentials."))
+            Err(ConfigurationError::missing_credentials())
         }
     }
 
     /// Get the Client data
-    pub async fn get_client(&self) -> Result<Client> {
+    pub async fn get_client(&self) -> Result<Client, ConfigurationError> {
         // Create a new Client
         let mut client = Client::new(&self.endpoints.core, &self.endpoints.data)?;
         // If there are already credentials
@@ -97,7 +99,7 @@ impl GlobalConfig {
     }
 
     /// Save the Client data to the config
-    pub async fn save_client(&mut self, client: Client) -> Result<()> {
+    pub async fn save_client(&mut self, client: Client) -> Result<(), ConfigurationError> {
         // Update the Remote endpoints
         self.endpoints.core = client.remote_core.to_string();
         self.endpoints.data = client.remote_data.to_string();
@@ -119,7 +121,7 @@ impl GlobalConfig {
     }
 
     /// Write to disk
-    pub fn to_disk(&self) -> Result<()> {
+    pub fn to_disk(&self) -> Result<(), std::io::Error> {
         let writer = OpenOptions::new()
             .create(true)
             .append(false)
@@ -132,7 +134,7 @@ impl GlobalConfig {
     }
 
     /// Initialize from file on disk
-    pub async fn from_disk() -> Result<Self> {
+    pub async fn from_disk() -> Result<Self, std::io::Error> {
         if let Ok(file) = get_read(&config_path())
             && let Ok(config) = serde_json::from_reader(file)
         {
@@ -145,7 +147,7 @@ impl GlobalConfig {
     }
 
     /// Remove a BucketConfig for an origin
-    pub fn remove_bucket(&mut self, bucket: &LocalBucket) -> Result<()> {
+    pub fn remove_bucket(&mut self, bucket: &LocalBucket) -> Result<(), std::io::Error> {
         // Remove bucket data
         bucket.remove_data()?;
         // Find index of bucket
@@ -160,7 +162,7 @@ impl GlobalConfig {
     }
 
     /// Remove Config data associated with each Bucket
-    pub fn remove_data(&self) -> Result<()> {
+    pub fn remove_data(&self) -> Result<(), std::io::Error> {
         // Remove bucket data
         for bucket in &self.buckets {
             bucket.remove_data()?;
@@ -175,13 +177,13 @@ impl GlobalConfig {
     }
 
     /// Update a given BucketConfig
-    pub fn update_config(&mut self, bucket: &LocalBucket) -> Result<()> {
+    pub fn update_config(&mut self, bucket: &LocalBucket) -> Result<(), ConfigurationError> {
         // Find index
         let index = self
             .buckets
             .iter()
             .position(|b| b.origin == bucket.origin)
-            .expect("cannot find index in buckets");
+            .ok_or(ConfigurationError::unknown_bucket());
         // Update bucket at index
         self.buckets[index] = bucket.clone();
         // Ok
@@ -189,7 +191,11 @@ impl GlobalConfig {
     }
 
     /// Create a new bucket
-    async fn create_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
+    async fn create_bucket(
+        &mut self,
+        name: &str,
+        origin: &Path,
+    ) -> Result<LocalBucket, ConfigurationError> {
         if !origin.exists() {
             create_dir_all(origin)?;
         }
@@ -209,7 +215,11 @@ impl GlobalConfig {
     }
 
     /// Create a bucket if it doesn't exist, return the object either way
-    pub async fn get_or_init_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
+    pub async fn get_or_init_bucket(
+        &mut self,
+        name: &str,
+        origin: &Path,
+    ) -> Result<LocalBucket, ConfigurationError> {
         if let Some(config) = self.get_bucket(origin) {
             Ok(config.clone())
         } else {
@@ -227,11 +237,12 @@ mod test {
     use crate::native::configuration::{
         globalconfig::GlobalConfig,
         xdg::{config_path, default_api_key_path, default_wrapping_key_path},
+        ConfigurationError,
     };
 
     #[tokio::test]
     #[serial]
-    async fn to_from_disk() -> Result<()> {
+    async fn to_from_disk() -> Result<(), ConfigurationError> {
         // The known path of the global config file
         let known_path = config_path();
         // Remove it if it exists
@@ -260,7 +271,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn from_disk_direct() -> Result<()> {
+    async fn from_disk_direct() -> Result<(), ConfigurationError> {
         // The known path of the global config file
         let known_path = config_path();
         // Remove it if it exists
@@ -296,7 +307,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn add_bucket() -> Result<()> {
+    async fn add_bucket() -> Result<(), ConfigurationError> {
         // The known path of the global config file
         let known_path = config_path();
         // Remove it if it exists

@@ -1,10 +1,10 @@
-use super::error::TombError;
 use crate::{
     api::client::Client,
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+        operations::OperationError,
         utils::get_progress_bar,
     },
 };
@@ -26,7 +26,7 @@ pub async fn pipeline(
     fs: FsMetadata,
     omni: &mut OmniBucket,
     client: &mut Client,
-) -> Result<String, TombError> {
+) -> Result<String, OperationError> {
     // Announce that we're starting
     info!("🚀 Starting restoration pipeline...");
     let restored = omni
@@ -64,7 +64,7 @@ pub async fn restore_nodes(
     restored: PathBuf,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
-) -> Result<(), TombError> {
+) -> Result<(), OperationError> {
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(all_nodes.len() as u64)?;
     // For each node path tuple in the FS Metadata
@@ -80,13 +80,7 @@ pub async fn restore_nodes(
 
                 let content = fs
                     .read(&path_to_segments(&path)?, metadata_store, content_store)
-                    .await
-                    .map_err(|err| {
-                        TombError::custom_error(&format!(
-                            "file missing: path: {} & err: {err}",
-                            path.display()
-                        ))
-                    })?;
+                    .await?;
 
                 // If this file is a symlink
                 if let Some(origin) = file.symlink_origin() {

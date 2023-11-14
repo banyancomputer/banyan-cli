@@ -3,7 +3,7 @@ pub mod add;
 /// This module contains configuration functions for the cli
 pub mod configure;
 /// Pipeline Errors
-pub(crate) mod error;
+mod error;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod prepare;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
@@ -11,10 +11,12 @@ pub mod remove;
 /// This module contains the decryption pipeline function, which is the main entry point for restoring previously prepared data.
 pub mod restore;
 
+pub(crate) use error::OperationError;
+
 #[cfg(test)]
 #[cfg(feature = "cli")]
 mod test {
-    use super::{add, error::TombError};
+    use super::{add, OperationError};
     use crate::{
         api::client::Client,
         cli::specifiers::DriveSpecifier,
@@ -41,7 +43,7 @@ mod test {
     };
 
     /// Simplified Prepare call function
-    async fn prepare_pipeline(origin: &Path) -> Result<String, TombError> {
+    async fn prepare_pipeline(origin: &Path) -> Result<String, OperationError> {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
         let mut client = Client::new("http://google.com", "http://google.com")?;
@@ -56,7 +58,7 @@ mod test {
     }
 
     /// Simplified Restore call function
-    async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, TombError> {
+    async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, OperationError> {
         println!("restoring");
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
@@ -85,7 +87,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init() -> Result<()> {
+    async fn init() -> Result<(), OperationError> {
         let test_name = "init";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -109,7 +111,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn configure_remote() -> Result<()> {
+    async fn configure_remote() -> Result<(), OperationError> {
         let address = "http://app.tomb.com.net.org:5423/";
         configure::deinit_all().await?;
         let _ = GlobalConfig::from_disk().await?;
@@ -125,7 +127,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn prepare() -> Result<()> {
+    async fn prepare() -> Result<(), OperationError> {
         let test_name = "prepare";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -139,7 +141,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn restore() -> Result<()> {
+    async fn restore() -> Result<(), OperationError> {
         let test_name = "restore";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -163,7 +165,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn add() -> Result<()> {
+    async fn add() -> Result<(), OperationError> {
         let test_name = "add";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -219,7 +221,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn remove() -> Result<()> {
+    async fn remove() -> Result<(), OperationError> {
         let test_name = "remove";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -265,7 +267,7 @@ mod test {
     }
 
     // Helper function for structure tests
-    async fn assert_prepare_restore(test_name: &str) -> Result<()> {
+    async fn assert_prepare_restore(test_name: &str) -> Result<(), OperationError> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
@@ -293,7 +295,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_simple() -> Result<()> {
+    async fn structure_simple() -> Result<(), OperationError> {
         let test_name = "structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -303,7 +305,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_deep() -> Result<()> {
+    async fn structure_deep() -> Result<(), OperationError> {
         let test_name = "structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -313,7 +315,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_wide() -> Result<()> {
+    async fn structure_wide() -> Result<(), OperationError> {
         let test_name = "structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -323,7 +325,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn big_file() -> Result<()> {
+    async fn big_file() -> Result<(), OperationError> {
         let test_name = "big_file";
         let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -334,7 +336,7 @@ mod test {
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
     #[serial]
-    async fn deduplication_integrity() -> Result<()> {
+    async fn deduplication_integrity() -> Result<(), OperationError> {
         let test_name = "deduplication_integrity";
         // Setup the test
         let origin = &test_setup(test_name).await?;
@@ -363,7 +365,7 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore = "refactor for new pipeline structure"]
-    async fn deduplication_size() -> Result<()> {
+    async fn deduplication_size() -> Result<(), OperationError> {
         let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
         let test_name_unique = &format!("{}_unique", test_name);
@@ -433,7 +435,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_bundling() -> Result<()> {
+    async fn double_bundling() -> Result<(), OperationError> {
         let test_name = "double_bundling";
         // Setup the test once
         test_setup(test_name).await?;
@@ -446,7 +448,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn block_tracking() -> Result<()> {
+    async fn block_tracking() -> Result<(), OperationError> {
         let test_name = "block_tracking";
         // Setup the test once
         let origin = test_setup(test_name).await?;
@@ -473,7 +475,7 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore]
-    async fn versioning_complex() -> Result<()> {
+    async fn versioning_complex() -> Result<(), OperationError> {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
@@ -600,7 +602,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn versioning_simple() -> Result<()> {
+    async fn versioning_simple() -> Result<(), OperationError> {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
         // Setup the test once
@@ -689,7 +691,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn symlinks() -> Result<()> {
+    async fn symlinks() -> Result<(), OperationError> {
         let test_name = "symlinks";
 
         // Setup the test

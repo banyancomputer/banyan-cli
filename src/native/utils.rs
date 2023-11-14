@@ -20,7 +20,7 @@ pub fn get_progress_bar(count: u64) -> ProgressBar {
 /// Determines the size of the contents of a directory.
 /// This standard unix tool handles far more edge cases than we could ever hope
 /// to approximate with a hardcoded recursion step, and with more efficiency too.
-pub fn compute_directory_size(path: &Path) -> Result<usize> {
+pub fn compute_directory_size(path: &Path) -> Result<usize, std::io::Error> {
     // Execute the unix du command to evaluate the size of the given path in kilobytes
     let output = Command::new("du")
         .arg("-sh")

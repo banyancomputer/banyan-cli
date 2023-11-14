@@ -18,7 +18,7 @@ pub async fn spider(
     origin: &Path,
     _follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<PreparePipelinePlan>> {
+) -> Result<Vec<PreparePipelinePlan>, std::io::Error> {
     // Canonicalize the path
     let path_root = origin.canonicalize()?;
 

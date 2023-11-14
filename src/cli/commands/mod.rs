@@ -16,7 +16,7 @@ pub use runnable_command::RunnableCommand;
 
 use crate::{
     api::client::Client,
-    native::{configuration::globalconfig::GlobalConfig, operations::error::TombError},
+    native::{configuration::globalconfig::GlobalConfig, operations::error::NativeError},
 };
 use async_trait::async_trait;
 use clap::Subcommand;
@@ -59,12 +59,12 @@ pub enum TombCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<TombError> for TombCommand {
+impl RunnableCommand<NativeError> for TombCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, TombError> {
+    ) -> Result<String, NativeError> {
         match self {
             TombCommand::Api { command } => Ok(command.run_internal(global, client).await?),
             TombCommand::Account { command } => Ok(command.run_internal(global, client).await?),

@@ -1,4 +1,3 @@
-use super::error::TombError;
 use crate::{
     api::{client::Client, models::metadata::Metadata},
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
@@ -6,6 +5,7 @@ use crate::{
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
         file_scanning::{grouper, spider, spider_plans::PreparePipelinePlan},
+        operations::OperationError,
         utils::get_progress_bar,
     },
 };
@@ -34,7 +34,7 @@ pub async fn pipeline(
     omni: &mut OmniBucket,
     client: &mut Client,
     follow_links: bool,
-) -> Result<String, TombError> {
+) -> Result<String, OperationError> {
     // Local is non-optional
     let mut local = omni.get_local()?;
 
@@ -117,7 +117,10 @@ pub async fn pipeline(
 }
 
 /// Create PreparePipelinePlans from an origin dir
-pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PreparePipelinePlan>> {
+pub async fn create_plans(
+    origin: &Path,
+    follow_links: bool,
+) -> Result<Vec<PreparePipelinePlan>, OperationError> {
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
     // Vector holding all the PreparePipelinePlans for bundling
@@ -154,7 +157,7 @@ pub async fn process_plans(
     bundling_plan: Vec<PreparePipelinePlan>,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
-) -> Result<()> {
+) -> Result<(), OperationError> {
     // Initialize the progress bar using the number of Nodes to process
     let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
     // Create vectors of direct and indirect plans

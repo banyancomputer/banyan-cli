@@ -3,6 +3,7 @@ use crate::{
     cli::{
         commands::{prompt_for_bool, KeyCommand, MetadataCommand, RunnableCommand},
         specifiers::DriveSpecifier,
+        CliError,
     },
     filesystem::FsMetadata,
     native::{
@@ -10,7 +11,7 @@ use crate::{
             bucket::{sync_bucket, OmniBucket},
             globalconfig::GlobalConfig,
         },
-        operations::{error::TombError, prepare, restore},
+        operations::{prepare, restore, OperationError},
     },
 };
 use async_trait::async_trait;
@@ -72,12 +73,12 @@ pub enum DrivesCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<TombError> for DrivesCommand {
+impl RunnableCommand<CliError> for DrivesCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, TombError> {
+    ) -> Result<String, CliError> {
         match self {
             // List all Buckets tracked remotely and locally
             DrivesCommand::Ls => {
@@ -142,18 +143,14 @@ impl RunnableCommand<TombError> for DrivesCommand {
             DrivesCommand::Usage(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
                 let remote = omni.get_remote()?;
-                remote
-                    .usage(client)
-                    .await
-                    .map(|v| {
-                        format!(
-                            "{}drive_id:\t\t{}\nusage:\t\t{}",
-                            "| USAGE INFO |".blue(),
-                            remote.id,
-                            ByteSize(v)
-                        )
-                    })
-                    .map_err(TombError::client_error)
+                remote.usage(client).await.map(|v| {
+                    format!(
+                        "{}drive_id:\t\t{}\nusage:\t\t{}",
+                        "| USAGE INFO |".blue(),
+                        remote.id,
+                        ByteSize(v)
+                    )
+                })?
             }
             DrivesCommand::Metadata { subcommand } => subcommand.run_internal(global, client).await,
             DrivesCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,

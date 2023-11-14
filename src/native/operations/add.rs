@@ -2,7 +2,7 @@ use crate::{
     filesystem::wnfsio::{compress_file, path_to_segments},
     native::{
         configuration::{bucket::LocalBucket, globalconfig::GlobalConfig},
-        operations::error::TombError,
+        operations::OperationError,
     },
 };
 use chrono::Utc;
@@ -14,7 +14,7 @@ pub async fn pipeline(
     local: LocalBucket,
     input_file: &Path,
     wnfs_path: &Path,
-) -> Result<String, TombError> {
+) -> Result<String, OperationError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;

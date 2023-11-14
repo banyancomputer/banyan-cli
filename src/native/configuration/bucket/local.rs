@@ -1,8 +1,8 @@
 use crate::{
     api::models::storage_ticket::StorageTicket,
     blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
-    filesystem::FsMetadata,
-    native::configuration::xdg::xdg_data_home,
+    filesystem::{FilesystemError, FsMetadata},
+    native::configuration::{xdg::xdg_data_home, ConfigurationError},
 };
 use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
@@ -81,7 +81,10 @@ impl Display for LocalBucket {
 
 impl LocalBucket {
     /// Given a directory, initialize a configuration for it
-    pub async fn new(origin: &Path, wrapping_key: &EcEncryptionKey) -> Result<Self> {
+    pub async fn new(
+        origin: &Path,
+        wrapping_key: &EcEncryptionKey,
+    ) -> Result<Self, ConfigurationError> {
         let name = origin
             .file_name()
             .expect("no file name")
@@ -124,7 +127,7 @@ impl LocalBucket {
         })
     }
 
-    pub(crate) fn remove_data(&self) -> Result<()> {
+    pub(crate) fn remove_data(&self) -> Result<(), std::io::Error> {
         // Remove dir if it exists
         if bucket_data_home(&self.local_id).exists() {
             remove_dir_all(bucket_data_home(&self.local_id))?;
@@ -133,12 +136,15 @@ impl LocalBucket {
     }
 
     /// Shortcut for unlocking a filesystem
-    pub async fn unlock_fs(&self, wrapping_key: &EcEncryptionKey) -> Result<FsMetadata> {
+    pub async fn unlock_fs(
+        &self,
+        wrapping_key: &EcEncryptionKey,
+    ) -> Result<FsMetadata, FilesystemError> {
         FsMetadata::unlock(wrapping_key, &self.metadata).await
     }
 
     /// Shortcut for saving a filesystem
-    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
+    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<(), FilesystemError> {
         fs.save(&self.metadata, &self.content).await
     }
 
@@ -146,7 +152,7 @@ impl LocalBucket {
     pub async fn get_history(
         &self,
         wrapping_key: &EcEncryptionKey,
-    ) -> Result<PrivateNodeOnPathHistory> {
+    ) -> Result<PrivateNodeOnPathHistory, FilesystemError> {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
         Ok(fs_metadata.history(&self.metadata).await?)
     }
@@ -154,7 +160,7 @@ impl LocalBucket {
 
 #[cfg(test)]
 mod test {
-    use crate::native::configuration::globalconfig::GlobalConfig;
+    use crate::native::configuration::{globalconfig::GlobalConfig, ConfigurationError};
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
@@ -165,7 +171,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn get_set_get_all() -> Result<()> {
+    async fn get_set_get_all() -> Result<(), ConfigurationError> {
         let test_name = "config_set_get_all";
         let origin = Path::new("test").join(test_name);
         if origin.exists() {

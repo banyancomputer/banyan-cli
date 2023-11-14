@@ -2,7 +2,7 @@ use crate::{
     api::{client::Client, models::metadata::Metadata},
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-        operations::error::TombError,
+        operations::error::NativeError,
     },
 };
 
@@ -27,12 +27,12 @@ pub enum MetadataCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<TombError> for MetadataCommand {
+impl RunnableCommand<NativeError> for MetadataCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, TombError> {
+    ) -> Result<String, NativeError> {
         match self {
             // List all Metadata for a Bucket
             MetadataCommand::Ls(drive_specifier) => {
@@ -45,7 +45,7 @@ impl RunnableCommand<TombError> for MetadataCommand {
                             format!("{}\n\n{}", acc, metadata)
                         })
                     })
-                    .map_err(TombError::client_error)
+                    .map_err(NativeError::client_error)
             }
             // Read an existing metadata
             MetadataCommand::Read(metadata_specifier) => {
@@ -58,7 +58,7 @@ impl RunnableCommand<TombError> for MetadataCommand {
                 Metadata::read(remote_id, metadata_specifier.metadata_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))
-                    .map_err(TombError::client_error)
+                    .map_err(NativeError::client_error)
             }
             // Read the current Metadata
             MetadataCommand::ReadCurrent(drive_specifier) => {
@@ -67,7 +67,7 @@ impl RunnableCommand<TombError> for MetadataCommand {
                 Metadata::read_current(bucket_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))
-                    .map_err(TombError::client_error)
+                    .map_err(NativeError::client_error)
             }
             // Take a Cold Snapshot of the remote metadata
             MetadataCommand::Snapshot(metadata_specifier) => {
@@ -82,7 +82,7 @@ impl RunnableCommand<TombError> for MetadataCommand {
                     .snapshot(client)
                     .await
                     .map(|snapshot| format!("{:?}", snapshot))
-                    .map_err(TombError::client_error)
+                    .map_err(NativeError::client_error)
             }
         }
     }
