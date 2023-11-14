@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use thiserror::Error;
 
-use crate::api::error::ClientError;
+use crate::api::error::ApiError;
 
 #[derive(Debug, Error)]
 pub(crate) struct CliError {
@@ -15,7 +15,7 @@ impl Display for CliError {
 }
 
 impl CliError {
-    pub(crate) fn client_error(err: ClientError) -> Self {
+    pub(crate) fn client_error(err: ApiError) -> Self {
         Self {
             kind: CliErrorKind::Client(err),
         }
@@ -23,5 +23,5 @@ impl CliError {
 }
 
 pub(crate) enum CliErrorKind {
-    Client(ClientError),
+    Client(ApiError),
 }

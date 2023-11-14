@@ -295,6 +295,7 @@ dependencies = [
  "tokio-util",
  "tomb-crypt",
  "unsigned-varint 0.8.0",
+ "url",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",

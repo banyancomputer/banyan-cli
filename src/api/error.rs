@@ -1,79 +1,85 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use tomb_crypt::prelude::TombCryptError;
+use url::ParseError;
 
 /// Errors that can occur in the API Client
 #[derive(Debug)]
 #[non_exhaustive]
-pub struct ClientError {
+pub struct ApiError {
     #[allow(dead_code)]
-    pub(crate) kind: ClientErrorKind,
+    pub(crate) kind: ApiErrorKind,
 }
 
-impl ClientError {
+impl ApiError {
     /// Authentication is not available
-    pub fn auth_unavailable() -> Self {
+    pub fn auth_required() -> Self {
         Self {
-            kind: ClientErrorKind::AuthUnavailable,
+            kind: ApiErrorKind::AuthUnavailable,
         }
     }
 
     /// Response format was invalid
-    pub fn bad_format(err: reqwest::Error) -> Self {
+    pub fn format(err: reqwest::Error) -> Self {
         Self {
-            kind: ClientErrorKind::ResponseFormatError(err),
+            kind: ApiErrorKind::ResponseFormat(err),
         }
     }
 
-    /// HTTP Response indicated error
-    pub fn http_response_error(status: reqwest::StatusCode) -> Self {
+    pub fn reqwest_general(err: reqwest::Error) -> Self {
         Self {
-            kind: ClientErrorKind::HttpResponseError(status),
+            kind: ApiErrorKind::ReqwestGeneral(err),
+        }
+    }
+
+    pub fn http_response(status: reqwest::StatusCode) -> Self {
+        Self {
+            kind: ApiErrorKind::HttpResponse(status),
         }
     }
 
     /// HTTP error
-    pub fn http_error(err: reqwest::Error) -> Self {
+    pub fn http(err: reqwest::Error) -> Self {
         Self {
-            kind: ClientErrorKind::HttpClientError(err),
+            kind: ApiErrorKind::HttpClient(err),
         }
     }
 
     /// Cryptography error
-    pub fn crypto_error(err: TombCryptError) -> Self {
+    pub fn crypto(err: TombCryptError) -> Self {
         Self {
-            kind: ClientErrorKind::CryptoError(err),
+            kind: ApiErrorKind::Crypto(err),
         }
     }
 
-    /// Custom error
-    pub fn custom_error(message: &str) -> Self {
+    pub fn parse(err: ParseError) -> Self {
         Self {
-            kind: ClientErrorKind::CustomError(message.to_string()),
+            kind: ApiErrorKind::Parse(err),
         }
     }
 }
 
-impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ClientError {
+impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ApiError {
     fn from(err: Box<dyn std::error::Error + Send + Sync + 'static>) -> Self {
         Self {
-            kind: ClientErrorKind::ApiResponseError(err),
+            kind: ApiErrorKind::ApiResponse(err),
         }
     }
 }
 
-impl Display for ClientError {
+impl Display for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let prefix = match &self.kind {
-            ClientErrorKind::ApiResponseError(err) => format!("API Response Error: {err}"),
-            ClientErrorKind::AuthUnavailable => "Auth is required for this operation.".into(),
-            ClientErrorKind::HttpClientError(_) => "HTTP Client Error".into(),
-            ClientErrorKind::HttpResponseError(status_code) => {
+            ApiErrorKind::ApiResponse(err) => format!("API Response Error: {err}"),
+            ApiErrorKind::AuthUnavailable => "Auth is required for this operation.".into(),
+            ApiErrorKind::HttpClient(_) => "HTTP Client Error".into(),
+            ApiErrorKind::HttpResponse(status_code) => {
                 format!("HTTP Response Error: {status_code:?}")
             }
-            ClientErrorKind::ResponseFormatError(_) => "Response Format Error".into(),
-            ClientErrorKind::CryptoError(_) => "Cryptographic Error".into(),
-            ClientErrorKind::CustomError(message) => message.into(),
+            ApiErrorKind::ResponseFormat(_) => "Response Format Error".into(),
+            ApiErrorKind::Crypto(_) => "Cryptographic Error".into(),
+            ApiErrorKind::ReqwestGeneral(_) => todo!(),
+            ApiErrorKind::Parse(_) => todo!(),
         };
 
         write!(f, "{}", prefix)?;
@@ -88,12 +94,12 @@ impl Display for ClientError {
     }
 }
 
-impl Error for ClientError {
+impl Error for ApiError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.kind {
-            ClientErrorKind::HttpClientError(err) => Some(err),
-            ClientErrorKind::ResponseFormatError(err) => Some(err),
-            ClientErrorKind::CryptoError(err) => Some(err),
+            ApiErrorKind::HttpClient(err) => Some(err),
+            ApiErrorKind::ResponseFormat(err) => Some(err),
+            ApiErrorKind::Crypto(err) => Some(err),
             _ => None,
         }
     }
@@ -101,32 +107,38 @@ impl Error for ClientError {
 
 /// The type of the Client Error
 #[derive(Debug)]
-#[non_exhaustive]
-pub enum ClientErrorKind {
+enum ApiErrorKind {
     /// API Response Error
-    ApiResponseError(Box<dyn std::error::Error + Send + Sync + 'static>),
+    ApiResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
     /// Authentication is not available
     AuthUnavailable,
+    ReqwestGeneral(reqwest::Error),
     /// HTTP error
-    HttpClientError(reqwest::Error),
+    HttpClient(reqwest::Error),
     /// HTTP Response indicated error
-    HttpResponseError(reqwest::StatusCode),
+    HttpResponse(reqwest::StatusCode),
     /// Response format was invalid
-    ResponseFormatError(reqwest::Error),
+    ResponseFormat(reqwest::Error),
     /// Cryptography error
-    CryptoError(TombCryptError),
+    Crypto(TombCryptError),
     /// CustomError
-    CustomError(String),
+    Parse(ParseError),
 }
 
-impl From<anyhow::Error> for ClientError {
-    fn from(value: anyhow::Error) -> Self {
-        Self::custom_error(value)
+impl From<TombCryptError> for ApiError {
+    fn from(value: TombCryptError) -> Self {
+        Self::crypto(value)
     }
 }
 
-impl From<TombCryptError> for ClientError {
-    fn from(value: TombCryptError) -> Self {
-        Self::crypto_error(value)
+impl From<reqwest::Error> for ApiError {
+    fn from(value: reqwest::Error) -> Self {
+        Self::reqwest_general(value)
+    }
+}
+
+impl From<ParseError> for ApiError {
+    fn from(value: ParseError) -> Self {
+        Self::parse(value)
     }
 }

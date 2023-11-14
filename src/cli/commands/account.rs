@@ -2,7 +2,7 @@ use super::RunnableCommand;
 use crate::{
     api::{
         client::{Client, Credentials},
-        error::ClientError,
+        error::ApiError,
         models::account::Account,
         requests::core::auth::device_api_key::regwait::start::{
             StartRegwait, StartRegwaitResponse,
@@ -38,12 +38,12 @@ pub enum AccountCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<ClientError> for AccountCommand {
+impl RunnableCommand<ApiError> for AccountCommand {
     async fn run_internal(
         self,
         _: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, ClientError> {
+    ) -> Result<String, ApiError> {
         // Process the command
         match self {
             AccountCommand::RegisterDevice => {
@@ -51,9 +51,8 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
 
                 // Create a public key from the
-                let public_device_key = private_device_key
-                    .public_key()
-                    .map_err(ClientError::crypto_error)?;
+                let public_device_key =
+                    private_device_key.public_key().map_err(ApiError::crypto)?;
 
                 // Create a fingerprint from the public key
                 let fingerprint =
@@ -68,7 +67,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 // Create a clone of the client to move into the handle
                 let mut client_1 = client.clone();
                 // Create a join handle for later use, starting the call immediately
-                let join_handle: JoinHandle<Result<StartRegwaitResponse, ClientError>> =
+                let join_handle: JoinHandle<Result<StartRegwaitResponse, ApiError>> =
                     tokio::spawn(async move {
                         // Build the request
                         client_1.call(start_regwait).await
@@ -121,7 +120,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 let api_key = EcSignatureKey::generate().await?;
                 let public_api_key = api_key.public_key()?;
                 let public_api_key_pem = String::from_utf8(public_api_key.export().await?)
-                    .map_err(|_| ClientError::custom_error("utf8 PEM"))?;
+                    .map_err(|_| ApiError::custom_error("utf8 PEM"))?;
                 // Associate the key material with the backend
                 let response: CreateAccountResponse = client
                     .call(CreateFakeAccount {
@@ -147,7 +146,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 let usage_limit_result = Account::usage_limit(client).await;
 
                 if usage_current_result.is_err() && usage_limit_result.is_err() {
-                    return Err(ClientError::custom_error(
+                    return Err(ApiError::custom_error(
                         "Unable to obtain usage stats. Check your authentication!",
                     ));
                 }

@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use tomb_crypt::prelude::TombCryptError;
 
+#[derive(Debug)]
 pub(crate) struct SharingError {
     pub kind: SharingErrorKind,
 }
@@ -26,6 +27,7 @@ impl SharingError {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum SharingErrorKind {
     UnauthorizedDecryption,
     LostKey,

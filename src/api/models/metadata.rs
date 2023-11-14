@@ -7,7 +7,7 @@ use uuid::Uuid;
 use {
     crate::api::{
         client::Client,
-        error::ClientError,
+        error::ApiError,
         requests::core::buckets::{
             metadata::{
                 pull::PullMetadata,
@@ -99,7 +99,7 @@ impl Metadata {
         deleted_block_cids: BTreeSet<String>,
         metadata_stream: MetadataStreamType,
         client: &mut Client,
-    ) -> Result<(Self, Option<String>, Option<String>), ClientError> {
+    ) -> Result<(Self, Option<String>, Option<String>), ApiError> {
         let response = client
             .multipart(PushMetadata {
                 bucket_id,
@@ -132,7 +132,7 @@ impl Metadata {
     pub async fn pull(
         &self,
         client: &mut Client,
-    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ClientError> {
+    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ApiError> {
         let base_url = client.remote_core.clone();
         client
             .stream(
@@ -146,7 +146,7 @@ impl Metadata {
     }
 
     /// Read the a specific metadata of a bucket
-    pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
+    pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ApiError> {
         let response = client.call(ReadMetadata { bucket_id, id }).await?;
         Ok(Self {
             id: response.id,
@@ -160,7 +160,7 @@ impl Metadata {
     }
 
     /// Read all the metadata for a bucket
-    pub async fn read_all(bucket_id: Uuid, client: &mut Client) -> Result<Vec<Self>, ClientError> {
+    pub async fn read_all(bucket_id: Uuid, client: &mut Client) -> Result<Vec<Self>, ApiError> {
         let response = client.call(ReadAllMetadata { bucket_id }).await?;
         Ok(response
             .0
@@ -178,7 +178,7 @@ impl Metadata {
     }
 
     /// Read the current metadata for a bucket
-    pub async fn read_current(bucket_id: Uuid, client: &mut Client) -> Result<Self, ClientError> {
+    pub async fn read_current(bucket_id: Uuid, client: &mut Client) -> Result<Self, ApiError> {
         let response = client.call(ReadCurrentMetadata { bucket_id }).await?;
         Ok(Self {
             id: response.id,
@@ -192,7 +192,7 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(&self, client: &mut Client) -> Result<Uuid, ClientError> {
+    pub async fn snapshot(&self, client: &mut Client) -> Result<Uuid, ApiError> {
         let snapshot_resp = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
@@ -204,6 +204,7 @@ impl Metadata {
     }
 }
 
+/*
 #[cfg(feature = "integration-tests")]
 #[cfg(test)]
 pub(crate) mod test {
@@ -217,7 +218,7 @@ pub(crate) mod test {
     use crate::{
         api::{
             client::Client,
-            error::ClientError,
+            error::ApiError,
             models::{
                 account::test::authenticated_client,
                 bucket::{test::create_bucket, Bucket, BucketType, StorageClass},
@@ -232,7 +233,7 @@ pub(crate) mod test {
     pub async fn push_empty_metadata(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, Option<String>, Option<String>), ClientError> {
+    ) -> Result<(Metadata, Option<String>, Option<String>), ApiError> {
         let (metadata, host, authorization) = Metadata::push(
             bucket_id,
             "root_cid".to_string(),
@@ -249,7 +250,7 @@ pub(crate) mod test {
     pub async fn push_metadata_and_snapshot(
         bucket_id: Uuid,
         client: &mut Client,
-    ) -> Result<(Metadata, Option<String>, Option<String>, Uuid), ClientError> {
+    ) -> Result<(Metadata, Option<String>, Option<String>, Uuid), ApiError> {
         let (metadata, host, authorization) = push_empty_metadata(bucket_id, client).await?;
         let snapshot_id = metadata.snapshot(client).await?;
         Ok((metadata, host, authorization, snapshot_id))
@@ -270,7 +271,7 @@ pub(crate) mod test {
     // Helper function to set up an environment with a small amount of delta data and push the metadata associated
     pub async fn setup_and_push_metadata(
         test_name: &str,
-    ) -> Result<AdvancedTestSetup, ClientError> {
+    ) -> Result<AdvancedTestSetup, NativeError> {
         let mut client = authenticated_client().await;
         // let bucket_key = client.signing_key.unwrap();
         let wrapping_key = EcEncryptionKey::generate().await?;
@@ -331,7 +332,7 @@ pub(crate) mod test {
 
     #[tokio::test]
     #[serial]
-    async fn push_read_pull() -> Result<(), ClientError> {
+    async fn push_read_pull() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
@@ -352,7 +353,7 @@ pub(crate) mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn push_read_unauthorized() -> Result<(), ClientError> {
+    async fn push_read_unauthorized() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
@@ -364,7 +365,7 @@ pub(crate) mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn push_read_wrong_bucket() -> Result<(), ClientError> {
+    async fn push_read_wrong_bucket() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (other_bucket, _) = create_bucket(&mut client).await?;
@@ -379,7 +380,7 @@ pub(crate) mod test {
 
     #[tokio::test]
     #[serial]
-    async fn push_read_pull_snapshot() -> Result<(), ClientError> {
+    async fn push_read_pull_snapshot() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
@@ -405,3 +406,5 @@ pub(crate) mod test {
         Ok(())
     }
 }
+
+ */

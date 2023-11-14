@@ -1,7 +1,7 @@
 use crate::{
     api::{
         client::Client,
-        error::ClientError,
+        error::ApiError,
         requests::{core::blocks::locate::LocationRequest, staging::pull_blocks::PullBlock},
     },
     blockstore::BlockStore,
@@ -36,7 +36,7 @@ impl From<Client> for BanyanApiBlockStore {
 
 impl BanyanApiBlockStore {
     /// Find the locations associated with a set of CIDs for fast querying on lookup
-    pub async fn find_cids(&self, cids: BTreeSet<Cid>) -> Result<(), ClientError> {
+    pub async fn find_cids(&self, cids: BTreeSet<Cid>) -> Result<(), ApiError> {
         let request = LocationRequest { cids };
         let mut client = self.client.clone();
         let response = client.call(request).await?;

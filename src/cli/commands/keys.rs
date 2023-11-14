@@ -1,5 +1,5 @@
 use crate::{
-    api::{client::Client, error::ClientError, models::bucket_key::BucketKey},
+    api::{client::Client, error::ApiError, models::bucket_key::BucketKey},
     cli::CliError,
     native::{
         configuration::{bucket::OmniBucket, globalconfig::GlobalConfig, ConfigurationError},
@@ -45,18 +45,11 @@ impl RunnableCommand<CliError> for KeyCommand {
         match self {
             KeyCommand::RequestAccess(drive_specifier) => {
                 let private_key = global.wrapping_key().await?;
-                let public_key = private_key
-                    .public_key()
-                    .map_err(ClientError::crypto_error)?;
+                let public_key = private_key.public_key().map_err(ApiError::crypto)?;
                 // Compute PEM
                 let fingerprint = hex_fingerprint(&public_key.fingerprint().await?.to_vec());
-                let pem = String::from_utf8(
-                    public_key
-                        .export()
-                        .await
-                        .map_err(ClientError::crypto_error)?,
-                )
-                .unwrap();
+                let pem = String::from_utf8(public_key.export().await.map_err(ApiError::crypto)?)
+                    .unwrap();
 
                 // Get Drive
                 let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;

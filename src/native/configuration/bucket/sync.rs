@@ -2,7 +2,7 @@ use super::OmniBucket;
 use crate::{
     api::{
         client::Client,
-        error::ClientError,
+        error::ApiError,
         models::{
             bucket::{Bucket, BucketType, StorageClass},
             metadata::Metadata,
@@ -129,11 +129,7 @@ pub async fn sync_bucket(
             let mut buffer = <Vec<u8>>::new();
             // Write every chunk to it
             while let Some(chunk) = byte_stream.next().await {
-                tokio::io::copy(
-                    &mut chunk.map_err(ClientError::http_error)?.as_ref(),
-                    &mut buffer,
-                )
-                .await?;
+                tokio::io::copy(&mut chunk.map_err(ApiError::http)?.as_ref(), &mut buffer).await?;
             }
             // Attempt to create a CARv2 BlockStore from the data
             let metadata = CarV2MemoryBlockStore::try_from(buffer)?;

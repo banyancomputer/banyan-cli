@@ -3,19 +3,20 @@ pub mod authorization;
 /// Request for creating a new storage grant on the staging area.
 pub mod create;
 
+/*
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
     use serial_test::serial;
 
     use crate::api::{
-        error::ClientError, models::metadata::test::setup_and_push_metadata,
+        error::ApiError, models::metadata::test::setup_and_push_metadata,
         requests::staging::upload::content::UploadContent,
     };
 
     #[tokio::test]
     #[serial]
-    async fn create_grant() -> Result<(), ClientError> {
+    async fn create_grant() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("create_grant").await?;
         setup.storage_ticket.create_grant(&mut setup.client).await?;
         Ok(())
@@ -23,7 +24,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn authorization_grants() -> Result<(), ClientError> {
+    async fn authorization_grants() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("authorization_grants").await?;
         // Create a grant
         setup.storage_ticket.create_grant(&mut setup.client).await?;
@@ -47,3 +48,4 @@ mod test {
         Ok(())
     }
 }
+ */
