@@ -1,8 +1,7 @@
 use crate::{
     api::{client::Client, models::metadata::Metadata},
-    native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-    }, cli::CliError,
+    cli::CliError,
+    native::configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
 };
 
 use super::{
@@ -61,7 +60,7 @@ impl RunnableCommand<CliError> for MetadataCommand {
             // Read the current Metadata
             MetadataCommand::ReadCurrent(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let bucket_id = omni.get_id().expect("no remote id");
+                let bucket_id = omni.get_id()?;
                 Metadata::read_current(bucket_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))

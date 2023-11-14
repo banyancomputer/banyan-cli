@@ -69,8 +69,9 @@ impl Block {
 }
 
 impl Streamable for Block {
+    type StreamError = CarError;
     /// Serialize the current object
-    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         // Represent CID as bytes
         let cid_buf: Vec<u8> = self.cid.to_bytes();
         // Assert that the varint is accurate
@@ -86,7 +87,7 @@ impl Streamable for Block {
     }
 
     /// Read a Block from stream
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, std::io::Error> {
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
         let (varint, cid) = Self::start_read(&mut *r)?;
         Self::finish_read(varint, cid, r)
     }
@@ -96,7 +97,7 @@ impl Streamable for Block {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     crate::car::streamable_tests! {
-        crate::car::v1::Block:
+        <crate::car::v1::Block, crate::car::error::CarError>:
         carblock: {
             // Raw bytes
             let data_example = "Hello Kitty!".as_bytes().to_vec();

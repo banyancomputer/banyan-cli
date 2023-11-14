@@ -38,7 +38,7 @@ impl Header {
                 if let Ipld::Link(cid) = ipld {
                     Ok(*cid)
                 } else {
-                    Err(CarError::V1Header)
+                    Err(CarError::v1_header())
                 }
             }
             // Interpret all of the roots as CIDs
@@ -53,7 +53,7 @@ impl Header {
                 roots: RefCell::new(roots),
             })
         } else {
-            Err(CarError::V1Header.into())
+            Err(CarError::v1_header())
         }
     }
 
@@ -72,7 +72,7 @@ impl Header {
         map.insert("roots".to_string(), Ipld::List(ipld_roots));
         // Construct the final IPLD
         let ipld = Ipld::Map(map);
-        dagcbor::encode(&ipld)
+        dagcbor::encode(&ipld).map_err(|_| CarError::v1_header())
     }
 }
 
@@ -86,8 +86,10 @@ impl Header {
 }
 
 impl Streamable for Header {
+    type StreamError = CarError;
+
     /// Write a Header to a byte stream
-    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         // Represent as DAGCBOR IPLD
         let ipld_buf = self.to_ipld_bytes()?;
         // Tally bytes in this DAGCBOR, encode as u64
@@ -99,7 +101,7 @@ impl Streamable for Header {
     }
 
     /// Read a Header from a byte stream
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, std::io::Error> {
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
         // Determine the length of the remaining IPLD bytes
         let ipld_len = read_varint_u64(r)?;
         // Allocate that space
@@ -166,7 +168,7 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        crate::car::v1::Header:
+        <crate::car::v1::Header, crate::car::error::CarError>:
         v1header: {
             let header = crate::car::v1::Header::default(1);
             {

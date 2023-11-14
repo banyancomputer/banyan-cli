@@ -17,7 +17,8 @@ pub struct Header {
 }
 
 impl Streamable for Header {
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    type StreamError = CarError;
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         let start = w.stream_position()?;
         // Write
         w.write_all(&self.characteristics.to_le_bytes())?;
@@ -31,7 +32,7 @@ impl Streamable for Header {
         Ok(())
     }
 
-    fn read_bytes<R: Read>(r: &mut R) -> Result<Self, std::io::Error> {
+    fn read_bytes<R: Read>(r: &mut R) -> Result<Self, Self::StreamError> {
         Ok(Self {
             characteristics: read_leu128(r)?,
             data_offset: read_leu64(r)?,
@@ -127,7 +128,7 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        crate::car::v2::Header:
+        <crate::car::v2::Header, crate::car::error::CarError>:
         v2header: crate::car::v2::Header {
             characteristics: 0,
             data_offset: 50,

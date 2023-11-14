@@ -137,7 +137,7 @@ impl CarV2 {
             // Read the block
             Block::read_bytes(&mut r)
         } else {
-            Err(BlockStoreError::CIDNotFound(*cid).into())
+            Err(CarError::missing_block(cid))
         }
     }
 
@@ -277,11 +277,11 @@ mod test {
         assert_eq!(blocks[4].cid, block_cids[4]);
 
         // Ensure content is correct
-        assert_eq!(blocks[0].content, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401")?);
-        assert_eq!(blocks[1].content, hex::decode("12310a221220d745b7757f5b4593eeab7820306c7bc64eb496a7410a0d07df7a34ffec4b97f1120962617272656c657965183a122e0a2401551220a2e1c40da1ae335d4dffe729eb4d5ca23b74b9e51fc535f4a804a261080c294d1204f09f90a11807")?);
-        assert_eq!(blocks[2].content, hex::decode("12340a2401551220b474a99a2705e23cf905a484ec6d14ef58b56bbe62e9292783466ec363b5072d120a666973686d6f6e6765721804")?);
-        assert_eq!(blocks[3].content, hex::decode("66697368")?);
-        assert_eq!(blocks[4].content, hex::decode("6c6f6273746572")?);
+        assert_eq!(blocks[0].content, hex::decode("122d0a221220d9c0d5376d26f1931f7ad52d7acc00fc1090d2edb0808bf61eeb0a152826f6261204f09f8da418a401").unwrap());
+        assert_eq!(blocks[1].content, hex::decode("12310a221220d745b7757f5b4593eeab7820306c7bc64eb496a7410a0d07df7a34ffec4b97f1120962617272656c657965183a122e0a2401551220a2e1c40da1ae335d4dffe729eb4d5ca23b74b9e51fc535f4a804a261080c294d1204f09f90a11807").unwrap());
+        assert_eq!(blocks[2].content, hex::decode("12340a2401551220b474a99a2705e23cf905a484ec6d14ef58b56bbe62e9292783466ec363b5072d120a666973686d6f6e6765721804").unwrap());
+        assert_eq!(blocks[3].content, hex::decode("66697368").unwrap());
+        assert_eq!(blocks[4].content, hex::decode("6c6f6273746572").unwrap());
 
         // Construct a vector of the roots we're expecting to find
         let expected_roots = vec![Cid::from_str(

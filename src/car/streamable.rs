@@ -2,17 +2,18 @@ use std::io::{Error, Read, Seek, Write};
 
 /// Custom Stream-Based Serialization
 pub trait Streamable: Sized {
+    type StreamError;
     /// Read the bytes
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Error>;
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError>;
     /// Write the bytes
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Error>;
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError>;
 }
 
 /// Macro for generating a serialization test for any type which conforms to the Streamable trait
 #[allow(unused_macros)]
 macro_rules! streamable_tests {
     ($(
-        $type:ty:
+        <$type:ty, $error:ty>:
         $name:ident: $value:expr,
     )*) => {
     $(
@@ -25,7 +26,7 @@ macro_rules! streamable_tests {
             #[allow(unused_imports)]
 
             #[test]
-            fn to_from_bytes() -> Result<(), std::io::Error> {
+            fn to_from_bytes() -> Result<(), $error> {
                 // Serialize
                 let mut bytes = Cursor::new(<Vec<u8>>::new());
                 $value.write_bytes(&mut bytes)?;

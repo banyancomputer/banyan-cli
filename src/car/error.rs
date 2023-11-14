@@ -1,3 +1,7 @@
+use wnfs::libipld::Cid;
+
+use crate::utils::UtilityError;
+
 #[derive(Debug)]
 pub(crate) struct CarError {
     pub kind: CarErrorKind,
@@ -7,6 +11,12 @@ impl CarError {
     pub fn missing_root() -> Self {
         Self {
             kind: CarErrorKind::MissingRoot,
+        }
+    }
+
+    pub fn missing_block(cid: &Cid) -> Self {
+        Self {
+            kind: CarErrorKind::MissingBlock(cid.to_owned()),
         }
     }
 
@@ -33,12 +43,31 @@ impl CarError {
             kind: CarErrorKind::EndOfData,
         }
     }
+
+    pub fn io_error(err: std::io::Error) -> Self {
+        Self {
+            kind: CarErrorKind::Io(err),
+        }
+    }
+
+    pub fn cid_error(err: wnfs::libipld::cid::Error) -> Self {
+        Self {
+            kind: CarErrorKind::Cid(err),
+        }
+    }
+
+    pub fn utility_error(err: UtilityError) -> Self {
+        Self {
+            kind: CarErrorKind::Utility(err),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum CarErrorKind {
     /// No Root Cid even though expected
     MissingRoot,
+    MissingBlock(Cid),
     /// The CARv1 Header was not correct
     V1Header,
     /// The CARv2 Index was not correct
@@ -47,4 +76,24 @@ pub enum CarErrorKind {
     Codec,
     /// Index codec
     EndOfData,
+    Io(std::io::Error),
+    Cid(wnfs::libipld::cid::Error),
+    Utility(UtilityError),
+}
+
+impl From<std::io::Error> for CarError {
+    fn from(value: std::io::Error) -> Self {
+        Self::io_error(value)
+    }
+}
+
+impl From<wnfs::libipld::cid::Error> for CarError {
+    fn from(value: wnfs::libipld::cid::Error) -> Self {
+        Self::cid_error(value)
+    }
+}
+impl From<UtilityError> for CarError {
+    fn from(value: UtilityError) -> Self {
+        Self::utility_error(value)
+    }
 }

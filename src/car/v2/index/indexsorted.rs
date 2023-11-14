@@ -18,7 +18,8 @@ pub struct Bucket {
 }
 
 impl Streamable for Bucket {
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, std::io::Error> {
+    type StreamError = CarError;
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
         // Start pos
         let start = r.stream_position()?;
         // Width of each digest offset pair
@@ -50,7 +51,7 @@ impl Streamable for Bucket {
             // Unread these remaining bytes
             r.seek(SeekFrom::Start(start))?;
             // This is not a bucket
-            Err(CarError::EndOfData.into())
+            Err(CarError::end_of_data())
         }
         // Otherwise that was fine
         else {
@@ -61,7 +62,7 @@ impl Streamable for Bucket {
         }
     }
 
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         w.write_all(&(self.cid_width + 8).to_le_bytes())?;
         w.write_all(&(self.map.len() as u64).to_le_bytes())?;
         // For each cid offset pairing

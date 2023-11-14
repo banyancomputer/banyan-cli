@@ -9,3 +9,6 @@ mod io;
 pub use io::{get_read, get_read_write, get_write};
 
 pub mod varint;
+
+mod error;
+pub(crate) use error::UtilityError;

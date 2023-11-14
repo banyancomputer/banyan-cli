@@ -46,7 +46,9 @@ mod test {
 
     async fn cmd_delete(origin: &Path) -> Result<(), CliError> {
         let mut global = GlobalConfig::from_disk().await?;
-        let local = global.get_bucket(origin).ok_or(ConfigurationError::missing_local_drive())?;
+        let local = global
+            .get_bucket(origin)
+            .ok_or(ConfigurationError::missing_local_drive())?;
         local.remove_data()?;
         // Find index of bucket
         let index = global
