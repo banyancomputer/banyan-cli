@@ -69,7 +69,8 @@ thiserror = { version = "^1" }
 tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main", version = "^0.1" }
 unsigned-varint = { version = "^0.8" }
 uuid = { version = "^1", features = ["serde", "v4"] }
-wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", version = "^0.1" }
+#wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", version = "^0.1" }
+wnfs = { path = "../rs-wnfs/wnfs" }
 
 # Dependencies that must exist independent of architecture for testing
 # [dev-dependencies]

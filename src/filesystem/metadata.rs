@@ -279,11 +279,11 @@ impl FsMetadata {
         // Store a snapshot of the PrivateFile
         match node.clone() {
             PrivateNode::File(file) => {
-                file.store_snapshot(&mut self.forest, content_store, &mut rng)
+                file.store(&mut self.forest, content_store, &mut rng)
                     .await?;
             }
             PrivateNode::Dir(_) => {
-                panic!("oh fuck thats a directory!");
+                panic!("unable to share directories!");
             }
         }
 
