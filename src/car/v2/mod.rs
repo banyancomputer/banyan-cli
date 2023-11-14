@@ -228,10 +228,10 @@ impl CarV2 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
-        car::{v1::Block, v2::CarV2, error::CarError},
+        car::{error::CarError, v1::Block, v2::CarV2},
         utils::{get_read_write, testing::blockstores::car_test_setup},
     };
-        use serial_test::serial;
+    use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
         io::{Seek, SeekFrom},

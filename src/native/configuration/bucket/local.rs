@@ -155,7 +155,7 @@ impl LocalBucket {
 #[cfg(test)]
 mod test {
     use crate::native::configuration::globalconfig::GlobalConfig;
-        use chrono::Utc;
+    use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
     use std::{

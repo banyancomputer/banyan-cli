@@ -5,7 +5,6 @@ fn main() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
 use {

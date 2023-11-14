@@ -1,20 +1,23 @@
-use thiserror::Error;
+pub(crate) struct FilesystemError {
+    pub kind: FilesystemErrorKind,
+}
 
-/// Configuration errors.
-#[derive(Debug, Error)]
-pub(crate) enum SerialError {
-    /// Missing metadata within Car file
-    #[error("Missing {0} in metadata")]
+impl FilesystemError {
+    pub(crate) fn node_not_found(path: &str) -> Self {
+        Self {
+            kind: FilesystemErrorKind::NodeNotFound(path.to_string()),
+        }
+    }
+
+    pub(crate) fn missing_metadata(label: &str) -> Self {
+        Self {
+            kind: FilesystemErrorKind::MissingMetadata(label.to_string()),
+        }
+    }
+}
+
+pub(crate) enum FilesystemErrorKind {
     MissingMetadata(String),
-    /// Node not found at path
-    #[error("No node at path {0}")]
     NodeNotFound(String),
-    // /// Node is file not directory
-    // #[error("Node at path {0} is a file not a directory")]
-    // NodeIsFile(String),
-    // /// Node is directory not file
-    // #[error("Node at path {0} is a directory not a file")]
-    // NodeIsDirectory(String),
-    #[error("The configuration file failed to deserialize correctly.")]
-    _BadConfig,
+    BadConfig,
 }

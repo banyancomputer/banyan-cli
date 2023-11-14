@@ -221,7 +221,7 @@ impl GlobalConfig {
 #[cfg(test)]
 mod test {
 
-        use serial_test::serial;
+    use serial_test::serial;
     use std::{fs::remove_file, path::Path};
 
     use crate::native::configuration::{

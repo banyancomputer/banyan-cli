@@ -1,9 +1,10 @@
 mod test {
     use crate::car::{
+        error::CarError,
         v1::Header,
-        v2::{CarV2, HEADER_SIZE, PH_SIZE}, error::CarError,
+        v2::{CarV2, HEADER_SIZE, PH_SIZE},
     };
-        use base58::ToBase58;
+    use base58::ToBase58;
     use sha2::Digest;
     use std::io::{Cursor, Seek, SeekFrom};
     use std::{cell::RefCell, str::FromStr};

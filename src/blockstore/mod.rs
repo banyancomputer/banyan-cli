@@ -2,21 +2,21 @@ mod api;
 #[cfg(not(target_arch = "wasm32"))]
 mod carv2_disk;
 mod carv2_memory;
+mod error;
 mod memory;
 #[cfg(not(target_arch = "wasm32"))]
 mod multi_carv2_disk;
 mod split;
-mod error;
 
 pub use api::BanyanApiBlockStore;
 #[cfg(not(target_arch = "wasm32"))]
 pub use carv2_disk::CarV2DiskBlockStore;
 pub use carv2_memory::CarV2MemoryBlockStore;
+pub(crate) use error::BlockStoreError;
 pub use memory::MemoryBlockStore;
 #[cfg(not(target_arch = "wasm32"))]
 pub use multi_carv2_disk::MultiCarV2DiskBlockStore;
 pub use split::DoubleSplitStore;
-pub(crate) use error::BlockStoreError;
 /// Makes it so that downstream crates don't need to know about the underlying trait
 pub use wnfs::common::blockstore::BlockStore;
 

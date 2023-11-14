@@ -1,7 +1,8 @@
 use super::CarV2DiskBlockStore;
 use crate::{
     api::requests::staging::upload::content::{ContentType, UploadContent},
-    blockstore::{BlockStore, RootedBlockStore, BlockStoreError}, car::error::CarError,
+    blockstore::{BlockStore, BlockStoreError, RootedBlockStore},
+    car::error::CarError,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -73,9 +74,7 @@ impl MultiCarV2DiskBlockStore {
                 &self
                     .get_delta()?
                     .get_root()
-                    .ok_or(
-                        BlockStoreError::car(CarError::missing_root())
-                    )?,
+                    .ok_or(BlockStoreError::car(CarError::missing_root()))?,
             );
         } else {
             new_store.set_root(&Cid::default());
@@ -185,7 +184,7 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
 
-        use serial_test::serial;
+    use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
     use wnfs::{
         common::{
@@ -195,7 +194,7 @@ mod test {
         libipld::IpldCodec,
     };
 
-    use crate::blockstore::{MultiCarV2DiskBlockStore, BlockStoreError};
+    use crate::blockstore::{BlockStoreError, MultiCarV2DiskBlockStore};
 
     #[tokio::test]
     #[serial]

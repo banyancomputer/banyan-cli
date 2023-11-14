@@ -27,7 +27,7 @@ mod test {
         },
     };
 
-        use dir_assert::assert_paths;
+    use dir_assert::assert_paths;
     use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
     use fs_extra::dir;
     use serial_test::serial;

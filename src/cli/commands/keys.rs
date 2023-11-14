@@ -150,7 +150,7 @@ async fn get_key_info(
         .iter()
         .position(|key| key.fingerprint == key_specifier.fingerprint)
         .unwrap();
-    
+
     let key = all_keys[key_index].clone();
 
     Ok((bucket_id, key.id))

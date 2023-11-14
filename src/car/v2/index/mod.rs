@@ -13,12 +13,8 @@ use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
 use crate::{
+    car::{error::CarError, v1::Block, Streamable},
     utils::varint::{encode_varint_u128, read_varint_u128},
-    car::{
-        error::CarError,
-        v1::Block,
-        Streamable,
-    }
 };
 use indexsorted::Bucket;
 

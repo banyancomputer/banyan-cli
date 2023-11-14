@@ -48,8 +48,8 @@ impl RootedBlockStore for MemoryBlockStore {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-    use crate::blockstore::{MemoryBlockStore, RootedBlockStore, BlockStoreError};
-        use wnfs::{
+    use crate::blockstore::{BlockStoreError, MemoryBlockStore, RootedBlockStore};
+    use wnfs::{
         common::{
             blockstore::{bs_duplication_test, bs_retrieval_test, bs_serialization_test},
             BlockStore,

@@ -1,7 +1,8 @@
 use crate::{
     api::{
         client::Client,
-        requests::{core::blocks::locate::LocationRequest, staging::pull_blocks::PullBlock}, error::ClientError,
+        error::ClientError,
+        requests::{core::blocks::locate::LocationRequest, staging::pull_blocks::PullBlock},
     },
     blockstore::BlockStore,
 };

@@ -7,13 +7,15 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
 };
 
+use super::error::FilesystemError;
+
 /// Store a given PrivateDirectory in a given Store
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     metadata_store: &MBS,
     content_store: &CBS,
     forest: &mut Rc<PrivateForest>,
     dir: &Rc<PrivateDirectory>,
-) -> Result<PrivateRef> {
+) -> Result<PrivateRef, FilesystemError> {
     // Get a seeded source of randomness
     let seed = thread_rng().gen::<[u8; 32]>();
     let mut rng = StdRng::from_seed(seed);
@@ -31,7 +33,7 @@ pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
     forest: &Rc<PrivateForest>,
     serializer: &SBS,
     storage: &BS,
-) -> Result<Cid> {
+) -> Result<Cid, FilesystemError> {
     // Create an IPLD from the PrivateForest
     let forest_ipld = forest.async_serialize_ipld(serializer).await?;
     // Store the PrivateForest's IPLD in the BlockStore
@@ -44,7 +46,7 @@ pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
 pub async fn store_share_manager(
     share_manager: &ShareManager,
     store: &impl BlockStore,
-) -> Result<Cid> {
+) -> Result<Cid, FilesystemError> {
     let share_manager_bytes = dagcbor::encode(share_manager)?;
     let share_manager_cid = store
         .put_block(share_manager_bytes.clone(), IpldCodec::DagCbor)
@@ -53,7 +55,10 @@ pub async fn store_share_manager(
 }
 
 /// Load a given PrivateForest from a given Store
-pub async fn load_forest<BS: BlockStore>(cid: &Cid, store: &BS) -> Result<Rc<PrivateForest>> {
+pub async fn load_forest<BS: BlockStore>(
+    cid: &Cid,
+    store: &BS,
+) -> Result<Rc<PrivateForest>, FilesystemError> {
     // Deserialize the IPLD DAG of the PrivateForest
     let forest_ipld: Ipld = store.get_deserializable(cid).await?;
     // Create a PrivateForest from that IPLD DAG
@@ -70,7 +75,7 @@ pub async fn load_dir<BS: BlockStore>(
     store: &BS,
     private_ref: &PrivateRef,
     forest: &Rc<PrivateForest>,
-) -> Result<Rc<PrivateDirectory>> {
+) -> Result<Rc<PrivateDirectory>, FilesystemError> {
     // Load the PrivateDirectory from the PrivateForest
     PrivateNode::load(private_ref, forest, store)
         .await?
@@ -81,16 +86,19 @@ pub async fn load_dir<BS: BlockStore>(
 #[cfg(test)]
 mod test {
     use crate::{
-        filesystem::serialize::{load_dir, load_forest, store_dir, store_forest},
+        filesystem::{
+            error::FilesystemError,
+            serialize::{load_dir, load_forest, store_dir, store_forest},
+        },
         utils::testing::blockstores::{setup_memory_test, teardown_test},
     };
-        use chrono::Utc;
+    use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
 
     #[tokio::test]
     #[serial]
-    async fn forest() -> Result<()> {
+    async fn forest() -> Result<(), FilesystemError> {
         let test_name = "forest";
         // Start er up!
         let (metadata, _, forest, _) = &mut setup_memory_test(test_name).await?;
@@ -108,7 +116,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn dir_object() -> Result<()> {
+    async fn dir_object() -> Result<(), FilesystemError> {
         let test_name = "dir_object";
         // Start er up!
         let (metadata, content, forest, dir) = &mut setup_memory_test(test_name).await?;
@@ -125,7 +133,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn dir_content() -> Result<()> {
+    async fn dir_content() -> Result<(), FilesystemError> {
         let test_name = "dir_content";
         // Start er up!
         let (metadata, content, original_forest, original_dir) =

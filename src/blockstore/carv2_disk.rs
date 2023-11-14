@@ -1,6 +1,6 @@
 use crate::{
-    blockstore::{BlockStore, RootedBlockStore, BlockStoreError},
-    car::{v1::Block, v2::CarV2, error::CarError},
+    blockstore::{BlockStore, BlockStoreError, RootedBlockStore},
+    car::{error::CarError, v1::Block, v2::CarV2},
     utils::{get_read, get_read_write, get_write},
 };
 use async_trait::async_trait;
@@ -142,10 +142,10 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
     use crate::{
-        blockstore::{BlockStore, CarV2DiskBlockStore, RootedBlockStore, BlockStoreError},
+        blockstore::{BlockStore, BlockStoreError, CarV2DiskBlockStore, RootedBlockStore},
         utils::testing::blockstores::car_test_setup,
     };
-        use serial_test::serial;
+    use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
     use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
     use wnfs::libipld::{Cid, IpldCodec};

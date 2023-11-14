@@ -53,26 +53,26 @@ impl CompressionScheme {
 }
 
 /// Compresses bytes
-pub fn compress_bytes<R, W>(mut reader: R, writer: W) -> Result<()>
+pub fn compress_bytes<R, W>(mut reader: R, writer: W) -> Result<(), std::io::Error>
 where
     R: Read,
     W: Write,
 {
-    Ok(CompressionScheme::new_lz4_flex().encode(&mut reader, writer)?)
+    CompressionScheme::new_lz4_flex().encode(&mut reader, writer)
 }
 
 /// Decompresses bytes
-pub fn decompress_bytes<R, W>(reader: R, mut writer: W) -> Result<()>
+pub fn decompress_bytes<R, W>(reader: R, mut writer: W) -> Result<(), std::io::Error>
 where
     R: Read,
     W: Write,
 {
-    Ok(CompressionScheme::new_lz4_flex().decode(reader, &mut writer)?)
+    CompressionScheme::new_lz4_flex().decode(reader, &mut writer)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 /// Compress the contents of a file at a given path
-pub fn compress_file(path: &std::path::Path) -> Result<Vec<u8>> {
+pub fn compress_file(path: &std::path::Path) -> Result<Vec<u8>, std::io::Error> {
     // Open the original file (just the first one!)
     let file = std::fs::File::open(path)?;
     // Create a reader for the original file
@@ -86,7 +86,7 @@ pub fn compress_file(path: &std::path::Path) -> Result<Vec<u8>> {
 }
 
 /// Compress the contents of a vector of bytes
-pub fn compress_vec(buf: &[u8]) -> Result<Vec<u8>> {
+pub fn compress_vec(buf: &[u8]) -> Result<Vec<u8>, std::io::Error> {
     // Create a reader for the original file
     let reader = BufReader::new(buf);
     // Create a buffer to hold the compressed bytes
@@ -98,7 +98,7 @@ pub fn compress_vec(buf: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Decompress a vector of bytes
-pub fn decompress_vec(buf: &[u8]) -> Result<Vec<u8>> {
+pub fn decompress_vec(buf: &[u8]) -> Result<Vec<u8>, std::io::Error> {
     // Create a reader for the original file
     let reader = BufReader::new(buf);
     // Create a buffer to hold the compressed bytes
@@ -110,7 +110,7 @@ pub fn decompress_vec(buf: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// Converts a PathBuf into a vector of path segments for use in WNFS.
-pub fn path_to_segments(path: &Path) -> Result<Vec<String>> {
+pub fn path_to_segments(path: &Path) -> Result<Vec<String>, wnfs::error::FsError> {
     let path = path
         .to_path_buf()
         .into_os_string()

@@ -7,14 +7,18 @@ pub mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
 
+pub(crate) use error::SharingError;
+
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
     use crate::filesystem::sharing::manager::ShareManager;
-        use rand::Rng;
+    use rand::Rng;
     use serial_test::serial;
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::{AesKey, PrivateRef, TemporalKey};
+
+    use super::SharingError;
 
     fn random_private_ref() -> PrivateRef {
         let random_bytes = rand::thread_rng().gen::<[u8; 32]>();
@@ -27,7 +31,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn put_get_original() -> Result<()> {
+    async fn put_get_original() -> Result<(), SharingError> {
         // Key manager
         let mut key_manager = ShareManager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
@@ -44,7 +48,7 @@ mod test {
         // Set the original key
         key_manager.set_original_ref(&original).await?;
 
-        let reconstructed_original = key_manager.original_ref.ok_or(anyhow!("No original ref"))?;
+        let reconstructed_original = key_manager.original_ref.ok_or(SharingError::lost_key())?;
 
         // Assert that the original and reconstructed are matching
         assert_eq!(original, reconstructed_original);
@@ -54,7 +58,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn put_get_current() -> Result<()> {
+    async fn put_get_current() -> Result<(), SharingError> {
         // Key manager
         let mut key_manager = ShareManager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
@@ -70,7 +74,7 @@ mod test {
         // Set the current key
         key_manager.set_current_ref(&current).await?;
 
-        let reconstructed_current = key_manager.current_ref.ok_or(anyhow!("No current ref"))?;
+        let reconstructed_current = key_manager.current_ref.ok_or(SharingError::lost_key())?;
 
         // Assert that the current and reconstructed are matching
         assert_eq!(current, reconstructed_current);
@@ -80,7 +84,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn share_with_get_current() -> Result<()> {
+    async fn share_with_get_current() -> Result<(), SharingError> {
         // Key manager
         let mut key_manager = ShareManager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
@@ -94,7 +98,7 @@ mod test {
         // Insert public key post-hoc
         key_manager.share_with(&public_key).await?;
         // Reconstruct the key
-        let reconstructed_current = key_manager.current_ref.ok_or(anyhow!("No current ref"))?;
+        let reconstructed_current = key_manager.current_ref.ok_or(SharingError::lost_key())?;
         // Assert that the current and reconstructed keys are matching
         assert_eq!(current, reconstructed_current);
         Ok(())
@@ -102,7 +106,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn share_with_get_original() -> Result<()> {
+    async fn share_with_get_original() -> Result<(), SharingError> {
         // Key manager
         let mut key_manager = ShareManager::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
@@ -116,7 +120,7 @@ mod test {
         // Insert public key post-hoc
         key_manager.share_with(&public_key).await?;
         // Reconstruct the key
-        let reconstructed_original = key_manager.original_ref.ok_or(anyhow!("No original ref"))?;
+        let reconstructed_original = key_manager.original_ref.ok_or(SharingError::lost_key())?;
         // Assert that the current and reconstructed keys are matching
         assert_eq!(original, reconstructed_original);
         Ok(())
@@ -124,7 +128,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn share_with_get_both() -> Result<()> {
+    async fn share_with_get_both() -> Result<(), SharingError> {
         // Key manager
         let mut key_manager = ShareManager::default();
 
@@ -144,8 +148,8 @@ mod test {
         key_manager.share_with(&public_key).await?;
 
         // Reconstruct the keys
-        let reconstructed_original = key_manager.original_ref.ok_or(anyhow!("No original ref"))?;
-        let reconstructed_current = key_manager.current_ref.ok_or(anyhow!("No current ref"))?;
+        let reconstructed_original = key_manager.original_ref.ok_or(SharingError::lost_key())?;
+        let reconstructed_current = key_manager.current_ref.ok_or(SharingError::lost_key())?;
 
         // Assert that the current and reconstructed keys are matching
         assert_eq!(original, reconstructed_original);

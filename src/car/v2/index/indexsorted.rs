@@ -1,10 +1,6 @@
 use crate::{
+    car::{error::CarError, v2::index::indexable::Indexable, Streamable},
     utils::varint::{read_leu32, read_leu64},
-    car::{
-        error::CarError,
-        v2::index::indexable::Indexable,
-        Streamable,
-    }
 };
 use serde::{Deserialize, Serialize};
 use std::{

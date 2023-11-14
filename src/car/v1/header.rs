@@ -1,9 +1,6 @@
 use crate::{
+    car::{error::CarError, Streamable},
     utils::varint::{encode_varint_u64, read_varint_u64},
-    car::{
-        error::CarError,
-        Streamable,
-    }
 };
 
 use serde::{Deserialize, Serialize};
@@ -120,8 +117,8 @@ impl Streamable for Header {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use super::Header;
-    use crate::car::{Streamable, error::CarError};
-        use serial_test::serial;
+    use crate::car::{error::CarError, Streamable};
+    use serial_test::serial;
     use std::{
         cell::RefCell,
         fs::File,

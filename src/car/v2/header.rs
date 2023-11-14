@@ -1,9 +1,6 @@
 use crate::{
+    car::{error::CarError, streamable::Streamable},
     utils::varint::{read_leu128, read_leu64},
-    car::{
-        streamable::Streamable,
-        error::CarError,
-    }
 };
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
@@ -80,12 +77,13 @@ impl<'de> Deserialize<'de> for Header {
 mod test {
     use crate::{
         car::{
+            error::CarError,
             v2::{header::Header, PRAGMA, PRAGMA_SIZE},
-            Streamable, error::CarError,
+            Streamable,
         },
         utils::testing::blockstores::car_test_setup,
     };
-        use serial_test::serial;
+    use serial_test::serial;
     use std::{
         fs::File,
         io::{Seek, Write},

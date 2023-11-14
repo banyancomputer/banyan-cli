@@ -1,4 +1,4 @@
-use std::io::{Read, Seek, Write, Error};
+use std::io::{Error, Read, Seek, Write};
 
 /// Custom Stream-Based Serialization
 pub trait Streamable: Sized {

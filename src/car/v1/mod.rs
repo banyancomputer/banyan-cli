@@ -32,7 +32,10 @@ pub struct CarV1 {
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
-    pub fn read_bytes<R: Read + Seek>(index_offset: Option<u64>, mut r: R) -> Result<Self, CarError> {
+    pub fn read_bytes<R: Read + Seek>(
+        index_offset: Option<u64>,
+        mut r: R,
+    ) -> Result<Self, CarError> {
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
         // End of the header
@@ -150,7 +153,10 @@ impl CarV1 {
     }
 
     /// Create a new CARv1 struct by writing into a stream, then deserializing it
-    pub fn new<RW: Read + Write + Seek>(index_offset: Option<u64>, mut rw: RW) -> Result<Self, CarError> {
+    pub fn new<RW: Read + Write + Seek>(
+        index_offset: Option<u64>,
+        mut rw: RW,
+    ) -> Result<Self, CarError> {
         let car = Self::default(if index_offset.is_none() { 1 } else { 2 });
         car.header.write_bytes(&mut rw)?;
         rw.seek(SeekFrom::Start(0))?;
@@ -200,10 +206,13 @@ impl CarV1 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
-        car::{v1::{block::Block, CarV1}, error::CarError},
+        car::{
+            error::CarError,
+            v1::{block::Block, CarV1},
+        },
         utils::{get_read_write, testing::blockstores::car_test_setup},
     };
-        use serial_test::serial;
+    use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
         io::{Seek, SeekFrom},

@@ -103,6 +103,5 @@ fn process_field(
 /// Verify the integrity of a provided address
 fn verify_address(address: &str) -> Result<(), ParseError> {
     // Update if the address is valid
-    Url::parse(address)
-        .map(|_| ())
+    Url::parse(address).map(|_| ())
 }

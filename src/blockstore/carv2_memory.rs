@@ -1,5 +1,5 @@
 use crate::{
-    blockstore::{BlockStore, RootedBlockStore, BlockStoreError},
+    blockstore::{BlockStore, BlockStoreError, RootedBlockStore},
     car::{v1::Block, v2::CarV2},
 };
 use async_trait::async_trait;
@@ -118,8 +118,8 @@ impl<'de> Deserialize<'de> for CarV2MemoryBlockStore {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    use crate::blockstore::{RootedBlockStore, BlockStoreError};
-        use wnfs::{
+    use crate::blockstore::{BlockStoreError, RootedBlockStore};
+    use wnfs::{
         common::{bs_duplication_test, bs_retrieval_test, bs_serialization_test, BlockStore},
         libipld::IpldCodec,
     };

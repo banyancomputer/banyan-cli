@@ -1,3 +1,4 @@
+use crate::filesystem::sharing::SharingError;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{
     EcEncryptionKey, EcPublicEncryptionKey, EncryptedSymmetricKey, SymmetricKey,
@@ -30,7 +31,7 @@ impl EncryptedPrivateRef {
     pub async fn encrypt_for(
         private_ref: &PrivateRef,
         recipient_key: &EcPublicEncryptionKey,
-    ) -> Result<Self> {
+    ) -> Result<Self, SharingError> {
         // Restore the temporal key from the Reference
         let temporal_key = private_ref.temporal_key.clone();
         // Wrap the temporal key in a Symmetric Key
@@ -50,10 +51,15 @@ impl EncryptedPrivateRef {
     }
 
     /// Decrypt an EncryptedPrivateRef with a recipient key
-    pub async fn decrypt_with(self, recipient_key: &EcEncryptionKey) -> Result<PrivateRef> {
+    pub async fn decrypt_with(
+        self,
+        recipient_key: &EcEncryptionKey,
+    ) -> Result<PrivateRef, SharingError> {
         // Check if this is an empty string
         if self.encrypted_temporal_key_string.is_empty() {
-            return Err(anyhow!("encrypted temporal key string is empty"));
+            return Err(SharingError::invalid_key_data(
+                "encrypted temporal key string is empty",
+            ));
         }
         // Get the encrypted temporal key from the string
         let encrypted_temporal_key =
@@ -66,7 +72,9 @@ impl EncryptedPrivateRef {
             .expect("could not decrypt encrypted temporal key");
         let temporal_key_slice = temporal_key.as_ref();
         if temporal_key_slice.len() != 32 {
-            return Err(anyhow!("temporal key is not 32 bytes"));
+            return Err(SharingError::invalid_key_data(
+                "temporal key was not 32 bytes",
+            ));
         }
         let mut temporal_key = [0u8; 32];
         temporal_key.copy_from_slice(temporal_key_slice);

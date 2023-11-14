@@ -121,7 +121,7 @@ pub enum ClientErrorKind {
 
 impl From<anyhow::Error> for ClientError {
     fn from(value: anyhow::Error) -> Self {
-        Self::custom_error(&value.to_string())
+        Self::custom_error(value)
     }
 }
 

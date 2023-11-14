@@ -1,4 +1,4 @@
-use super::error::KeyError;
+use super::SharingError;
 use serde::{Deserialize, Serialize};
 use tomb_crypt::{
     hex_fingerprint,
@@ -24,20 +24,16 @@ pub struct EncRefMapper(pub(crate) HashMap<String, (Vec<u8>, String)>);
 
 impl EncRefMapper {
     /// Encrypt a private referece for all reciepients in the Mapper
-    pub async fn update_ref(&mut self, private_ref: &PrivateRef) -> Result<()> {
+    pub async fn update_ref(&mut self, private_ref: &PrivateRef) -> Result<(), SharingError> {
         // For each Public Key present in the map
         for (fingerprint, (der, _)) in self.0.clone() {
             // Get the public key from the DER
-            let public_key = EcPublicEncryptionKey::import_bytes(&der)
-                .await
-                .map_err(|_| anyhow!("could not import recipient key"))?;
+            let public_key = EcPublicEncryptionKey::import_bytes(&der).await?;
             // Encrypt the private ref for the public key
-            let encrypted_private_ref = EncryptedPrivateRef::encrypt_for(private_ref, &public_key)
-                .await
-                .map_err(|_| anyhow!("could not encrypt private ref for recipient"))?;
+            let encrypted_private_ref =
+                EncryptedPrivateRef::encrypt_for(private_ref, &public_key).await?;
             // Insert the encrypted private ref into the map
-            let ref_string = serde_json::to_string(&encrypted_private_ref)
-                .map_err(|_| anyhow!("could not export encrypted private ref to string"))?;
+            let ref_string = serde_json::to_string(&encrypted_private_ref)?;
             // Insert the reencrypted version of the TemporalKey
             self.0.insert(fingerprint, (der, ref_string));
         }
@@ -50,33 +46,20 @@ impl EncRefMapper {
         &mut self,
         private_ref: &Option<PrivateRef>,
         recipient: &EcPublicEncryptionKey,
-    ) -> Result<()> {
+    ) -> Result<(), SharingError> {
         // Grab the public key's fingerprint
-        let fingerprint = hex_fingerprint(
-            recipient
-                .fingerprint()
-                .await
-                .map_err(|_| anyhow!("could not fingerprint recipient"))?
-                .as_slice(),
-        );
+        let fingerprint = hex_fingerprint(recipient.fingerprint().await?.as_slice());
         // Get the DER encoded public key bytes
-        let der = recipient
-            .export_bytes()
-            .await
-            .map_err(|_| anyhow!("could not export recipient public key to DER"))?;
+        let der = recipient.export_bytes().await?;
 
         // If there is a valid temporal key
         let ref_string = match private_ref {
             Some(private_ref) => {
                 // Encrypt the private ref for the recipient
                 let encrypted_private_ref =
-                    EncryptedPrivateRef::encrypt_for(private_ref, recipient)
-                        .await
-                        .map_err(|_| anyhow!("could not encrypt private ref for recipient"))?;
+                    EncryptedPrivateRef::encrypt_for(private_ref, recipient).await?;
                 // Export the encrypted private ref to a string
-                // Insert the encrypted private ref into the map
-                serde_json::to_string(&encrypted_private_ref)
-                    .map_err(|_| anyhow!("could not export encrypted private ref to string"))?
+                serde_json::to_string(&encrypted_private_ref)?
             }
             None => String::new(),
         };
@@ -87,26 +70,19 @@ impl EncRefMapper {
     }
 
     /// Decrypt the TemporalKey using a recipient's PrivateKey
-    pub async fn recover_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    pub async fn recover_ref(
+        &self,
+        recipient: &EcEncryptionKey,
+    ) -> Result<PrivateRef, SharingError> {
         // Grab the fingerprint from the
-        let fingerprint = hex_fingerprint(
-            recipient
-                .fingerprint()
-                .await
-                .map_err(|_| anyhow!("could not fingerprint recipient"))?
-                .as_slice(),
-        );
+        let fingerprint = hex_fingerprint(recipient.fingerprint().await?.as_slice());
         // Grab the encrypted key associated with the fingerprint
         let (_, enc_ref_string) = match self.0.get(&fingerprint) {
             Some(entry) => entry,
-            None => return Err(KeyError::Missing.into()),
+            None => return Err(SharingError::unauthorized()),
         };
-        let enc_ref = serde_json::from_str::<EncryptedPrivateRef>(enc_ref_string)
-            .map_err(|_| anyhow!("could not deserialize encrypted private ref"))?;
-        let private_ref = enc_ref
-            .decrypt_with(recipient)
-            .await
-            .map_err(|_| anyhow!("could not decrypt private ref"))?;
+        let enc_ref = serde_json::from_str::<EncryptedPrivateRef>(enc_ref_string)?;
+        let private_ref = enc_ref.decrypt_with(recipient).await?;
         Ok(private_ref)
     }
 }
@@ -132,7 +108,7 @@ impl EncRefMapper {
         Ipld::Map(map)
     }
 
-    pub(crate) fn from_ipld(ipld: Ipld) -> Result<Self> {
+    pub(crate) fn from_ipld(ipld: Ipld) -> Result<Self, SharingError> {
         // New EncRefMapper
         let mut mapper = EncRefMapper::default();
         // If we can get the Map
@@ -150,7 +126,7 @@ impl EncRefMapper {
                         (public_key.to_vec(), encrypted_private_ref.to_string()),
                     );
                 } else {
-                    return Err(KeyError::Missing.into());
+                    return Err(SharingError::unauthorized());
                 }
             }
         }
@@ -181,17 +157,19 @@ impl<'de> Deserialize<'de> for EncRefMapper {
 #[cfg(test)]
 mod test {
 
-        use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
+    use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::{
         common::dagcbor,
         libipld::Cid,
         private::{AesKey, PrivateRef, TemporalKey},
     };
 
-    use crate::filesystem::sharing::mapper::EncRefMapper;
+    use crate::{
+        filesystem::sharing::mapper::EncRefMapper, prelude::filesystem::sharing::SharingError,
+    };
 
     #[tokio::test]
-    async fn to_from_ipld() -> Result<()> {
+    async fn to_from_ipld() -> Result<(), SharingError> {
         // Create new mapper
         let mut mapper1 = EncRefMapper::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys
@@ -228,7 +206,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn serial_size() -> Result<()> {
+    async fn serial_size() -> Result<(), SharingError> {
         // Create new mapper
         let mut mapper1 = EncRefMapper::default();
         // Create a new EC encryption key intended to be used to encrypt/decrypt temporal keys

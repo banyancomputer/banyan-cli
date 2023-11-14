@@ -1,8 +1,6 @@
 use crate::{
+    car::{error::CarError, Streamable},
     utils::varint::{encode_varint_u128, read_varint_u128},
-    car::{
-        Streamable, error::CarError,
-    }
 };
 use std::io::{Read, Seek, SeekFrom, Write};
 use wnfs::libipld::{

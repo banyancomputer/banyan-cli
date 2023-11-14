@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::native::operations::configure;
+use anyhow::Result;
 use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
 use std::{fs::remove_dir_all, path::PathBuf};
 
