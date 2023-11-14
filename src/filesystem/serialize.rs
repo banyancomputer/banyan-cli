@@ -7,7 +7,7 @@ use wnfs::{
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateRef},
 };
 
-use super::error::FilesystemError;
+use super::{error::FilesystemError, sharing::SharingError};
 
 /// Store a given PrivateDirectory in a given Store
 pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
@@ -35,7 +35,10 @@ pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
     storage: &BS,
 ) -> Result<Cid, FilesystemError> {
     // Create an IPLD from the PrivateForest
-    let forest_ipld = forest.async_serialize_ipld(serializer).await?;
+    let forest_ipld = forest
+        .async_serialize_ipld(serializer)
+        .await
+        .map_err(|err| FilesystemError::sharing(SharingError::encoding(&err.to_string())))?;
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = storage.put_serializable(&forest_ipld).await?;
     // Return Ok
@@ -78,8 +81,10 @@ pub async fn load_dir<BS: BlockStore>(
 ) -> Result<Rc<PrivateDirectory>, FilesystemError> {
     // Load the PrivateDirectory from the PrivateForest
     PrivateNode::load(private_ref, forest, store)
-        .await?
+        .await
+        .map_err(FilesystemError::wnfs)?
         .as_dir()
+        .map_err(FilesystemError::wnfs)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -111,7 +116,9 @@ mod test {
         assert_eq!(new_forest.diff(forest, metadata).await?.len(), 0);
 
         // Teardown
-        teardown_test(test_name).await
+        teardown_test(test_name)
+            .await
+            .map_err(FilesystemError::wnfs)
     }
 
     #[tokio::test]
@@ -128,7 +135,9 @@ mod test {
         // Assert equality
         assert_eq!(dir, &mut new_dir);
         // Teardown
-        teardown_test(test_name).await
+        teardown_test(test_name)
+            .await
+            .map_err(FilesystemError::wnfs)
     }
 
     #[tokio::test]
@@ -177,6 +186,8 @@ mod test {
         assert_eq!(original_content, new_content);
 
         // Teardown
-        teardown_test(test_name).await
+        teardown_test(test_name)
+            .await
+            .map_err(FilesystemError::wnfs)
     }
 }

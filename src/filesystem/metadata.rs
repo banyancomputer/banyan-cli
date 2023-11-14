@@ -270,6 +270,7 @@ impl FsMetadata {
             store,
         )
         .await
+        .map_err(FilesystemError::wnfs)
     }
 
     /// Return the build details
@@ -410,19 +411,19 @@ impl FsMetadata {
             .get_node(src_path_segments, true, &self.forest, &ds_store)
             .await?;
         match result {
-            Some(_) => {
-                self.root_dir
-                    .basic_mv(
-                        src_path_segments,
-                        dest_path_segments,
-                        true,
-                        Utc::now(),
-                        &mut self.forest,
-                        &ds_store,
-                        &mut thread_rng(),
-                    )
-                    .await
-            }
+            Some(_) => self
+                .root_dir
+                .basic_mv(
+                    src_path_segments,
+                    dest_path_segments,
+                    true,
+                    Utc::now(),
+                    &mut self.forest,
+                    &ds_store,
+                    &mut thread_rng(),
+                )
+                .await
+                .map_err(FilesystemError::wnfs),
             None => Err(FilesystemError::node_not_found(
                 &src_path_segments.join("/"),
             )),
@@ -450,6 +451,7 @@ impl FsMetadata {
                 metadata_store,
             )
             .await
+            .map_err(FilesystemError::wnfs)
     }
 
     /// Write a symlink
@@ -476,6 +478,7 @@ impl FsMetadata {
                 &mut thread_rng(),
             )
             .await
+            .map_err(FilesystemError::wnfs)
     }
 
     /// Rm a file or directory
@@ -511,7 +514,9 @@ impl FsMetadata {
 
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            file.get_content(&self.forest, &split_store).await
+            file.get_content(&self.forest, &split_store)
+                .await
+                .map_err(FilesystemError::wnfs)
         } else {
             Err(FilesystemError::node_not_found(&path_segments.join("/")))
         }
@@ -630,7 +635,9 @@ impl FsMetadata {
                 }
                 Ok(children)
             }
-            None => FilesystemError::node_not_found(&path.to_string_lossy().to_string()),
+            None => Err(FilesystemError::node_not_found(
+                &path.to_string_lossy().to_string(),
+            )),
         }
     }
 }

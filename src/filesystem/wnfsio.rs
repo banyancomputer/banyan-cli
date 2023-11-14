@@ -3,6 +3,8 @@ use std::{
     path::Path,
 };
 
+use anyhow::anyhow;
+
 #[derive(Debug, Clone)]
 /// Wrapper for compression information
 struct CompressionScheme {
@@ -110,12 +112,12 @@ pub fn decompress_vec(buf: &[u8]) -> Result<Vec<u8>, std::io::Error> {
 }
 
 /// Converts a PathBuf into a vector of path segments for use in WNFS.
-pub fn path_to_segments(path: &Path) -> Result<Vec<String>, wnfs::error::FsError> {
+pub fn path_to_segments(path: &Path) -> Result<Vec<String>, anyhow::Error> {
     let path = path
         .to_path_buf()
         .into_os_string()
         .into_string()
-        .map_err(|_| wnfs::error::FsError::InvalidPath)?;
+        .map_err(|_| anyhow!("invalid path"))?;
     let path_segments: Vec<String> = path
         .split('/')
         .filter(|s| !s.is_empty())

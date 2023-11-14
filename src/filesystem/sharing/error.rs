@@ -25,6 +25,18 @@ impl SharingError {
             kind: SharingErrorKind::InvalidKeyData(message.to_string()),
         }
     }
+
+    pub(crate) fn cryptographic(err: TombCryptError) -> Self {
+        Self {
+            kind: SharingErrorKind::Cryptographic(err),
+        }
+    }
+
+    pub(crate) fn encoding(msg: &str) -> Self {
+        Self {
+            kind: SharingErrorKind::Encoding(msg.to_owned()),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -33,6 +45,7 @@ pub(crate) enum SharingErrorKind {
     LostKey,
     InvalidKeyData(String),
     Cryptographic(TombCryptError),
+    Encoding(String),
 }
 
 impl Display for SharingError {
@@ -46,6 +59,7 @@ impl Display for SharingError {
                 format_args!("key data invalid: {}", message)
             }
             SharingErrorKind::Cryptographic(err) => format_args!("crypto error: {}", err),
+            SharingErrorKind::Encoding(_) => todo!(),
         };
 
         f.write_fmt(args)
@@ -54,8 +68,12 @@ impl Display for SharingError {
 
 impl From<TombCryptError> for SharingError {
     fn from(value: TombCryptError) -> Self {
-        Self {
-            kind: SharingErrorKind::Cryptographic(value),
-        }
+        Self::cryptographic(value)
+    }
+}
+
+impl From<serde_json::Error> for SharingError {
+    fn from(value: serde_json::Error) -> Self {
+        Self::encoding(&value.to_string())
     }
 }
