@@ -62,7 +62,8 @@ mod test {
         let store = &MemoryBlockStore::default();
         bs_retrieval_test(store).await?;
         bs_duplication_test(store).await?;
-        bs_serialization_test(store).await
+        bs_serialization_test(store).await?;
+        Ok(())
     }
 
     #[tokio::test]

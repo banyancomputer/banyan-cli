@@ -1,6 +1,6 @@
 use crate::{
     blockstore::{BlockStore, BlockStoreError, RootedBlockStore},
-    car::{v1::Block, v2::CarV2},
+    car::{error::CarError, v1::Block, v2::CarV2},
 };
 use async_trait::async_trait;
 use serde::de::Error;
@@ -18,7 +18,7 @@ pub struct CarV2MemoryBlockStore {
 }
 
 impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
-    type Error = anyhow::Error;
+    type Error = CarError;
 
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
         let mut store = Self {

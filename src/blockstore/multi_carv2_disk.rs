@@ -89,7 +89,7 @@ impl MultiCarV2DiskBlockStore {
 
     /// Get the most recent delta
     pub fn get_delta(&self) -> Result<&CarV2DiskBlockStore, BlockStoreError> {
-        self.deltas.last().ok_or(BlockStoreError::NoSuchFile)
+        self.deltas.last().ok_or(BlockStoreError::no_such_file())
     }
 }
 
@@ -106,17 +106,14 @@ impl BlockStore for MultiCarV2DiskBlockStore {
         }
 
         // We didn't find the CID in any BlockStore
-        Err(BlockStoreError::CIDNotFound(*cid).into())
+        Err(BlockStoreError::car(CarError::missing_block(cid)).into())
     }
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> anyhow::Result<Cid> {
         // If there is a delta
-        if let Ok(current_delta) = self.get_delta() {
-            let cid = current_delta.put_block(bytes, codec).await?;
-            Ok(cid)
-        } else {
-            Err(BlockStoreError::LockPoisoned.into())
-        }
+        let current_delta = self.get_delta()?;
+        let cid = current_delta.put_block(bytes, codec).await?;
+        Ok(cid)
     }
 }
 

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use wnfs::libipld::Cid;
 
 use crate::utils::UtilityError;
@@ -63,6 +65,12 @@ impl CarError {
     }
 }
 
+impl Display for CarError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub enum CarErrorKind {
     /// No Root Cid even though expected
@@ -95,5 +103,11 @@ impl From<wnfs::libipld::cid::Error> for CarError {
 impl From<UtilityError> for CarError {
     fn from(value: UtilityError) -> Self {
         Self::utility_error(value)
+    }
+}
+
+impl From<CarError> for anyhow::Error {
+    fn from(value: CarError) -> Self {
+        anyhow::anyhow!("car error: {:?}", value)
     }
 }

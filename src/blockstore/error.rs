@@ -1,4 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
+
+use anyhow::anyhow;
 
 use crate::car::error::CarError;
 
@@ -33,9 +38,46 @@ impl BlockStoreError {
     }
 }
 
+impl Display for BlockStoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
 pub enum BlockStoreErrorKind {
     NoSuchFile,
     ExpectedFile(PathBuf),
     ExpectedDirectory(PathBuf),
     Car(CarError),
+}
+
+impl From<CarError> for BlockStoreError {
+    fn from(value: CarError) -> Self {
+        Self::car(value)
+    }
+}
+
+impl From<std::io::Error> for BlockStoreError {
+    fn from(value: std::io::Error) -> Self {
+        Self::car(CarError::io_error(value))
+    }
+}
+
+impl From<anyhow::Error> for BlockStoreError {
+    fn from(value: anyhow::Error) -> Self {
+        todo!()
+    }
+}
+
+impl From<wnfs::libipld::cid::Error> for BlockStoreError {
+    fn from(value: wnfs::libipld::cid::Error) -> Self {
+        Self::car(CarError::cid_error(value))
+    }
+}
+
+impl From<BlockStoreError> for anyhow::Error {
+    fn from(value: BlockStoreError) -> Self {
+        anyhow!("blockstore error: {:?}", value)
+    }
 }
