@@ -1,4 +1,5 @@
-use std::{str::Utf8Error, string::FromUtf8Error};
+use colored::Colorize;
+use std::{fmt::Display, string::FromUtf8Error};
 
 #[cfg(test)]
 use crate::native::NativeError;
@@ -38,6 +39,21 @@ impl UtilityError {
         Self {
             kind: UtilityErrorKind::Native(err),
         }
+    }
+}
+
+impl Display for UtilityError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match &self.kind {
+            UtilityErrorKind::Varint(err) => format!("{} {err}", "VARINT ERROR:".underline()),
+            UtilityErrorKind::Io(err) => format!("{} {err}", "IO ERROR:".underline()),
+            UtilityErrorKind::Utf8(err) => format!("{} {err}", "UTF8 ERROR:".underline()),
+            #[cfg(test)]
+            UtilityErrorKind::Native(err) => format!("{} {err}", "NATIVE ERROR:".underline()),
+            UtilityErrorKind::Custom(msg) => msg.to_owned(),
+        };
+
+        f.write_str(&string)
     }
 }
 

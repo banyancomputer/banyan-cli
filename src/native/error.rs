@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use colored::Colorize;
 use tomb_crypt::prelude::TombCryptError;
 
 use crate::{
@@ -10,14 +11,45 @@ use crate::{
 #[cfg(feature = "cli")]
 use {crate::cli::specifiers::DriveSpecifier, std::path::PathBuf, uuid::Uuid};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub struct NativeError {
     kind: NativeErrorKind,
 }
 
+impl std::error::Error for NativeError {}
+
 impl Display for NativeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let string = match &self.kind {
+            NativeErrorKind::MissingCredentials => {
+                "Expected local Authorization Credentials but failed to find them".to_owned()
+            }
+            NativeErrorKind::MissingIdentifier => {
+                "Unable to find a remote Identifier associated with that Drive".to_owned()
+            }
+            NativeErrorKind::MissingLocalDrive => {
+                "Unable to find a local Drive with that query".to_owned()
+            }
+            NativeErrorKind::MissingRemoteDrive => {
+                "Unable to find a remote Drive with that query".to_owned()
+            }
+            NativeErrorKind::UniqueDriveError => {
+                "There is already a unique Drive with these specs".to_owned()
+            }
+            NativeErrorKind::BadData => "bad data".to_owned(),
+            NativeErrorKind::Custom(msg) => msg.to_owned(),
+            NativeErrorKind::Cryptographic(err) => {
+                format!("{} {err}", "CRYPTOGRAPHIC ERROR:".underline())
+            }
+            NativeErrorKind::Filesystem(err) => {
+                format!("{} {err}", "FILESYSTEM ERROR:".underline())
+            }
+            NativeErrorKind::Api(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
+            #[cfg(feature = "cli")]
+            NativeErrorKind::UnknownDrive(_) => "No known Drive with that specification".to_owned(),
+        };
+
+        f.write_str(&string)
     }
 }
 
@@ -86,7 +118,7 @@ impl NativeError {
     #[cfg(feature = "cli")]
     pub fn unknown_path(path: PathBuf) -> Self {
         Self {
-            kind: NativeErrorKind::UnknownBucket(DriveSpecifier::with_origin(&path)),
+            kind: NativeErrorKind::UnknownDrive(DriveSpecifier::with_origin(&path)),
         }
     }
 
@@ -94,7 +126,7 @@ impl NativeError {
     #[cfg(feature = "cli")]
     pub fn unknown_id(id: Uuid) -> Self {
         Self {
-            kind: NativeErrorKind::UnknownBucket(DriveSpecifier::with_id(id)),
+            kind: NativeErrorKind::UnknownDrive(DriveSpecifier::with_id(id)),
         }
     }
 }
@@ -113,7 +145,7 @@ enum NativeErrorKind {
     Api(ApiError),
 
     #[cfg(feature = "cli")]
-    UnknownBucket(DriveSpecifier),
+    UnknownDrive(DriveSpecifier),
 }
 
 impl From<FilesystemError> for NativeError {

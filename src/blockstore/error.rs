@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::anyhow;
+use colored::Colorize;
 
 use crate::car::error::CarError;
 
@@ -36,11 +37,29 @@ impl BlockStoreError {
             kind: BlockStoreErrorKind::ExpectedDirectory(path.to_path_buf()),
         }
     }
+
+    pub fn wnfs(err: anyhow::Error) -> Self {
+        Self {
+            kind: BlockStoreErrorKind::Wnfs(err),
+        }
+    }
 }
 
 impl Display for BlockStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let string = match &self.kind {
+            BlockStoreErrorKind::NoSuchFile => "No such file".to_owned(),
+            BlockStoreErrorKind::ExpectedFile(file) => {
+                format!("Expected and failed to find file: {}", file.display())
+            }
+            BlockStoreErrorKind::ExpectedDirectory(dir) => {
+                format!("Expected and failed to find directory: {}", dir.display())
+            }
+            BlockStoreErrorKind::Car(err) => format!("{} {err}", "CAR ERROR:".underline()),
+            BlockStoreErrorKind::Wnfs(err) => format!("{} {err}", "WNFS ERROR:".underline()),
+        };
+
+        f.write_str(&string)
     }
 }
 
@@ -50,6 +69,7 @@ pub enum BlockStoreErrorKind {
     ExpectedFile(PathBuf),
     ExpectedDirectory(PathBuf),
     Car(CarError),
+    Wnfs(anyhow::Error),
 }
 
 impl From<CarError> for BlockStoreError {
@@ -66,7 +86,7 @@ impl From<std::io::Error> for BlockStoreError {
 
 impl From<anyhow::Error> for BlockStoreError {
     fn from(value: anyhow::Error) -> Self {
-        todo!()
+        Self::wnfs(value)
     }
 }
 

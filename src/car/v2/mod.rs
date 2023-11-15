@@ -11,6 +11,7 @@ pub use header::{Header, HEADER_SIZE};
 
 // Code
 use self::index::indexable::Indexable;
+use super::error::CarError;
 use crate::car::{
     v1::{Block, CarV1},
     v2::index::{indexsorted::Bucket, Index},
@@ -22,9 +23,7 @@ use std::{
     cell::RefCell,
     io::{Read, Seek, SeekFrom, Write},
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
-
-use super::error::CarError;
+use wnfs::libipld::Cid;
 
 // | 11-byte fixed pragma | 40-byte header | optional padding | CarV1 data payload | optional padding | optional index payload |
 pub(crate) const PRAGMA_SIZE: usize = 11;

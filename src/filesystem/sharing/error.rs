@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use colored::Colorize;
 use tomb_crypt::prelude::TombCryptError;
 
 #[derive(Debug)]
@@ -34,8 +35,26 @@ impl SharingError {
 
     pub fn encoding(msg: &str) -> Self {
         Self {
-            kind: SharingErrorKind::Encoding(msg.to_owned()),
+            kind: SharingErrorKind::BadData(msg.to_owned()),
         }
+    }
+}
+
+impl Display for SharingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match &self.kind {
+            SharingErrorKind::UnauthorizedDecryption => {
+                "You are not authorized to decrypt this Drive, request key access first.".to_owned()
+            }
+            SharingErrorKind::LostKey => "Lost track of a very important Key".to_owned(),
+            SharingErrorKind::InvalidKeyData(message) => format!("Invalid key data: {message}"),
+            SharingErrorKind::Cryptographic(err) => {
+                format!("{} {err}", "CRYPTOGRAPHIC ERROR:".underline())
+            }
+            SharingErrorKind::BadData(msg) => format!("Invalid data: {msg}"),
+        };
+
+        f.write_str(&string)
     }
 }
 
@@ -45,26 +64,8 @@ pub enum SharingErrorKind {
     LostKey,
     InvalidKeyData(String),
     Cryptographic(TombCryptError),
-    Encoding(String),
+    BadData(String),
 }
-
-// impl Display for SharingError {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let args = match self.kind {
-//             SharingErrorKind::UnauthorizedDecryption => format_args!(
-//                 "You are not authorized to decrypt this Drive, request key access first."
-//             ),
-//             SharingErrorKind::LostKey => format_args!("expected to find a key but didnt"),
-//             SharingErrorKind::InvalidKeyData(message) => {
-//                 format_args!("key data invalid: {}", message)
-//             }
-//             SharingErrorKind::Cryptographic(err) => format_args!("crypto error: {}", err),
-//             SharingErrorKind::Encoding(_) => todo!(),
-//         };
-
-//         f.write_fmt(args)
-//     }
-// }
 
 impl From<TombCryptError> for SharingError {
     fn from(value: TombCryptError) -> Self {

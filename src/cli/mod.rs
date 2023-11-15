@@ -16,7 +16,7 @@ mod test {
         },
         native::{configuration::globalconfig::GlobalConfig, NativeError},
         utils::{
-            testing::local_operations::{test_setup, test_setup_structured, test_teardown},
+            testing::local_operations::{test_setup, test_teardown},
             UtilityError,
         },
     };

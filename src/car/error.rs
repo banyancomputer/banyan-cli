@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use colored::Colorize;
 use wnfs::libipld::Cid;
 
 use crate::utils::UtilityError;
@@ -67,7 +68,19 @@ impl CarError {
 
 impl Display for CarError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let string = match &self.kind {
+            CarErrorKind::MissingRoot => "Missing Root CID".to_owned(),
+            CarErrorKind::MissingBlock(cid) => format!("Missing Block with CID: {}", cid),
+            CarErrorKind::V1Header => "Malformed CARv1 Header".to_owned(),
+            CarErrorKind::Index => "Malformed CARv2 Index".to_owned(),
+            CarErrorKind::Codec => "Invalid Index Codec".to_owned(),
+            CarErrorKind::EndOfData => "Expected more data in CAR than was present".to_owned(),
+            CarErrorKind::Cid(err) => format!("{} {err}", "CID ERROR:".underline()),
+            CarErrorKind::Io(err) => format!("{} {err}", "IO ERROR:".underline()),
+            CarErrorKind::Utility(err) => format!("{} {err}", "UTILITY ERROR:".underline()),
+        };
+
+        f.write_str(&string)
     }
 }
 

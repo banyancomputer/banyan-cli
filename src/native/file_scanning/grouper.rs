@@ -1,12 +1,9 @@
-use crate::{
-    filesystem::FilesystemError,
-    native::{
-        file_scanning::{
-            spider_plans::{PreparePipelinePlan, SpiderMetadata},
-            FClonesLogger,
-        },
-        NativeError,
+use crate::native::{
+    file_scanning::{
+        spider_plans::{PreparePipelinePlan, SpiderMetadata},
+        FClonesLogger,
     },
+    NativeError,
 };
 use fclones::{config::GroupConfig, group_files};
 use std::{

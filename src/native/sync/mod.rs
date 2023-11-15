@@ -73,7 +73,7 @@ pub async fn determine_sync_state(
     let bucket_id = match omni.get_id() {
         Ok(bucket_id) => bucket_id,
         Err(err) => {
-            // info!("err: {}", err);
+            info!("err: {}", err);
             omni.sync_state = SyncState::Unpublished;
             return Ok(());
         }

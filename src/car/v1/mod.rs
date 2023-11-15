@@ -6,7 +6,6 @@ mod header;
 pub use block::Block;
 pub use header::Header;
 
-// Code
 use crate::car::{
     v2::index::{indexable::Indexable, indexsorted::Bucket, Index, INDEX_SORTED_CODEC},
     Streamable,
@@ -17,7 +16,7 @@ use std::{
     collections::HashMap,
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
+use wnfs::libipld::Cid;
 
 use super::error::CarError;
 

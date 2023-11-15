@@ -8,7 +8,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client as ReqwestClient, Url,
 };
-use std::{fmt::Debug, string::ParseError};
+use std::fmt::Debug;
 use tomb_crypt::prelude::{ApiToken, EcSignatureKey};
 use uuid::Uuid;
 

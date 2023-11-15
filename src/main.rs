@@ -1,5 +1,5 @@
 //! this crate is the binary for the tomb project. It contains the main function and the command line interface.
-use anyhow::{Error, Result};
+use anyhow::Result;
 
 #[cfg(target_arch = "wasm32")]
 fn main() {

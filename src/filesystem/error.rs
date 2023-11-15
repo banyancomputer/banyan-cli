@@ -1,3 +1,6 @@
+use std::fmt::Display;
+
+use colored::Colorize;
 use tomb_crypt::prelude::TombCryptError;
 
 use crate::blockstore::BlockStoreError;
@@ -7,6 +10,27 @@ use super::sharing::SharingError;
 #[derive(Debug)]
 pub struct FilesystemError {
     kind: FilesystemErrorKind,
+}
+
+impl Display for FilesystemError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match &self.kind {
+            FilesystemErrorKind::MissingMetadata(label) => {
+                format!("Missing metadata with label \"{label}\"")
+            }
+            FilesystemErrorKind::NodeNotFound(path) => {
+                format!("Unable to find node with path \"{path}\"")
+            }
+            FilesystemErrorKind::Sharing(err) => format!("{} {err}", "SHARING ERROR:".underline()),
+            FilesystemErrorKind::Blockstore(err) => {
+                format!("{} {err}", "BLOCKSTORE ERROR:".underline())
+            }
+            FilesystemErrorKind::Wnfs(err) => format!("{} {err}", "WNFS ERROR:".underline()),
+            FilesystemErrorKind::Io(err) => format!("{} {err}", "IO ERROR:".underline()),
+        };
+
+        f.write_str(&string)
+    }
 }
 
 impl FilesystemError {
@@ -51,7 +75,6 @@ impl FilesystemError {
 pub enum FilesystemErrorKind {
     MissingMetadata(String),
     NodeNotFound(String),
-    BadConfig,
     Sharing(SharingError),
     Blockstore(BlockStoreError),
     Wnfs(anyhow::Error),

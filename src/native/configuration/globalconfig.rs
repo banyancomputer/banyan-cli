@@ -131,8 +131,7 @@ impl GlobalConfig {
             .write(true)
             .open(config_path())?;
 
-        serde_json::to_writer_pretty(writer, &self);
-        Ok(())
+        serde_json::to_writer_pretty(writer, &self).map_err(|_| NativeError::bad_data())
     }
 
     /// Initialize from file on disk
