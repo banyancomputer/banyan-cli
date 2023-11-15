@@ -217,10 +217,10 @@ mod test {
         mapper1.add_recipient(&None, &public_key).await?;
 
         // Serialize
-        let mapper1_bytes =
-            dagcbor::encode(&mapper1).map_err(|err| SharingError::encoding(&err.to_string()))?;
+        let mapper1_bytes = dagcbor::encode(&mapper1)
+            .map_err(|err| SharingError::invalid_data(&err.to_string()))?;
         let mut mapper2: EncRefMapper = dagcbor::decode(mapper1_bytes.as_slice())
-            .map_err(|err| SharingError::encoding(&err.to_string()))?;
+            .map_err(|err| SharingError::invalid_data(&err.to_string()))?;
         // Assert reconstruction
         assert_eq!(mapper1, mapper2);
 
@@ -234,10 +234,10 @@ mod test {
         // Update temporal key
         mapper2.update_ref(&private_ref).await?;
 
-        let mapper2_bytes =
-            dagcbor::encode(&mapper2).map_err(|err| SharingError::encoding(&err.to_string()))?;
+        let mapper2_bytes = dagcbor::encode(&mapper2)
+            .map_err(|err| SharingError::invalid_data(&err.to_string()))?;
         let mapper3: EncRefMapper = dagcbor::decode(mapper2_bytes.as_slice())
-            .map_err(|err| SharingError::encoding(&err.to_string()))?;
+            .map_err(|err| SharingError::invalid_data(&err.to_string()))?;
         // Assert reconstruction
         assert_eq!(mapper2, mapper3);
 

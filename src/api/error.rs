@@ -1,3 +1,4 @@
+use colored::Colorize;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use tomb_crypt::prelude::TombCryptError;
@@ -5,14 +6,7 @@ use url::ParseError;
 
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
-use {
-    colored::Colorize,
-    crate::{
-        blockstore::BlockStoreError,
-        car::error::CarError,
-        filesystem::FilesystemError,
-    }
-};
+use crate::{blockstore::BlockStoreError, car::error::CarError, filesystem::FilesystemError};
 
 /// Errors that can occur in the API Client
 #[derive(Debug)]
@@ -58,7 +52,7 @@ impl ApiError {
     /// Cryptography error
     pub fn crypto(err: TombCryptError) -> Self {
         Self {
-            kind: ApiErrorKind::Crypto(err),
+            kind: ApiErrorKind::Cryptographic(err),
         }
     }
 
@@ -80,16 +74,24 @@ impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ApiError {
 impl Display for ApiError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let prefix = match &self.kind {
-            ApiErrorKind::ApiResponse(err) => format!("API Response Error: {err}"),
-            ApiErrorKind::AuthUnavailable => "Auth is required for this operation.".into(),
-            ApiErrorKind::HttpClient(_) => "HTTP Client Error".into(),
-            ApiErrorKind::HttpResponse(status_code) => {
-                format!("HTTP Response Error: {status_code:?}")
+            ApiErrorKind::ApiResponse(err) => {
+                format!("{} {err}", "API RESPONSE ERROR:".underline())
             }
-            ApiErrorKind::ResponseFormat(_) => "Response Format Error".into(),
-            ApiErrorKind::Crypto(_) => "Cryptographic Error".into(),
-            ApiErrorKind::ReqwestGeneral(_) => todo!(),
-            ApiErrorKind::Parse(_) => todo!(),
+            ApiErrorKind::AuthUnavailable => "Auth is required for this operation.".into(),
+            ApiErrorKind::HttpClient(err) => format!("{} {err}", "HTTP CLIENT ERROR:".underline()),
+            ApiErrorKind::HttpResponse(status_code) => {
+                format!("HTTP Response Error on status {status_code:?}")
+            }
+            ApiErrorKind::ResponseFormat(err) => {
+                format!("{} {err}", "RESPONSE FORMAT ERROR:".underline())
+            }
+            ApiErrorKind::Cryptographic(err) => {
+                format!("{} {err}", "CRYPTOGRAPHIC ERROR:".underline())
+            }
+            ApiErrorKind::ReqwestGeneral(err) => {
+                format!("{} {err}", "NETWORKING ERROR:".underline())
+            }
+            ApiErrorKind::Parse(err) => format!("{} {err}", "PARSING ERROR:".underline()),
             #[cfg(test)]
             #[cfg(feature = "integration-tests")]
             ApiErrorKind::Filesystem(err) => format!("{} {err}", "FILESYSTEM ERROR:".underline()),
@@ -112,7 +114,7 @@ impl Error for ApiError {
         match &self.kind {
             ApiErrorKind::HttpClient(err) => Some(err),
             ApiErrorKind::ResponseFormat(err) => Some(err),
-            ApiErrorKind::Crypto(err) => Some(err),
+            ApiErrorKind::Cryptographic(err) => Some(err),
             _ => None,
         }
     }
@@ -133,7 +135,7 @@ enum ApiErrorKind {
     /// Response format was invalid
     ResponseFormat(reqwest::Error),
     /// Cryptography error
-    Crypto(TombCryptError),
+    Cryptographic(TombCryptError),
     /// CustomError
     Parse(ParseError),
     /// When we're performing integration tests we also want Filesystem Errors

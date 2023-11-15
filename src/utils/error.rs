@@ -10,6 +10,12 @@ pub struct UtilityError {
 }
 
 impl UtilityError {
+    pub fn custom(msg: &str) -> Self {
+        Self {
+            kind: UtilityErrorKind::Custom(msg.to_owned()),
+        }
+    }
+
     pub fn varint(err: unsigned_varint::decode::Error) -> Self {
         Self {
             kind: UtilityErrorKind::Varint(err),
@@ -28,12 +34,6 @@ impl UtilityError {
         }
     }
 
-    pub fn custom(msg: &str) -> Self {
-        Self {
-            kind: UtilityErrorKind::Custom(msg.to_owned()),
-        }
-    }
-
     #[cfg(test)]
     pub fn native(err: NativeError) -> Self {
         Self {
@@ -45,12 +45,12 @@ impl UtilityError {
 impl Display for UtilityError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match &self.kind {
+            UtilityErrorKind::Custom(msg) => msg.to_owned(),
             UtilityErrorKind::Varint(err) => format!("{} {err}", "VARINT ERROR:".underline()),
             UtilityErrorKind::Io(err) => format!("{} {err}", "IO ERROR:".underline()),
             UtilityErrorKind::Utf8(err) => format!("{} {err}", "UTF8 ERROR:".underline()),
             #[cfg(test)]
             UtilityErrorKind::Native(err) => format!("{} {err}", "NATIVE ERROR:".underline()),
-            UtilityErrorKind::Custom(msg) => msg.to_owned(),
         };
 
         f.write_str(&string)
@@ -59,10 +59,10 @@ impl Display for UtilityError {
 
 #[derive(Debug)]
 pub enum UtilityErrorKind {
+    Custom(String),
     Varint(unsigned_varint::decode::Error),
     Io(std::io::Error),
     Utf8(FromUtf8Error),
-    Custom(String),
     #[cfg(test)]
     Native(NativeError),
 }

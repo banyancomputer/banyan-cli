@@ -21,21 +21,15 @@ impl SharingError {
         }
     }
 
-    pub fn invalid_key_data(message: &str) -> Self {
+    pub fn invalid_data(message: &str) -> Self {
         Self {
-            kind: SharingErrorKind::InvalidKeyData(message.to_string()),
+            kind: SharingErrorKind::InvalidData(message.to_string()),
         }
     }
 
     pub fn cryptographic(err: TombCryptError) -> Self {
         Self {
             kind: SharingErrorKind::Cryptographic(err),
-        }
-    }
-
-    pub fn encoding(msg: &str) -> Self {
-        Self {
-            kind: SharingErrorKind::BadData(msg.to_owned()),
         }
     }
 }
@@ -46,12 +40,11 @@ impl Display for SharingError {
             SharingErrorKind::UnauthorizedDecryption => {
                 "You are not authorized to decrypt this Drive, request key access first.".to_owned()
             }
-            SharingErrorKind::LostKey => "Lost track of a very important Key".to_owned(),
-            SharingErrorKind::InvalidKeyData(message) => format!("Invalid key data: {message}"),
+            SharingErrorKind::LostKey => "Lost track of a Key".to_owned(),
+            SharingErrorKind::InvalidData(msg) => format!("Invalid data: {msg}"),
             SharingErrorKind::Cryptographic(err) => {
                 format!("{} {err}", "CRYPTOGRAPHIC ERROR:".underline())
             }
-            SharingErrorKind::BadData(msg) => format!("Invalid data: {msg}"),
         };
 
         f.write_str(&string)
@@ -62,9 +55,8 @@ impl Display for SharingError {
 pub enum SharingErrorKind {
     UnauthorizedDecryption,
     LostKey,
-    InvalidKeyData(String),
     Cryptographic(TombCryptError),
-    BadData(String),
+    InvalidData(String),
 }
 
 impl From<TombCryptError> for SharingError {
@@ -75,6 +67,6 @@ impl From<TombCryptError> for SharingError {
 
 impl From<serde_json::Error> for SharingError {
     fn from(value: serde_json::Error) -> Self {
-        Self::encoding(&value.to_string())
+        Self::invalid_data(&value.to_string())
     }
 }

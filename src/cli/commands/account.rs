@@ -75,7 +75,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
 
                 // Open this url
                 open::that(format!(
-                    "{}/completedevicekey?spki={}",
+                    "{}/registerDevice?spki={}",
                     GlobalConfig::from_disk().await?.endpoints.frontend,
                     der_url
                 ))

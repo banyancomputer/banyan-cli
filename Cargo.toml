@@ -49,7 +49,7 @@ serial_test = { version = "^2" }
 
 # Dependencies that must exist independent of architecture
 [dependencies]
-anyhow = "1.0.75"
+anyhow = { version = "^1" }
 async-recursion = { version = "^1" }
 async-trait = { version = "^0.1" }
 blake3 = { version = "^1" }

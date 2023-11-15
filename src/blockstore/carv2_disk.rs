@@ -26,7 +26,7 @@ impl CarV2DiskBlockStore {
     pub fn new(path: &Path) -> Result<Self, BlockStoreError> {
         // If the path is a directory
         if path.is_dir() {
-            Err(BlockStoreError::expected_file(path))
+            Err(BlockStoreError::missing_file(path))
         } else {
             // Create the file if it doesn't already exist
             if !path.exists() {

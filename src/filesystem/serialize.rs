@@ -38,7 +38,7 @@ pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
     let forest_ipld = forest
         .async_serialize_ipld(serializer)
         .await
-        .map_err(|err| FilesystemError::sharing(SharingError::encoding(&err.to_string())))?;
+        .map_err(|err| FilesystemError::sharing(SharingError::invalid_data(&err.to_string())))?;
     // Store the PrivateForest's IPLD in the BlockStore
     let ipld_cid = storage.put_serializable(&forest_ipld).await?;
     // Return Ok

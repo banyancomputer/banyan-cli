@@ -57,7 +57,7 @@ impl EncryptedPrivateRef {
     ) -> Result<PrivateRef, SharingError> {
         // Check if this is an empty string
         if self.encrypted_temporal_key_string.is_empty() {
-            return Err(SharingError::invalid_key_data(
+            return Err(SharingError::invalid_data(
                 "encrypted temporal key string is empty",
             ));
         }
@@ -72,9 +72,7 @@ impl EncryptedPrivateRef {
             .expect("could not decrypt encrypted temporal key");
         let temporal_key_slice = temporal_key.as_ref();
         if temporal_key_slice.len() != 32 {
-            return Err(SharingError::invalid_key_data(
-                "temporal key was not 32 bytes",
-            ));
+            return Err(SharingError::invalid_data("temporal key was not 32 bytes"));
         }
         let mut temporal_key = [0u8; 32];
         temporal_key.copy_from_slice(temporal_key_slice);

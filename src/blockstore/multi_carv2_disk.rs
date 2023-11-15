@@ -26,7 +26,7 @@ impl MultiCarV2DiskBlockStore {
     /// Create a new CARv2 MultifileMultiCarV2DiskBlockStore from a directory
     pub fn new(dir: &Path) -> Result<Self, BlockStoreError> {
         if dir.is_file() {
-            Err(BlockStoreError::expected_directory(dir))
+            Err(BlockStoreError::missing_directory(dir))
         } else {
             // If the folder doesn't already exist
             if !dir.exists() {
@@ -89,7 +89,9 @@ impl MultiCarV2DiskBlockStore {
 
     /// Get the most recent delta
     pub fn get_delta(&self) -> Result<&CarV2DiskBlockStore, BlockStoreError> {
-        self.deltas.last().ok_or(BlockStoreError::no_such_file())
+        self.deltas
+            .last()
+            .ok_or(BlockStoreError::missing_file(&self.path.join("1.car")))
     }
 }
 

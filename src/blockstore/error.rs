@@ -14,27 +14,21 @@ pub struct BlockStoreError {
 }
 
 impl BlockStoreError {
-    pub fn no_such_file() -> Self {
-        Self {
-            kind: BlockStoreErrorKind::NoSuchFile,
-        }
-    }
-
     pub fn car(err: CarError) -> Self {
         Self {
             kind: BlockStoreErrorKind::Car(err),
         }
     }
 
-    pub fn expected_file(path: &Path) -> Self {
+    pub fn missing_file(path: &Path) -> Self {
         Self {
-            kind: BlockStoreErrorKind::ExpectedFile(path.to_path_buf()),
+            kind: BlockStoreErrorKind::MissingFile(path.to_path_buf()),
         }
     }
 
-    pub fn expected_directory(path: &Path) -> Self {
+    pub fn missing_directory(path: &Path) -> Self {
         Self {
-            kind: BlockStoreErrorKind::ExpectedDirectory(path.to_path_buf()),
+            kind: BlockStoreErrorKind::MissingDirectory(path.to_path_buf()),
         }
     }
 
@@ -48,11 +42,10 @@ impl BlockStoreError {
 impl Display for BlockStoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match &self.kind {
-            BlockStoreErrorKind::NoSuchFile => "No such file".to_owned(),
-            BlockStoreErrorKind::ExpectedFile(file) => {
+            BlockStoreErrorKind::MissingFile(file) => {
                 format!("Expected and failed to find file: {}", file.display())
             }
-            BlockStoreErrorKind::ExpectedDirectory(dir) => {
+            BlockStoreErrorKind::MissingDirectory(dir) => {
                 format!("Expected and failed to find directory: {}", dir.display())
             }
             BlockStoreErrorKind::Car(err) => format!("{} {err}", "CAR ERROR:".underline()),
@@ -65,9 +58,8 @@ impl Display for BlockStoreError {
 
 #[derive(Debug)]
 pub enum BlockStoreErrorKind {
-    NoSuchFile,
-    ExpectedFile(PathBuf),
-    ExpectedDirectory(PathBuf),
+    MissingFile(PathBuf),
+    MissingDirectory(PathBuf),
     Car(CarError),
     Wnfs(anyhow::Error),
 }
