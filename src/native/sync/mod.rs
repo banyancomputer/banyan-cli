@@ -161,7 +161,7 @@ pub async fn sync_bucket(
             // If there is still no ID, that means the remote Bucket was never created
             if omni.get_id().is_err() {
                 let public_key = wrapping_key.public_key()?;
-                let pem = String::from_utf8(public_key.export().await?).unwrap();
+                let pem = String::from_utf8(public_key.export().await?)?;
                 let (remote, _) = Bucket::create(
                     local.name.clone(),
                     pem,

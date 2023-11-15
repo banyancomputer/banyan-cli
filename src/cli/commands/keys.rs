@@ -44,7 +44,7 @@ impl RunnableCommand<NativeError> for KeyCommand {
                 let public_key = private_key.public_key()?;
                 // Compute PEM
                 let fingerprint = hex_fingerprint(&public_key.fingerprint().await?.to_vec());
-                let pem = String::from_utf8(public_key.export().await?).unwrap();
+                let pem = String::from_utf8(public_key.export().await?)?;
 
                 // Get Drive
                 let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;

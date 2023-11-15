@@ -151,7 +151,7 @@ impl OmniBucket {
         // Grab the wrapping key, public key and pem
         let wrapping_key = global.wrapping_key().await?;
         let public_key = wrapping_key.public_key()?;
-        let pem = String::from_utf8(public_key.export().await?).unwrap();
+        let pem = String::from_utf8(public_key.export().await?)?;
 
         // Initialize remotely
         if let Ok((remote, _)) = RemoteBucket::create(
