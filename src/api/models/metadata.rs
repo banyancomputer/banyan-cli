@@ -226,8 +226,7 @@ pub(crate) mod test {
             },
         },
         blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
-        filesystem::{FilesystemError, FsMetadata},
-        native::NativeError,
+        filesystem::FsMetadata,
     };
 
     pub async fn push_empty_metadata(
@@ -269,9 +268,7 @@ pub(crate) mod test {
     }
 
     // Helper function to set up an environment with a small amount of delta data and push the metadata associated
-    pub async fn setup_and_push_metadata(
-        test_name: &str,
-    ) -> Result<AdvancedTestSetup, anyhow::Error> {
+    pub async fn setup_and_push_metadata(test_name: &str) -> Result<AdvancedTestSetup, ApiError> {
         let mut client = authenticated_client().await;
         // let bucket_key = client.signing_key.unwrap();
         let wrapping_key = EcEncryptionKey::generate().await?;

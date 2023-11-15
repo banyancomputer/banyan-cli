@@ -1,7 +1,12 @@
+use colored::Colorize;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use tomb_crypt::prelude::TombCryptError;
 use url::ParseError;
+
+use crate::blockstore::BlockStoreError;
+use crate::car::error::CarError;
+use crate::filesystem::FilesystemError;
 
 /// Errors that can occur in the API Client
 #[derive(Debug)]
@@ -79,6 +84,9 @@ impl Display for ApiError {
             ApiErrorKind::Crypto(_) => "Cryptographic Error".into(),
             ApiErrorKind::ReqwestGeneral(_) => todo!(),
             ApiErrorKind::Parse(_) => todo!(),
+            #[cfg(test)]
+            #[cfg(feature = "integration-tests")]
+            ApiErrorKind::Filesystem(err) => format!("{} {err}", "FILESYSTEM ERROR:".underline()),
         };
 
         write!(f, "{}", prefix)?;
@@ -122,6 +130,10 @@ enum ApiErrorKind {
     Crypto(TombCryptError),
     /// CustomError
     Parse(ParseError),
+    /// When we're performing integration tests we also want Filesystem Errors
+    #[cfg(test)]
+    #[cfg(feature = "integration-tests")]
+    Filesystem(Box<FilesystemError>),
 }
 
 impl From<TombCryptError> for ApiError {
@@ -139,5 +151,47 @@ impl From<reqwest::Error> for ApiError {
 impl From<ParseError> for ApiError {
     fn from(value: ParseError) -> Self {
         Self::parse(value)
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "integration-tests")]
+impl From<FilesystemError> for ApiError {
+    fn from(value: FilesystemError) -> Self {
+        Self {
+            kind: ApiErrorKind::Filesystem(Box::new(value)),
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "integration-tests")]
+impl From<anyhow::Error> for ApiError {
+    fn from(value: anyhow::Error) -> Self {
+        Self {
+            kind: ApiErrorKind::Filesystem(Box::new(FilesystemError::wnfs(value))),
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "integration-tests")]
+impl From<CarError> for ApiError {
+    fn from(value: CarError) -> Self {
+        Self {
+            kind: ApiErrorKind::Filesystem(Box::new(FilesystemError::blockstore(
+                BlockStoreError::car(value),
+            ))),
+        }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "integration-tests")]
+impl From<BlockStoreError> for ApiError {
+    fn from(value: BlockStoreError) -> Self {
+        Self {
+            kind: ApiErrorKind::Filesystem(Box::new(FilesystemError::blockstore(value))),
+        }
     }
 }
