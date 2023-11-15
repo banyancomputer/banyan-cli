@@ -137,20 +137,14 @@ pub async fn sync_bucket(
             let mut buffer = <Vec<u8>>::new();
             // Write every chunk to it
             while let Some(chunk) = byte_stream.next().await {
-                tokio::io::copy(&mut chunk.map_err(ApiError::http)?.as_ref(), &mut buffer)
-                    .await
-                    .map_err(FilesystemError::io)?;
+                tokio::io::copy(&mut chunk.map_err(ApiError::http)?.as_ref(), &mut buffer).await?;
             }
             // Attempt to create a CARv2 BlockStore from the data
             let metadata = CarV2MemoryBlockStore::try_from(buffer)?;
             // Grab the metadata file
-            let mut metadata_file = tokio::fs::File::create(&omni.get_local()?.metadata.path)
-                .await
-                .map_err(FilesystemError::io)?;
-            metadata_file
-                .write_all(&metadata.get_data())
-                .await
-                .map_err(FilesystemError::io);
+            let mut metadata_file =
+                tokio::fs::File::create(&omni.get_local()?.metadata.path).await?;
+            metadata_file.write_all(&metadata.get_data()).await?;
             // Write that data out to the metadatas
 
             info!("{}", "<< METADATA RECONSTRUCTED >>".green());
@@ -212,10 +206,7 @@ pub async fn sync_bucket(
                     .iter()
                     .map(|v| v.to_string())
                     .collect(),
-                tokio::fs::File::open(&local.metadata.path)
-                    .await
-                    .map_err(FilesystemError::io)?
-                    .into(),
+                tokio::fs::File::open(&local.metadata.path).await?.into(),
                 client,
             )
             .await?;

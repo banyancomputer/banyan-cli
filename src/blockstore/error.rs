@@ -14,12 +14,6 @@ pub struct BlockStoreError {
 }
 
 impl BlockStoreError {
-    pub fn car(err: CarError) -> Self {
-        Self {
-            kind: BlockStoreErrorKind::Car(err),
-        }
-    }
-
     pub fn missing_file(path: &Path) -> Self {
         Self {
             kind: BlockStoreErrorKind::MissingFile(path.to_path_buf()),
@@ -29,6 +23,12 @@ impl BlockStoreError {
     pub fn missing_directory(path: &Path) -> Self {
         Self {
             kind: BlockStoreErrorKind::MissingDirectory(path.to_path_buf()),
+        }
+    }
+
+    pub fn car(err: CarError) -> Self {
+        Self {
+            kind: BlockStoreErrorKind::Car(err),
         }
     }
 

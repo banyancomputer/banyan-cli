@@ -45,6 +45,7 @@ impl Display for NativeError {
                 format!("{} {err}", "FILESYSTEM ERROR:".underline())
             }
             NativeErrorKind::Api(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
+            NativeErrorKind::Io(err) => format!("{} {err}", "IO ERROR:".underline()),
             #[cfg(feature = "cli")]
             NativeErrorKind::UnknownDrive(_) => "No known Drive with that specification".to_owned(),
         };
@@ -114,6 +115,12 @@ impl NativeError {
         }
     }
 
+    pub fn io(err: std::io::Error) -> Self {
+        Self {
+            kind: NativeErrorKind::Io(err),
+        }
+    }
+
     /// Unknown Bucket path
     #[cfg(feature = "cli")]
     pub fn unknown_path(path: PathBuf) -> Self {
@@ -143,7 +150,7 @@ enum NativeErrorKind {
     Cryptographic(TombCryptError),
     Filesystem(Box<FilesystemError>),
     Api(ApiError),
-
+    Io(std::io::Error),
     #[cfg(feature = "cli")]
     UnknownDrive(DriveSpecifier),
 }
@@ -178,14 +185,14 @@ impl From<anyhow::Error> for NativeError {
     }
 }
 
-impl From<std::io::Error> for NativeError {
-    fn from(value: std::io::Error) -> Self {
-        Self::filesytem(FilesystemError::io(value))
-    }
-}
-
 impl From<BlockStoreError> for NativeError {
     fn from(value: BlockStoreError) -> Self {
         Self::filesytem(FilesystemError::blockstore(value))
+    }
+}
+
+impl From<std::io::Error> for NativeError {
+    fn from(value: std::io::Error) -> Self {
+        Self::io(value)
     }
 }

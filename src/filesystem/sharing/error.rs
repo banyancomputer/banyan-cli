@@ -55,8 +55,8 @@ impl Display for SharingError {
 pub enum SharingErrorKind {
     UnauthorizedDecryption,
     LostKey,
-    Cryptographic(TombCryptError),
     InvalidData(String),
+    Cryptographic(TombCryptError),
 }
 
 impl From<TombCryptError> for SharingError {
