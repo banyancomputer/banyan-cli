@@ -1,4 +1,7 @@
-use crate::native::file_scanning::spider_plans::{PreparePipelinePlan, SpiderMetadata};
+use crate::native::{
+    file_scanning::spider_plans::{PreparePipelinePlan, SpiderMetadata},
+    NativeError,
+};
 use jwalk::WalkDir;
 use std::{
     collections::HashSet,
@@ -18,7 +21,7 @@ pub async fn spider(
     origin: &Path,
     _follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<PreparePipelinePlan>, std::io::Error> {
+) -> Result<Vec<PreparePipelinePlan>, NativeError> {
     // Canonicalize the path
     let path_root = origin.canonicalize()?;
 
@@ -38,9 +41,9 @@ pub async fn spider(
         .into_iter()
         .map(move |item| {
             item.map(|entry| SpiderMetadata::new(&path_root, entry))
-                .map_err(|e| e.into())
+                .map_err(|err| NativeError::custom_error(&err.to_string()))
         })
-        .collect::<Result<Vec<SpiderMetadata>>>()?;
+        .collect::<Result<Vec<SpiderMetadata>, NativeError>>()?;
 
     for spidered in spidered.into_iter() {
         // If this is a duplicate

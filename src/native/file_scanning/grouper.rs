@@ -1,6 +1,12 @@
-use crate::native::file_scanning::{
-    spider_plans::{PreparePipelinePlan, SpiderMetadata},
-    FClonesLogger,
+use crate::{
+    filesystem::FilesystemError,
+    native::{
+        file_scanning::{
+            spider_plans::{PreparePipelinePlan, SpiderMetadata},
+            FClonesLogger,
+        },
+        NativeError,
+    },
 };
 use fclones::{config::GroupConfig, group_files};
 use std::{
@@ -27,11 +33,12 @@ pub fn grouper(
     input_dir: &Path,
     follow_links: bool,
     seen_files: &mut HashSet<PathBuf>,
-) -> Result<Vec<PreparePipelinePlan>, std::io::Error> {
+) -> Result<Vec<PreparePipelinePlan>, NativeError> {
     // Construct the group config
     let group_config = create_group_config(input_dir, follow_links);
 
-    let file_groups = group_files(&group_config, &FClonesLogger::default())?;
+    let file_groups = group_files(&group_config, &FClonesLogger::default())
+        .map_err(|err| NativeError::custom_error(&err.to_string()))?;
     // Vector holding all the PreparePipelinePlans for bundling
     let mut bundling_plan = vec![];
     // go over the files- do it in groups

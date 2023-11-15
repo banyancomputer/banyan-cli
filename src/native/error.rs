@@ -1,24 +1,76 @@
-use crate::api::error::ClientError;
-use colored::Colorize;
-use std::{error::Error, fmt::Display, path::PathBuf};
-use thiserror::Error;
 use tomb_crypt::prelude::TombCryptError;
 
-#[cfg(feature = "cli")]
-use {crate::cli::specifiers::DriveSpecifier, uuid::Uuid};
+use crate::{
+    api::error::ApiError, blockstore::BlockStoreError, car::error::CarError,
+    filesystem::FilesystemError,
+};
 
-/// Errors for the Tomb CLI & Native program
-#[derive(Error, Debug)]
-#[non_exhaustive]
-pub struct NativeError {
+#[cfg(feature = "cli")]
+use {crate::cli::specifiers::DriveSpecifier, std::path::PathBuf, uuid::Uuid};
+
+#[derive(Debug)]
+pub(crate) struct NativeError {
     kind: NativeErrorKind,
 }
 
 impl NativeError {
-    /// Client Error
-    pub fn client_error(err: ClientError) -> Self {
+    pub(crate) fn missing_credentials() -> Self {
         Self {
-            kind: NativeErrorKind::Client(err),
+            kind: NativeErrorKind::MissingCredentials,
+        }
+    }
+
+    pub(crate) fn missing_identifier() -> Self {
+        Self {
+            kind: NativeErrorKind::MissingIdentifier,
+        }
+    }
+
+    pub(crate) fn missing_local_drive() -> Self {
+        Self {
+            kind: NativeErrorKind::MissingLocalDrive,
+        }
+    }
+
+    pub(crate) fn missing_remote_drive() -> Self {
+        Self {
+            kind: NativeErrorKind::MissingRemoteDrive,
+        }
+    }
+
+    pub(crate) fn unique_error() -> Self {
+        Self {
+            kind: NativeErrorKind::UniqueDriveError,
+        }
+    }
+
+    pub(crate) fn bad_data() -> Self {
+        Self {
+            kind: NativeErrorKind::BadData,
+        }
+    }
+
+    pub(crate) fn custom_error(msg: &str) -> Self {
+        Self {
+            kind: NativeErrorKind::Custom(msg.to_owned()),
+        }
+    }
+
+    pub(crate) fn cryptographic(err: TombCryptError) -> Self {
+        Self {
+            kind: NativeErrorKind::Cryptographic(err),
+        }
+    }
+
+    pub(crate) fn filesytem(err: FilesystemError) -> Self {
+        Self {
+            kind: NativeErrorKind::Filesystem(err),
+        }
+    }
+
+    pub(crate) fn api(err: ApiError) -> Self {
+        Self {
+            kind: NativeErrorKind::Api(err),
         }
     }
 
@@ -37,88 +89,62 @@ impl NativeError {
             kind: NativeErrorKind::UnknownBucket(DriveSpecifier::with_id(id)),
         }
     }
-
-    /// Unable to find Node in CAR
-    pub fn file_missing_error(path: PathBuf) -> Self {
-        Self {
-            kind: NativeErrorKind::FileMissing(path),
-        }
-    }
-
-    /// Error performing IO operations
-    pub fn io_error(err: std::io::Error) -> Self {
-        Self {
-            kind: NativeErrorKind::IoError(err),
-        }
-    }
-
-    /// Anyhow errors
-    pub fn custom_error(msg: &str) -> Self {
-        Self {
-            kind: NativeErrorKind::CustomError(msg.to_string()),
-        }
-    }
 }
 
-/// Pipelin Error
 #[derive(Debug)]
-pub enum NativeErrorKind {
-    /// Error sending Client requests
-    Client(ClientError),
-    /// User simply never configured this directory
+enum NativeErrorKind {
+    MissingCredentials,
+    MissingIdentifier,
+    MissingLocalDrive,
+    MissingRemoteDrive,
+    UniqueDriveError,
+    BadData,
+    Custom(String),
+    Cryptographic(TombCryptError),
+    Filesystem(FilesystemError),
+    Api(ApiError),
     #[cfg(feature = "cli")]
     UnknownBucket(DriveSpecifier),
-    /// Missing File when searching for it during restoring
-    FileMissing(PathBuf),
-    /// IO Operation Error
-    IoError(std::io::Error),
-    /// Custom errors
-    CustomError(String),
 }
 
-impl Display for NativeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let prefix = match &self.kind {
-            NativeErrorKind::Client(err) => format!("{} {err}", "CLIENT ERROR:".underline()),
-            #[cfg(feature = "cli")]
-            NativeErrorKind::UnknownBucket(bucket) => format!("couldnt find bucket: {:?}", bucket),
-            NativeErrorKind::FileMissing(path) => format!("missing file at path: {}", path.display()),
-            NativeErrorKind::IoError(err) => format!("{} {err}", "IO ERROR:".underline()),
-            NativeErrorKind::CustomError(err) => err.to_string(),
-        };
-
-        write!(f, "{}", prefix)?;
-
-        let mut next_err = self.source();
-        while let Some(err) = next_err {
-            write!(f, ": {err}")?;
-            next_err = err.source();
-        }
-
-        Ok(())
+impl From<FilesystemError> for NativeError {
+    fn from(value: FilesystemError) -> Self {
+        Self::filesytem(value)
     }
 }
 
-impl From<std::io::Error> for NativeError {
-    fn from(value: std::io::Error) -> Self {
-        Self::io_error(value)
-    }
-}
-
-impl From<anyhow::Error> for NativeError {
-    fn from(value: anyhow::Error) -> Self {
-        Self::custom_error(&value.to_string())
-    }
-}
-
-impl From<ClientError> for NativeError {
-    fn from(value: ClientError) -> Self {
-        Self::client_error(value)
+impl From<CarError> for NativeError {
+    fn from(value: CarError) -> Self {
+        Self::filesytem(FilesystemError::blockstore(BlockStoreError::car(value)))
     }
 }
 
 impl From<TombCryptError> for NativeError {
     fn from(value: TombCryptError) -> Self {
-        Self::client_error(ClientError::crypto_error(value))
+        Self::cryptographic(value)
+    }
+}
+
+impl From<ApiError> for NativeError {
+    fn from(value: ApiError) -> Self {
+        Self::api(value)
+    }
+}
+
+impl From<anyhow::Error> for NativeError {
+    fn from(value: anyhow::Error) -> Self {
+        Self::filesytem(FilesystemError::wnfs(value))
+    }
+}
+
+impl From<std::io::Error> for NativeError {
+    fn from(value: std::io::Error) -> Self {
+        Self::filesytem(FilesystemError::io(value))
+    }
+}
+
+impl From<BlockStoreError> for NativeError {
+    fn from(value: BlockStoreError) -> Self {
+        Self::filesytem(FilesystemError::blockstore(value))
     }
 }

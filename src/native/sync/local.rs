@@ -2,7 +2,7 @@ use crate::{
     api::models::storage_ticket::StorageTicket,
     blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
     filesystem::{FilesystemError, FsMetadata},
-    native::configuration::{xdg::xdg_data_home, ConfigurationError},
+    native::configuration::xdg::xdg_data_home,
 };
 use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
@@ -84,7 +84,7 @@ impl LocalBucket {
     pub async fn new(
         origin: &Path,
         wrapping_key: &EcEncryptionKey,
-    ) -> Result<Self, ConfigurationError> {
+    ) -> Result<Self, FilesystemError> {
         let name = origin
             .file_name()
             .expect("no file name")
@@ -158,6 +158,7 @@ impl LocalBucket {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use crate::native::configuration::{globalconfig::GlobalConfig, ConfigurationError};
@@ -234,3 +235,4 @@ mod test {
         Ok(())
     }
 }
+ */

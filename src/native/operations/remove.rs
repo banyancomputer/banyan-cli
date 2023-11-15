@@ -1,14 +1,11 @@
 use crate::{
     filesystem::wnfsio::path_to_segments,
-    native::{
-        configuration::{bucket::LocalBucket, globalconfig::GlobalConfig},
-        operations::OperationError,
-    },
+    native::{configuration::globalconfig::GlobalConfig, sync::LocalBucket, NativeError},
 };
 use std::path::Path;
 
 /// The pipeline for removing an individual file from a WNFS
-pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), OperationError> {
+pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), NativeError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;

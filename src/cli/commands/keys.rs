@@ -2,8 +2,8 @@ use crate::{
     api::{client::Client, error::ApiError, models::bucket_key::BucketKey},
     cli::CliError,
     native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig, ConfigurationError},
-        operations::OperationError,
+        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig, SyncError},
+        operations::NativeError,
     },
 };
 
@@ -70,7 +70,7 @@ impl RunnableCommand<CliError> for KeyCommand {
                             .map_err(CliError::client_error)
                     }
                 } else {
-                    Err(ConfigurationError::missing_remote_drive())
+                    Err(SyncError::missing_remote_drive())
                 }
             }
             KeyCommand::Ls(drive_specifier) => {

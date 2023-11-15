@@ -5,10 +5,10 @@ use crate::{
         client::Client,
         models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
     },
-    native::configuration::{
-        bucket::{determine_sync_state, LocalBucket, SyncState},
-        globalconfig::GlobalConfig,
-        ConfigurationError,
+    native::{
+        configuration::globalconfig::GlobalConfig,
+        sync::{determine_sync_state, LocalBucket, SyncState},
+        NativeError,
     },
 };
 use colored::{ColoredString, Colorize};
@@ -95,30 +95,26 @@ impl OmniBucket {
     }
 
     /// Get the ID from wherever it might be found
-    pub fn get_id(&self) -> Result<Uuid, ConfigurationError> {
+    pub fn get_id(&self) -> Result<Uuid, NativeError> {
         if let Some(remote) = self.remote.clone() {
             Ok(remote.id)
         } else if let Some(local) = self.local.clone() {
-            local
-                .remote_id
-                .ok_or(ConfigurationError::missing_identifier())
+            local.remote_id.ok_or(NativeError::missing_identifier())
         } else {
-            Err(ConfigurationError::missing_identifier())
+            Err(NativeError::missing_identifier())
         }
     }
 
     /// Get the local config
-    pub fn get_local(&self) -> Result<LocalBucket, ConfigurationError> {
-        self.local
-            .clone()
-            .ok_or(ConfigurationError::missing_local_drive())
+    pub fn get_local(&self) -> Result<LocalBucket, NativeError> {
+        self.local.clone().ok_or(NativeError::missing_local_drive())
     }
 
     /// Get the remote config
-    pub fn get_remote(&self) -> Result<RemoteBucket, ConfigurationError> {
+    pub fn get_remote(&self) -> Result<RemoteBucket, NativeError> {
         self.remote
             .clone()
-            .ok_or(ConfigurationError::missing_remote_drive())
+            .ok_or(NativeError::missing_remote_drive())
     }
 
     /// Update the LocalBucket
@@ -137,7 +133,7 @@ impl OmniBucket {
         client: &mut Client,
         name: &str,
         origin: &Path,
-    ) -> Result<OmniBucket, ConfigurationError> {
+    ) -> Result<OmniBucket, NativeError> {
         let mut omni = OmniBucket {
             local: None,
             remote: None,
@@ -149,13 +145,13 @@ impl OmniBucket {
             && RemoteBucket::read(client, remote_id).await.is_ok()
         {
             // Prevent the user from re-creating it
-            return Err(ConfigurationError::unique_error());
+            return Err(NativeError::unique_error());
         }
 
         // Grab the wrapping key, public key and pem
         let wrapping_key = global.wrapping_key().await?;
         let public_key = wrapping_key.public_key()?;
-        let pem = String::from_utf8(public_key.export().await?)?;
+        let pem = String::from_utf8(public_key.export().await?).unwrap();
 
         // Initialize remotely
         if let Ok((remote, _)) = RemoteBucket::create(
@@ -194,7 +190,7 @@ impl OmniBucket {
         client: &mut Client,
         local_deletion: bool,
         mut remote_deletion: bool,
-    ) -> Result<String, ConfigurationError> {
+    ) -> Result<String, NativeError> {
         if let Ok(local) = self.get_local()
             && local_deletion
         {
@@ -204,7 +200,7 @@ impl OmniBucket {
                 .buckets
                 .iter()
                 .position(|b| b == &local)
-                .ok_or(ConfigurationError::missing_local_drive())?;
+                .ok_or(NativeError::missing_local_drive())?;
             // Remove bucket config from global config
             global.buckets.remove(index);
         }
@@ -268,7 +264,7 @@ impl OmniBucket {
     pub async fn get_or_init_origin(
         &mut self,
         global: &mut GlobalConfig,
-    ) -> Result<PathBuf, ConfigurationError> {
+    ) -> Result<PathBuf, NativeError> {
         if let Ok(local) = self.get_local() {
             Ok(local.origin)
         } else {

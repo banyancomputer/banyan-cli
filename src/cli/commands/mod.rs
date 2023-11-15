@@ -16,7 +16,7 @@ pub use runnable_command::RunnableCommand;
 
 use crate::{
     api::client::Client,
-    native::{configuration::globalconfig::GlobalConfig, operations::OperationError},
+    native::{configuration::globalconfig::GlobalConfig, operations::NativeError},
 };
 use async_trait::async_trait;
 use clap::Subcommand;

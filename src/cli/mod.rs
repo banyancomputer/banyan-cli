@@ -18,7 +18,7 @@ mod test {
             specifiers::DriveSpecifier,
         },
         native::{
-            configuration::{globalconfig::GlobalConfig, ConfigurationError},
+            configuration::{globalconfig::GlobalConfig, SyncError},
             test::{test_setup, test_teardown},
         },
     };
@@ -48,7 +48,7 @@ mod test {
         let mut global = GlobalConfig::from_disk().await?;
         let local = global
             .get_bucket(origin)
-            .ok_or(ConfigurationError::missing_local_drive())?;
+            .ok_or(SyncError::missing_local_drive())?;
         local.remove_data()?;
         // Find index of bucket
         let index = global

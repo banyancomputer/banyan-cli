@@ -11,7 +11,7 @@ use crate::{
             bucket::{sync_bucket, OmniBucket},
             globalconfig::GlobalConfig,
         },
-        operations::{prepare, restore, OperationError},
+        operations::{prepare, restore, NativeError},
     },
 };
 use async_trait::async_trait;

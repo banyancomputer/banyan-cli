@@ -39,6 +39,12 @@ impl FilesystemError {
             kind: FilesystemErrorKind::Wnfs(err),
         }
     }
+
+    pub(crate) fn io(err: std::io::Error) -> Self {
+        Self {
+            kind: FilesystemErrorKind::Io(err),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -49,6 +55,7 @@ pub(crate) enum FilesystemErrorKind {
     Sharing(SharingError),
     Blockstore(BlockStoreError),
     Wnfs(anyhow::Error),
+    Io(std::io::Error),
 }
 
 impl From<SharingError> for FilesystemError {
@@ -72,5 +79,11 @@ impl From<BlockStoreError> for FilesystemError {
 impl From<anyhow::Error> for FilesystemError {
     fn from(value: anyhow::Error) -> Self {
         Self::wnfs(value)
+    }
+}
+
+impl From<std::io::Error> for FilesystemError {
+    fn from(value: std::io::Error) -> Self {
+        Self::io(value)
     }
 }

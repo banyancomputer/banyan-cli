@@ -3,10 +3,11 @@ use crate::{
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+        configuration::globalconfig::GlobalConfig,
         file_scanning::{grouper, spider, spider_plans::PreparePipelinePlan},
-        operations::OperationError,
+        sync::OmniBucket,
         utils::get_progress_bar,
+        NativeError,
     },
 };
 use std::{
@@ -34,7 +35,7 @@ pub async fn pipeline(
     omni: &mut OmniBucket,
     client: &mut Client,
     follow_links: bool,
-) -> Result<String, OperationError> {
+) -> Result<String, NativeError> {
     // Local is non-optional
     let mut local = omni.get_local()?;
 
@@ -120,7 +121,7 @@ pub async fn pipeline(
 pub async fn create_plans(
     origin: &Path,
     follow_links: bool,
-) -> Result<Vec<PreparePipelinePlan>, OperationError> {
+) -> Result<Vec<PreparePipelinePlan>, NativeError> {
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
     // Vector holding all the PreparePipelinePlans for bundling
@@ -157,9 +158,9 @@ pub async fn process_plans(
     bundling_plan: Vec<PreparePipelinePlan>,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
-) -> Result<(), OperationError> {
+) -> Result<(), NativeError> {
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
+    let progress_bar = get_progress_bar(bundling_plan.len() as u64);
     // Create vectors of direct and indirect plans
     let mut direct_plans: Vec<PreparePipelinePlan> = Vec::new();
     let mut symlink_plans: Vec<PreparePipelinePlan> = Vec::new();

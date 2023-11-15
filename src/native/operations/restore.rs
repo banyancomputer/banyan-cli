@@ -3,9 +3,8 @@ use crate::{
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-        operations::OperationError,
-        utils::get_progress_bar,
+        configuration::globalconfig::GlobalConfig, sync::OmniBucket, utils::get_progress_bar,
+        NativeError,
     },
 };
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::PathBuf};
@@ -26,7 +25,7 @@ pub async fn pipeline(
     fs: FsMetadata,
     omni: &mut OmniBucket,
     client: &mut Client,
-) -> Result<String, OperationError> {
+) -> Result<String, NativeError> {
     // Announce that we're starting
     info!("🚀 Starting restoration pipeline...");
     let restored = omni
@@ -64,9 +63,9 @@ pub async fn restore_nodes(
     restored: PathBuf,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
-) -> Result<(), OperationError> {
+) -> Result<(), NativeError> {
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = get_progress_bar(all_nodes.len() as u64)?;
+    let progress_bar = get_progress_bar(all_nodes.len() as u64);
     // For each node path tuple in the FS Metadata
     for (node, path) in all_nodes {
         match node {
