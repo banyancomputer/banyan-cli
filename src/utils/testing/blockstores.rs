@@ -1,5 +1,7 @@
-use crate::blockstore::{MemoryBlockStore, RootedBlockStore};
-use anyhow::Result;
+use crate::{
+    blockstore::{MemoryBlockStore, RootedBlockStore},
+    utils::UtilityError,
+};
 use chrono::Utc;
 use rand::thread_rng;
 use std::{
@@ -63,12 +65,15 @@ pub(crate) fn car_index_test_setup(
 /// Setup using a MemoryBlockStore
 pub(crate) async fn setup_memory_test(
     test_name: &str,
-) -> Result<(
-    MemoryBlockStore,
-    MemoryBlockStore,
-    Rc<PrivateForest>,
-    Rc<PrivateDirectory>,
-)> {
+) -> Result<
+    (
+        MemoryBlockStore,
+        MemoryBlockStore,
+        Rc<PrivateForest>,
+        Rc<PrivateDirectory>,
+    ),
+    UtilityError,
+> {
     setup_test(test_name, MemoryBlockStore::new(), MemoryBlockStore::new()).await
 }
 
@@ -77,7 +82,7 @@ pub(crate) async fn setup_test<RBS: RootedBlockStore>(
     test_name: &str,
     metadata: RBS,
     content: RBS,
-) -> Result<(RBS, RBS, Rc<PrivateForest>, Rc<PrivateDirectory>)> {
+) -> Result<(RBS, RBS, Rc<PrivateForest>, Rc<PrivateDirectory>), UtilityError> {
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 
@@ -122,7 +127,7 @@ pub(crate) async fn setup_test<RBS: RootedBlockStore>(
 }
 
 /// Delete the temporary directory
-pub(crate) async fn teardown_test(test_name: &str) -> Result<()> {
+pub(crate) async fn teardown_test(test_name: &str) -> Result<(), UtilityError> {
     let path = Path::new("test").join(test_name);
     std::fs::remove_dir_all(path)?;
     Ok(())

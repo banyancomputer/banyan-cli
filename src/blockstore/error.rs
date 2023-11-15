@@ -1,10 +1,8 @@
+use colored::Colorize;
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
 };
-
-use anyhow::anyhow;
-use colored::Colorize;
 
 use crate::car::error::CarError;
 
@@ -90,6 +88,6 @@ impl From<wnfs::libipld::cid::Error> for BlockStoreError {
 
 impl From<BlockStoreError> for anyhow::Error {
     fn from(value: BlockStoreError) -> Self {
-        anyhow!("blockstore error: {:?}", value)
+        anyhow::anyhow!("blockstore error: {:?}", value)
     }
 }

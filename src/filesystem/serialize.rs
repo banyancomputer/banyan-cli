@@ -90,11 +90,11 @@ pub async fn load_dir<BS: BlockStore>(
 #[cfg(test)]
 mod test {
     use crate::{
-        filesystem::{
-            error::FilesystemError,
-            serialize::{load_dir, load_forest, store_dir, store_forest},
+        filesystem::serialize::{load_dir, load_forest, store_dir, store_forest},
+        utils::{
+            testing::blockstores::{setup_memory_test, teardown_test},
+            UtilityError,
         },
-        utils::testing::blockstores::{setup_memory_test, teardown_test},
     };
     use chrono::Utc;
     use rand::thread_rng;
@@ -102,7 +102,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn forest() -> Result<(), FilesystemError> {
+    async fn forest() -> Result<(), UtilityError> {
         let test_name = "forest";
         // Start er up!
         let (metadata, _, forest, _) = &mut setup_memory_test(test_name).await?;
@@ -115,14 +115,12 @@ mod test {
         assert_eq!(new_forest.diff(forest, metadata).await?.len(), 0);
 
         // Teardown
-        teardown_test(test_name)
-            .await
-            .map_err(FilesystemError::wnfs)
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn dir_object() -> Result<(), FilesystemError> {
+    async fn dir_object() -> Result<(), UtilityError> {
         let test_name = "dir_object";
         // Start er up!
         let (metadata, content, forest, dir) = &mut setup_memory_test(test_name).await?;
@@ -134,14 +132,12 @@ mod test {
         // Assert equality
         assert_eq!(dir, &mut new_dir);
         // Teardown
-        teardown_test(test_name)
-            .await
-            .map_err(FilesystemError::wnfs)
+        teardown_test(test_name).await
     }
 
     #[tokio::test]
     #[serial]
-    async fn dir_content() -> Result<(), FilesystemError> {
+    async fn dir_content() -> Result<(), UtilityError> {
         let test_name = "dir_content";
         // Start er up!
         let (metadata, content, original_forest, original_dir) =
@@ -185,8 +181,6 @@ mod test {
         assert_eq!(original_content, new_content);
 
         // Teardown
-        teardown_test(test_name)
-            .await
-            .map_err(FilesystemError::wnfs)
+        teardown_test(test_name).await
     }
 }
