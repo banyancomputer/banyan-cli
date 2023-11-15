@@ -8,6 +8,10 @@ mod io;
 #[cfg(not(target_arch = "wasm32"))]
 pub use io::{get_read, get_read_write, get_write};
 
+#[cfg(test)]
+#[cfg(not(target_arch = "wasm32"))]
+pub use io::compute_directory_size;
+
 pub mod varint;
 
 mod error;

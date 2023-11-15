@@ -3,7 +3,6 @@ pub mod authorization;
 /// Request for creating a new storage grant on the staging area.
 pub mod create;
 
-/*
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
@@ -48,4 +47,3 @@ mod test {
         Ok(())
     }
 }
- */

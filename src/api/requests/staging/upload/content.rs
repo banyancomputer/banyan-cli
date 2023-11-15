@@ -66,7 +66,6 @@ impl UploadContent for CarV2MemoryBlockStore {
     }
 }
 
-/*
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
@@ -97,4 +96,3 @@ mod test {
         Ok(())
     }
 }
- */

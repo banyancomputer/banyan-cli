@@ -48,7 +48,6 @@ impl Display for LocationRequestError {
 
 impl Error for LocationRequestError {}
 
-/*
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
@@ -135,4 +134,3 @@ mod test {
         Ok(())
     }
 }
-*/

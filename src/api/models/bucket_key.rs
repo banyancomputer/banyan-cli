@@ -135,7 +135,6 @@ impl BucketKey {
     }
 }
 
-/*
 #[cfg(feature = "integration-tests")]
 #[cfg(test)]
 mod test {
@@ -143,7 +142,7 @@ mod test {
         models::{
             account::test::authenticated_client,
             bucket::test::create_bucket,
-            bucket_key::{BucketKey, ApiError},
+            bucket_key::{ApiError, BucketKey},
             metadata::Metadata,
         },
         utils::generate_bucket_key,
@@ -288,4 +287,3 @@ mod test {
         Ok(())
     }
 }
- */

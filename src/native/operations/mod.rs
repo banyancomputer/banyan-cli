@@ -2,8 +2,6 @@
 pub mod add;
 /// This module contains configuration functions for the cli
 pub mod configure;
-/// Pipeline Errors
-mod error;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod prepare;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
@@ -11,22 +9,23 @@ pub mod remove;
 /// This module contains the decryption pipeline function, which is the main entry point for restoring previously prepared data.
 pub mod restore;
 
-// pub(crate) use error::NativeError;
-
-/*
 #[cfg(test)]
 #[cfg(feature = "cli")]
 mod test {
-    use super::{add, NativeError};
     use crate::{
         api::client::Client,
         cli::specifiers::DriveSpecifier,
         filesystem::wnfsio::{decompress_bytes, path_to_segments},
         native::{
-            configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-            operations::{configure, prepare, remove, restore},
-            test::{test_setup, test_setup_structured, test_teardown},
-            utils::compute_directory_size,
+            configuration::globalconfig::GlobalConfig,
+            operations::{add, configure, prepare, remove, restore},
+            sync::OmniBucket,
+            NativeError,
+        },
+        utils::{
+            compute_directory_size,
+            testing::local_operations::{test_setup, test_setup_structured, test_teardown},
+            UtilityError,
         },
     };
 
@@ -88,7 +87,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init() -> Result<(), NativeError> {
+    async fn init() -> Result<(), UtilityError> {
         let test_name = "init";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -112,7 +111,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn configure_remote() -> Result<(), NativeError> {
+    async fn configure_remote() -> Result<(), UtilityError> {
         let address = "http://app.tomb.com.net.org:5423/";
         configure::deinit_all().await?;
         let _ = GlobalConfig::from_disk().await?;
@@ -128,7 +127,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn prepare() -> Result<(), NativeError> {
+    async fn prepare() -> Result<(), UtilityError> {
         let test_name = "prepare";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -142,7 +141,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn restore() -> Result<(), NativeError> {
+    async fn restore() -> Result<(), UtilityError> {
         let test_name = "restore";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -166,7 +165,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn add() -> Result<(), NativeError> {
+    async fn add() -> Result<(), UtilityError> {
         let test_name = "add";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -222,7 +221,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn remove() -> Result<(), NativeError> {
+    async fn remove() -> Result<(), UtilityError> {
         let test_name = "remove";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -268,7 +267,7 @@ mod test {
     }
 
     // Helper function for structure tests
-    async fn assert_prepare_restore(test_name: &str) -> Result<(), NativeError> {
+    async fn assert_prepare_restore(test_name: &str) -> Result<(), UtilityError> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
@@ -296,7 +295,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_simple() -> Result<(), NativeError> {
+    async fn structure_simple() -> Result<(), UtilityError> {
         let test_name = "structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -306,7 +305,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_deep() -> Result<(), NativeError> {
+    async fn structure_deep() -> Result<(), UtilityError> {
         let test_name = "structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -316,7 +315,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_wide() -> Result<(), NativeError> {
+    async fn structure_wide() -> Result<(), UtilityError> {
         let test_name = "structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -326,7 +325,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn big_file() -> Result<(), NativeError> {
+    async fn big_file() -> Result<(), UtilityError> {
         let test_name = "big_file";
         let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -337,7 +336,7 @@ mod test {
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
     #[serial]
-    async fn deduplication_integrity() -> Result<(), NativeError> {
+    async fn deduplication_integrity() -> Result<(), UtilityError> {
         let test_name = "deduplication_integrity";
         // Setup the test
         let origin = &test_setup(test_name).await?;
@@ -348,11 +347,11 @@ mod test {
         create_dir_all(duplicate)?;
 
         // Move the contents of this directory into a subdirectory
-        dir::move_dir(origin, original, &dir::CopyOptions::new())?;
-        dir::copy(original, duplicate, &dir::CopyOptions::new())?;
+        dir::move_dir(origin, original, &dir::CopyOptions::new()).expect("fs_extra move_dir");
+        dir::copy(original, duplicate, &dir::CopyOptions::new()).expect("fs_extra copy");
 
         // Remove origin
-        dir::remove(origin)?;
+        dir::remove(origin).expect("fs_extra remove");
         // Rename dup origin to origin
         rename(dup_origin, origin)?;
 
@@ -366,7 +365,7 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore = "refactor for new pipeline structure"]
-    async fn deduplication_size() -> Result<(), NativeError> {
+    async fn deduplication_size() -> Result<(), UtilityError> {
         let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
         let test_name_unique = &format!("{}_unique", test_name);
@@ -392,7 +391,7 @@ mod test {
         // Generate file structure
         structure.generate(original_dup)?;
         // Copy into duplicate path
-        dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new())?;
+        dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new()).expect("fs_extra copy");
 
         // Input and path
         let origin_unique = &root_path_unique.join("input");
@@ -436,7 +435,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_bundling() -> Result<(), NativeError> {
+    async fn double_bundling() -> Result<(), UtilityError> {
         let test_name = "double_bundling";
         // Setup the test once
         test_setup(test_name).await?;
@@ -449,7 +448,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn block_tracking() -> Result<(), NativeError> {
+    async fn block_tracking() -> Result<(), UtilityError> {
         let test_name = "block_tracking";
         // Setup the test once
         let origin = test_setup(test_name).await?;
@@ -476,7 +475,7 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore]
-    async fn versioning_complex() -> Result<(), NativeError> {
+    async fn versioning_complex() -> Result<(), UtilityError> {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
@@ -603,7 +602,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn versioning_simple() -> Result<(), NativeError> {
+    async fn versioning_simple() -> Result<(), UtilityError> {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
         // Setup the test once
@@ -692,7 +691,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn symlinks() -> Result<(), NativeError> {
+    async fn symlinks() -> Result<(), UtilityError> {
         let test_name = "symlinks";
 
         // Setup the test
@@ -728,4 +727,3 @@ mod test {
         test_teardown(test_name).await
     }
 }
- */

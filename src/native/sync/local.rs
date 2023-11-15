@@ -158,10 +158,9 @@ impl LocalBucket {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
-    use crate::native::configuration::{globalconfig::GlobalConfig, ConfigurationError};
+    use crate::native::{configuration::globalconfig::GlobalConfig, NativeError};
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
@@ -172,7 +171,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn get_set_get_all() -> Result<(), ConfigurationError> {
+    async fn get_set_get_all() -> Result<(), NativeError> {
         let test_name = "config_set_get_all";
         let origin = Path::new("test").join(test_name);
         if origin.exists() {
@@ -235,4 +234,3 @@ mod test {
         Ok(())
     }
 }
- */

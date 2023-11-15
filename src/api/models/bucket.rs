@@ -225,7 +225,6 @@ impl Bucket {
     }
 }
 
-/*
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 pub mod test {
@@ -364,4 +363,3 @@ pub mod test {
         Bucket::delete_by_id(&mut client, fake_id).await.unwrap();
     }
 }
- */

@@ -46,7 +46,6 @@ impl Display for PullBlockError {
 
 impl Error for PullBlockError {}
 
-/*
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
@@ -97,4 +96,3 @@ mod test {
         Ok(())
     }
 }
- */

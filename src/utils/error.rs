@@ -2,7 +2,7 @@ use colored::Colorize;
 use std::{fmt::Display, string::FromUtf8Error};
 
 #[cfg(test)]
-use crate::native::NativeError;
+use crate::{filesystem::FilesystemError, native::NativeError};
 
 #[derive(Debug)]
 pub struct UtilityError {
@@ -95,5 +95,12 @@ impl From<anyhow::Error> for UtilityError {
 impl From<NativeError> for UtilityError {
     fn from(value: NativeError) -> Self {
         Self::native(value)
+    }
+}
+
+#[cfg(test)]
+impl From<FilesystemError> for UtilityError {
+    fn from(value: FilesystemError) -> Self {
+        Self::native(NativeError::filesytem(value))
     }
 }
