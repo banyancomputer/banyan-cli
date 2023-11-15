@@ -5,7 +5,7 @@ use wnfs::libipld::Cid;
 use crate::utils::UtilityError;
 
 #[derive(Debug)]
-pub(crate) struct CarError {
+pub struct CarError {
     pub kind: CarErrorKind,
 }
 

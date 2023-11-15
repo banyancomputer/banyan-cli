@@ -7,8 +7,7 @@ use url::ParseError;
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct ApiError {
-    #[allow(dead_code)]
-    pub(crate) kind: ApiErrorKind,
+    kind: ApiErrorKind,
 }
 
 impl ApiError {

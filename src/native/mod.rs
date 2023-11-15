@@ -31,8 +31,5 @@ pub(crate) mod sync;
 /// Simple helper utils
 pub mod utils;
 
-#[cfg(test)]
-pub mod test;
-
 mod error;
 pub(crate) use error::NativeError;

@@ -5,42 +5,42 @@ use crate::blockstore::BlockStoreError;
 use super::sharing::SharingError;
 
 #[derive(Debug)]
-pub(crate) struct FilesystemError {
+pub struct FilesystemError {
     pub kind: FilesystemErrorKind,
 }
 
 impl FilesystemError {
-    pub(crate) fn node_not_found(path: &str) -> Self {
+    pub fn node_not_found(path: &str) -> Self {
         Self {
             kind: FilesystemErrorKind::NodeNotFound(path.to_string()),
         }
     }
 
-    pub(crate) fn missing_metadata(label: &str) -> Self {
+    pub fn missing_metadata(label: &str) -> Self {
         Self {
             kind: FilesystemErrorKind::MissingMetadata(label.to_string()),
         }
     }
 
-    pub(crate) fn sharing(err: SharingError) -> Self {
+    pub fn sharing(err: SharingError) -> Self {
         Self {
             kind: FilesystemErrorKind::Sharing(err),
         }
     }
 
-    pub(crate) fn blockstore(err: BlockStoreError) -> Self {
+    pub fn blockstore(err: BlockStoreError) -> Self {
         Self {
             kind: FilesystemErrorKind::Blockstore(err),
         }
     }
 
-    pub(crate) fn wnfs(err: anyhow::Error) -> Self {
+    pub fn wnfs(err: anyhow::Error) -> Self {
         Self {
             kind: FilesystemErrorKind::Wnfs(err),
         }
     }
 
-    pub(crate) fn io(err: std::io::Error) -> Self {
+    pub fn io(err: std::io::Error) -> Self {
         Self {
             kind: FilesystemErrorKind::Io(err),
         }
@@ -48,7 +48,7 @@ impl FilesystemError {
 }
 
 #[derive(Debug)]
-pub(crate) enum FilesystemErrorKind {
+pub enum FilesystemErrorKind {
     MissingMetadata(String),
     NodeNotFound(String),
     BadConfig,

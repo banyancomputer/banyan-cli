@@ -9,66 +9,66 @@ use crate::{
 use {crate::cli::specifiers::DriveSpecifier, std::path::PathBuf, uuid::Uuid};
 
 #[derive(Debug)]
-pub(crate) struct NativeError {
+pub struct NativeError {
     kind: NativeErrorKind,
 }
 
 impl NativeError {
-    pub(crate) fn missing_credentials() -> Self {
+    pub fn missing_credentials() -> Self {
         Self {
             kind: NativeErrorKind::MissingCredentials,
         }
     }
 
-    pub(crate) fn missing_identifier() -> Self {
+    pub fn missing_identifier() -> Self {
         Self {
             kind: NativeErrorKind::MissingIdentifier,
         }
     }
 
-    pub(crate) fn missing_local_drive() -> Self {
+    pub fn missing_local_drive() -> Self {
         Self {
             kind: NativeErrorKind::MissingLocalDrive,
         }
     }
 
-    pub(crate) fn missing_remote_drive() -> Self {
+    pub fn missing_remote_drive() -> Self {
         Self {
             kind: NativeErrorKind::MissingRemoteDrive,
         }
     }
 
-    pub(crate) fn unique_error() -> Self {
+    pub fn unique_error() -> Self {
         Self {
             kind: NativeErrorKind::UniqueDriveError,
         }
     }
 
-    pub(crate) fn bad_data() -> Self {
+    pub fn bad_data() -> Self {
         Self {
             kind: NativeErrorKind::BadData,
         }
     }
 
-    pub(crate) fn custom_error(msg: &str) -> Self {
+    pub fn custom_error(msg: &str) -> Self {
         Self {
             kind: NativeErrorKind::Custom(msg.to_owned()),
         }
     }
 
-    pub(crate) fn cryptographic(err: TombCryptError) -> Self {
+    pub fn cryptographic(err: TombCryptError) -> Self {
         Self {
             kind: NativeErrorKind::Cryptographic(err),
         }
     }
 
-    pub(crate) fn filesytem(err: FilesystemError) -> Self {
+    pub fn filesytem(err: FilesystemError) -> Self {
         Self {
-            kind: NativeErrorKind::Filesystem(err),
+            kind: NativeErrorKind::Filesystem(Box::new(err)),
         }
     }
 
-    pub(crate) fn api(err: ApiError) -> Self {
+    pub fn api(err: ApiError) -> Self {
         Self {
             kind: NativeErrorKind::Api(err),
         }
@@ -101,8 +101,9 @@ enum NativeErrorKind {
     BadData,
     Custom(String),
     Cryptographic(TombCryptError),
-    Filesystem(FilesystemError),
+    Filesystem(Box<FilesystemError>),
     Api(ApiError),
+
     #[cfg(feature = "cli")]
     UnknownBucket(DriveSpecifier),
 }
