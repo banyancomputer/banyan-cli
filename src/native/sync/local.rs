@@ -154,7 +154,7 @@ impl LocalBucket {
         wrapping_key: &EcEncryptionKey,
     ) -> Result<PrivateNodeOnPathHistory, FilesystemError> {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
-        Ok(fs_metadata.history(&self.metadata).await?)
+        fs_metadata.history(&self.metadata).await
     }
 }
 

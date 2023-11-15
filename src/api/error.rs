@@ -1,12 +1,18 @@
-use colored::Colorize;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use tomb_crypt::prelude::TombCryptError;
 use url::ParseError;
 
-use crate::blockstore::BlockStoreError;
-use crate::car::error::CarError;
-use crate::filesystem::FilesystemError;
+#[cfg(test)]
+#[cfg(feature = "integration-tests")]
+use {
+    colored::Colorize,
+    crate::{
+        blockstore::BlockStoreError,
+        car::error::CarError,
+        filesystem::FilesystemError,
+    }
+};
 
 /// Errors that can occur in the API Client
 #[derive(Debug)]

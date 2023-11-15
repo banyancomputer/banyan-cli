@@ -233,7 +233,7 @@ impl Client {
             let err = response
                 .json::<T::ErrorType>()
                 .await
-                .map_err(|err| ApiError::format(err))?;
+                .map_err(ApiError::format)?;
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
             Err(ApiError::from(err))
         }

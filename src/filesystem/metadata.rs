@@ -636,7 +636,7 @@ impl FsMetadata {
                 Ok(children)
             }
             None => Err(FilesystemError::node_not_found(
-                &path.to_string_lossy().to_string(),
+                path.to_string_lossy().as_ref(),
             )),
         }
     }
