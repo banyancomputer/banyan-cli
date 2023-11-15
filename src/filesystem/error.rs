@@ -6,7 +6,7 @@ use super::sharing::SharingError;
 
 #[derive(Debug)]
 pub struct FilesystemError {
-    pub kind: FilesystemErrorKind,
+    kind: FilesystemErrorKind,
 }
 
 impl FilesystemError {

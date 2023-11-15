@@ -1,10 +1,6 @@
 use crate::{
     api::{client::Client, error::ApiError, models::bucket_key::BucketKey},
-    cli::CliError,
-    native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig, SyncError},
-        operations::NativeError,
-    },
+    native::{configuration::globalconfig::GlobalConfig, sync::OmniBucket, NativeError},
 };
 
 use super::{
@@ -36,12 +32,12 @@ pub enum KeyCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<CliError> for KeyCommand {
+impl RunnableCommand<NativeError> for KeyCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, CliError> {
+    ) -> Result<String, NativeError> {
         match self {
             KeyCommand::RequestAccess(drive_specifier) => {
                 let private_key = global.wrapping_key().await?;
@@ -67,10 +63,10 @@ impl RunnableCommand<CliError> for KeyCommand {
                         BucketKey::create(id, pem, client)
                             .await
                             .map(|key| format!("\n{}", key))
-                            .map_err(CliError::client_error)
+                            .map_err(NativeError::api)
                     }
                 } else {
-                    Err(SyncError::missing_remote_drive())
+                    Err(NativeError::missing_remote_drive())
                 }
             }
             KeyCommand::Ls(drive_specifier) => {
@@ -92,7 +88,7 @@ impl RunnableCommand<CliError> for KeyCommand {
                             format!("{}\n\n{}", acc, key.context_fmt(&my_fingerprint))
                         })
                     })
-                    .map_err(CliError::client_error)
+                    .map_err(NativeError::api)
             }
             KeyCommand::Info(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
@@ -108,21 +104,21 @@ impl RunnableCommand<CliError> for KeyCommand {
                 BucketKey::read(bucket_id, id, client)
                     .await
                     .map(|key| key.context_fmt(&my_fingerprint))
-                    .map_err(CliError::client_error)
+                    .map_err(NativeError::api)
             }
             KeyCommand::Delete(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::delete_by_id(bucket_id, id, client)
                     .await
                     .map(|id| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
-                    .map_err(CliError::client_error)
+                    .map_err(NativeError::api)
             }
             KeyCommand::Reject(ks) => {
                 let (bucket_id, id) = get_key_info(client, global, &ks).await?;
                 BucketKey::reject(bucket_id, id, client)
                     .await
                     .map(|_| format!("{}", "<< REJECTED KEY SUCCESSFULLY >>".green()))
-                    .map_err(CliError::client_error)
+                    .map_err(NativeError::api)
             }
         }
     }
@@ -132,7 +128,7 @@ async fn get_key_info(
     client: &mut Client,
     global: &GlobalConfig,
     key_specifier: &KeySpecifier,
-) -> Result<(Uuid, Uuid), CliError> {
+) -> Result<(Uuid, Uuid), NativeError> {
     let bucket_id = OmniBucket::from_specifier(global, client, &key_specifier.drive_specifier)
         .await
         .get_id()?;

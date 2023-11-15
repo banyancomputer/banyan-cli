@@ -9,7 +9,7 @@ use crate::car::error::CarError;
 
 #[derive(Debug)]
 pub struct BlockStoreError {
-    pub(crate) kind: BlockStoreErrorKind,
+    kind: BlockStoreErrorKind,
 }
 
 impl BlockStoreError {

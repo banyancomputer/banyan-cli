@@ -2,7 +2,7 @@
 
 // #[derive(Debug)]
 // pub(crate) struct NativeError {
-//     pub(crate) kind: NativeErrorKind,
+//     kind: NativeErrorKind,
 // }
 
 // impl NativeError {

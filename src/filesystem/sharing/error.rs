@@ -4,7 +4,7 @@ use tomb_crypt::prelude::TombCryptError;
 
 #[derive(Debug)]
 pub struct SharingError {
-    pub kind: SharingErrorKind,
+    kind: SharingErrorKind,
 }
 
 impl SharingError {

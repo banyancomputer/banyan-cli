@@ -6,7 +6,7 @@
 
 // #[derive(Debug)]
 // pub(crate) struct SyncError {
-//     pub(crate) kind: SyncErrorKind,
+//     kind: SyncErrorKind,
 // }
 
 // impl SyncError {

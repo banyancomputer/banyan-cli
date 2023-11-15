@@ -1,7 +1,6 @@
 use crate::{
     api::{client::Client, models::metadata::Metadata},
-    cli::CliError,
-    native::configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+    native::{configuration::globalconfig::GlobalConfig, sync::OmniBucket, NativeError},
 };
 
 use super::{
@@ -25,12 +24,12 @@ pub enum MetadataCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<CliError> for MetadataCommand {
+impl RunnableCommand<NativeError> for MetadataCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, CliError> {
+    ) -> Result<String, NativeError> {
         match self {
             // List all Metadata for a Bucket
             MetadataCommand::Ls(drive_specifier) => {
@@ -43,6 +42,7 @@ impl RunnableCommand<CliError> for MetadataCommand {
                             format!("{}\n\n{}", acc, metadata)
                         })
                     })
+                    .map_err(NativeError::api)
             }
             // Read an existing metadata
             MetadataCommand::Read(metadata_specifier) => {
@@ -55,7 +55,7 @@ impl RunnableCommand<CliError> for MetadataCommand {
                 Metadata::read(remote_id, metadata_specifier.metadata_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))
-                    .map_err(NativeError::client_error)
+                    .map_err(NativeError::api)
             }
             // Read the current Metadata
             MetadataCommand::ReadCurrent(drive_specifier) => {
@@ -64,7 +64,7 @@ impl RunnableCommand<CliError> for MetadataCommand {
                 Metadata::read_current(bucket_id, client)
                     .await
                     .map(|metadata| format!("{:?}", metadata))
-                    .map_err(NativeError::client_error)
+                    .map_err(NativeError::api)
             }
             // Take a Cold Snapshot of the remote metadata
             MetadataCommand::Snapshot(metadata_specifier) => {
@@ -79,7 +79,7 @@ impl RunnableCommand<CliError> for MetadataCommand {
                     .snapshot(client)
                     .await
                     .map(|snapshot| format!("{:?}", snapshot))
-                    .map_err(NativeError::client_error)
+                    .map_err(NativeError::api)
             }
         }
     }

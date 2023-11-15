@@ -1,9 +1,10 @@
-use std::string::ParseError;
-
 use super::RunnableCommand;
 use crate::{
     api::client::Client,
-    native::configuration::{globalconfig::GlobalConfig, Endpoints},
+    native::{
+        configuration::{globalconfig::GlobalConfig, Endpoints},
+        NativeError,
+    },
 };
 use async_trait::async_trait;
 use clap::Subcommand;
@@ -47,12 +48,12 @@ pub enum AddressCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<anyhow::Error> for ApiCommand {
+impl RunnableCommand<NativeError> for ApiCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         _: &mut Client,
-    ) -> Result<String, anyhow::Error> {
+    ) -> Result<String, NativeError> {
         match self {
             // Core service
             ApiCommand::Core { command: address } => {
@@ -79,7 +80,7 @@ fn process_field(
     label: &str,
     field: &mut String,
     address: Option<AddressCommand>,
-) -> Result<String, ParseError> {
+) -> Result<String, NativeError> {
     match address {
         None => Ok(format!(
             "{}\n{}\n",
@@ -101,7 +102,9 @@ fn process_field(
 }
 
 /// Verify the integrity of a provided address
-fn verify_address(address: &str) -> Result<(), ParseError> {
+fn verify_address(address: &str) -> Result<(), NativeError> {
     // Update if the address is valid
-    Url::parse(address).map(|_| ())
+    Url::parse(address)
+        .map(|_| ())
+        .map_err(|_| NativeError::custom_error("url parsing"))
 }

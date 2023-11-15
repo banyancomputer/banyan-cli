@@ -8,7 +8,7 @@ use crate::{
             StartRegwait, StartRegwaitResponse,
         },
     },
-    native::configuration::globalconfig::GlobalConfig,
+    native::{configuration::globalconfig::GlobalConfig, NativeError},
 };
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
@@ -38,12 +38,12 @@ pub enum AccountCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<ApiError> for AccountCommand {
+impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(
         self,
         _: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, ApiError> {
+    ) -> Result<String, NativeError> {
         // Process the command
         match self {
             AccountCommand::RegisterDevice => {
@@ -120,7 +120,7 @@ impl RunnableCommand<ApiError> for AccountCommand {
                 let api_key = EcSignatureKey::generate().await?;
                 let public_api_key = api_key.public_key()?;
                 let public_api_key_pem = String::from_utf8(public_api_key.export().await?)
-                    .map_err(|_| ApiError::custom_error("utf8 PEM"))?;
+                    .map_err(|_| NativeError::custom_error("utf8 PEM"))?;
                 // Associate the key material with the backend
                 let response: CreateAccountResponse = client
                     .call(CreateFakeAccount {
@@ -138,7 +138,10 @@ impl RunnableCommand<ApiError> for AccountCommand {
                     response.id
                 ))
             }
-            AccountCommand::WhoAmI => Account::who_am_i(client).await.map(|v| v.to_string()),
+            AccountCommand::WhoAmI => Account::who_am_i(client)
+                .await
+                .map(|v| v.to_string())
+                .map_err(NativeError::api),
             AccountCommand::Usage => {
                 let mut output = format!("{}", "| ACCOUNT USAGE INFO |".yellow());
 
@@ -146,7 +149,7 @@ impl RunnableCommand<ApiError> for AccountCommand {
                 let usage_limit_result = Account::usage_limit(client).await;
 
                 if usage_current_result.is_err() && usage_limit_result.is_err() {
-                    return Err(ApiError::custom_error(
+                    return Err(NativeError::custom_error(
                         "Unable to obtain usage stats. Check your authentication!",
                     ));
                 }

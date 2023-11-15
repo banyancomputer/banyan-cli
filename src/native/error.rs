@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use tomb_crypt::prelude::TombCryptError;
 
 use crate::{
@@ -8,9 +10,15 @@ use crate::{
 #[cfg(feature = "cli")]
 use {crate::cli::specifiers::DriveSpecifier, std::path::PathBuf, uuid::Uuid};
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub struct NativeError {
     kind: NativeErrorKind,
+}
+
+impl Display for NativeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 impl NativeError {

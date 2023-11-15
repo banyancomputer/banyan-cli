@@ -5,7 +5,7 @@ use crate::native::NativeError;
 
 #[derive(Debug)]
 pub struct UtilityError {
-    pub kind: UtilityErrorKind,
+    kind: UtilityErrorKind,
 }
 
 impl UtilityError {

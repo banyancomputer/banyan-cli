@@ -6,7 +6,7 @@ use crate::utils::UtilityError;
 
 #[derive(Debug)]
 pub struct CarError {
-    pub kind: CarErrorKind,
+    kind: CarErrorKind,
 }
 
 impl CarError {
