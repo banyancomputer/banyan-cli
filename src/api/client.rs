@@ -72,8 +72,7 @@ impl Client {
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
             .default_headers(default_headers)
-            .build()
-            .map_err(ApiError::reqwest_general)?;
+            .build()?;
 
         Ok(Self {
             remote_core: Url::parse(remote_core)?,

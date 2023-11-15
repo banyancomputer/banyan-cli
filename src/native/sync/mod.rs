@@ -98,9 +98,7 @@ pub async fn determine_sync_state(
             }
             Ok(())
         } else {
-            let all_metadatas = Metadata::read_all(bucket_id, client)
-                .await
-                .map_err(NativeError::api)?;
+            let all_metadatas = Metadata::read_all(bucket_id, client).await?;
             // If the current Metadata id exists in the list of remotely persisted ones
             if all_metadatas
                 .iter()
@@ -188,10 +186,7 @@ pub async fn sync_bucket(
                 .metadata
                 .get_root()
                 .ok_or(FilesystemError::missing_metadata("metdata cid"))?;
-            let delta = local
-                .content
-                .get_delta()
-                .map_err(FilesystemError::blockstore)?;
+            let delta = local.content.get_delta()?;
 
             // Push the metadata
             let (metadata, host, authorization) = Metadata::push(
@@ -319,13 +314,8 @@ pub async fn sync_bucket(
                 let ipld = local
                     .metadata
                     .get_deserializable::<Ipld>(&metadata_cid)
-                    .await
-                    .map_err(FilesystemError::wnfs)?;
-                let content_cid = local
-                    .content
-                    .put_serializable(&ipld)
-                    .await
-                    .map_err(FilesystemError::wnfs)?;
+                    .await?;
+                let content_cid = local.content.put_serializable(&ipld).await?;
                 local.content.set_root(&content_cid);
                 assert_eq!(metadata_cid, content_cid);
                 // We're now all synced up

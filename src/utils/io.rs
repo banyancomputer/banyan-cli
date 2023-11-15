@@ -34,6 +34,7 @@ pub fn get_read_write(path: &Path) -> Result<File, std::io::Error> {
 /// This standard unix tool handles far more edge cases than we could ever hope
 /// to approximate with a hardcoded recursion step, and with more efficiency too.
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn compute_directory_size(path: &Path) -> Result<usize, UtilityError> {
     // Execute the unix du command to evaluate the size of the given path in kilobytes
     let output = Command::new("du")

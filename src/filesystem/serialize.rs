@@ -81,8 +81,7 @@ pub async fn load_dir<BS: BlockStore>(
 ) -> Result<Rc<PrivateDirectory>, FilesystemError> {
     // Load the PrivateDirectory from the PrivateForest
     PrivateNode::load(private_ref, forest, store)
-        .await
-        .map_err(FilesystemError::wnfs)?
+        .await?
         .as_dir()
         .map_err(FilesystemError::wnfs)
 }

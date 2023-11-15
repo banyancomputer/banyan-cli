@@ -51,8 +51,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
 
                 // Create a public key from the
-                let public_device_key =
-                    private_device_key.public_key().map_err(ApiError::crypto)?;
+                let public_device_key = private_device_key.public_key()?;
 
                 // Create a fingerprint from the public key
                 let fingerprint =
@@ -84,8 +83,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 // Now await the completion of the original request
                 let start_response = join_handle
                     .await
-                    .map_err(anyhow::Error::new)
-                    .map(|v| v.map_err(anyhow::Error::new))??;
+                    .map_err(|err| NativeError::custom_error(&err.to_string()))??;
 
                 // Update the client's credentials
                 client.with_credentials(Credentials {
@@ -119,8 +117,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 // Create local keys
                 let api_key = EcSignatureKey::generate().await?;
                 let public_api_key = api_key.public_key()?;
-                let public_api_key_pem = String::from_utf8(public_api_key.export().await?)
-                    .map_err(|_| NativeError::custom_error("utf8 PEM"))?;
+                let public_api_key_pem = String::from_utf8(public_api_key.export().await?)?;
                 // Associate the key material with the backend
                 let response: CreateAccountResponse = client
                     .call(CreateFakeAccount {

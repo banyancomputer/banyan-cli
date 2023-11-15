@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, string::FromUtf8Error};
 
 use colored::Colorize;
 use tomb_crypt::prelude::TombCryptError;
@@ -194,5 +194,11 @@ impl From<BlockStoreError> for NativeError {
 impl From<std::io::Error> for NativeError {
     fn from(value: std::io::Error) -> Self {
         Self::io(value)
+    }
+}
+
+impl From<FromUtf8Error> for NativeError {
+    fn from(value: FromUtf8Error) -> Self {
+        Self::custom_error(&format!("From UTF8: {value}"))
     }
 }
