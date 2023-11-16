@@ -1,4 +1,4 @@
-use crate::{blockstore::RootedBlockStore, LibipldError, WnfsError};
+use crate::blockstore::RootedBlockStore;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cell::RefCell};

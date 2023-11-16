@@ -7,7 +7,7 @@ use crate::LibipldError;
 
 use super::{
     BanyanApiBlockStore, BlockStoreError, CarV2DiskBlockStore, CarV2MemoryBlockStore,
-    DoubleSplitStore, MemoryBlockStore, MultiCarV2DiskBlockStore,
+    MemoryBlockStore, MultiCarV2DiskBlockStore,
 };
 
 #[async_trait(?Send)]

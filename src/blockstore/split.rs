@@ -1,5 +1,5 @@
 use super::{BanyanBlockStore, BlockStoreError, RootedBlockStore};
-use crate::{LibipldError, WnfsError};
+use crate::LibipldError;
 use async_trait::async_trait;
 use std::borrow::Cow;
 use wnfs::{

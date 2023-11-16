@@ -1,10 +1,7 @@
-use crate::{
-    api::{
-        client::Client,
-        error::ApiError,
-        requests::{core::blocks::locate::LocationRequest, staging::pull_blocks::PullBlock},
-    },
-    LibipldError, WnfsError,
+use crate::api::{
+    client::Client,
+    error::ApiError,
+    requests::{core::blocks::locate::LocationRequest, staging::pull_blocks::PullBlock},
 };
 use async_trait::async_trait;
 use futures_util::StreamExt;

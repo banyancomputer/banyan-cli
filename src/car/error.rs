@@ -3,7 +3,7 @@ use std::fmt::Display;
 use colored::Colorize;
 use wnfs::libipld::Cid;
 
-use crate::{utils::UtilityError, LibipldError, WnfsError};
+use crate::utils::UtilityError;
 
 #[derive(Debug)]
 pub struct CarError {

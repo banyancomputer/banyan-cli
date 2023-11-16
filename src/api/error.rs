@@ -4,10 +4,12 @@ use std::fmt::{self, Display, Formatter};
 use tomb_crypt::prelude::TombCryptError;
 use url::ParseError;
 
-use crate::WnfsError;
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
-use crate::{blockstore::BlockStoreError, car::error::CarError, filesystem::FilesystemError};
+use crate::{
+    WnfsError,
+    {blockstore::BlockStoreError, car::error::CarError, filesystem::FilesystemError},
+};
 
 /// Errors that can occur in the API Client
 #[derive(Debug)]

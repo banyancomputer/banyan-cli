@@ -3,7 +3,7 @@ use crate::{
     api::requests::staging::upload::content::{ContentType, UploadContent},
     blockstore::{BlockStoreError, RootedBlockStore},
     car::error::CarError,
-    LibipldError, WnfsError,
+    WnfsError,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

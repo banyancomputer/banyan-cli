@@ -2,7 +2,6 @@ use super::RunnableCommand;
 use crate::{
     api::{
         client::{Client, Credentials},
-        error::ApiError,
         models::account::Account,
         requests::core::auth::device_api_key::regwait::start::{
             StartRegwait, StartRegwaitResponse,

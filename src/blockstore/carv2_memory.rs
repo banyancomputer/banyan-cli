@@ -1,7 +1,6 @@
 use crate::{
     blockstore::{BlockStoreError, RootedBlockStore},
     car::{error::CarError, v1::Block, v2::CarV2},
-    LibipldError, WnfsError,
 };
 use async_trait::async_trait;
 use serde::de::Error;
