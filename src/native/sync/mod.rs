@@ -314,8 +314,13 @@ pub async fn sync_bucket(
                 let ipld = local
                     .metadata
                     .get_deserializable::<Ipld>(&metadata_cid)
-                    .await?;
-                let content_cid = local.content.put_serializable(&ipld).await?;
+                    .await
+                    .map_err(Box::from)?;
+                let content_cid = local
+                    .content
+                    .put_serializable(&ipld)
+                    .await
+                    .map_err(Box::from)?;
                 local.content.set_root(&content_cid);
                 assert_eq!(metadata_cid, content_cid);
                 // We're now all synced up

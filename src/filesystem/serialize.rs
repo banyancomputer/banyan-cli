@@ -20,8 +20,14 @@ pub async fn store_dir<MBS: BlockStore, CBS: BlockStore>(
     let seed = thread_rng().gen::<[u8; 32]>();
     let mut rng = StdRng::from_seed(seed);
     // Store the PrivateDirectory in both PrivateForests
-    let metadata_ref = dir.store(forest, metadata_store, &mut rng).await?;
-    let content_ref = dir.store(forest, content_store, &mut rng).await?;
+    let metadata_ref = dir
+        .store(forest, metadata_store, &mut rng)
+        .await
+        .map_err(Box::from)?;
+    let content_ref = dir
+        .store(forest, content_store, &mut rng)
+        .await
+        .map_err(Box::from)?;
     // Assert that the PrivateRefs are the same
     assert_eq!(metadata_ref, content_ref);
     // Return Ok
@@ -40,7 +46,10 @@ pub async fn store_forest<SBS: BlockStore, BS: BlockStore>(
         .await
         .map_err(|err| FilesystemError::sharing(SharingError::invalid_data(&err.to_string())))?;
     // Store the PrivateForest's IPLD in the BlockStore
-    let ipld_cid = storage.put_serializable(&forest_ipld).await?;
+    let ipld_cid = storage
+        .put_serializable(&forest_ipld)
+        .await
+        .map_err(Box::from)?;
     // Return Ok
     Ok(ipld_cid)
 }
@@ -50,10 +59,11 @@ pub async fn store_share_manager(
     share_manager: &ShareManager,
     store: &impl BlockStore,
 ) -> Result<Cid, FilesystemError> {
-    let share_manager_bytes = dagcbor::encode(share_manager)?;
+    let share_manager_bytes = dagcbor::encode(share_manager).map_err(Box::from)?;
     let share_manager_cid = store
         .put_block(share_manager_bytes.clone(), IpldCodec::DagCbor)
-        .await?;
+        .await
+        .map_err(Box::from)?;
     Ok(share_manager_cid)
 }
 
@@ -63,7 +73,7 @@ pub async fn load_forest<BS: BlockStore>(
     store: &BS,
 ) -> Result<Rc<PrivateForest>, FilesystemError> {
     // Deserialize the IPLD DAG of the PrivateForest
-    let forest_ipld: Ipld = store.get_deserializable(cid).await?;
+    let forest_ipld: Ipld = store.get_deserializable(cid).await.map_err(Box::from)?;
     // Create a PrivateForest from that IPLD DAG
     let forest: Rc<PrivateForest> = Rc::new(
         ipld_serde::from_ipld::<PrivateForest>(forest_ipld)
@@ -81,8 +91,10 @@ pub async fn load_dir<BS: BlockStore>(
 ) -> Result<Rc<PrivateDirectory>, FilesystemError> {
     // Load the PrivateDirectory from the PrivateForest
     PrivateNode::load(private_ref, forest, store)
-        .await?
+        .await
+        .map_err(Box::from)?
         .as_dir()
+        .map_err(Box::from)
         .map_err(FilesystemError::wnfs)
 }
 
@@ -112,7 +124,14 @@ mod test {
         let new_forest = load_forest(&forest_cid, metadata).await?;
 
         // Assert equality
-        assert_eq!(new_forest.diff(forest, metadata).await?.len(), 0);
+        assert_eq!(
+            new_forest
+                .diff(forest, metadata)
+                .await
+                .map_err(Box::from)?
+                .len(),
+            0
+        );
 
         // Teardown
         teardown_test(test_name).await
@@ -153,10 +172,14 @@ mod test {
                 metadata,
                 &mut thread_rng(),
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
         // Get the content
-        let original_content = original_file.get_content(original_forest, content).await?;
+        let original_content = original_file
+            .get_content(original_forest, content)
+            .await
+            .map_err(Box::from)?;
         let private_ref = store_dir(metadata, content, original_forest, original_dir).await?;
         let forest_cid = store_forest(original_forest, metadata, metadata).await?;
 
@@ -174,9 +197,13 @@ mod test {
                 metadata,
                 &mut thread_rng(),
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Get the content
-        let new_content = file.get_content(original_forest, content).await?;
+        let new_content = file
+            .get_content(original_forest, content)
+            .await
+            .map_err(Box::from)?;
 
         assert_eq!(original_content, new_content);
 

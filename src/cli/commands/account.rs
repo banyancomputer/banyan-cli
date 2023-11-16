@@ -66,10 +66,13 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 // Create a clone of the client to move into the handle
                 let mut client_1 = client.clone();
                 // Create a join handle for later use, starting the call immediately
-                let join_handle: JoinHandle<Result<StartRegwaitResponse, ApiError>> =
+                let join_handle: JoinHandle<Result<StartRegwaitResponse, String>> =
                     tokio::spawn(async move {
                         // Build the request
-                        client_1.call(start_regwait).await
+                        client_1
+                            .call(start_regwait)
+                            .await
+                            .map_err(|err| err.to_string())
                     });
 
                 // Open this url
@@ -83,7 +86,8 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 // Now await the completion of the original request
                 let start_response = join_handle
                     .await
-                    .map_err(|err| NativeError::custom_error(&err.to_string()))??;
+                    .map_err(|err| NativeError::custom_error(&err.to_string()))?
+                    .map_err(|msg| NativeError::custom_error(&msg))?;
 
                 // Update the client's credentials
                 client.with_credentials(Credentials {

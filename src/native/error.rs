@@ -5,7 +5,7 @@ use tomb_crypt::prelude::TombCryptError;
 
 use crate::{
     api::error::ApiError, blockstore::BlockStoreError, car::error::CarError,
-    filesystem::FilesystemError,
+    filesystem::FilesystemError, WnfsError,
 };
 
 #[cfg(feature = "cli")]
@@ -179,8 +179,8 @@ impl From<ApiError> for NativeError {
     }
 }
 
-impl From<anyhow::Error> for NativeError {
-    fn from(value: anyhow::Error) -> Self {
+impl From<WnfsError> for NativeError {
+    fn from(value: WnfsError) -> Self {
         Self::filesytem(FilesystemError::wnfs(value))
     }
 }

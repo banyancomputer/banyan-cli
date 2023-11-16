@@ -4,7 +4,7 @@ use crate::{
         error::ApiError,
         requests::{core::blocks::locate::LocationRequest, staging::pull_blocks::PullBlock},
     },
-    blockstore::BlockStore,
+    LibipldError, WnfsError,
 };
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -15,6 +15,8 @@ use std::{
     collections::{BTreeSet, HashMap},
 };
 use wnfs::libipld::{Cid, IpldCodec};
+
+use super::{BanyanBlockStore, BlockStoreError};
 
 /// A network-based BlockStore designed to interface with a Kubo node or an API which mirrors it
 
@@ -47,26 +49,29 @@ impl BanyanApiBlockStore {
 }
 
 #[async_trait(?Send)]
-impl BlockStore for BanyanApiBlockStore {
+impl BanyanBlockStore for BanyanApiBlockStore {
     /// Stores an array of bytes in the block store.
-    async fn put_block(&self, _bytes: Vec<u8>, _codec: IpldCodec) -> anyhow::Result<Cid> {
-        Err(anyhow::anyhow!("Cannot put block in API store"))
+    async fn put_block(&self, _bytes: Vec<u8>, _codec: IpldCodec) -> Result<Cid, BlockStoreError> {
+        Err(BlockStoreError::wnfs(Box::from(
+            "Cannot put block in API store",
+        )))
     }
 
     /// Retrieves an array of bytes from the block store with given CID.
     #[allow(clippy::await_holding_refcell_ref)]
-    async fn get_block(&self, cid: &Cid) -> anyhow::Result<Cow<'_, Vec<u8>>> {
+    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         let mut client = self.client.clone();
         // If there is already a known block location before we do this
         let base_url = match self.block_locations.borrow().clone().get(&cid.to_string()) {
-            Some(addresses) => Url::parse(&addresses[0])?,
+            Some(addresses) => Url::parse(&addresses[0])
+                .map_err(|_| BlockStoreError::wnfs(Box::from("url parse")))?,
             None => client.remote_data.clone(),
         };
 
         let mut stream = client
             .stream(PullBlock { cid: *cid }, &base_url)
             .await
-            .map_err(|_| anyhow::anyhow!("Failed to pull block"))?;
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());

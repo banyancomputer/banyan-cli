@@ -3,7 +3,7 @@ use std::fmt::Display;
 use colored::Colorize;
 use tomb_crypt::prelude::TombCryptError;
 
-use crate::blockstore::BlockStoreError;
+use crate::{blockstore::BlockStoreError, WnfsError};
 
 use super::sharing::SharingError;
 
@@ -57,7 +57,7 @@ impl FilesystemError {
         }
     }
 
-    pub fn wnfs(err: anyhow::Error) -> Self {
+    pub fn wnfs(err: WnfsError) -> Self {
         Self {
             kind: FilesystemErrorKind::Wnfs(err),
         }
@@ -70,7 +70,7 @@ pub enum FilesystemErrorKind {
     NodeNotFound(String),
     Sharing(SharingError),
     Blockstore(BlockStoreError),
-    Wnfs(anyhow::Error),
+    Wnfs(WnfsError),
 }
 
 impl From<SharingError> for FilesystemError {
@@ -91,8 +91,8 @@ impl From<BlockStoreError> for FilesystemError {
     }
 }
 
-impl From<anyhow::Error> for FilesystemError {
-    fn from(value: anyhow::Error) -> Self {
+impl From<WnfsError> for FilesystemError {
+    fn from(value: WnfsError) -> Self {
         Self::wnfs(value)
     }
 }

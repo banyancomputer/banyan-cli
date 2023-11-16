@@ -4,6 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use tomb_crypt::prelude::TombCryptError;
 use url::ParseError;
 
+use crate::WnfsError;
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 use crate::{blockstore::BlockStoreError, car::error::CarError, filesystem::FilesystemError};
@@ -136,7 +137,7 @@ enum ApiErrorKind {
     ResponseFormat(reqwest::Error),
     /// Cryptography error
     Cryptographic(TombCryptError),
-    /// CustomError
+    /// Parsing Error
     Parse(ParseError),
     /// When we're performing integration tests we also want Filesystem Errors
     #[cfg(test)]
@@ -174,8 +175,8 @@ impl From<FilesystemError> for ApiError {
 
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
-impl From<anyhow::Error> for ApiError {
-    fn from(value: anyhow::Error) -> Self {
+impl From<WnfsError> for ApiError {
+    fn from(value: WnfsError) -> Self {
         Self {
             kind: ApiErrorKind::Filesystem(Box::new(FilesystemError::wnfs(value))),
         }

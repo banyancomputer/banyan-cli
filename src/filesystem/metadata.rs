@@ -1,5 +1,5 @@
 use crate::{
-    blockstore::{CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
+    blockstore::{BanyanBlockStore, CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{
         serialize::{load_dir, load_forest, store_dir, store_forest, store_share_manager},
         sharing::manager::ShareManager,
@@ -141,8 +141,14 @@ impl FsMetadata {
 
         // Put the map into BlockStores
         let root = Ipld::Map(root_map.clone());
-        let root_cid_1 = metadata_store.put_serializable(&root).await?;
-        let root_cid_2 = content_store.put_serializable(&root).await?;
+        let root_cid_1 = metadata_store
+            .put_serializable(&root)
+            .await
+            .map_err(Box::from)?;
+        let root_cid_2 = content_store
+            .put_serializable(&root)
+            .await
+            .map_err(Box::from)?;
         assert_eq!(root_cid_1, root_cid_2);
 
         metadata_store.set_root(&root_cid_1);
@@ -189,13 +195,20 @@ impl FsMetadata {
         // Get the forests
         let forest = load_forest(forest_cid, store).await?;
         let forest_store = CarV2MemoryBlockStore::new()?;
-        let forest =
-            Rc::new(PrivateForest::load(&forest.store(&forest_store).await?, &forest_store).await?);
+        let forest = Rc::new(
+            PrivateForest::load(
+                &forest.store(&forest_store).await.map_err(Box::from)?,
+                &forest_store,
+            )
+            .await
+            .map_err(Box::from)?,
+        );
 
         // Get the share manager
         let mut share_manager = store
             .get_deserializable::<ShareManager>(share_manager_cid)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Get our private Ref
         share_manager.load_refs(wrapping_key).await?;
         let current_private_ref = share_manager
@@ -239,7 +252,7 @@ impl FsMetadata {
         // Get the CID of the metadata map
         let metadata = Ipld::Map(metadata);
         // Put the metadata IPLD Map into BlockStores
-        let metadata_cid = store.put_serializable(&metadata).await?;
+        let metadata_cid = store.put_serializable(&metadata).await.map_err(Box::from)?;
         // Update the root CID
         store.set_root(&metadata_cid);
         // Update the metadata
@@ -270,6 +283,7 @@ impl FsMetadata {
             store,
         )
         .await
+        .map_err(Box::from)
         .map_err(FilesystemError::wnfs)
     }
 
@@ -333,7 +347,8 @@ impl FsMetadata {
                     metadata_store,
                     &mut thread_rng(),
                 )
-                .await?;
+                .await
+                .map_err(Box::from)?;
         }
         Ok(())
     }
@@ -347,7 +362,8 @@ impl FsMetadata {
         let fetched_entries = self
             .root_dir
             .ls(path_segments, true, &self.forest, store)
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
         let mut transformed_entries = Vec::with_capacity(fetched_entries.len());
         let mut futures = Vec::new();
@@ -409,7 +425,8 @@ impl FsMetadata {
         let result = self
             .root_dir
             .get_node(src_path_segments, true, &self.forest, &ds_store)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         match result {
             Some(_) => self
                 .root_dir
@@ -423,6 +440,7 @@ impl FsMetadata {
                     &mut thread_rng(),
                 )
                 .await
+                .map_err(Box::from)
                 .map_err(FilesystemError::wnfs),
             None => Err(FilesystemError::node_not_found(
                 &src_path_segments.join("/"),
@@ -451,6 +469,7 @@ impl FsMetadata {
                 metadata_store,
             )
             .await
+            .map_err(Box::from)
             .map_err(FilesystemError::wnfs)
     }
 
@@ -478,6 +497,7 @@ impl FsMetadata {
                 &mut thread_rng(),
             )
             .await
+            .map_err(Box::from)
             .map_err(FilesystemError::wnfs)
     }
 
@@ -500,7 +520,7 @@ impl FsMetadata {
         &self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BlockStore,
+        content_store: &impl BanyanBlockStore,
     ) -> Result<Vec<u8>, FilesystemError> {
         // Compress the data in the file
         let result = self
@@ -516,6 +536,7 @@ impl FsMetadata {
         if let Some(PrivateNode::File(file)) = result {
             file.get_content(&self.forest, &split_store)
                 .await
+                .map_err(Box::from)
                 .map_err(FilesystemError::wnfs)
         } else {
             Err(FilesystemError::node_not_found(&path_segments.join("/")))
@@ -554,7 +575,8 @@ impl FsMetadata {
                 content_store,
                 &mut thread_rng(),
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
             let full_path: std::path::PathBuf = path_segments.iter().collect();
             if let Some(mime) = mime_guess::MimeGuess::from_path(full_path).first() {
@@ -611,7 +633,8 @@ impl FsMetadata {
         } else {
             self.root_dir
                 .get_node(&segments, true, &self.forest, metadata_store)
-                .await?
+                .await
+                .map_err(Box::from)?
         };
 
         match node {
@@ -620,7 +643,10 @@ impl FsMetadata {
                 // Accumulate a list
                 let mut children = vec![];
                 // List the names of all children
-                let node_names = dir.ls(&[], true, &self.forest, metadata_store).await?;
+                let node_names = dir
+                    .ls(&[], true, &self.forest, metadata_store)
+                    .await
+                    .map_err(Box::from)?;
 
                 // Accumulate a list of futures
                 let mut futures = Vec::new();

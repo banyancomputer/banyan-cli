@@ -3,12 +3,14 @@ use std::fmt::Display;
 use colored::Colorize;
 use wnfs::libipld::Cid;
 
-use crate::utils::UtilityError;
+use crate::{utils::UtilityError, LibipldError, WnfsError};
 
 #[derive(Debug)]
 pub struct CarError {
     kind: CarErrorKind,
 }
+
+impl std::error::Error for CarError {}
 
 impl CarError {
     pub fn missing_root() -> Self {
@@ -116,11 +118,5 @@ impl From<wnfs::libipld::cid::Error> for CarError {
 impl From<UtilityError> for CarError {
     fn from(value: UtilityError) -> Self {
         Self::utility_error(value)
-    }
-}
-
-impl From<CarError> for anyhow::Error {
-    fn from(value: CarError) -> Self {
-        anyhow::anyhow!("car error: {:?}", value)
     }
 }

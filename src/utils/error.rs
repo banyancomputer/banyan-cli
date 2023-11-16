@@ -1,6 +1,7 @@
 use colored::Colorize;
 use std::{fmt::Display, string::FromUtf8Error};
 
+use crate::WnfsError;
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 use crate::{filesystem::FilesystemError, native::NativeError};
@@ -89,8 +90,8 @@ impl From<FromUtf8Error> for UtilityError {
     }
 }
 
-impl From<anyhow::Error> for UtilityError {
-    fn from(value: anyhow::Error) -> Self {
+impl From<WnfsError> for UtilityError {
+    fn from(value: WnfsError) -> Self {
         Self::custom(&value.to_string())
     }
 }

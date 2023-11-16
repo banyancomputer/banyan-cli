@@ -117,10 +117,10 @@ pub fn path_to_segments(path: &Path) -> Result<Vec<String>, FilesystemError> {
         .into_os_string()
         .into_string()
         .map_err(|_| {
-            FilesystemError::wnfs(anyhow::anyhow!(
+            FilesystemError::wnfs(Box::from(format!(
                 "unable to split path to segments: {}",
                 path.display()
-            ))
+            )))
         })?;
     let path_segments: Vec<String> = path
         .split('/')

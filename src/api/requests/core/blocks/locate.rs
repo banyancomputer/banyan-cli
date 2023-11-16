@@ -64,6 +64,7 @@ mod test {
             },
         },
         blockstore::{BanyanApiBlockStore, DoubleSplitStore},
+        filesystem::FilesystemError,
     };
     use serial_test::serial;
     use wnfs::libipld::Cid;
@@ -97,9 +98,14 @@ mod test {
             .get_node(&["cat.txt".to_string()], &setup.metadata_store)
             .await?
             .unwrap();
-        let file = node.as_file()?;
+        let file = node
+            .as_file()
+            .map_err(|err| FilesystemError::wnfs(Box::from(err)))?;
         let split_store = DoubleSplitStore::new(&api_blockstore, &setup.metadata_store);
-        let cids = file.get_cids(&setup.fs.forest, &split_store).await?;
+        let cids = file
+            .get_cids(&setup.fs.forest, &split_store)
+            .await
+            .map_err(|err| FilesystemError::wnfs(Box::from(err)))?;
         let cids_request = LocationRequest { cids: cids.clone() };
         let locations = setup
             .client

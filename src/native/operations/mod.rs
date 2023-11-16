@@ -202,14 +202,17 @@ mod test {
                 &fs.forest,
                 &config.metadata,
             )
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
             file.get_content(&fs.forest, &config.content)
-                .await?
+                .await
+                .map_err(Box::from)?
                 .as_slice(),
             &mut loaded_file_content,
         )?;
@@ -242,7 +245,8 @@ mod test {
         let result = fs
             .root_dir
             .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
@@ -257,7 +261,8 @@ mod test {
         let result = fs
             .root_dir
             .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Assert the node no longer exists
         assert!(result.is_none());
         // Teardown
@@ -378,8 +383,8 @@ mod test {
         let root_path_dup = PathBuf::from("test").join(test_name_dup);
         let root_path_unique = PathBuf::from("test").join(test_name_unique);
         // Create and empty the dir
-        ensure_path_exists_and_is_empty_dir(&root_path_dup, true)?;
-        ensure_path_exists_and_is_empty_dir(&root_path_unique, true)?;
+        ensure_path_exists_and_is_empty_dir(&root_path_dup, true).map_err(Box::from)?;
+        ensure_path_exists_and_is_empty_dir(&root_path_unique, true).map_err(Box::from)?;
 
         // Input and path
         let origin_dup = &root_path_dup.join("input");
@@ -389,7 +394,7 @@ mod test {
         create_dir_all(duplicate_dup)?;
 
         // Generate file structure
-        structure.generate(original_dup)?;
+        structure.generate(original_dup).map_err(Box::from)?;
         // Copy into duplicate path
         dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new()).expect("fs_extra copy");
 
@@ -400,8 +405,8 @@ mod test {
         let unique2 = &origin_unique.join("unique2");
         // create_dir_all(unique2)?;
         // Generate twice
-        structure.generate(unique1)?;
-        structure.generate(unique2)?;
+        structure.generate(unique1).map_err(Box::from)?;
+        structure.generate(unique2).map_err(Box::from)?;
 
         // Run test
         assert_prepare_restore(test_name_dup).await?;
@@ -519,12 +524,15 @@ mod test {
         let current_file = fs
             .root_dir
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
         let current_content = current_file
             .get_content(&fs.forest, &config.content)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
             current_content.as_slice(),
@@ -539,16 +547,20 @@ mod test {
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
@@ -566,16 +578,20 @@ mod test {
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
@@ -638,12 +654,15 @@ mod test {
         let current_file = fs
             .root_dir
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
         let current_content = current_file
             .get_content(&fs.forest, &config.content)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Assert that the current version of the file was retrieved correctly
         assert_eq!(goodbye_bytes, current_content);
 
@@ -653,16 +672,20 @@ mod test {
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
@@ -676,9 +699,11 @@ mod test {
         // pull off the last, empty version
         let _empty_dir = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Assert that there are no more previous versions to find
         assert!(iterator

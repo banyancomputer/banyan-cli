@@ -196,7 +196,8 @@ mod test {
                 &config.metadata,
                 &mut rng,
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
         let file_content = "this is a cat image".as_bytes();
         file.set_content(
             Utc::now(),
@@ -205,7 +206,8 @@ mod test {
             &config.content,
             &mut rng,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
         config.save_fs(&mut fs).await?;
 
@@ -224,10 +226,12 @@ mod test {
                 &config.metadata,
                 &mut rng,
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
         let new_file_content = new_file
             .get_content(&new_fs.forest, &config.content)
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
         assert_eq!(file_content, new_file_content);
 

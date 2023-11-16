@@ -111,7 +111,8 @@ pub(crate) async fn setup_test<RBS: RootedBlockStore>(
             &metadata,
             &mut rng,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
     // Set file content
     file.set_content(
@@ -121,7 +122,8 @@ pub(crate) async fn setup_test<RBS: RootedBlockStore>(
         &content,
         &mut rng,
     )
-    .await?;
+    .await
+    .map_err(Box::from)?;
 
     Ok((metadata, content, forest, root_dir))
 }

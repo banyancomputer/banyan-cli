@@ -85,9 +85,11 @@ pub async fn pipeline(
         if !all_disk_paths.contains(&wnfs_path) {
             // If the node is a File, add all the CIDs associated with it to a list
             if let PrivateNode::File(file) = node {
-                local
-                    .deleted_block_cids
-                    .extend(file.get_cids(&fs.forest, &local.metadata).await?);
+                local.deleted_block_cids.extend(
+                    file.get_cids(&fs.forest, &local.metadata)
+                        .await
+                        .map_err(Box::from)?,
+                );
             }
             // Remove the reference from the WNFS
             fs.rm(&path_to_segments(&wnfs_path)?, &local.metadata)

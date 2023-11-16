@@ -10,6 +10,9 @@
 // #![deny(unreachable_pub)]
 #![feature(seek_stream_len)]
 
+type WnfsError = Box<dyn std::error::Error>;
+type LibipldError = wnfs::libipld::error::Error;
+
 /// CLI Parsing
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
@@ -37,7 +40,7 @@ pub mod prelude {
     }
     pub mod blockstore {
         pub use crate::blockstore::{
-            BanyanApiBlockStore, BlockStore, CarV2MemoryBlockStore, DoubleSplitStore,
+            BanyanApiBlockStore, BanyanBlockStore, CarV2MemoryBlockStore, DoubleSplitStore,
             MemoryBlockStore, RootedBlockStore,
         };
         #[cfg(not(target_arch = "wasm32"))]

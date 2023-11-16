@@ -19,7 +19,8 @@ pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), Native
             &fs.forest,
             &local.metadata,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
     // Store all the updated information, now that we've written the file
     local.save_fs(&mut fs).await?;

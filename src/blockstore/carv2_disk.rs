@@ -1,5 +1,5 @@
 use crate::{
-    blockstore::{BlockStore, BlockStoreError, RootedBlockStore},
+    blockstore::{BlockStoreError, RootedBlockStore},
     car::{error::CarError, v1::Block, v2::CarV2},
     utils::{get_read, get_read_write, get_write},
 };
@@ -11,6 +11,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use wnfs::libipld::{Cid, IpldCodec};
+
+use super::BanyanBlockStore;
 
 /// CarV2DiskBlockStore implementation using File IO
 #[derive(Debug, PartialEq, Clone)]
@@ -69,8 +71,8 @@ impl CarV2DiskBlockStore {
 }
 
 #[async_trait(?Send)]
-impl BlockStore for CarV2DiskBlockStore {
-    async fn get_block(&self, cid: &Cid) -> anyhow::Result<Cow<'_, Vec<u8>>> {
+impl BanyanBlockStore for CarV2DiskBlockStore {
+    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         // Open the file in read-only mode
         let mut file = get_read(&self.path)?;
         // Perform the block read
@@ -79,7 +81,7 @@ impl BlockStore for CarV2DiskBlockStore {
         Ok(Cow::Owned(block.content))
     }
 
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> anyhow::Result<Cid> {
+    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
         // Create a block with this content
         let block = Block::new(bytes, codec)?;
         // If this CID already exists in the store
@@ -142,7 +144,7 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
 #[cfg(test)]
 mod test {
     use crate::{
-        blockstore::{BlockStore, BlockStoreError, CarV2DiskBlockStore, RootedBlockStore},
+        blockstore::{BanyanBlockStore, BlockStoreError, CarV2DiskBlockStore, RootedBlockStore},
         utils::testing::blockstores::car_test_setup,
     };
     use serial_test::serial;
@@ -213,8 +215,12 @@ mod test {
     async fn carv2blockstore() -> Result<(), BlockStoreError> {
         let car_path = &car_test_setup(2, "indexless", "blockstore")?;
         let store = &CarV2DiskBlockStore::new(car_path)?;
-        bs_retrieval_test(store).await?;
-        bs_duplication_test(store).await?;
+        bs_retrieval_test(store)
+            .await
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
+        bs_duplication_test(store)
+            .await
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
         Ok(())
     }
 }

@@ -22,11 +22,11 @@ pub async fn test_setup_structured(
         remove_dir_all(&root_path)?;
     }
     // Create and empty the dir
-    ensure_path_exists_and_is_empty_dir(&root_path, true)?;
+    ensure_path_exists_and_is_empty_dir(&root_path, true).map_err(Box::from)?;
     // Input and path
     let input_path = root_path.join("input");
     // Generate file structure
-    structure.generate(&input_path)?;
+    structure.generate(&input_path).map_err(Box::from)?;
     // Deinitialize existing data / metadata
     configure::deinit(&input_path).await?;
     // Return all paths

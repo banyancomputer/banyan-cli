@@ -33,7 +33,8 @@ pub async fn pipeline(
             &local.metadata,
             &mut rng,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
     // Set file contents
     file.set_content(
@@ -43,7 +44,8 @@ pub async fn pipeline(
         &local.content,
         &mut rng,
     )
-    .await?;
+    .await
+    .map_err(Box::from)?;
 
     // Store all the updated information, now that we've written the file
     local.save_fs(&mut fs).await?;

@@ -4,12 +4,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::car::error::CarError;
+use crate::{car::error::CarError, WnfsError};
 
 #[derive(Debug)]
 pub struct BlockStoreError {
     kind: BlockStoreErrorKind,
 }
+
+impl std::error::Error for BlockStoreError {}
 
 impl BlockStoreError {
     pub fn missing_file(path: &Path) -> Self {
@@ -30,7 +32,7 @@ impl BlockStoreError {
         }
     }
 
-    pub fn wnfs(err: anyhow::Error) -> Self {
+    pub fn wnfs(err: WnfsError) -> Self {
         Self {
             kind: BlockStoreErrorKind::Wnfs(err),
         }
@@ -59,7 +61,7 @@ pub enum BlockStoreErrorKind {
     MissingFile(PathBuf),
     MissingDirectory(PathBuf),
     Car(CarError),
-    Wnfs(anyhow::Error),
+    Wnfs(WnfsError),
 }
 
 impl From<CarError> for BlockStoreError {
@@ -74,8 +76,8 @@ impl From<std::io::Error> for BlockStoreError {
     }
 }
 
-impl From<anyhow::Error> for BlockStoreError {
-    fn from(value: anyhow::Error) -> Self {
+impl From<WnfsError> for BlockStoreError {
+    fn from(value: WnfsError) -> Self {
         Self::wnfs(value)
     }
 }
@@ -83,11 +85,5 @@ impl From<anyhow::Error> for BlockStoreError {
 impl From<wnfs::libipld::cid::Error> for BlockStoreError {
     fn from(value: wnfs::libipld::cid::Error) -> Self {
         Self::car(CarError::cid_error(value))
-    }
-}
-
-impl From<BlockStoreError> for anyhow::Error {
-    fn from(value: BlockStoreError) -> Self {
-        anyhow::anyhow!("blockstore error: {:?}", value)
     }
 }

@@ -1,8 +1,9 @@
-use super::CarV2DiskBlockStore;
+use super::{BanyanBlockStore, CarV2DiskBlockStore};
 use crate::{
     api::requests::staging::upload::content::{ContentType, UploadContent},
-    blockstore::{BlockStore, BlockStoreError, RootedBlockStore},
+    blockstore::{BlockStoreError, RootedBlockStore},
     car::error::CarError,
+    LibipldError, WnfsError,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -96,8 +97,8 @@ impl MultiCarV2DiskBlockStore {
 }
 
 #[async_trait(?Send)]
-impl BlockStore for MultiCarV2DiskBlockStore {
-    async fn get_block(&self, cid: &Cid) -> anyhow::Result<Cow<'_, Vec<u8>>> {
+impl BanyanBlockStore for MultiCarV2DiskBlockStore {
+    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         // Iterate in reverse order
         for store in self.deltas.iter().rev() {
             // If block is retrieved
@@ -108,10 +109,10 @@ impl BlockStore for MultiCarV2DiskBlockStore {
         }
 
         // We didn't find the CID in any BlockStore
-        Err(BlockStoreError::car(CarError::missing_block(cid)).into())
+        Err(BlockStoreError::car(CarError::missing_block(cid)))
     }
 
-    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> anyhow::Result<Cid> {
+    async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
         // If there is a delta
         let current_delta = self.get_delta()?;
         let cid = current_delta.put_block(bytes, codec).await?;
@@ -140,7 +141,7 @@ impl RootedBlockStore for MultiCarV2DiskBlockStore {
 
 #[async_trait(?Send)]
 impl UploadContent for MultiCarV2DiskBlockStore {
-    type UploadError = anyhow::Error;
+    type UploadError = WnfsError;
 
     fn get_hash(&self) -> Result<String, Self::UploadError> {
         let reader = std::fs::File::open(&self.get_delta()?.path)?;
@@ -186,14 +187,11 @@ mod test {
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
     use wnfs::{
-        common::{
-            blockstore::{bs_duplication_test, bs_retrieval_test},
-            BlockStore,
-        },
+        common::blockstore::{bs_duplication_test, bs_retrieval_test},
         libipld::IpldCodec,
     };
 
-    use crate::blockstore::{BlockStoreError, MultiCarV2DiskBlockStore};
+    use crate::blockstore::{BanyanBlockStore, BlockStoreError, MultiCarV2DiskBlockStore};
 
     #[tokio::test]
     #[serial]
@@ -283,8 +281,8 @@ mod test {
         }
         let mut store = MultiCarV2DiskBlockStore::new(test_dir)?;
         store.add_delta()?;
-        bs_retrieval_test(&store).await?;
-        bs_duplication_test(&store).await?;
+        bs_retrieval_test(&store).await.map_err(Box::from)?;
+        bs_duplication_test(&store).await.map_err(Box::from)?;
         Ok(())
     }
 }
