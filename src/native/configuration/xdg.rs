@@ -8,7 +8,7 @@ const DEVICE_WRAPPING_KEY_FILE_NAME: &str = "wrapping_key.pem";
 pub fn xdg_config_home() -> PathBuf {
     // Construct
     let path = PathBuf::from(format!(
-        "{}/.config/tomb",
+        "{}/.config/banyan",
         env::var("HOME").expect(HOME_ERROR)
     ));
     // If the directory doesnt exist yet, make it!
@@ -23,7 +23,7 @@ pub fn xdg_config_home() -> PathBuf {
 pub fn xdg_data_home() -> PathBuf {
     // Construct
     let path = PathBuf::from(format!(
-        "{}/.local/share/tomb",
+        "{}/.local/share/banyan",
         env::var("HOME").expect(HOME_ERROR)
     ));
     // If the directory doesnt exist yet, make it!
