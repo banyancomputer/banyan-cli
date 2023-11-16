@@ -36,7 +36,7 @@ macro_rules! impl_wnfs_blockstore {
                     .map_err(|err| LibipldError::msg(err.to_string()))
             }
         }
-    }; // here be more implementations
+    };
 }
 
 impl_wnfs_blockstore!(BanyanApiBlockStore);
