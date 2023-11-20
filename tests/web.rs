@@ -96,7 +96,7 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn rename() -> TombResult<()> {
-        log!("tomb_wasm_test: create_bucket_mount_rename()");
+        log!("tomb_wasm_test: create_bucket_rename()");
         let mut client = authenticated_client().await?;
         let (_, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
