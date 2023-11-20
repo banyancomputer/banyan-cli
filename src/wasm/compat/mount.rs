@@ -406,6 +406,11 @@ impl WasmMount {
         self.locked
     }
 
+    /// Returns the Bucket behind the mount
+    pub fn bucket(&self) -> WasmBucket {
+        WasmBucket::from(self.bucket.clone())
+    }
+
     /// Returns the Metadata for the bucket
     pub fn metadata(&self) -> TombResult<WasmBucketMetadata> {
         let metadata = self.metadata.as_ref().expect("no metadata");
@@ -882,6 +887,28 @@ impl WasmMount {
         self.metadata = Some(metadata.to_owned());
 
         Ok(snapshot_id.to_string())
+    }
+
+    /// Rename the mounted bucket
+    /// # Arguments
+    /// * `name` - the new name for the bucket
+    /// # Returns
+    /// A Promise<void> in js speak. Should also update the internal state of the bucket
+    /// on a successful update
+    pub async fn rename(&mut self, name: String) -> TombResult<()> {
+        log!(
+            "tomb-wasm: mount/rename/{}/{}",
+            self.bucket.id.to_string(),
+            &name
+        );
+        let mut update_bucket = self.bucket.clone();
+        update_bucket.name = name;
+        update_bucket
+            .update(&mut self.client)
+            .await
+            .expect("could not rename bucket");
+        self.bucket = update_bucket;
+        Ok(())
     }
 
     /// Restore a mounted bucket
