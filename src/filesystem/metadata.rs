@@ -14,7 +14,7 @@ use futures_util::future::join_all;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -24,9 +24,7 @@ use wnfs::{
     libipld::{Cid, Ipld},
     namefilter::Namefilter,
     private::{
-        share::{Share, SharePayload, Sharer, SnapshotSharePointer, TemporalSharePointer},
-        AesKey, PrivateDirectory, PrivateFile, PrivateForest, PrivateNode,
-        PrivateNodeOnPathHistory, PrivateRef, SnapshotKey, TemporalKey,
+        share::SharePayload, PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory,
     },
 };
 
@@ -299,26 +297,30 @@ impl FsMetadata {
             SharePayload::from_node(&node, false, &mut self.forest, content_store, &mut rng)
                 .await?;
 
+        let forest_cid = store_forest(&self.forest, content_store, content_store).await?;
+
         Ok(SharedFile {
             payload: sharer_payload,
-            forest: self.forest.clone(),
+            forest_cid,
             file_name,
             mime_type,
             size,
         })
     }
 
-    pub async fn receive_file(
+    pub async fn receive_file_content(
         shared_file: SharedFile,
         store: &impl BlockStore,
-    ) -> Result<Rc<PrivateFile>> {
+    ) -> Result<Vec<u8>> {
+        let forest = load_forest(&shared_file.forest_cid, store).await?;
         // Grab node using share label.
         match shared_file.payload {
             SharePayload::Temporal(_) => todo!(),
             SharePayload::Snapshot(snapshot) => {
-                let node =
-                    PrivateNode::load_from_snapshot(snapshot, &shared_file.forest, store).await?;
-                Ok(node.as_file()?)
+                let file = PrivateNode::load_from_snapshot(snapshot, &forest, store)
+                    .await?
+                    .as_file()?;
+                Ok(file.get_content(&forest, store).await?)
             }
         }
     }
@@ -846,10 +848,7 @@ mod test {
             .share_file(&cat_path, &metadata_store, &content_store)
             .await?;
 
-        let file = FsMetadata::receive_file(shared_file, &content_store).await?;
-        let new_kitty_bytes = file
-            .get_content(&fs_metadata.forest, &content_store)
-            .await?;
+        let new_kitty_bytes = FsMetadata::receive_file_content(shared_file, &content_store).await?;
 
         assert_eq!(kitty_bytes, new_kitty_bytes);
 

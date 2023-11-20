@@ -1,9 +1,10 @@
-use std::rc::Rc;
-use wnfs::private::{share::SharePayload, PrivateForest};
+use serde::{Deserialize, Serialize};
+use wnfs::{libipld::Cid, private::share::SharePayload};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedFile {
     pub payload: SharePayload,
-    pub forest: Rc<PrivateForest>,
+    pub forest_cid: Cid,
     pub file_name: String,
     pub mime_type: String,
     pub size: u64,
