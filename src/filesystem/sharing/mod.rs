@@ -7,7 +7,8 @@ pub mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
 /// Takes snapshots of data
-pub mod snapshot;
+mod shared_file;
+pub use shared_file::SharedFile;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]

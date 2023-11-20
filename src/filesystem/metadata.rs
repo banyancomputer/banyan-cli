@@ -3,7 +3,7 @@ use crate::{
     filesystem::{
         error::SerialError,
         serialize::{load_dir, load_forest, store_dir, store_forest, store_share_manager},
-        sharing::manager::ShareManager,
+        sharing::{manager::ShareManager, SharedFile},
         wnfsio::path_to_segments,
     },
 };
@@ -14,7 +14,7 @@ use futures_util::future::join_all;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -269,40 +269,55 @@ impl FsMetadata {
         path_segments: &[String],
         metadata_store: &impl BlockStore,
         content_store: &impl BlockStore,
-    ) -> Result<SharePayload> {
+    ) -> Result<SharedFile> {
         let mut rng = thread_rng();
         let node = self
             .get_node(path_segments, metadata_store)
             .await?
             .ok_or(anyhow!("No node!"))?;
 
-        // Store a snapshot of the PrivateFile
-        match node.clone() {
-            PrivateNode::File(file) => {
-                file.store(&mut self.forest, content_store, &mut rng)
-                    .await?;
-            }
-            PrivateNode::Dir(_) => {
-                panic!("unable to share directories!");
-            }
+        // Force cast as file and panic otherwise
+        if node.is_dir() {
+            return Err(anyhow!("Cannot share directories"));
         }
+        let file = node.as_file()?;
 
+        // Extract relevant bits of metadata
+        let metadata = file.get_metadata();
+        let mime_type = match metadata.0.get("mime_type") {
+            Some(Ipld::String(mime_type)) => mime_type.to_owned(),
+            _ => "NA".to_owned(),
+        };
+        let size = match metadata.0.get("size") {
+            Some(Ipld::Integer(size)) => *size as u64,
+            _ => 0,
+        };
+        let file_name = path_segments.last().expect("No file name").to_owned();
+
+        // Share the Node by storing it
         let sharer_payload =
             SharePayload::from_node(&node, false, &mut self.forest, content_store, &mut rng)
                 .await?;
-        Ok(sharer_payload)
+
+        Ok(SharedFile {
+            payload: sharer_payload,
+            forest: self.forest.clone(),
+            file_name,
+            mime_type,
+            size,
+        })
     }
 
     pub async fn receive_file(
-        &self,
-        payload: SharePayload,
+        shared_file: SharedFile,
         store: &impl BlockStore,
     ) -> Result<Rc<PrivateFile>> {
         // Grab node using share label.
-        match payload {
+        match shared_file.payload {
             SharePayload::Temporal(_) => todo!(),
             SharePayload::Snapshot(snapshot) => {
-                let node = PrivateNode::load_from_snapshot(snapshot, &self.forest, store).await?;
+                let node =
+                    PrivateNode::load_from_snapshot(snapshot, &shared_file.forest, store).await?;
                 Ok(node.as_file()?)
             }
         }
@@ -827,11 +842,11 @@ mod test {
             )
             .await?;
 
-        let payload = fs_metadata
+        let shared_file = fs_metadata
             .share_file(&cat_path, &metadata_store, &content_store)
             .await?;
 
-        let file = fs_metadata.receive_file(payload, &content_store).await?;
+        let file = FsMetadata::receive_file(shared_file, &content_store).await?;
         let new_kitty_bytes = file
             .get_content(&fs_metadata.forest, &content_store)
             .await?;
