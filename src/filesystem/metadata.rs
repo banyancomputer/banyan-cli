@@ -49,16 +49,6 @@ pub struct FsMetadata {
     pub metadata: Option<BTreeMap<String, Ipld>>,
 }
 
-// #[async_trait::async_trait(?Send)]
-// impl wnfs::private::ExchangeKey for EcPublicEncryptionKey {
-//     async fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>> {
-//         self.encrypt(data).await
-//     }
-//     async fn from_modulus(modulus: &[u8]) -> Result<Self> {
-
-//     }
-// }
-
 impl FsMetadata {
     /// Initialize a new FsMetadata with a wrapping key in memory
     pub async fn init(wrapping_key: &EcEncryptionKey) -> Result<Self, FilesystemError> {
@@ -415,7 +405,7 @@ impl FsMetadata {
             .await;
 
         // If there was an error getting the node
-        if result.is_err() {
+        if result.is_err() || result.unwrap().is_none() {
             // Create the subdirectory
             self.root_dir
                 .mkdir(
