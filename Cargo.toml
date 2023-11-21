@@ -24,12 +24,13 @@ keywords = [
 
 # These dependencies are specific to the CLI or would break WASM
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing-appender = "^0.2"
+tracing-subscriber = { version = "^0.3", features = ["env-filter", "fmt", "time"] }
 base58 = { version = "^0.2" }
 base64 = { version = "^0.21" }
 bytesize = { version = "^1.3" }
 clap = { version = "^4", features = ["derive"] }
 dir-assert = { git = "https://github.com/banyancomputer/dir-assert.git", branch = "non-utf8", version = "^0.2" }
-env_logger = { version = "^0.10" }
 fclones = { version = "^0.34" }
 fs_extra = { version = "^1" }
 futures-core = { version = "^0.3" }
@@ -49,6 +50,7 @@ serial_test = { version = "^2" }
 
 # Dependencies that must exist independent of architecture
 [dependencies]
+tracing = { version = "^0.1" }
 async-recursion = { version = "^1" }
 async-trait = { version = "^0.1" }
 blake3 = { version = "^1" }
@@ -81,6 +83,7 @@ integration-tests = []
 
 # Dependencies that only need to exist when we are in WASM
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+tracing-wasm = { version = "^0.2" }
 async-trait = { version = "^0.1" }
 console_error_panic_hook = { version = "^0.1", optional = true }
 getrandom = { version = "^0.2", features = ["js"] }
