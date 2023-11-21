@@ -12,6 +12,7 @@ use crate::api::{
             delete::DeleteBucket,
             read::{ReadAllBuckets, ReadAllBucketsResponse, ReadBucket, ReadBucketResponse},
             snapshots::read::ReadAllSnapshots,
+            update::UpdateBucket,
             usage::GetBucketUsage,
         },
         staging::client_grant::authorization::AuthorizationGrants,
@@ -163,6 +164,13 @@ impl Bucket {
         })
     }
 
+    /// Update the bucket fields. Puts the current local values against the current remote values.
+    /// For now only updates to 'name' will be processed, all others will be ignored
+    pub async fn update(&self, client: &mut Client) -> Result<(), ApiError> {
+        let update_request = UpdateBucket(self.clone());
+        client.call_no_content(update_request).await
+    }
+
     /// Get the snapshots for the bucket
     pub async fn list_snapshots(&self, client: &mut Client) -> Result<Vec<Snapshot>, ApiError> {
         let response = client.call(ReadAllSnapshots { bucket_id: self.id }).await?;
@@ -297,6 +305,21 @@ pub mod test {
         assert!(read_bucket.is_err());
         let read_bucket = Bucket::read(&mut bad_client, fake_bucket().id).await;
         assert!(read_bucket.is_err());
+        Ok(())
+    }
+    #[tokio::test]
+    async fn create_update() -> Result<(), ApiError> {
+        let mut client = authenticated_client().await;
+        let (mut bucket, _) = create_bucket(&mut client).await?;
+        // TODO: test for other bucket updates when that is supported.
+        bucket.name = "new_name".to_string();
+        bucket.update(&mut client).await?;
+        let read_bucket = Bucket::read(&mut client, bucket.id).await?;
+        assert_eq!(read_bucket.name, bucket.name);
+        assert_eq!(read_bucket.name, "new_name");
+        assert_eq!(read_bucket.r#type, bucket.r#type);
+        assert_eq!(read_bucket.id, bucket.id);
+        assert_eq!(read_bucket.storage_class, bucket.storage_class);
         Ok(())
     }
     #[tokio::test]
