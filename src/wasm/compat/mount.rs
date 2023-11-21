@@ -861,10 +861,9 @@ impl WasmMount {
             .collect::<Vec<String>>();
 
         if self.locked() {
-            return Err(TombWasmError(
-                "unable to list directory contents of a locked bucket".to_string(),
-            )
-            .into());
+            return Err(
+                TombWasmError("unable to share a file from a locked bucket".to_string()).into(),
+            );
         };
 
         let shared_file = self
@@ -877,7 +876,7 @@ impl WasmMount {
                 &self.content_blockstore,
             )
             .await
-            .map_err(|err| TombWasmError(format!("share snapshot: {err}")))?;
+            .map_err(|err| TombWasmError(format!("share_file: {err}")))?;
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
