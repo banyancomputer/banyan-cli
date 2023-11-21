@@ -327,6 +327,7 @@ pub(crate) mod test {
         })
     }
 
+    // TODO: this test fails if not serial. This should be fixed
     #[tokio::test]
     #[serial]
     async fn push_read_pull() -> Result<(), ApiError> {
