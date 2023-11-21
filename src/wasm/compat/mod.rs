@@ -6,17 +6,21 @@ mod types;
 pub use mount::WasmMount;
 pub use types::{
     TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry,
-    WasmNodeMetadata, WasmSnapshot,
+    WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
 };
 
-use crate::api::{
-    client::{Client, Credentials},
-    models::{
-        account::Account,
-        bucket::{Bucket, BucketType, StorageClass},
-        bucket_key::BucketKey,
+use crate::{
+    api::{
+        client::{Client, Credentials},
+        models::{
+            account::Account,
+            bucket::{Bucket, BucketType, StorageClass},
+            bucket_key::BucketKey,
+        },
+        requests::core::auth::device_api_key::regwait::end::EndRegwait,
     },
-    requests::core::auth::device_api_key::regwait::end::EndRegwait,
+    blockstore::BanyanApiBlockStore,
+    prelude::filesystem::FsMetadata,
 };
 use gloo::console::log;
 use js_sys::Array;
@@ -399,5 +403,14 @@ impl TombWasm {
 
         // Ok
         Ok(mount)
+    }
+
+    #[wasm_bindgen(js_name = receiveFile)]
+    pub async fn receive_file(&mut self, shared_file: WasmSharedFile) -> TombResult<()> {
+        let banyan_api_blockstore = BanyanApiBlockStore::from(self.client().clone());
+        let file = FsMetadata::receive_file(shared_file.0, &banyan_api_blockstore)
+            .await
+            .unwrap();
+        return Err(TombWasmError(format!("unknown error!")).into());
     }
 }

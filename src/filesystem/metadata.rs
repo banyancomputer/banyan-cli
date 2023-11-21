@@ -749,7 +749,7 @@ pub struct FsMetadataEntry {
 #[cfg(test)]
 mod test {
 
-    use crate::{blockstore::MemoryBlockStore, filesystem::metadata::FsMetadata};
+    use crate::{blockstore::MemoryBlockStore, filesystem::metadata::FsMetadata, prelude::filesystem::sharing::SharedFile};
     use anyhow::Result;
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::PrivateNode;
@@ -848,7 +848,13 @@ mod test {
             .share_file(&cat_path, &metadata_store, &content_store)
             .await?;
 
-        let new_kitty_bytes = FsMetadata::receive_file_content(shared_file, &content_store).await?;
+        let share_string = shared_file.export_b64_url()?;
+
+        println!("b64 url: {:?}", share_string);
+
+        let reconstructed_shared_file = SharedFile::import_b64_url(share_string)?;
+
+        let new_kitty_bytes = FsMetadata::receive_file_content(reconstructed_shared_file, &content_store).await?;
 
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
