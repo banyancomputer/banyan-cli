@@ -63,7 +63,8 @@ impl BanyanBlockStore for BanyanApiBlockStore {
         let mut maybe_url = None;
         for (url, cids) in self.block_locations.borrow().iter() {
             if cids.contains(&cid.to_string()) {
-                let base_url = Url::parse(url).map_err(|_| BlockStoreError::wnfs(Box::from("url parse")))?;
+                let base_url =
+                    Url::parse(url).map_err(|_| BlockStoreError::wnfs(Box::from("url parse")))?;
                 maybe_url = Some(base_url);
                 break;
             }

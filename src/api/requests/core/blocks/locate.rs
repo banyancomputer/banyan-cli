@@ -52,6 +52,7 @@ impl Error for LocationRequestError {}
 #[cfg(feature = "integration-tests")]
 mod test {
     use std::collections::BTreeSet;
+    use wnfs::libipld::Cid;
 
     use crate::{
         api::{
@@ -66,11 +67,9 @@ mod test {
         blockstore::{BanyanApiBlockStore, DoubleSplitStore},
         filesystem::FilesystemError,
     };
-    use serial_test::serial;
-    use wnfs::libipld::Cid;
 
     #[tokio::test]
-    #[serial]
+
     async fn get_locations() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("get_locations").await?;
         // Create a grant and upload content
@@ -123,7 +122,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
+
     async fn get_bad_location() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let mut cids = BTreeSet::new();
