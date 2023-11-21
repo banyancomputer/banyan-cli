@@ -58,10 +58,19 @@ impl BanyanBlockStore for BanyanApiBlockStore {
     #[allow(clippy::await_holding_refcell_ref)]
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         let mut client = self.client.clone();
-        // If there is already a known block location before we do this
-        let base_url = match self.block_locations.borrow().clone().get(&cid.to_string()) {
-            Some(addresses) => Url::parse(&addresses[0])
-                .map_err(|_| BlockStoreError::wnfs(Box::from("url parse")))?,
+
+        // Pull the first url that has the block from the map of url: [block_id]
+        let mut maybe_url = None;
+        for (url, cids) in self.block_locations.borrow().iter() {
+            if cids.contains(&cid.to_string()) {
+                let base_url = Url::parse(url).map_err(|_| BlockStoreError::wnfs(Box::from("url parse")))?;
+                maybe_url = Some(base_url);
+                break;
+            }
+        }
+
+        let base_url = match maybe_url {
+            Some(url) => url,
             None => client.remote_data.clone(),
         };
 

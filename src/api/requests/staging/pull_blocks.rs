@@ -81,6 +81,9 @@ mod test {
             )
             .await?;
 
+        // Sleep to allow block locations to be updated
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        
         let mut cids = <BTreeSet<Cid>>::new();
         for bucket in setup.content_store.car.car.index.borrow().clone().buckets {
             cids.extend(bucket.map.into_keys().collect::<BTreeSet<Cid>>());
@@ -88,6 +91,7 @@ mod test {
 
         let api_store = BanyanApiBlockStore::from(setup.client);
         api_store.find_cids(cids.clone()).await?;
+
 
         for cid in &cids {
             assert!(api_store.get_block(cid).await.is_ok());

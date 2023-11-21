@@ -88,10 +88,10 @@ mod test {
             )
             .await?;
 
-        let mut blockstore_client = setup.client.clone();
-        blockstore_client
-            .with_remote(&setup.storage_ticket.host)
-            .expect("Failed to create blockstore client");
+        // Wait for the content to be uploaded
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+        let blockstore_client = setup.client.clone();
         let api_blockstore = BanyanApiBlockStore::from(blockstore_client);
         let node = setup
             .fs
