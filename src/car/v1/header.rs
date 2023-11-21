@@ -28,33 +28,40 @@ impl Header {
     /// Transforms a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1 into this object
     pub fn from_ipld_bytes(bytes: &[u8]) -> Result<Self, CarError> {
         // If the IPLD is a true map and the correct keys exist within it
-        if let Ok(ipld) = dagcbor::decode(bytes)
-            && let Ipld::Map(map) = ipld
-            && let Some(Ipld::Integer(int)) = map.get("version")
-            && let Some(Ipld::List(roots_ipld)) = map.get("roots")
-        {
-            // Helper function for interpreting a given Cid as a Link
-            fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CarError> {
-                if let Ipld::Link(cid) = ipld {
-                    Ok(*cid)
-                } else {
-                    Err(CarError::v1_header())
-                }
-            }
-            // Interpret all of the roots as CIDs
-            let roots = roots_ipld
-                .iter()
-                .map(ipld_to_cid)
-                .collect::<Result<Vec<Cid>, CarError>>()?;
+        let Ok(ipld) = dagcbor::decode(bytes) else {
+            return Err(CarError::v1_header());
+        };
+        let Ipld::Map(map) = ipld else {
+            return Err(CarError::v1_header());
+        };
 
-            // Return Ok with new Self
-            Ok(Self {
-                version: *int as u64,
-                roots: RefCell::new(roots),
-            })
-        } else {
-            Err(CarError::v1_header())
+        let Some(Ipld::Integer(int)) = map.get("version") else {
+            return Err(CarError::v1_header());
+        };
+
+        let Some(Ipld::List(roots_ipld)) = map.get("roots") else {
+            return Err(CarError::v1_header());
+        };
+
+        // Helper function for interpreting a given Cid as a Link
+        fn ipld_to_cid(ipld: &Ipld) -> Result<Cid, CarError> {
+            if let Ipld::Link(cid) = ipld {
+                Ok(*cid)
+            } else {
+                Err(CarError::v1_header())
+            }
         }
+        // Interpret all of the roots as CIDs
+        let roots = roots_ipld
+            .iter()
+            .map(ipld_to_cid)
+            .collect::<Result<Vec<Cid>, CarError>>()?;
+
+        // Return Ok with new Self
+        Ok(Self {
+            version: *int as u64,
+            roots: RefCell::new(roots),
+        })
     }
 
     /// Transforms this object into a DAGCBOR encoded byte vector of the IPLD representation specified by CARv1

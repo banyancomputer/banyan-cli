@@ -37,18 +37,18 @@ impl MultiCarV2DiskBlockStore {
 
             let mut deltas = Vec::new();
             // For each child in the directory
-            for dir_entry in fs::read_dir(dir)? {
+            for dir_entry in fs::read_dir(dir)?.flatten() {
                 // If the dir entry is valid, the file is a .car, and a MultiCarV2DiskBlockStore can be read from it
-                if let Ok(entry) = dir_entry
-                    && entry
-                        .file_name()
-                        .to_str()
-                        .expect("no file name str")
-                        .contains(".car")
-                    && let Ok(car) = CarV2DiskBlockStore::new(&entry.path())
+                if dir_entry
+                    .file_name()
+                    .to_str()
+                    .expect("no file name str")
+                    .contains(".car")
                 {
-                    // Push this to the vec
-                    deltas.push(car);
+                    if let Ok(car) = CarV2DiskBlockStore::new(&dir_entry.path()) {
+                        // Push this to the vec
+                        deltas.push(car);
+                    }
                 }
             }
 
@@ -150,7 +150,6 @@ impl UploadContent for MultiCarV2DiskBlockStore {
         Ok(hasher.finalize().to_string())
     }
 
-    #[allow(refining_impl_trait)]
     async fn get_body(&self) -> Result<ContentType, Self::UploadError> {
         Ok(tokio::fs::File::open(&self.get_delta()?.path).await?.into())
     }

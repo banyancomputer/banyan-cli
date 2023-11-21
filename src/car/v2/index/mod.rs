@@ -107,15 +107,17 @@ impl Index<Bucket> {
         };
 
         // While we're able to peek varints and CIDs
-        while let Ok(block_offset) = r.stream_position()
-            && let Ok((varint, cid)) = Block::start_read(&mut *r)
-        {
-            // Log where we found this block
-            new_index.insert_offset(&cid, block_offset);
-            // Skip the rest of the block
-            r.seek(SeekFrom::Current(
-                varint as i64 - cid.to_bytes().len() as i64,
-            ))?;
+        while let Ok(block_offset) = r.stream_position() {
+            if let Ok((varint, cid)) = Block::start_read(&mut *r) {
+                // Log where we found this block
+                new_index.insert_offset(&cid, block_offset);
+                // Skip the rest of the block
+                r.seek(SeekFrom::Current(
+                    varint as i64 - cid.to_bytes().len() as i64,
+                ))?;
+            } else {
+                break;
+            }
         }
 
         Ok(new_index)

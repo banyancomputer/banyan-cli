@@ -40,14 +40,15 @@ impl CarV1 {
         // End of the header
         let header_end = r.stream_position()?;
         // If we're in a CARv2
-        if let Some(index_offset) = index_offset
-            && r.seek(SeekFrom::Start(index_offset)).is_ok()
-            && let Ok(index) = <Index<Bucket>>::read_bytes(&mut r)
-        {
-            return Ok(Self {
-                header,
-                index: RefCell::new(index),
-            });
+        if let Some(index_offset) = index_offset {
+            if r.seek(SeekFrom::Start(index_offset)).is_ok() {
+                if let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
+                    return Ok(Self {
+                        header,
+                        index: RefCell::new(index),
+                    });
+                }
+            }
         }
 
         r.seek(SeekFrom::Start(header_end))?;
@@ -72,7 +73,7 @@ impl CarV1 {
         let mut current_header_buf = Cursor::new(<Vec<u8>>::new());
         self.header.write_bytes(&mut current_header_buf)?;
         // Compute data offset
-        let data_offset = current_header_buf.stream_len()? as i64 - old_header_len as i64;
+        let data_offset = current_header_buf.stream_position()? as i64 - old_header_len as i64;
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
         // Grab all offsets

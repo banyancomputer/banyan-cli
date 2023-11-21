@@ -13,9 +13,7 @@ pub struct Endpoints {
 
 impl Default for Endpoints {
     fn default() -> Self {
-        if let Some(dev) = option_env!("DEV_ENDPOINTS")
-            && dev == "1"
-        {
+        if option_env!("DEV_ENDPOINTS").is_some() {
             Self {
                 core: "http://127.0.0.1:3001".to_string(),
                 data: "http://127.0.0.1:3002".to_string(),
