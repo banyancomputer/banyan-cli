@@ -2,8 +2,6 @@
 mod mount;
 /// Types with WASM wrappers
 mod types;
-/// Grabbing version info
-mod version;
 pub use mount::WasmMount;
 pub use types::{
     TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry,
@@ -25,10 +23,8 @@ use std::{
     str::FromStr,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
-use tracing::{debug, Level};
-use tracing_wasm::{ConsoleConfig, WASMLayerConfigBuilder};
 use uuid::Uuid;
-use version::version;
+use tracing::debug;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 /// Special Result type for WASM builds
@@ -67,31 +63,6 @@ impl TombWasm {
         core_endpoint: String,
         data_endpoint: String,
     ) -> Self {
-        #[cfg(feature = "console_error_panic_hook")]
-        set_panic_hook();
-
-        let wasm_log_config = if cfg!(debug_assertions) {
-            WASMLayerConfigBuilder::default()
-                .set_report_logs_in_timings(true)
-                .set_max_level(Level::DEBUG)
-                .set_console_config(ConsoleConfig::ReportWithoutConsoleColor)
-                .build()
-        } else {
-            WASMLayerConfigBuilder::default()
-                .set_report_logs_in_timings(false)
-                .set_max_level(Level::WARN)
-                .set_console_config(ConsoleConfig::ReportWithoutConsoleColor)
-                .build()
-        };
-
-        tracing_wasm::set_as_global_default_with_config(wasm_log_config);
-        debug!("Successfully loaded banyan-cli wasm {}", version());
-
-        // todo: this method needs to return a Result type but that would currently change the
-        // external API so I'm leaving this one alone for now
-
-        debug!("tomb-wasm: new()");
-
         let mut client = Client::new(&core_endpoint, &data_endpoint).unwrap();
         let signing_key = EcSignatureKey::import(signing_key_pem.as_bytes())
             .await
@@ -104,7 +75,6 @@ impl TombWasm {
             signing_key,
         };
         client.with_credentials(banyan_credentials);
-
         Self(client)
     }
 }
