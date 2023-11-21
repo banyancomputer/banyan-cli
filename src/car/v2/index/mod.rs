@@ -116,7 +116,7 @@ impl Index<Bucket> {
                     varint as i64 - cid.to_bytes().len() as i64,
                 ))?;
             } else {
-                break;
+                return Ok(new_index);
             }
         }
 
