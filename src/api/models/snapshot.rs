@@ -4,7 +4,7 @@ use std::fmt::Display;
 use uuid::Uuid;
 
 use crate::api::{
-    client::Client, error::ClientError, models::metadata::Metadata,
+    client::Client, error::ApiError, models::metadata::Metadata,
     requests::core::buckets::snapshots::restore::RestoreSnapshot,
 };
 
@@ -38,7 +38,7 @@ impl Display for Snapshot {
 
 impl Snapshot {
     /// Restore a snapshot to its bucket
-    pub async fn restore(&self, client: &mut Client) -> Result<Uuid, ClientError> {
+    pub async fn restore(&self, client: &mut Client) -> Result<Uuid, ApiError> {
         let request = RestoreSnapshot {
             bucket_id: self.bucket_id,
             snapshot_id: self.id,
@@ -47,7 +47,7 @@ impl Snapshot {
         Ok(response.metadata_id)
     }
     /// Get the metadata for this snapshot
-    pub async fn metadata(&self, client: &mut Client) -> Result<Metadata, ClientError> {
+    pub async fn metadata(&self, client: &mut Client) -> Result<Metadata, ApiError> {
         Metadata::read(self.bucket_id, self.metadata_id, client).await
     }
 }
@@ -56,7 +56,7 @@ impl Snapshot {
 #[cfg(feature = "integration-tests")]
 mod test {
     use crate::api::{
-        error::ClientError,
+        error::ApiError,
         models::{
             account::test::authenticated_client, bucket::test::create_bucket,
             metadata::test::push_empty_metadata,
@@ -64,7 +64,7 @@ mod test {
     };
 
     #[tokio::test]
-    async fn restore() -> Result<(), ClientError> {
+    async fn restore() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
         let (metadata, _, _) = push_empty_metadata(bucket.id, &mut client).await.unwrap();

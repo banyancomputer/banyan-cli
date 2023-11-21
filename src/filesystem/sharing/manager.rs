@@ -1,5 +1,4 @@
-use super::mapper::EncRefMapper;
-use anyhow::Result;
+use super::{mapper::EncRefMapper, SharingError};
 use serde::{Deserialize, Serialize};
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey};
 use wnfs::private::PrivateRef;
@@ -19,7 +18,7 @@ pub struct ShareManager {
 
 impl ShareManager {
     /// Update the current_ref PrivateRef
-    pub async fn set_current_ref(&mut self, new_ref: &PrivateRef) -> Result<()> {
+    pub async fn set_current_ref(&mut self, new_ref: &PrivateRef) -> Result<(), SharingError> {
         // Update the PrivateRef
         self.current_ref = Some(new_ref.clone());
         self.current_map.update_ref(new_ref).await?;
@@ -27,7 +26,7 @@ impl ShareManager {
     }
 
     /// Update the original PrivateRef
-    pub async fn set_original_ref(&mut self, new_ref: &PrivateRef) -> Result<()> {
+    pub async fn set_original_ref(&mut self, new_ref: &PrivateRef) -> Result<(), SharingError> {
         // Update the PrivateRef
         self.original_ref = Some(new_ref.clone());
         self.original_map.update_ref(new_ref).await?;
@@ -35,7 +34,10 @@ impl ShareManager {
     }
 
     /// Share our references with a new recipient
-    pub async fn share_with(&mut self, recipient: &EcPublicEncryptionKey) -> Result<()> {
+    pub async fn share_with(
+        &mut self,
+        recipient: &EcPublicEncryptionKey,
+    ) -> Result<(), SharingError> {
         // Insert into original
         self.original_map
             .add_recipient(&self.original_ref, recipient)
@@ -55,17 +57,17 @@ impl ShareManager {
     }
 
     /// Retrieve the current_ref PrivateRef using a PrivateKey
-    async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    async fn current_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef, SharingError> {
         self.current_map.recover_ref(recipient).await
     }
 
     /// Retrieve the original PrivateRef using a PrivateKey
-    async fn original_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef> {
+    async fn original_ref(&self, recipient: &EcEncryptionKey) -> Result<PrivateRef, SharingError> {
         self.original_map.recover_ref(recipient).await
     }
 
     /// Reload both refs into memory
-    pub async fn load_refs(&mut self, recipient: &EcEncryptionKey) -> Result<()> {
+    pub async fn load_refs(&mut self, recipient: &EcEncryptionKey) -> Result<(), SharingError> {
         self.current_ref = Some(self.current_ref(recipient).await?);
         self.original_ref = Some(self.original_ref(recipient).await?);
         Ok(())

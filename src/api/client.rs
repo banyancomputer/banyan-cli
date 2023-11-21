@@ -1,5 +1,5 @@
 use super::{
-    error::ClientError,
+    error::ApiError,
     requests::{ApiRequest, StreamableApiRequest},
 };
 use bytes::Bytes;
@@ -32,8 +32,8 @@ impl Debug for Credentials {
 
 impl Credentials {
     /// Create a new set of credentials
-    pub fn new(user_id: String, signing_key: EcSignatureKey) -> anyhow::Result<Self> {
-        let user_id = Uuid::parse_str(&user_id).expect("invalid user_id");
+    pub fn new(user_id: String, signing_key: EcSignatureKey) -> Result<Self, uuid::Error> {
+        let user_id = Uuid::parse_str(&user_id)?;
         Ok(Self {
             user_id,
             signing_key,
@@ -67,13 +67,12 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn new(remote_core: &str, remote_data: &str) -> anyhow::Result<Self> {
+    pub fn new(remote_core: &str, remote_data: &str) -> Result<Self, ApiError> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
             .default_headers(default_headers)
-            .build()
-            .unwrap();
+            .build()?;
 
         Ok(Self {
             remote_core: Url::parse(remote_core)?,
@@ -90,7 +89,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn with_remote(&mut self, remote: &str) -> anyhow::Result<()> {
+    pub fn with_remote(&mut self, remote: &str) -> Result<(), ApiError> {
         self.remote_core = Url::parse(remote)?;
         Ok(())
     }
@@ -129,34 +128,29 @@ impl Client {
     /// # Errors
     /// * `ClientError` - If there is an error generating the token.
     ///    If the bearer token can not be encoded, or if the signing key is not available.
-    pub async fn bearer_token(&mut self) -> Result<String, ClientError> {
+    pub async fn bearer_token(&mut self) -> Result<String, ApiError> {
         match &self.claims {
             Some(claims) => {
-                let is_expired = claims.is_expired().map_err(ClientError::crypto_error)?;
+                let is_expired = claims.is_expired()?;
                 // If we already have a bearer token and the claims are still valid
                 // return the current bearer token
                 if !is_expired && self.bearer_token.is_some() {
                     return Ok(self.bearer_token.clone().unwrap());
                 } else if is_expired {
-                    claims.refresh().map_err(ClientError::crypto_error)?;
+                    claims.refresh()?;
                 }
                 match &self.signing_key {
                     Some(signing_key) => {
-                        self.bearer_token = Some(
-                            claims
-                                .encode_to(signing_key)
-                                .await
-                                .map_err(ClientError::crypto_error)?,
-                        );
+                        self.bearer_token = Some(claims.encode_to(signing_key).await?);
                         Ok(self.bearer_token.clone().unwrap())
                     }
-                    _ => Err(ClientError::auth_unavailable()),
+                    _ => Err(ApiError::auth_required()),
                 }
             }
             // No claims, so no bearer token
             _ => match &self.bearer_token {
                 Some(bearer_token) => Ok(bearer_token.clone()),
-                _ => Err(ClientError::auth_unavailable()),
+                _ => Err(ApiError::auth_required()),
             },
         }
     }
@@ -167,21 +161,18 @@ impl Client {
     }
 
     /// Get the current subject based on the set credentials
-    pub fn subject(&self) -> Result<String, ClientError> {
+    pub fn subject(&self) -> Result<String, ApiError> {
         match &self.claims {
             Some(claims) => {
-                let sub = claims.sub().map_err(ClientError::crypto_error)?;
+                let sub = claims.sub()?;
                 Ok(sub.to_string())
             }
-            _ => Err(ClientError::auth_unavailable()),
+            _ => Err(ApiError::auth_required()),
         }
     }
 
     /// Call a method that implements ApiRequest on the core server
-    pub async fn call<T: ApiRequest>(
-        &mut self,
-        request: T,
-    ) -> Result<T::ResponseType, ClientError> {
+    pub async fn call<T: ApiRequest>(&mut self, request: T) -> Result<T::ResponseType, ApiError> {
         // Determine if this request requires authentication
         let add_authentication = request.requires_authentication();
         let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
@@ -192,10 +183,7 @@ impl Client {
         }
 
         // Send the request and obtain the response
-        let response = request_builder
-            .send()
-            .await
-            .map_err(ClientError::http_error)?;
+        let response = request_builder.send().await?;
 
         // If the call succeeded
         if response.status().is_success() {
@@ -203,29 +191,26 @@ impl Client {
             response
                 .json::<T::ResponseType>()
                 .await
-                .map_err(ClientError::bad_format)
+                .map_err(ApiError::format)
         } else {
             // If we got a 404
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 // Return a HTTP response error
-                return Err(ClientError::http_response_error(response.status()));
+                return Err(ApiError::http_response(response.status()));
             }
 
             // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+            let err = response.json::<T::ErrorType>().await?;
 
             // Wrap the error
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
             // Return Err
-            Err(ClientError::from(err))
+            Err(ApiError::from(err))
         }
     }
 
     /// Call a method that implements ApiRequest
-    pub async fn call_no_content<T: ApiRequest>(&mut self, request: T) -> Result<(), ClientError> {
+    pub async fn call_no_content<T: ApiRequest>(&mut self, request: T) -> Result<(), ApiError> {
         let add_authentication = request.requires_authentication();
         let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
@@ -233,10 +218,7 @@ impl Client {
             request_builder = request_builder.bearer_auth(bearer_token);
         }
 
-        let response = request_builder
-            .send()
-            .await
-            .map_err(ClientError::http_error)?;
+        let response = request_builder.send().await?;
 
         if response.status().is_success() {
             Ok(())
@@ -244,16 +226,15 @@ impl Client {
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 // Handle 404 specifically
                 // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
+                return Err(ApiError::http_response(response.status()));
             }
             // For other error responses, try to deserialize the error
             let err = response
                 .json::<T::ErrorType>()
                 .await
-                .map_err(ClientError::bad_format)?;
-
+                .map_err(ApiError::format)?;
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
+            Err(ApiError::from(err))
         }
     }
 
@@ -262,7 +243,7 @@ impl Client {
     pub async fn multipart<T: ApiRequest>(
         &mut self,
         request: T,
-    ) -> Result<T::ResponseType, ClientError> {
+    ) -> Result<T::ResponseType, ApiError> {
         let add_authentication = request.requires_authentication();
         let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
@@ -270,30 +251,24 @@ impl Client {
             request_builder = request_builder.bearer_auth(bearer_token);
         }
 
-        let response = request_builder
-            .send()
-            .await
-            .map_err(ClientError::http_error)?;
+        let response = request_builder.send().await?;
 
         if response.status().is_success() {
             response
                 .json::<T::ResponseType>()
                 .await
-                .map_err(ClientError::bad_format)
+                .map_err(ApiError::format)
         } else {
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 // Handle 404 specifically
                 // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
+                return Err(ApiError::http_response(response.status()));
             }
             // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+            let err = response.json::<T::ErrorType>().await?;
 
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
+            Err(ApiError::from(err))
         }
     }
 
@@ -301,7 +276,7 @@ impl Client {
     pub async fn multipart_no_content<T: ApiRequest>(
         &mut self,
         request: T,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), ApiError> {
         let add_authentication = request.requires_authentication();
         let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
@@ -309,10 +284,7 @@ impl Client {
             request_builder = request_builder.bearer_auth(bearer_token);
         }
 
-        let response = request_builder
-            .send()
-            .await
-            .map_err(ClientError::http_error)?;
+        let response = request_builder.send().await?;
 
         if response.status().is_success() {
             Ok(())
@@ -320,16 +292,13 @@ impl Client {
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 // Handle 404 specifically
                 // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
+                return Err(ApiError::http_response(response.status()));
             }
             // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+            let err = response.json::<T::ErrorType>().await?;
 
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
+            Err(ApiError::from(err))
         }
     }
 
@@ -338,7 +307,7 @@ impl Client {
         &mut self,
         request: T,
         base_url: &Url,
-    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ClientError> {
+    ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ApiError> {
         let add_authentication = request.requires_authentication();
         let mut request_builder = request.build_request(base_url, &self.reqwest_client);
         if add_authentication {
@@ -346,10 +315,7 @@ impl Client {
             request_builder = request_builder.bearer_auth(bearer_token);
         }
 
-        let response = request_builder
-            .send()
-            .await
-            .map_err(ClientError::http_error)?;
+        let response = request_builder.send().await?;
 
         if response.status().is_success() {
             Ok(response.bytes_stream())
@@ -357,16 +323,13 @@ impl Client {
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 // Handle 404 specifically
                 // You can extend this part to handle other status codes differently if needed
-                return Err(ClientError::http_response_error(response.status()));
+                return Err(ApiError::http_response(response.status()));
             }
             // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ClientError::bad_format)?;
+            let err = response.json::<T::ErrorType>().await?;
 
             let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ClientError::from(err))
+            Err(ApiError::from(err))
         }
     }
 }

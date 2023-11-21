@@ -53,7 +53,7 @@ mod test {
 
     use crate::{
         api::{
-            error::ClientError, models::metadata::test::setup_and_push_metadata,
+            error::ApiError, models::metadata::test::setup_and_push_metadata,
             requests::staging::upload::content::UploadContent,
         },
         blockstore::BanyanApiBlockStore,
@@ -64,7 +64,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn download_content() -> Result<(), ClientError> {
+    async fn download_content() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("download_content").await?;
         // Create a grant and upload content
         setup

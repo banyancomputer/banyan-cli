@@ -1,15 +1,15 @@
-use super::error::TombError;
 use crate::{
     api::{client::Client, models::metadata::Metadata},
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
-        configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
+        configuration::globalconfig::GlobalConfig,
         file_scanning::{grouper, spider, spider_plans::PreparePipelinePlan},
+        sync::OmniBucket,
         utils::get_progress_bar,
+        NativeError,
     },
 };
-use anyhow::Result;
 use std::{
     collections::HashSet,
     fs::File,
@@ -35,7 +35,7 @@ pub async fn pipeline(
     omni: &mut OmniBucket,
     client: &mut Client,
     follow_links: bool,
-) -> Result<String, TombError> {
+) -> Result<String, NativeError> {
     // Local is non-optional
     let mut local = omni.get_local()?;
 
@@ -85,9 +85,11 @@ pub async fn pipeline(
         if !all_disk_paths.contains(&wnfs_path) {
             // If the node is a File, add all the CIDs associated with it to a list
             if let PrivateNode::File(file) = node {
-                local
-                    .deleted_block_cids
-                    .extend(file.get_cids(&fs.forest, &local.metadata).await?);
+                local.deleted_block_cids.extend(
+                    file.get_cids(&fs.forest, &local.metadata)
+                        .await
+                        .map_err(Box::from)?,
+                );
             }
             // Remove the reference from the WNFS
             fs.rm(&path_to_segments(&wnfs_path)?, &local.metadata)
@@ -118,7 +120,10 @@ pub async fn pipeline(
 }
 
 /// Create PreparePipelinePlans from an origin dir
-pub async fn create_plans(origin: &Path, follow_links: bool) -> Result<Vec<PreparePipelinePlan>> {
+pub async fn create_plans(
+    origin: &Path,
+    follow_links: bool,
+) -> Result<Vec<PreparePipelinePlan>, NativeError> {
     // HashSet to track files that have already been seen
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
     // Vector holding all the PreparePipelinePlans for bundling
@@ -155,9 +160,9 @@ pub async fn process_plans(
     bundling_plan: Vec<PreparePipelinePlan>,
     metadata_store: &impl RootedBlockStore,
     content_store: &impl RootedBlockStore,
-) -> Result<()> {
+) -> Result<(), NativeError> {
     // Initialize the progress bar using the number of Nodes to process
-    let progress_bar = get_progress_bar(bundling_plan.len() as u64)?;
+    let progress_bar = get_progress_bar(bundling_plan.len() as u64);
     // Create vectors of direct and indirect plans
     let mut direct_plans: Vec<PreparePipelinePlan> = Vec::new();
     let mut symlink_plans: Vec<PreparePipelinePlan> = Vec::new();

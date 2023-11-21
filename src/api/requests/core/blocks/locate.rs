@@ -55,7 +55,7 @@ mod test {
 
     use crate::{
         api::{
-            error::ClientError,
+            error::ApiError,
             models::{
                 account::test::authenticated_client, metadata::test::setup_and_push_metadata,
             },
@@ -64,13 +64,14 @@ mod test {
             },
         },
         blockstore::{BanyanApiBlockStore, DoubleSplitStore},
+        filesystem::FilesystemError,
     };
     use serial_test::serial;
     use wnfs::libipld::Cid;
 
     #[tokio::test]
     #[serial]
-    async fn get_locations() -> Result<(), ClientError> {
+    async fn get_locations() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("get_locations").await?;
         // Create a grant and upload content
         setup
@@ -97,9 +98,14 @@ mod test {
             .get_node(&["cat.txt".to_string()], &setup.metadata_store)
             .await?
             .unwrap();
-        let file = node.as_file()?;
+        let file = node
+            .as_file()
+            .map_err(|err| FilesystemError::wnfs(Box::from(err)))?;
         let split_store = DoubleSplitStore::new(&api_blockstore, &setup.metadata_store);
-        let cids = file.get_cids(&setup.fs.forest, &split_store).await?;
+        let cids = file
+            .get_cids(&setup.fs.forest, &split_store)
+            .await
+            .map_err(|err| FilesystemError::wnfs(Box::from(err)))?;
         let cids_request = LocationRequest { cids: cids.clone() };
         let locations = setup
             .client
@@ -118,7 +124,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn get_bad_location() -> Result<(), ClientError> {
+    async fn get_bad_location() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let mut cids = BTreeSet::new();
         cids.insert(Cid::default());

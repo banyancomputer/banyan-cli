@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::api::{
     client::Client,
-    error::ClientError,
+    error::ApiError,
     models::bucket_key::BucketKey,
     requests::{
         core::buckets::{
@@ -111,7 +111,7 @@ impl Bucket {
         r#type: BucketType,
         storage_class: StorageClass,
         client: &mut Client,
-    ) -> Result<(Self, BucketKey), ClientError> {
+    ) -> Result<(Self, BucketKey), ApiError> {
         let response: CreateBucketResponse = client
             .call(CreateBucket {
                 name,
@@ -138,7 +138,7 @@ impl Bucket {
     }
 
     /// Read all instances of this model or data structure.
-    pub async fn read_all(client: &mut Client) -> Result<Vec<Self>, ClientError> {
+    pub async fn read_all(client: &mut Client) -> Result<Vec<Self>, ApiError> {
         let response: ReadAllBucketsResponse = client.call(ReadAllBuckets).await?;
         // Map the response to the model
         let mut buckets = Vec::new();
@@ -154,7 +154,7 @@ impl Bucket {
     }
 
     /// Get the account associated with the current credentials. You do not need to pass an ID for this request.
-    pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ClientError> {
+    pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ApiError> {
         let response: ReadBucketResponse = client.call(ReadBucket { id }).await?;
         Ok(Self {
             id: response.id,
@@ -166,13 +166,13 @@ impl Bucket {
 
     /// Update the bucket fields. Puts the current local values against the current remote values.
     /// For now only updates to 'name' will be processed, all others will be ignored
-    pub async fn update(&self, client: &mut Client) -> Result<(), ClientError> {
+    pub async fn update(&self, client: &mut Client) -> Result<(), ApiError> {
         let update_request = UpdateBucket(self.clone());
         client.call_no_content(update_request).await
     }
 
     /// Get the snapshots for the bucket
-    pub async fn list_snapshots(&self, client: &mut Client) -> Result<Vec<Snapshot>, ClientError> {
+    pub async fn list_snapshots(&self, client: &mut Client) -> Result<Vec<Snapshot>, ApiError> {
         let response = client.call(ReadAllSnapshots { bucket_id: self.id }).await?;
         Ok(response
             .0
@@ -191,7 +191,7 @@ impl Bucket {
     pub async fn list_snapshots_by_bucket_id(
         client: &mut Client,
         bucket_id: Uuid,
-    ) -> Result<Vec<Snapshot>, ClientError> {
+    ) -> Result<Vec<Snapshot>, ApiError> {
         let response = client.call(ReadAllSnapshots { bucket_id }).await?;
         Ok(response
             .0
@@ -207,7 +207,7 @@ impl Bucket {
     }
 
     /// Get the usage for the bucket
-    pub async fn usage(&self, client: &mut Client) -> Result<u64, ClientError> {
+    pub async fn usage(&self, client: &mut Client) -> Result<u64, ApiError> {
         client
             .call(GetBucketUsage { id: self.id })
             .await
@@ -215,17 +215,17 @@ impl Bucket {
     }
 
     /// Delete a bucket
-    pub async fn delete(&self, client: &mut Client) -> Result<(), ClientError> {
+    pub async fn delete(&self, client: &mut Client) -> Result<(), ApiError> {
         client.call_no_content(DeleteBucket { id: self.id }).await
     }
 
     /// Delete a bucket by id
-    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ClientError> {
+    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ApiError> {
         client.call_no_content(DeleteBucket { id }).await
     }
 
     /// Authorization grants
-    pub async fn get_grants_token(&self, client: &mut Client) -> Result<String, ClientError> {
+    pub async fn get_grants_token(&self, client: &mut Client) -> Result<String, ApiError> {
         client
             .call(AuthorizationGrants { bucket_id: self.id })
             .await
@@ -238,7 +238,7 @@ impl Bucket {
 pub mod test {
     use crate::api::{
         client::Client,
-        error::ClientError,
+        error::ApiError,
         models::{
             account::test::{authenticated_client, unauthenticated_client},
             bucket::{Bucket, BucketType, StorageClass},
@@ -250,7 +250,7 @@ pub mod test {
     use tomb_crypt::{hex_fingerprint, prelude::PrivateKey};
     use uuid::Uuid;
 
-    pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ClientError> {
+    pub async fn create_bucket(client: &mut Client) -> Result<(Bucket, BucketKey), ApiError> {
         let (key, pem) = generate_bucket_key().await;
         let bucket_type = BucketType::Interactive;
         let bucket_class = StorageClass::Hot;
@@ -286,7 +286,7 @@ pub mod test {
         }
     }
     #[tokio::test]
-    async fn create_read() -> Result<(), ClientError> {
+    async fn create_read() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let read_bucket = Bucket::read(&mut client, bucket.id).await?;
@@ -297,7 +297,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_read_unauthorized() -> Result<(), ClientError> {
+    async fn create_read_unauthorized() -> Result<(), ApiError> {
         let mut good_client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut good_client).await?;
         let mut bad_client = authenticated_client().await;
@@ -308,7 +308,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_update() -> Result<(), ClientError> {
+    async fn create_update() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (mut bucket, _) = create_bucket(&mut client).await?;
         // TODO: test for other bucket updates when that is supported.
@@ -323,7 +323,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_usage() -> Result<(), ClientError> {
+    async fn create_usage() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let usage = bucket.usage(&mut client).await?;
@@ -331,7 +331,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_read_all() -> Result<(), ClientError> {
+    async fn create_read_all() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let buckets = Bucket::read_all(&mut client).await?;
@@ -343,7 +343,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_list_no_snapshots() -> Result<(), ClientError> {
+    async fn create_list_no_snapshots() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let snapshots = bucket.list_snapshots(&mut client).await?;
@@ -351,7 +351,7 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_list_snapshots() -> Result<(), ClientError> {
+    async fn create_list_snapshots() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         let (metadata, _host, _authorization, _snapshot) =
@@ -363,14 +363,14 @@ pub mod test {
         Ok(())
     }
     #[tokio::test]
-    async fn create_delete() -> Result<(), ClientError> {
+    async fn create_delete() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
         bucket.delete(&mut client).await?;
         Ok(())
     }
     #[tokio::test]
-    async fn create_delete_unauthorized() -> Result<(), ClientError> {
+    async fn create_delete_unauthorized() -> Result<(), ApiError> {
         let mut good_client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut good_client).await?;
         let mut bad_client = unauthenticated_client().await;

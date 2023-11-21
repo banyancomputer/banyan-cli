@@ -1,11 +1,7 @@
 use crate::{
     filesystem::wnfsio::{compress_file, path_to_segments},
-    native::{
-        configuration::{bucket::LocalBucket, globalconfig::GlobalConfig},
-        operations::error::TombError,
-    },
+    native::{configuration::globalconfig::GlobalConfig, sync::LocalBucket, NativeError},
 };
-use anyhow::Result;
 use chrono::Utc;
 use rand::thread_rng;
 use std::path::Path;
@@ -15,7 +11,7 @@ pub async fn pipeline(
     local: LocalBucket,
     input_file: &Path,
     wnfs_path: &Path,
-) -> Result<String, TombError> {
+) -> Result<String, NativeError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;
@@ -37,7 +33,8 @@ pub async fn pipeline(
             &local.metadata,
             &mut rng,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
     // Set file contents
     file.set_content(
@@ -47,7 +44,8 @@ pub async fn pipeline(
         &local.content,
         &mut rng,
     )
-    .await?;
+    .await
+    .map_err(Box::from)?;
 
     // Store all the updated information, now that we've written the file
     local.save_fs(&mut fs).await?;

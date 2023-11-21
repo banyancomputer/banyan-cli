@@ -1,5 +1,3 @@
-/// Bucket level configuration
-pub mod bucket;
 /// API Endpoint config
 mod endpoints;
 /// Global level configurations

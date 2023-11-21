@@ -14,12 +14,12 @@ mod test {
             commands::{AccountCommand, DrivesCommand, RunnableCommand, TombCommand},
             specifiers::DriveSpecifier,
         },
-        native::{
-            configuration::globalconfig::GlobalConfig,
-            test::{test_setup, test_teardown},
+        native::{configuration::globalconfig::GlobalConfig, NativeError},
+        utils::{
+            testing::local_operations::{test_setup, test_teardown},
+            UtilityError,
         },
     };
-    use anyhow::{anyhow, Result};
     use serial_test::serial;
     use std::path::Path;
 
@@ -40,9 +40,11 @@ mod test {
         }
     }
 
-    async fn cmd_delete(origin: &Path) -> Result<()> {
+    async fn cmd_delete(origin: &Path) -> Result<(), UtilityError> {
         let mut global = GlobalConfig::from_disk().await?;
-        let local = global.get_bucket(origin).ok_or(anyhow!("no bucket"))?;
+        let local = global
+            .get_bucket(origin)
+            .ok_or(NativeError::missing_local_drive())?;
         local.remove_data()?;
         // Find index of bucket
         let index = global
@@ -77,7 +79,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init() -> Result<()> {
+    async fn init() -> Result<(), UtilityError> {
         let test_name = "cli_init";
         // Setup test
         let origin = &test_setup(test_name).await?;
@@ -98,7 +100,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init_deinit() -> Result<()> {
+    async fn init_deinit() -> Result<(), UtilityError> {
         let test_name = "cli_init_deinit";
         // Setup test
         let origin = &test_setup(test_name).await?;
@@ -129,7 +131,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn prepare() -> Result<()> {
+    async fn prepare() -> Result<(), UtilityError> {
         let test_name = "cli_prepare";
         // Setup test
         let origin = &test_setup(test_name).await?;
@@ -143,7 +145,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn restore() -> Result<()> {
+    async fn restore() -> Result<(), UtilityError> {
         let test_name = "cli_restore";
         // Setup test
         let origin = &test_setup(test_name).await?;

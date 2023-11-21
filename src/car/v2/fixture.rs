@@ -1,9 +1,9 @@
 mod test {
     use crate::car::{
+        error::CarError,
         v1::Header,
         v2::{CarV2, HEADER_SIZE, PH_SIZE},
     };
-    use anyhow::Result;
     use base58::ToBase58;
     use sha2::Digest;
     use std::io::{Cursor, Seek, SeekFrom};
@@ -592,7 +592,7 @@ mod test {
     }
 
     #[test]
-    fn read_data() -> Result<()> {
+    fn read_data() -> Result<(), CarError> {
         let car_data = build_full_car();
         let mut data = Cursor::new(car_data.clone());
         let car = CarV2::read_bytes(&mut data)?;
@@ -616,7 +616,7 @@ mod test {
     }
 
     #[test]
-    fn read_write_data() -> Result<()> {
+    fn read_write_data() -> Result<(), CarError> {
         let car_data = build_full_car();
         let mut data = Cursor::new(car_data);
         let car = CarV2::read_bytes(&mut data)?;

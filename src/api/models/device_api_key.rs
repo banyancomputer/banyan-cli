@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::api::{
     client::Client,
-    error::ClientError,
+    error::ApiError,
     requests::core::auth::device_api_key::{
         create::{CreateDeviceApiKey, CreateDeviceApiKeyResponse},
         delete::DeleteDeviceApiKey,
@@ -27,7 +27,7 @@ pub struct DeviceApiKey {
 
 impl DeviceApiKey {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
-    pub async fn create(pem: String, client: &mut Client) -> Result<Self, ClientError> {
+    pub async fn create(pem: String, client: &mut Client) -> Result<Self, ApiError> {
         let response: CreateDeviceApiKeyResponse =
             client.call(CreateDeviceApiKey { pem: pem.clone() }).await?;
         Ok(Self {
@@ -38,7 +38,7 @@ impl DeviceApiKey {
     }
 
     /// Read all instances of this model or data structure.
-    pub async fn read_all(client: &mut Client) -> Result<Vec<Self>, ClientError> {
+    pub async fn read_all(client: &mut Client) -> Result<Vec<Self>, ApiError> {
         let response: ReadAllDeviceApiKeysResponse = client.call(ReadAllDeviceApiKeys).await?;
         // Map the response to the model
         let mut device_api_keys = Vec::new();
@@ -53,7 +53,7 @@ impl DeviceApiKey {
     }
 
     /// Get the account associated with the current credentials. You do not need to pass an ID for this request.
-    pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ClientError> {
+    pub async fn read(client: &mut Client, id: Uuid) -> Result<Self, ApiError> {
         let response: ReadDeviceApiKeyResponse = client.call(ReadDeviceApiKey { id }).await?;
         Ok(Self {
             id: response.id,
@@ -63,14 +63,14 @@ impl DeviceApiKey {
     }
 
     /// Delete the device api key from the account
-    pub async fn delete(self, client: &mut Client) -> Result<(), ClientError> {
+    pub async fn delete(self, client: &mut Client) -> Result<(), ApiError> {
         client
             .call_no_content(DeleteDeviceApiKey { id: self.id })
             .await
     }
 
     /// Delete the device api key from the account by id
-    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ClientError> {
+    pub async fn delete_by_id(client: &mut Client, id: Uuid) -> Result<(), ApiError> {
         client.call_no_content(DeleteDeviceApiKey { id }).await
     }
 }
@@ -81,13 +81,13 @@ impl DeviceApiKey {
 #[cfg(feature = "integration-tests")]
 mod test {
     use crate::api::{
-        error::ClientError,
+        error::ApiError,
         models::{account::test::authenticated_client, device_api_key::DeviceApiKey},
         utils::generate_api_key,
     };
 
     #[tokio::test]
-    async fn create() -> Result<(), ClientError> {
+    async fn create() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
         println!("pem: {:?}", pem);
@@ -96,7 +96,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn create_read() -> Result<(), ClientError> {
+    async fn create_read() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
         let create = DeviceApiKey::create(pem, &mut client).await?;
@@ -108,7 +108,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn create_read_all() -> Result<(), ClientError> {
+    async fn create_read_all() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
         let create = DeviceApiKey::create(pem, &mut client).await?;
@@ -121,7 +121,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn create_delete() -> Result<(), ClientError> {
+    async fn create_delete() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (_, pem) = generate_api_key().await;
         let create = DeviceApiKey::create(pem, &mut client).await?;

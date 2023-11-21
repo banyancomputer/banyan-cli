@@ -1,13 +1,11 @@
 use crate::{
-    blockstore::{CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
+    blockstore::{BanyanBlockStore, CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{
-        error::SerialError,
         serialize::{load_dir, load_forest, store_dir, store_forest, store_share_manager},
         sharing::manager::ShareManager,
         wnfsio::path_to_segments,
     },
 };
-use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
 use chrono::Utc;
 use futures_util::future::join_all;
@@ -25,6 +23,8 @@ use wnfs::{
     namefilter::Namefilter,
     private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory},
 };
+
+use super::error::FilesystemError;
 
 const SHARE_MANAGER_LABEL: &str = "SHARE_MANAGER";
 const FOREST_LABEL: &str = "FOREST";
@@ -49,7 +49,7 @@ pub struct FsMetadata {
 
 impl FsMetadata {
     /// Initialize a new FsMetadata with a wrapping key in memory
-    pub async fn init(wrapping_key: &EcEncryptionKey) -> Result<Self> {
+    pub async fn init(wrapping_key: &EcEncryptionKey) -> Result<Self, FilesystemError> {
         // Create a new PrivateForest
         let forest = Rc::new(PrivateForest::new());
         // Create a new PrivateDirectory for the root of the Fs
@@ -80,7 +80,7 @@ impl FsMetadata {
         &mut self,
         metadata_store: &impl RootedBlockStore,
         content_store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         // Store the root directory, get a new PrivateReference to the entry point of the Filesystem
         let root_dir_ref = store_dir(
             metadata_store,
@@ -141,8 +141,14 @@ impl FsMetadata {
 
         // Put the map into BlockStores
         let root = Ipld::Map(root_map.clone());
-        let root_cid_1 = metadata_store.put_serializable(&root).await?;
-        let root_cid_2 = content_store.put_serializable(&root).await?;
+        let root_cid_1 = metadata_store
+            .put_serializable(&root)
+            .await
+            .map_err(Box::from)?;
+        let root_cid_2 = content_store
+            .put_serializable(&root)
+            .await
+            .map_err(Box::from)?;
         assert_eq!(root_cid_1, root_cid_2);
 
         metadata_store.set_root(&root_cid_1);
@@ -150,11 +156,11 @@ impl FsMetadata {
 
         let root_cid_3 = metadata_store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+            .ok_or(FilesystemError::missing_metadata("root cid"))?;
         assert_eq!(root_cid_1, root_cid_3);
         let root_cid_4 = content_store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+            .ok_or(FilesystemError::missing_metadata("root cid"))?;
         assert_eq!(root_cid_1, root_cid_4);
 
         self.metadata = Some(root_map);
@@ -166,45 +172,49 @@ impl FsMetadata {
     pub async fn unlock(
         wrapping_key: &EcEncryptionKey,
         store: &impl RootedBlockStore,
-    ) -> Result<Self> {
+    ) -> Result<Self, FilesystemError> {
         // Get the map
         let metadata_cid = store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+            .ok_or(FilesystemError::missing_metadata("root cid"))?;
         let root_map = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
+            _ => return Err(FilesystemError::missing_metadata("metadata map")),
         };
         // Get the forest CID
         let forest_cid = match root_map.get(FOREST_LABEL) {
             Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(FOREST_LABEL.to_string()).into()),
+            _ => return Err(FilesystemError::missing_metadata(FOREST_LABEL)),
         };
         // Get the share manager CID
         let share_manager_cid = match root_map.get(SHARE_MANAGER_LABEL) {
             Some(Ipld::Link(cid)) => cid,
-            _ => return Err(SerialError::MissingMetadata(SHARE_MANAGER_LABEL.to_string()).into()),
+            _ => return Err(FilesystemError::missing_metadata(SHARE_MANAGER_LABEL)),
         };
 
         // Get the forests
         let forest = load_forest(forest_cid, store).await?;
         let forest_store = CarV2MemoryBlockStore::new()?;
-        let forest =
-            Rc::new(PrivateForest::load(&forest.store(&forest_store).await?, &forest_store).await?);
+        let forest = Rc::new(
+            PrivateForest::load(
+                &forest.store(&forest_store).await.map_err(Box::from)?,
+                &forest_store,
+            )
+            .await
+            .map_err(Box::from)?,
+        );
 
         // Get the share manager
         let mut share_manager = store
             .get_deserializable::<ShareManager>(share_manager_cid)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Get our private Ref
         share_manager.load_refs(wrapping_key).await?;
-        let current_private_ref =
-            share_manager
-                .current_ref
-                .as_ref()
-                .ok_or(SerialError::MissingMetadata(
-                    "current private ref".to_string(),
-                ))?;
+        let current_private_ref = share_manager
+            .current_ref
+            .as_ref()
+            .ok_or(FilesystemError::missing_metadata("current private ref"))?;
 
         // Get the root directory
         let root_dir = load_dir(store, current_private_ref, &forest).await?;
@@ -222,7 +232,7 @@ impl FsMetadata {
         &mut self,
         recipient: &EcPublicEncryptionKey,
         store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         self.share_manager.share_with(recipient).await?;
         // Save the new share manager to the map, conserving all other links in the metadata
         let store_manager_cid = store_share_manager(&self.share_manager, store).await?;
@@ -230,7 +240,7 @@ impl FsMetadata {
         let mut metadata = self
             .metadata
             .as_ref()
-            .ok_or(SerialError::MissingMetadata("metadata map".to_string()))?
+            .ok_or(FilesystemError::missing_metadata("metadata map"))?
             .clone();
         // Update the share manager link
         metadata.insert(
@@ -242,7 +252,7 @@ impl FsMetadata {
         // Get the CID of the metadata map
         let metadata = Ipld::Map(metadata);
         // Put the metadata IPLD Map into BlockStores
-        let metadata_cid = store.put_serializable(&metadata).await?;
+        let metadata_cid = store.put_serializable(&metadata).await.map_err(Box::from)?;
         // Update the root CID
         store.set_root(&metadata_cid);
         // Update the metadata
@@ -250,15 +260,16 @@ impl FsMetadata {
     }
 
     /// Get the original root directory
-    pub async fn history(&mut self, store: &impl BlockStore) -> Result<PrivateNodeOnPathHistory> {
+    pub async fn history(
+        &mut self,
+        store: &impl BlockStore,
+    ) -> Result<PrivateNodeOnPathHistory, FilesystemError> {
         // Get the original private ref
-        let original_private_ref =
-            self.share_manager
-                .original_ref
-                .as_ref()
-                .ok_or(SerialError::MissingMetadata(
-                    "original private ref".to_string(),
-                ))?;
+        let original_private_ref = self
+            .share_manager
+            .original_ref
+            .as_ref()
+            .ok_or(FilesystemError::missing_metadata("original private ref"))?;
         // Get the original root directory
         let original_root_dir = load_dir(store, original_private_ref, &self.forest).await?;
         // Get the history
@@ -272,45 +283,35 @@ impl FsMetadata {
             store,
         )
         .await
+        .map_err(Box::from)
+        .map_err(FilesystemError::wnfs)
     }
 
     /// Return the build details
     pub async fn build_details(
         &self,
         store: &impl RootedBlockStore,
-    ) -> Result<(String, String, String)> {
+    ) -> Result<(String, String, String), FilesystemError> {
         // Get the map
         let metadata_cid = store
             .get_root()
-            .ok_or(SerialError::MissingMetadata("root cid".to_string()))?;
+            .ok_or(FilesystemError::missing_metadata("root cid"))?;
         let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
-            _ => return Err(SerialError::MissingMetadata("metadata map".to_string()).into()),
+            _ => return Err(FilesystemError::missing_metadata("metadata map")),
         };
         // Get the build details
         let build_features = match metadata.get(TOMB_BUILD_FEATURES_LABEL) {
             Some(Ipld::String(build_features)) => build_features,
-            _ => {
-                return Err(
-                    SerialError::MissingMetadata(TOMB_BUILD_FEATURES_LABEL.to_string()).into(),
-                )
-            }
+            _ => return Err(FilesystemError::missing_metadata(TOMB_BUILD_FEATURES_LABEL)),
         };
         let build_profile = match metadata.get(TOMB_BUILD_PROFILE_LABEL) {
             Some(Ipld::String(build_profile)) => build_profile,
-            _ => {
-                return Err(
-                    SerialError::MissingMetadata(TOMB_BUILD_PROFILE_LABEL.to_string()).into(),
-                )
-            }
+            _ => return Err(FilesystemError::missing_metadata(TOMB_BUILD_PROFILE_LABEL)),
         };
         let repo_version = match metadata.get(TOMB_REPO_VERSION_LABEL) {
             Some(Ipld::String(repo_version)) => repo_version,
-            _ => {
-                return Err(
-                    SerialError::MissingMetadata(TOMB_REPO_VERSION_LABEL.to_string()).into(),
-                )
-            }
+            _ => return Err(FilesystemError::missing_metadata(TOMB_REPO_VERSION_LABEL)),
         };
         // Ok
         Ok((
@@ -325,7 +326,7 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
             .root_dir
@@ -346,7 +347,8 @@ impl FsMetadata {
                     metadata_store,
                     &mut thread_rng(),
                 )
-                .await?;
+                .await
+                .map_err(Box::from)?;
         }
         Ok(())
     }
@@ -356,11 +358,12 @@ impl FsMetadata {
         &self,
         path_segments: &[String],
         store: &impl RootedBlockStore,
-    ) -> Result<Vec<FsMetadataEntry>> {
+    ) -> Result<Vec<FsMetadataEntry>, FilesystemError> {
         let fetched_entries = self
             .root_dir
             .ls(path_segments, true, &self.forest, store)
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
         let mut transformed_entries = Vec::with_capacity(fetched_entries.len());
         let mut futures = Vec::new();
@@ -380,7 +383,9 @@ impl FsMetadata {
                     .await
                     .expect("node not found");
                 let entry = entry
-                    .ok_or(SerialError::NodeNotFound(node_path_segments.join("/")))
+                    .ok_or(FilesystemError::node_not_found(
+                        &node_path_segments.join("/"),
+                    ))
                     .expect("node not found");
                 // Map the node to an FsMetadataEntry
                 let name = name.to_string();
@@ -415,27 +420,31 @@ impl FsMetadata {
         dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
         content_store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         let ds_store = DoubleSplitStore::new(metadata_store, content_store);
         let result = self
             .root_dir
             .get_node(src_path_segments, true, &self.forest, &ds_store)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         match result {
-            Some(_) => {
-                self.root_dir
-                    .basic_mv(
-                        src_path_segments,
-                        dest_path_segments,
-                        true,
-                        Utc::now(),
-                        &mut self.forest,
-                        &ds_store,
-                        &mut thread_rng(),
-                    )
-                    .await
-            }
-            None => Err(SerialError::NodeNotFound(src_path_segments.join("/").to_string()).into()),
+            Some(_) => self
+                .root_dir
+                .basic_mv(
+                    src_path_segments,
+                    dest_path_segments,
+                    true,
+                    Utc::now(),
+                    &mut self.forest,
+                    &ds_store,
+                    &mut thread_rng(),
+                )
+                .await
+                .map_err(Box::from)
+                .map_err(FilesystemError::wnfs),
+            None => Err(FilesystemError::node_not_found(
+                &src_path_segments.join("/"),
+            )),
         }
     }
 
@@ -445,7 +454,7 @@ impl FsMetadata {
         src_path_segments: &[String],
         dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         // Get the path of the parent
         let folder_segments = &dest_path_segments[..&dest_path_segments.len() - 1].to_vec();
         // Make directory at parent
@@ -460,6 +469,8 @@ impl FsMetadata {
                 metadata_store,
             )
             .await
+            .map_err(Box::from)
+            .map_err(FilesystemError::wnfs)
     }
 
     /// Write a symlink
@@ -468,7 +479,7 @@ impl FsMetadata {
         target: &Path,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         // Represent the target as a String
         let target_string = target
             .to_str()
@@ -486,6 +497,8 @@ impl FsMetadata {
                 &mut thread_rng(),
             )
             .await
+            .map_err(Box::from)
+            .map_err(FilesystemError::wnfs)
     }
 
     /// Rm a file or directory
@@ -493,13 +506,13 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         store: &impl RootedBlockStore,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         // Create the subdirectory
         self.root_dir
             .rm(path_segments, true, &self.forest, store)
             .await
             .map(|_| ())
-            .map_err(|_| SerialError::NodeNotFound(path_segments.join("/")).into())
+            .map_err(|_| FilesystemError::node_not_found(&path_segments.join("/")))
     }
 
     /// Add a Vector of bytes as a new file in the Fs. Store in our content store
@@ -507,8 +520,8 @@ impl FsMetadata {
         &self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BlockStore,
-    ) -> Result<Vec<u8>> {
+        content_store: &impl BanyanBlockStore,
+    ) -> Result<Vec<u8>, FilesystemError> {
         // Compress the data in the file
         let result = self
             .root_dir
@@ -521,9 +534,12 @@ impl FsMetadata {
 
         // If the node is found and is a file
         if let Some(PrivateNode::File(file)) = result {
-            file.get_content(&self.forest, &split_store).await
+            file.get_content(&self.forest, &split_store)
+                .await
+                .map_err(Box::from)
+                .map_err(FilesystemError::wnfs)
         } else {
-            Err(SerialError::NodeNotFound(path_segments.join("/")).into())
+            Err(FilesystemError::node_not_found(&path_segments.join("/")))
         }
     }
 
@@ -534,7 +550,7 @@ impl FsMetadata {
         metadata_store: &impl RootedBlockStore,
         content_store: &impl BlockStore,
         content: Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<(), FilesystemError> {
         let time = Utc::now();
         let data_size = content.len();
         let mut rng = thread_rng();
@@ -559,7 +575,8 @@ impl FsMetadata {
                 content_store,
                 &mut thread_rng(),
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
             let full_path: std::path::PathBuf = path_segments.iter().collect();
             if let Some(mime) = mime_guess::MimeGuess::from_path(full_path).first() {
@@ -574,7 +591,7 @@ impl FsMetadata {
 
             Ok(())
         } else {
-            Err(SerialError::NodeNotFound(path_segments.join("/")).into())
+            Err(FilesystemError::node_not_found(&path_segments.join("/")))
         }
     }
 
@@ -583,7 +600,7 @@ impl FsMetadata {
         &self,
         path_segments: &[String],
         store: &impl RootedBlockStore,
-    ) -> Result<Option<PrivateNode>> {
+    ) -> Result<Option<PrivateNode>, FilesystemError> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
             .root_dir
@@ -591,7 +608,7 @@ impl FsMetadata {
             .await;
         match result {
             Ok(node) => Ok(node),
-            Err(_) => Err(SerialError::NodeNotFound(path_segments.join("/")).into()),
+            Err(_) => Err(FilesystemError::node_not_found(&path_segments.join("/"))),
         }
     }
 
@@ -599,7 +616,7 @@ impl FsMetadata {
     pub async fn get_all_nodes(
         &self,
         metadata_store: &impl BlockStore,
-    ) -> Result<Vec<(PrivateNode, PathBuf)>> {
+    ) -> Result<Vec<(PrivateNode, PathBuf)>, FilesystemError> {
         self.get_all_children(Path::new("").to_path_buf(), metadata_store)
             .await
     }
@@ -609,14 +626,15 @@ impl FsMetadata {
         &self,
         path: PathBuf,
         metadata_store: &impl BlockStore,
-    ) -> Result<Vec<(PrivateNode, PathBuf)>> {
+    ) -> Result<Vec<(PrivateNode, PathBuf)>, FilesystemError> {
         let segments = path_to_segments(&path)?;
         let node = if segments.is_empty() {
             Some(self.root_dir.as_node())
         } else {
             self.root_dir
                 .get_node(&segments, true, &self.forest, metadata_store)
-                .await?
+                .await
+                .map_err(Box::from)?
         };
 
         match node {
@@ -625,7 +643,10 @@ impl FsMetadata {
                 // Accumulate a list
                 let mut children = vec![];
                 // List the names of all children
-                let node_names = dir.ls(&[], true, &self.forest, metadata_store).await?;
+                let node_names = dir
+                    .ls(&[], true, &self.forest, metadata_store)
+                    .await
+                    .map_err(Box::from)?;
 
                 // Accumulate a list of futures
                 let mut futures = Vec::new();
@@ -635,16 +656,14 @@ impl FsMetadata {
                 }
                 // Join on all of them and iterate over results
                 for result in join_all(futures).await {
-                    // If the result succeeded, extend children found
-                    if let Ok(node_children) = result {
-                        children.extend(node_children)
-                    } else {
-                        return Err(anyhow!("unable to recurse"));
-                    }
+                    // Extend with children found
+                    children.extend(result?)
                 }
                 Ok(children)
             }
-            None => Err(anyhow!("invalid node")),
+            None => Err(FilesystemError::node_not_found(
+                path.to_string_lossy().as_ref(),
+            )),
         }
     }
 }
@@ -673,8 +692,10 @@ pub struct FsMetadataEntry {
 #[cfg(test)]
 mod test {
 
-    use crate::{blockstore::MemoryBlockStore, filesystem::metadata::FsMetadata};
-    use anyhow::Result;
+    use crate::{
+        blockstore::MemoryBlockStore,
+        filesystem::{error::FilesystemError, metadata::FsMetadata},
+    };
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::PrivateNode;
 
@@ -682,7 +703,7 @@ mod test {
         wrapping_key: &EcEncryptionKey,
         metadata_store: &MemoryBlockStore,
         content_store: &MemoryBlockStore,
-    ) -> Result<FsMetadata> {
+    ) -> Result<FsMetadata, FilesystemError> {
         let mut metadata = FsMetadata::init(wrapping_key).await?;
         metadata.save(metadata_store, content_store).await?;
         let unlocked_metadata = FsMetadata::unlock(wrapping_key, metadata_store).await?;
@@ -692,7 +713,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn init_save_unlock() -> Result<()> {
+    async fn init_save_unlock() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -701,7 +722,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn history() -> Result<()> {
+    async fn history() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -711,7 +732,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn build_details() -> Result<()> {
+    async fn build_details() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -721,7 +742,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn add_read() -> Result<()> {
+    async fn add_read() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -750,7 +771,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    async fn add_read_large() -> Result<()> {
+    async fn add_read_large() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -778,7 +799,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn add_mkdir_mv() -> Result<()> {
+    async fn add_mkdir_mv() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -843,7 +864,7 @@ mod test {
 
     #[tokio::test]
     #[ignore]
-    async fn write_large_mkdir() -> Result<()> {
+    async fn write_large_mkdir() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -868,7 +889,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn add_rm_read() -> Result<()> {
+    async fn add_rm_read() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -899,7 +920,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn add_write_read() -> Result<()> {
+    async fn add_write_read() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -942,7 +963,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn all_functions() -> Result<()> {
+    async fn all_functions() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;

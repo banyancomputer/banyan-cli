@@ -5,8 +5,6 @@ fn main() {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-use anyhow::Result;
-
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
 use {
@@ -21,7 +19,7 @@ use {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     // Parse command line arguments. see args.rs
     let cli = Args::parse();
 
@@ -37,14 +35,11 @@ async fn main() -> Result<()> {
 
     // Determine the command being executed run appropriate subcommand
     let _ = cli.command.run().await;
-
-    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(not(feature = "cli"))]
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     println!("Enable the CLI feature to interact with the CLI");
-    Ok(())
 }

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{api::client::Client, native::configuration::globalconfig::GlobalConfig};
+use crate::{api::client::Client, native::configuration::globalconfig::GlobalConfig, WnfsError};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -9,7 +9,7 @@ use colored::Colorize;
 #[async_trait(?Send)]
 pub trait RunnableCommand<ErrorType>: Subcommand
 where
-    ErrorType: Into<Box<dyn std::error::Error>> + std::fmt::Debug + Display,
+    ErrorType: Into<WnfsError> + std::fmt::Debug + Display,
 {
     /// The internal running operation
     async fn run_internal(

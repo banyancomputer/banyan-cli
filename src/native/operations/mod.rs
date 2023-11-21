@@ -2,8 +2,6 @@
 pub mod add;
 /// This module contains configuration functions for the cli
 pub mod configure;
-/// Pipeline Errors
-pub(crate) mod error;
 /// This module contains the encryption pipeline function, which is the main entry point for bundling new data.
 pub mod prepare;
 /// This module contains the add pipeline function, which is the main entry point for removing from existing WNFS filesystems.
@@ -14,20 +12,23 @@ pub mod restore;
 #[cfg(test)]
 #[cfg(feature = "cli")]
 mod test {
-    use super::{add, error::TombError};
     use crate::{
         api::client::Client,
         cli::specifiers::DriveSpecifier,
         filesystem::wnfsio::{decompress_bytes, path_to_segments},
         native::{
-            configuration::{bucket::OmniBucket, globalconfig::GlobalConfig},
-            operations::{configure, prepare, remove, restore},
-            test::{test_setup, test_setup_structured, test_teardown},
-            utils::compute_directory_size,
+            configuration::globalconfig::GlobalConfig,
+            operations::{add, configure, prepare, remove, restore},
+            sync::OmniBucket,
+            NativeError,
+        },
+        utils::{
+            compute_directory_size,
+            testing::local_operations::{test_setup, test_setup_structured, test_teardown},
+            UtilityError,
         },
     };
 
-    use anyhow::Result;
     use dir_assert::assert_paths;
     use fake_file::{utils::ensure_path_exists_and_is_empty_dir, Strategy, Structure};
     use fs_extra::dir;
@@ -42,7 +43,7 @@ mod test {
     };
 
     /// Simplified Prepare call function
-    async fn prepare_pipeline(origin: &Path) -> Result<String, TombError> {
+    async fn prepare_pipeline(origin: &Path) -> Result<String, NativeError> {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
         let mut client = Client::new("http://google.com", "http://google.com")?;
@@ -57,7 +58,7 @@ mod test {
     }
 
     /// Simplified Restore call function
-    async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, TombError> {
+    async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
         println!("restoring");
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
@@ -86,7 +87,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn init() -> Result<()> {
+    async fn init() -> Result<(), UtilityError> {
         let test_name = "init";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -110,7 +111,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn configure_remote() -> Result<()> {
+    async fn configure_remote() -> Result<(), UtilityError> {
         let address = "http://app.tomb.com.net.org:5423/";
         configure::deinit_all().await?;
         let _ = GlobalConfig::from_disk().await?;
@@ -126,7 +127,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn prepare() -> Result<()> {
+    async fn prepare() -> Result<(), UtilityError> {
         let test_name = "prepare";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -140,7 +141,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn restore() -> Result<()> {
+    async fn restore() -> Result<(), UtilityError> {
         let test_name = "restore";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -164,7 +165,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn add() -> Result<()> {
+    async fn add() -> Result<(), UtilityError> {
         let test_name = "add";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -201,14 +202,17 @@ mod test {
                 &fs.forest,
                 &config.metadata,
             )
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
         // Get the content of the PrivateFile and decompress it
         let mut loaded_file_content: Vec<u8> = Vec::new();
         decompress_bytes(
             file.get_content(&fs.forest, &config.content)
-                .await?
+                .await
+                .map_err(Box::from)?
                 .as_slice(),
             &mut loaded_file_content,
         )?;
@@ -220,7 +224,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn remove() -> Result<()> {
+    async fn remove() -> Result<(), UtilityError> {
         let test_name = "remove";
         // Create the setup conditions
         let origin = &test_setup(test_name).await?;
@@ -241,7 +245,8 @@ mod test {
         let result = fs
             .root_dir
             .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Assert the node exists presently
         assert!(result.is_some());
         // Remove the PrivateFile at this Path
@@ -256,7 +261,8 @@ mod test {
         let result = fs
             .root_dir
             .get_node(&wnfs_segments, true, &fs.forest, &config.metadata)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Assert the node no longer exists
         assert!(result.is_none());
         // Teardown
@@ -266,7 +272,7 @@ mod test {
     }
 
     // Helper function for structure tests
-    async fn assert_prepare_restore(test_name: &str) -> Result<()> {
+    async fn assert_prepare_restore(test_name: &str) -> Result<(), UtilityError> {
         // Grab directories
         let root_path = PathBuf::from("test").join(test_name);
         let origin = &root_path.join("input");
@@ -294,7 +300,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_simple() -> Result<()> {
+    async fn structure_simple() -> Result<(), UtilityError> {
         let test_name = "structure_simple";
         let structure = Structure::new(4, 4, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -304,7 +310,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_deep() -> Result<()> {
+    async fn structure_deep() -> Result<(), UtilityError> {
         let test_name = "structure_deep";
         let structure = Structure::new(2, 8, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -314,7 +320,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn structure_wide() -> Result<()> {
+    async fn structure_wide() -> Result<(), UtilityError> {
         let test_name = "structure_deep";
         let structure = Structure::new(16, 1, TEST_INPUT_SIZE, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -324,7 +330,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn big_file() -> Result<()> {
+    async fn big_file() -> Result<(), UtilityError> {
         let test_name = "big_file";
         let structure = Structure::new(1, 1, 1024 * 1024 * 10, Strategy::Simple);
         test_setup_structured(test_name, structure).await?;
@@ -335,7 +341,7 @@ mod test {
     /// Ensure that the pipeline can recover duplicate files
     #[tokio::test]
     #[serial]
-    async fn deduplication_integrity() -> Result<()> {
+    async fn deduplication_integrity() -> Result<(), UtilityError> {
         let test_name = "deduplication_integrity";
         // Setup the test
         let origin = &test_setup(test_name).await?;
@@ -346,11 +352,11 @@ mod test {
         create_dir_all(duplicate)?;
 
         // Move the contents of this directory into a subdirectory
-        dir::move_dir(origin, original, &dir::CopyOptions::new())?;
-        dir::copy(original, duplicate, &dir::CopyOptions::new())?;
+        dir::move_dir(origin, original, &dir::CopyOptions::new()).expect("fs_extra move_dir");
+        dir::copy(original, duplicate, &dir::CopyOptions::new()).expect("fs_extra copy");
 
         // Remove origin
-        dir::remove(origin)?;
+        dir::remove(origin).expect("fs_extra remove");
         // Rename dup origin to origin
         rename(dup_origin, origin)?;
 
@@ -364,7 +370,7 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore = "refactor for new pipeline structure"]
-    async fn deduplication_size() -> Result<()> {
+    async fn deduplication_size() -> Result<(), UtilityError> {
         let test_name = "deduplication_size";
         let test_name_dup = &format!("{}_dup", test_name);
         let test_name_unique = &format!("{}_unique", test_name);
@@ -377,8 +383,8 @@ mod test {
         let root_path_dup = PathBuf::from("test").join(test_name_dup);
         let root_path_unique = PathBuf::from("test").join(test_name_unique);
         // Create and empty the dir
-        ensure_path_exists_and_is_empty_dir(&root_path_dup, true)?;
-        ensure_path_exists_and_is_empty_dir(&root_path_unique, true)?;
+        ensure_path_exists_and_is_empty_dir(&root_path_dup, true).map_err(Box::from)?;
+        ensure_path_exists_and_is_empty_dir(&root_path_unique, true).map_err(Box::from)?;
 
         // Input and path
         let origin_dup = &root_path_dup.join("input");
@@ -388,9 +394,9 @@ mod test {
         create_dir_all(duplicate_dup)?;
 
         // Generate file structure
-        structure.generate(original_dup)?;
+        structure.generate(original_dup).map_err(Box::from)?;
         // Copy into duplicate path
-        dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new())?;
+        dir::copy(original_dup, duplicate_dup, &dir::CopyOptions::new()).expect("fs_extra copy");
 
         // Input and path
         let origin_unique = &root_path_unique.join("input");
@@ -399,8 +405,8 @@ mod test {
         let unique2 = &origin_unique.join("unique2");
         // create_dir_all(unique2)?;
         // Generate twice
-        structure.generate(unique1)?;
-        structure.generate(unique2)?;
+        structure.generate(unique1).map_err(Box::from)?;
+        structure.generate(unique2).map_err(Box::from)?;
 
         // Run test
         assert_prepare_restore(test_name_dup).await?;
@@ -434,7 +440,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn double_bundling() -> Result<()> {
+    async fn double_bundling() -> Result<(), UtilityError> {
         let test_name = "double_bundling";
         // Setup the test once
         test_setup(test_name).await?;
@@ -447,7 +453,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn block_tracking() -> Result<()> {
+    async fn block_tracking() -> Result<(), UtilityError> {
         let test_name = "block_tracking";
         // Setup the test once
         let origin = test_setup(test_name).await?;
@@ -474,7 +480,7 @@ mod test {
     #[tokio::test]
     #[serial]
     #[ignore]
-    async fn versioning_complex() -> Result<()> {
+    async fn versioning_complex() -> Result<(), UtilityError> {
         let test_name = "versioning_complex";
         let structure = Structure::new(2, 2, 2000, Strategy::Simple);
         // Setup the test once
@@ -518,12 +524,15 @@ mod test {
         let current_file = fs
             .root_dir
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
         let current_content = current_file
             .get_content(&fs.forest, &config.content)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         let mut current_content_decompressed: Vec<u8> = Vec::new();
         decompress_bytes(
             current_content.as_slice(),
@@ -538,16 +547,20 @@ mod test {
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
@@ -565,16 +578,20 @@ mod test {
         // Get the original version of the root of the PrivateDirectory
         let original_root = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Grab the original version of the PrivateFile
         let original_file = original_root
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile content
         let original_content = original_file
@@ -601,7 +618,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn versioning_simple() -> Result<()> {
+    async fn versioning_simple() -> Result<(), UtilityError> {
         let test_name = "versioning_simple";
         let structure = Structure::new(1, 1, 2000, Strategy::Simple);
         // Setup the test once
@@ -637,12 +654,15 @@ mod test {
         let current_file = fs
             .root_dir
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
         let current_content = current_file
             .get_content(&fs.forest, &config.content)
-            .await?;
+            .await
+            .map_err(Box::from)?;
         // Assert that the current version of the file was retrieved correctly
         assert_eq!(goodbye_bytes, current_content);
 
@@ -652,16 +672,20 @@ mod test {
         // Get the previous version of the root of the PrivateDirectory
         let previous_root = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile
         let previous_file = previous_root
             .get_node(&path_segments, false, &fs.forest, &config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("node does not exist in WNFS PrivateDirectory")
-            .as_file()?;
+            .as_file()
+            .map_err(Box::from)?;
 
         // Grab the previous version of the PrivateFile content
         let previous_content = previous_file
@@ -675,9 +699,11 @@ mod test {
         // pull off the last, empty version
         let _empty_dir = iterator
             .get_previous(&config.metadata)
-            .await?
+            .await
+            .map_err(Box::from)?
             .expect("cannot traverse history iterator")
-            .as_dir()?;
+            .as_dir()
+            .map_err(Box::from)?;
 
         // Assert that there are no more previous versions to find
         assert!(iterator
@@ -690,7 +716,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn symlinks() -> Result<()> {
+    async fn symlinks() -> Result<(), UtilityError> {
         let test_name = "symlinks";
 
         // Setup the test

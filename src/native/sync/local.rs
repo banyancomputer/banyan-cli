@@ -1,10 +1,9 @@
 use crate::{
     api::models::storage_ticket::StorageTicket,
     blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
-    filesystem::FsMetadata,
+    filesystem::{FilesystemError, FsMetadata},
     native::configuration::xdg::xdg_data_home,
 };
-use anyhow::{Ok, Result};
 use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
@@ -82,7 +81,10 @@ impl Display for LocalBucket {
 
 impl LocalBucket {
     /// Given a directory, initialize a configuration for it
-    pub async fn new(origin: &Path, wrapping_key: &EcEncryptionKey) -> Result<Self> {
+    pub async fn new(
+        origin: &Path,
+        wrapping_key: &EcEncryptionKey,
+    ) -> Result<Self, FilesystemError> {
         let name = origin
             .file_name()
             .expect("no file name")
@@ -125,7 +127,7 @@ impl LocalBucket {
         })
     }
 
-    pub(crate) fn remove_data(&self) -> Result<()> {
+    pub(crate) fn remove_data(&self) -> Result<(), std::io::Error> {
         // Remove dir if it exists
         if bucket_data_home(&self.local_id).exists() {
             remove_dir_all(bucket_data_home(&self.local_id))?;
@@ -134,12 +136,15 @@ impl LocalBucket {
     }
 
     /// Shortcut for unlocking a filesystem
-    pub async fn unlock_fs(&self, wrapping_key: &EcEncryptionKey) -> Result<FsMetadata> {
+    pub async fn unlock_fs(
+        &self,
+        wrapping_key: &EcEncryptionKey,
+    ) -> Result<FsMetadata, FilesystemError> {
         FsMetadata::unlock(wrapping_key, &self.metadata).await
     }
 
     /// Shortcut for saving a filesystem
-    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<()> {
+    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<(), FilesystemError> {
         fs.save(&self.metadata, &self.content).await
     }
 
@@ -147,16 +152,15 @@ impl LocalBucket {
     pub async fn get_history(
         &self,
         wrapping_key: &EcEncryptionKey,
-    ) -> Result<PrivateNodeOnPathHistory> {
+    ) -> Result<PrivateNodeOnPathHistory, FilesystemError> {
         let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
-        Ok(fs_metadata.history(&self.metadata).await?)
+        fs_metadata.history(&self.metadata).await
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::native::configuration::globalconfig::GlobalConfig;
-    use anyhow::Result;
+    use crate::native::{configuration::globalconfig::GlobalConfig, NativeError};
     use chrono::Utc;
     use rand::thread_rng;
     use serial_test::serial;
@@ -167,7 +171,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn get_set_get_all() -> Result<()> {
+    async fn get_set_get_all() -> Result<(), NativeError> {
         let test_name = "config_set_get_all";
         let origin = Path::new("test").join(test_name);
         if origin.exists() {
@@ -192,7 +196,8 @@ mod test {
                 &config.metadata,
                 &mut rng,
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
         let file_content = "this is a cat image".as_bytes();
         file.set_content(
             Utc::now(),
@@ -201,7 +206,8 @@ mod test {
             &config.content,
             &mut rng,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
         config.save_fs(&mut fs).await?;
 
@@ -220,10 +226,12 @@ mod test {
                 &config.metadata,
                 &mut rng,
             )
-            .await?;
+            .await
+            .map_err(Box::from)?;
         let new_file_content = new_file
             .get_content(&new_fs.forest, &config.content)
-            .await?;
+            .await
+            .map_err(Box::from)?;
 
         assert_eq!(file_content, new_file_content);
 
