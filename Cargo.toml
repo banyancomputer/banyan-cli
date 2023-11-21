@@ -24,7 +24,6 @@ keywords = [
 
 # These dependencies are specific to the CLI or would break WASM
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tracing = { version = "^0.1" }
 tracing-appender = "^0.2"
 tracing-subscriber = { version = "^0.3", features = ["env-filter", "fmt", "time"] }
 base58 = { version = "^0.2" }
@@ -51,6 +50,7 @@ serial_test = { version = "^2" }
 
 # Dependencies that must exist independent of architecture
 [dependencies]
+tracing = { version = "^0.1" }
 async-recursion = { version = "^1" }
 async-trait = { version = "^0.1" }
 blake3 = { version = "^1" }
@@ -86,12 +86,12 @@ integration-tests = []
 async-trait = { version = "^0.1" }
 console_error_panic_hook = { version = "^0.1", optional = true }
 getrandom = { version = "^0.2", features = ["js"] }
-gloo = { version = "^0.10", features = ["net"] }
 js-sys = { version = "^0.3" }
 pem = { version = "^3" }
 tokio-util = { version = "^0.7", features = ["compat"] }
 wasm-bindgen = { version = "^0.2" }
 wasm-bindgen-futures = { version = "^0.4" }
+tracing-wasm = { version = "^0.2" }
 
 # Dependencies that only need to exist when we are testing WASM
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
