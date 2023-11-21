@@ -1,4 +1,3 @@
-use anyhow::Result;
 use jwalk::DirEntry;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -89,8 +88,8 @@ pub struct CodableMetadata {
 }
 
 impl TryFrom<&SpiderMetadata> for CodableMetadata {
-    type Error = anyhow::Error;
-    fn try_from(value: &SpiderMetadata) -> Result<Self> {
+    type Error = std::io::Error;
+    fn try_from(value: &SpiderMetadata) -> Result<Self, Self::Error> {
         Ok(CodableMetadata {
             file_type: match value.original_metadata.file_type().is_dir() {
                 true => FileType::Directory,
@@ -111,8 +110,8 @@ impl TryFrom<&SpiderMetadata> for CodableMetadata {
 
 // Define how to construct a codable version of the SpiderMetadata struct
 impl TryFrom<&SpiderMetadata> for CodableSpiderMetadata {
-    type Error = anyhow::Error;
-    fn try_from(value: &SpiderMetadata) -> Result<Self> {
+    type Error = std::io::Error;
+    fn try_from(value: &SpiderMetadata) -> Result<Self, Self::Error> {
         // Most values can be simply cloned
         let original_location = value.original_location.clone();
 

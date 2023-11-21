@@ -1,14 +1,16 @@
 use crate::{
     api::client::{Client, Credentials},
-    native::configuration::{
-        bucket::LocalBucket,
-        keys::{load_api_key, new_api_key, new_wrapping_key, save_api_key, wrapping_key},
-        xdg::{config_path, default_api_key_path, default_wrapping_key_path},
-        Endpoints,
+    native::{
+        configuration::{
+            keys::{load_api_key, new_api_key, new_wrapping_key, save_api_key, wrapping_key},
+            xdg::{config_path, default_api_key_path, default_wrapping_key_path},
+            Endpoints,
+        },
+        sync::LocalBucket,
+        NativeError,
     },
     utils::get_read,
 };
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{create_dir_all, remove_file, OpenOptions},
@@ -50,7 +52,7 @@ impl Default for GlobalConfig {
 
 // Self
 impl GlobalConfig {
-    async fn create() -> Result<Self> {
+    async fn create() -> Result<Self, NativeError> {
         // Create a default config
         let config = Self::default();
         // Create the key files referenced
@@ -61,17 +63,17 @@ impl GlobalConfig {
     }
 
     /// Get the wrapping key
-    pub async fn wrapping_key(&self) -> Result<EcEncryptionKey> {
+    pub async fn wrapping_key(&self) -> Result<EcEncryptionKey, NativeError> {
         wrapping_key(&self.wrapping_key_path).await
     }
 
     /// Get the api key
-    pub async fn api_key(&self) -> Result<EcSignatureKey> {
+    pub async fn api_key(&self) -> Result<EcSignatureKey, NativeError> {
         load_api_key(&self.api_key_path).await
     }
 
     // Get the Gredentials
-    async fn get_credentials(&self) -> Result<Credentials> {
+    async fn get_credentials(&self) -> Result<Credentials, NativeError> {
         if let Ok(signing_key) = self.api_key().await
             && let Some(user_id) = self.remote_user_id
         {
@@ -80,12 +82,12 @@ impl GlobalConfig {
                 user_id,
             })
         } else {
-            Err(anyhow!("No credentials."))
+            Err(NativeError::missing_credentials())
         }
     }
 
     /// Get the Client data
-    pub async fn get_client(&self) -> Result<Client> {
+    pub async fn get_client(&self) -> Result<Client, NativeError> {
         // Create a new Client
         let mut client = Client::new(&self.endpoints.core, &self.endpoints.data)?;
         // If there are already credentials
@@ -98,14 +100,15 @@ impl GlobalConfig {
     }
 
     /// Save the Client data to the config
-    pub async fn save_client(&mut self, client: Client) -> Result<()> {
+    pub async fn save_client(&mut self, client: Client) -> Result<(), NativeError> {
         // Update the Remote endpoints
         self.endpoints.core = client.remote_core.to_string();
         self.endpoints.data = client.remote_data.to_string();
         // If there is a Claim
         if let Some(token) = client.claims {
             // Update the remote account ID
-            self.remote_user_id = Some(Uuid::from_str(token.sub()?)?);
+            self.remote_user_id =
+                Some(Uuid::from_str(token.sub()?).map_err(|_| NativeError::bad_data())?);
         } else {
             self.remote_user_id = None;
         }
@@ -120,7 +123,7 @@ impl GlobalConfig {
     }
 
     /// Write to disk
-    pub fn to_disk(&self) -> Result<()> {
+    pub fn to_disk(&self) -> Result<(), NativeError> {
         let writer = OpenOptions::new()
             .create(true)
             .append(false)
@@ -128,12 +131,11 @@ impl GlobalConfig {
             .write(true)
             .open(config_path())?;
 
-        serde_json::to_writer_pretty(writer, &self)?;
-        Ok(())
+        serde_json::to_writer_pretty(writer, &self).map_err(|_| NativeError::bad_data())
     }
 
     /// Initialize from file on disk
-    pub async fn from_disk() -> Result<Self> {
+    pub async fn from_disk() -> Result<Self, NativeError> {
         if let Ok(file) = get_read(&config_path())
             && let Ok(config) = serde_json::from_reader(file)
         {
@@ -146,7 +148,7 @@ impl GlobalConfig {
     }
 
     /// Remove a BucketConfig for an origin
-    pub fn remove_bucket(&mut self, bucket: &LocalBucket) -> Result<()> {
+    pub fn remove_bucket(&mut self, bucket: &LocalBucket) -> Result<(), NativeError> {
         // Remove bucket data
         bucket.remove_data()?;
         // Find index of bucket
@@ -161,7 +163,7 @@ impl GlobalConfig {
     }
 
     /// Remove Config data associated with each Bucket
-    pub fn remove_data(&self) -> Result<()> {
+    pub fn remove_data(&self) -> Result<(), NativeError> {
         // Remove bucket data
         for bucket in &self.buckets {
             bucket.remove_data()?;
@@ -176,13 +178,13 @@ impl GlobalConfig {
     }
 
     /// Update a given BucketConfig
-    pub fn update_config(&mut self, bucket: &LocalBucket) -> Result<()> {
+    pub fn update_config(&mut self, bucket: &LocalBucket) -> Result<(), NativeError> {
         // Find index
         let index = self
             .buckets
             .iter()
             .position(|b| b.origin == bucket.origin)
-            .expect("cannot find index in buckets");
+            .ok_or(NativeError::missing_local_drive())?;
         // Update bucket at index
         self.buckets[index] = bucket.clone();
         // Ok
@@ -190,7 +192,11 @@ impl GlobalConfig {
     }
 
     /// Create a new bucket
-    async fn create_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
+    async fn create_bucket(
+        &mut self,
+        name: &str,
+        origin: &Path,
+    ) -> Result<LocalBucket, NativeError> {
         if !origin.exists() {
             create_dir_all(origin)?;
         }
@@ -210,7 +216,11 @@ impl GlobalConfig {
     }
 
     /// Create a bucket if it doesn't exist, return the object either way
-    pub async fn get_or_init_bucket(&mut self, name: &str, origin: &Path) -> Result<LocalBucket> {
+    pub async fn get_or_init_bucket(
+        &mut self,
+        name: &str,
+        origin: &Path,
+    ) -> Result<LocalBucket, NativeError> {
         if let Some(config) = self.get_bucket(origin) {
             Ok(config.clone())
         } else {
@@ -222,18 +232,20 @@ impl GlobalConfig {
 #[cfg(test)]
 mod test {
 
-    use anyhow::Result;
     use serial_test::serial;
     use std::{fs::remove_file, path::Path};
 
-    use crate::native::configuration::{
-        globalconfig::GlobalConfig,
-        xdg::{config_path, default_api_key_path, default_wrapping_key_path},
+    use crate::native::{
+        configuration::{
+            globalconfig::GlobalConfig,
+            xdg::{config_path, default_api_key_path, default_wrapping_key_path},
+        },
+        NativeError,
     };
 
     #[tokio::test]
     #[serial]
-    async fn to_from_disk() -> Result<()> {
+    async fn to_from_disk() -> Result<(), NativeError> {
         // The known path of the global config file
         let known_path = config_path();
         // Remove it if it exists
@@ -262,7 +274,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn from_disk_direct() -> Result<()> {
+    async fn from_disk_direct() -> Result<(), NativeError> {
         // The known path of the global config file
         let known_path = config_path();
         // Remove it if it exists
@@ -298,7 +310,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn add_bucket() -> Result<()> {
+    async fn add_bucket() -> Result<(), NativeError> {
         // The known path of the global config file
         let known_path = config_path();
         // Remove it if it exists

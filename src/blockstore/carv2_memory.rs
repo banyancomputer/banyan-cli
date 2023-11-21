@@ -1,8 +1,7 @@
 use crate::{
-    blockstore::{BlockStore, RootedBlockStore},
-    car::{v1::Block, v2::CarV2},
+    blockstore::{BlockStoreError, RootedBlockStore},
+    car::{error::CarError, v1::Block, v2::CarV2},
 };
-use anyhow::Result;
 use async_trait::async_trait;
 use serde::de::Error;
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,8 @@ use std::cell::RefCell;
 use std::io::Write;
 use std::{borrow::Cow, io::Cursor};
 use wnfs::libipld::{Cid, IpldCodec};
+
+use super::BanyanBlockStore;
 
 #[derive(Debug, PartialEq)]
 /// CarV2 formatted memory blockstore
@@ -19,7 +20,7 @@ pub struct CarV2MemoryBlockStore {
 }
 
 impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
-    type Error = anyhow::Error;
+    type Error = CarError;
 
     fn try_from(vec: Vec<u8>) -> Result<Self, Self::Error> {
         let mut store = Self {
@@ -41,7 +42,7 @@ impl TryFrom<Vec<u8>> for CarV2MemoryBlockStore {
 
 impl CarV2MemoryBlockStore {
     /// Create a new CarV2BlockStore from a readable stream
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, BlockStoreError> {
         // Read data
         let mut rw = Cursor::new(<Vec<u8>>::new());
         let car = CarV2::new(&mut rw)?;
@@ -70,14 +71,14 @@ impl CarV2MemoryBlockStore {
 
 #[async_trait(?Send)]
 /// WnfsBlockStore implementation for CarV2BlockStore
-impl BlockStore for CarV2MemoryBlockStore {
-    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, anyhow::Error> {
+impl BanyanBlockStore for CarV2MemoryBlockStore {
+    async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         let reader: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
         let block = self.car.get_block(cid, reader)?;
         Ok(Cow::Owned(block.content))
     }
 
-    async fn put_block(&self, content: Vec<u8>, codec: IpldCodec) -> Result<Cid, anyhow::Error> {
+    async fn put_block(&self, content: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
         let writer: &mut Cursor<Vec<u8>> = &mut self.data.borrow_mut();
         let block = Block::new(content, codec)?;
         self.car.put_block(&block, writer)?;
@@ -119,10 +120,9 @@ impl<'de> Deserialize<'de> for CarV2MemoryBlockStore {
 #[cfg(test)]
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
-    use crate::blockstore::RootedBlockStore;
-    use anyhow::Result;
+    use crate::blockstore::{BanyanBlockStore, BlockStoreError, RootedBlockStore};
     use wnfs::{
-        common::{bs_duplication_test, bs_retrieval_test, bs_serialization_test, BlockStore},
+        common::{bs_duplication_test, bs_retrieval_test, bs_serialization_test},
         libipld::IpldCodec,
     };
 
@@ -131,7 +131,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn put_block() -> Result<()> {
+    async fn put_block() -> Result<(), BlockStoreError> {
         let store = CarV2MemoryBlockStore::new()?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
@@ -142,7 +142,7 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn from_scratch() -> Result<()> {
+    async fn from_scratch() -> Result<(), BlockStoreError> {
         // Open
         let original = CarV2MemoryBlockStore::new()?;
         // Put a block in
@@ -170,11 +170,17 @@ mod test {
 
     #[tokio::test]
     #[serial]
-    async fn carv2memoryblockstore() -> Result<()> {
+    async fn carv2memoryblockstore() -> Result<(), BlockStoreError> {
         let store = &CarV2MemoryBlockStore::new()?;
-        bs_retrieval_test(store).await?;
-        bs_duplication_test(store).await?;
-        bs_serialization_test(store).await?;
+        bs_retrieval_test(store)
+            .await
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
+        bs_duplication_test(store)
+            .await
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
+        bs_serialization_test(store)
+            .await
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
         Ok(())
     }
 }

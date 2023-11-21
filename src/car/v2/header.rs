@@ -1,8 +1,7 @@
-use crate::car::{
-    streamable::Streamable,
-    varint::{read_leu128, read_leu64},
+use crate::{
+    car::{error::CarError, streamable::Streamable},
+    utils::varint::{read_leu128, read_leu64},
 };
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
 
@@ -18,7 +17,8 @@ pub struct Header {
 }
 
 impl Streamable for Header {
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+    type StreamError = CarError;
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         let start = w.stream_position()?;
         // Write
         w.write_all(&self.characteristics.to_le_bytes())?;
@@ -32,7 +32,7 @@ impl Streamable for Header {
         Ok(())
     }
 
-    fn read_bytes<R: Read>(r: &mut R) -> Result<Self> {
+    fn read_bytes<R: Read>(r: &mut R) -> Result<Self, Self::StreamError> {
         Ok(Self {
             characteristics: read_leu128(r)?,
             data_offset: read_leu64(r)?,
@@ -43,7 +43,7 @@ impl Streamable for Header {
 }
 
 impl Header {
-    pub fn to_bytes(self) -> Result<Vec<u8>> {
+    pub fn to_bytes(self) -> Result<Vec<u8>, CarError> {
         let mut header_bytes = Cursor::new(<Vec<u8>>::new());
         self.write_bytes(&mut header_bytes)?;
         Ok(header_bytes.into_inner())
@@ -78,12 +78,12 @@ impl<'de> Deserialize<'de> for Header {
 mod test {
     use crate::{
         car::{
+            error::CarError,
             v2::{header::Header, PRAGMA, PRAGMA_SIZE},
             Streamable,
         },
         utils::testing::blockstores::car_test_setup,
     };
-    use anyhow::Result;
     use serial_test::serial;
     use std::{
         fs::File,
@@ -93,7 +93,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn read_disk() -> Result<()> {
+    fn read_disk() -> Result<(), CarError> {
         let car_path = car_test_setup(2, "basic", "read_disk")?;
         let mut file = File::open(car_path)?;
         // Skip the pragma
@@ -109,7 +109,7 @@ mod test {
     }
 
     #[test]
-    fn from_scratch() -> Result<()> {
+    fn from_scratch() -> Result<(), CarError> {
         let path = &Path::new("test")
             .join("car")
             .join("carv2_header_from_scratch.car");
@@ -128,7 +128,7 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        crate::car::v2::Header:
+        <crate::car::v2::Header, crate::car::error::CarError>:
         v2header: crate::car::v2::Header {
             characteristics: 0,
             data_offset: 50,

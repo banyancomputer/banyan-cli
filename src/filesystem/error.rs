@@ -1,20 +1,98 @@
-use thiserror::Error;
+use std::fmt::Display;
 
-/// Configuration errors.
-#[derive(Debug, Error)]
-pub(crate) enum SerialError {
-    /// Missing metadata within Car file
-    #[error("Missing {0} in metadata")]
+use colored::Colorize;
+use tomb_crypt::prelude::TombCryptError;
+
+use crate::{blockstore::BlockStoreError, WnfsError};
+
+use super::sharing::SharingError;
+
+#[derive(Debug)]
+pub struct FilesystemError {
+    kind: FilesystemErrorKind,
+}
+
+impl Display for FilesystemError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string = match &self.kind {
+            FilesystemErrorKind::MissingMetadata(label) => {
+                format!("Missing metadata with label \"{label}\"")
+            }
+            FilesystemErrorKind::NodeNotFound(path) => {
+                format!("Unable to find node with path \"{path}\"")
+            }
+            FilesystemErrorKind::Sharing(err) => format!("{} {err}", "SHARING ERROR:".underline()),
+            FilesystemErrorKind::Blockstore(err) => {
+                format!("{} {err}", "BLOCKSTORE ERROR:".underline())
+            }
+            FilesystemErrorKind::Wnfs(err) => format!("{} {err}", "WNFS ERROR:".underline()),
+        };
+
+        f.write_str(&string)
+    }
+}
+
+impl FilesystemError {
+    pub fn node_not_found(path: &str) -> Self {
+        Self {
+            kind: FilesystemErrorKind::NodeNotFound(path.to_string()),
+        }
+    }
+
+    pub fn missing_metadata(label: &str) -> Self {
+        Self {
+            kind: FilesystemErrorKind::MissingMetadata(label.to_string()),
+        }
+    }
+
+    pub fn sharing(err: SharingError) -> Self {
+        Self {
+            kind: FilesystemErrorKind::Sharing(err),
+        }
+    }
+
+    pub fn blockstore(err: BlockStoreError) -> Self {
+        Self {
+            kind: FilesystemErrorKind::Blockstore(err),
+        }
+    }
+
+    pub fn wnfs(err: WnfsError) -> Self {
+        Self {
+            kind: FilesystemErrorKind::Wnfs(err),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum FilesystemErrorKind {
     MissingMetadata(String),
-    /// Node not found at path
-    #[error("No node at path {0}")]
     NodeNotFound(String),
-    // /// Node is file not directory
-    // #[error("Node at path {0} is a file not a directory")]
-    // NodeIsFile(String),
-    // /// Node is directory not file
-    // #[error("Node at path {0} is a directory not a file")]
-    // NodeIsDirectory(String),
-    #[error("The configuration file failed to deserialize correctly.")]
-    _BadConfig,
+    Sharing(SharingError),
+    Blockstore(BlockStoreError),
+    Wnfs(WnfsError),
+}
+
+impl From<SharingError> for FilesystemError {
+    fn from(value: SharingError) -> Self {
+        Self::sharing(value)
+    }
+}
+
+impl From<TombCryptError> for FilesystemError {
+    fn from(value: TombCryptError) -> Self {
+        Self::sharing(SharingError::cryptographic(value))
+    }
+}
+
+impl From<BlockStoreError> for FilesystemError {
+    fn from(value: BlockStoreError) -> Self {
+        Self::blockstore(value)
+    }
+}
+
+impl From<WnfsError> for FilesystemError {
+    fn from(value: WnfsError) -> Self {
+        Self::wnfs(value)
+    }
 }

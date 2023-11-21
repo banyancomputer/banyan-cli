@@ -2,13 +2,12 @@ use super::RunnableCommand;
 use crate::{
     api::{
         client::{Client, Credentials},
-        error::ClientError,
         models::account::Account,
         requests::core::auth::device_api_key::regwait::start::{
             StartRegwait, StartRegwaitResponse,
         },
     },
-    native::configuration::globalconfig::GlobalConfig,
+    native::{configuration::globalconfig::GlobalConfig, NativeError},
 };
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
@@ -38,12 +37,12 @@ pub enum AccountCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<ClientError> for AccountCommand {
+impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(
         self,
         _: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, ClientError> {
+    ) -> Result<String, NativeError> {
         // Process the command
         match self {
             AccountCommand::RegisterDevice => {
@@ -51,9 +50,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
 
                 // Create a public key from the
-                let public_device_key = private_device_key
-                    .public_key()
-                    .map_err(ClientError::crypto_error)?;
+                let public_device_key = private_device_key.public_key()?;
 
                 // Create a fingerprint from the public key
                 let fingerprint =
@@ -68,15 +65,18 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 // Create a clone of the client to move into the handle
                 let mut client_1 = client.clone();
                 // Create a join handle for later use, starting the call immediately
-                let join_handle: JoinHandle<Result<StartRegwaitResponse, ClientError>> =
+                let join_handle: JoinHandle<Result<StartRegwaitResponse, String>> =
                     tokio::spawn(async move {
                         // Build the request
-                        client_1.call(start_regwait).await
+                        client_1
+                            .call(start_regwait)
+                            .await
+                            .map_err(|err| err.to_string())
                     });
 
                 // Open this url
                 open::that(format!(
-                    "{}/completedevicekey?spki={}",
+                    "{}/registerDevice?spki={}",
                     GlobalConfig::from_disk().await?.endpoints.frontend,
                     der_url
                 ))
@@ -85,8 +85,8 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 // Now await the completion of the original request
                 let start_response = join_handle
                     .await
-                    .map_err(anyhow::Error::new)
-                    .map(|v| v.map_err(anyhow::Error::new))??;
+                    .map_err(|err| NativeError::custom_error(&err.to_string()))?
+                    .map_err(|msg| NativeError::custom_error(&msg))?;
 
                 // Update the client's credentials
                 client.with_credentials(Credentials {
@@ -120,8 +120,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 // Create local keys
                 let api_key = EcSignatureKey::generate().await?;
                 let public_api_key = api_key.public_key()?;
-                let public_api_key_pem = String::from_utf8(public_api_key.export().await?)
-                    .map_err(|_| ClientError::custom_error("utf8 PEM"))?;
+                let public_api_key_pem = String::from_utf8(public_api_key.export().await?)?;
                 // Associate the key material with the backend
                 let response: CreateAccountResponse = client
                     .call(CreateFakeAccount {
@@ -139,7 +138,10 @@ impl RunnableCommand<ClientError> for AccountCommand {
                     response.id
                 ))
             }
-            AccountCommand::WhoAmI => Account::who_am_i(client).await.map(|v| v.to_string()),
+            AccountCommand::WhoAmI => Account::who_am_i(client)
+                .await
+                .map(|v| v.to_string())
+                .map_err(NativeError::api),
             AccountCommand::Usage => {
                 let mut output = format!("{}", "| ACCOUNT USAGE INFO |".yellow());
 
@@ -147,7 +149,7 @@ impl RunnableCommand<ClientError> for AccountCommand {
                 let usage_limit_result = Account::usage_limit(client).await;
 
                 if usage_current_result.is_err() && usage_limit_result.is_err() {
-                    return Err(ClientError::custom_error(
+                    return Err(NativeError::custom_error(
                         "Unable to obtain usage stats. Check your authentication!",
                     ));
                 }

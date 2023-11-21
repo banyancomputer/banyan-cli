@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::api::{
     client::{Client, Credentials},
-    error::ClientError,
+    error::ApiError,
     requests::core::{
         auth::{
             fake_account::create::{CreateAccountResponse, CreateFakeAccount},
@@ -35,7 +35,7 @@ impl Display for Account {
 
 impl Account {
     /// Create a new instance of this model or data structure. Attaches the associated credentials to the client.
-    pub async fn create_fake(client: &mut Client) -> Result<(Self, EcSignatureKey), ClientError> {
+    pub async fn create_fake(client: &mut Client) -> Result<(Self, EcSignatureKey), ApiError> {
         // Create a local key pair for signing
         let (api_key, device_api_key_pem) = generate_api_key().await;
         // Associate the key material with the backend
@@ -53,7 +53,7 @@ impl Account {
     }
 
     /// Get the account associated with the current credentials in the Client
-    pub async fn who_am_i(client: &mut Client) -> Result<Self, ClientError> {
+    pub async fn who_am_i(client: &mut Client) -> Result<Self, ApiError> {
         // Uhh we don't acutally need the ID for this one. There is probably a better pattern for this.
         let response: ReadWhoAmIResponse = client.call(ReadWhoAmI).await?;
         Ok(Self {
@@ -62,7 +62,7 @@ impl Account {
     }
 
     /// Get the total usage for the account associated with the current credentials in the Client
-    pub async fn usage(client: &mut Client) -> Result<u64, ClientError> {
+    pub async fn usage(client: &mut Client) -> Result<u64, ApiError> {
         client
             .call(GetTotalUsage)
             .await
@@ -70,7 +70,7 @@ impl Account {
     }
 
     /// Get the usage limit for the account associated with the current credentials in the Client
-    pub async fn usage_limit(client: &mut Client) -> Result<u64, ClientError> {
+    pub async fn usage_limit(client: &mut Client) -> Result<u64, ApiError> {
         client
             .call(GetUsageLimit)
             .await
@@ -81,7 +81,7 @@ impl Account {
 #[cfg(feature = "integration-tests")]
 #[cfg(test)]
 pub mod test {
-    use crate::api::{client::Client, error::ClientError, models::account::Account};
+    use crate::api::{client::Client, error::ApiError, models::account::Account};
 
     pub async fn authenticated_client() -> Client {
         let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap();
@@ -94,7 +94,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn who_am_i() -> Result<(), ClientError> {
+    async fn who_am_i() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         println!("client: {:?}", client);
         let subject = client.subject().unwrap();
@@ -112,7 +112,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn usage() -> Result<(), ClientError> {
+    async fn usage() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let usage = Account::usage(&mut client).await?;
         assert_eq!(usage, 0);
@@ -120,7 +120,7 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn usage_limit() -> Result<(), ClientError> {
+    async fn usage_limit() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let usage_limit = Account::usage_limit(&mut client).await?;
         assert_eq!(usage_limit, 50 * 1024 * 1024 * 1024);

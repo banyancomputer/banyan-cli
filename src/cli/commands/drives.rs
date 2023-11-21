@@ -6,11 +6,10 @@ use crate::{
     },
     filesystem::FsMetadata,
     native::{
-        configuration::{
-            bucket::{sync_bucket, OmniBucket},
-            globalconfig::GlobalConfig,
-        },
-        operations::{error::TombError, prepare, restore},
+        configuration::globalconfig::GlobalConfig,
+        operations::{prepare, restore},
+        sync::{sync_bucket, OmniBucket},
+        NativeError,
     },
 };
 use async_trait::async_trait;
@@ -72,12 +71,12 @@ pub enum DrivesCommand {
 }
 
 #[async_trait(?Send)]
-impl RunnableCommand<TombError> for DrivesCommand {
+impl RunnableCommand<NativeError> for DrivesCommand {
     async fn run_internal(
         self,
         global: &mut GlobalConfig,
         client: &mut Client,
-    ) -> Result<String, TombError> {
+    ) -> Result<String, NativeError> {
         match self {
             // List all Buckets tracked remotely and locally
             DrivesCommand::Ls => {
@@ -153,7 +152,7 @@ impl RunnableCommand<TombError> for DrivesCommand {
                             ByteSize(v)
                         )
                     })
-                    .map_err(TombError::client_error)
+                    .map_err(NativeError::api)
             }
             DrivesCommand::Metadata { subcommand } => subcommand.run_internal(global, client).await,
             DrivesCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,

@@ -27,8 +27,9 @@ pub(crate) mod configuration;
 pub(crate) mod file_scanning;
 /// Operations which can be performed
 pub mod operations;
+pub(crate) mod sync;
 /// Simple helper utils
 pub mod utils;
 
-#[cfg(test)]
-pub mod test;
+mod error;
+pub(crate) use error::NativeError;

@@ -1,7 +1,8 @@
-use anyhow::Result;
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use serde::{Deserialize, Serialize};
 use wnfs::{common::dagcbor, libipld::Cid, private::share::SharePayload};
+
+use super::SharingError;
 
 #[derive(Debug, Clone)]
 pub struct SharedFile {
@@ -49,14 +50,16 @@ impl<'de> Deserialize<'de> for SharedFile {
 }
 
 impl SharedFile {
-    pub fn export_b64_url(&self) -> Result<String> {
+    pub fn export_b64_url(&self) -> Result<String, SharingError> {
         Ok(URL_SAFE.encode(serde_json::to_string(&self)?.as_bytes()))
     }
 
-    pub fn import_b64_url(b64_string: String) -> Result<Self> {
-        let bytes = URL_SAFE.decode(b64_string)?;
-        let json = String::from_utf8(bytes)?;
-        println!("json: {:?}", json);
+    pub fn import_b64_url(b64_string: String) -> Result<Self, SharingError> {
+        let bytes = URL_SAFE
+            .decode(b64_string)
+            .map_err(|_| SharingError::invalid_data("invalid url decode"))?;
+        let json = String::from_utf8(bytes)
+            .map_err(|_| SharingError::invalid_data("invalid url decode utf8"))?;
         let shared_file: SharedFile = serde_json::from_str(&json)?;
         Ok(shared_file)
     }

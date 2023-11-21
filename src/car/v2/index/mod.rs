@@ -3,7 +3,6 @@ pub mod indexable;
 /// The simple Bucket format
 pub mod indexsorted;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -13,11 +12,9 @@ use std::{
 use wnfs::libipld::Cid;
 
 use self::indexable::Indexable;
-use crate::car::{
-    error::CARError,
-    v1::Block,
-    varint::{encode_varint_u128, read_varint_u128},
-    Streamable,
+use crate::{
+    car::{error::CarError, v1::Block, Streamable},
+    utils::varint::{encode_varint_u128, read_varint_u128},
 };
 use indexsorted::Bucket;
 
@@ -34,11 +31,13 @@ pub const INDEX_SORTED_CODEC: u128 = 0x0400;
 pub const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
 
 impl Streamable for Index<Bucket> {
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self> {
+    type StreamError = CarError;
+
+    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
         if codec != INDEX_SORTED_CODEC {
-            return Err(CARError::Codec.into());
+            return Err(CarError::codec());
         }
         // Empty bucket vec
         let mut buckets = <Vec<Bucket>>::new();
@@ -51,14 +50,14 @@ impl Streamable for Index<Bucket> {
         // If there are no buckets
         if buckets.is_empty() {
             // At least start out with an empty one
-            Err(CARError::Index.into())
+            Err(CarError::index())
         } else {
             // Success
             Ok(Index { codec, buckets })
         }
     }
 
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<()> {
+    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         // Write codec
         w.write_all(&encode_varint_u128(self.codec))?;
         // For each bucket
@@ -101,7 +100,7 @@ impl Indexable for Index<Bucket> {
 }
 
 impl Index<Bucket> {
-    pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self> {
+    pub(crate) fn read_from_carv1<R: Read + Seek>(r: &mut R) -> Result<Self, CarError> {
         let mut new_index: Index<Bucket> = Index {
             codec: INDEX_SORTED_CODEC,
             buckets: vec![],
@@ -161,10 +160,10 @@ mod test {
     }
 
     crate::car::streamable_tests! {
-        crate::car::v2::Bucket:
+        <crate::car::v2::Bucket, crate::car::error::CarError>:
         indexsorted: crate::car::v2::index::test::index_sorted_example(),
 
-        crate::car::v2::Index<crate::car::v2::Bucket>:
+        <crate::car::v2::Index<crate::car::v2::Bucket>, crate::car::error::CarError>:
         carv2sortedindex: crate::car::v2::index::test::v2_sorted_index_example(),
     }
 }

@@ -1,8 +1,15 @@
-use super::OmniBucket;
+mod local;
+mod omni;
+// mod sync;
+// mod error;
+// pub(crate) use error::SyncError;
+#[allow(unused_imports)]
+// pub use sync::{determine_sync_state, sync_bucket, SyncState`};
+// pub(crate) use error::SyncError;`
 use crate::{
     api::{
         client::Client,
-        error::ClientError,
+        error::ApiError,
         models::{
             bucket::{Bucket, BucketType, StorageClass},
             metadata::Metadata,
@@ -11,14 +18,13 @@ use crate::{
         requests::staging::upload::content::UploadContent,
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore, RootedBlockStore},
-    filesystem::FsMetadata,
-    native::{
-        configuration::globalconfig::GlobalConfig,
-        operations::{error::TombError, restore},
-    },
+    filesystem::{FilesystemError, FsMetadata},
+    native::{configuration::globalconfig::GlobalConfig, operations::restore, NativeError},
 };
 use colored::Colorize;
 use futures_util::StreamExt;
+pub use local::LocalBucket;
+pub use omni::OmniBucket;
 use std::{collections::BTreeSet, fmt::Display};
 use tokio::io::AsyncWriteExt;
 use tomb_crypt::prelude::{PrivateKey, PublicKey};
@@ -63,7 +69,7 @@ impl Display for SyncState {
 pub async fn determine_sync_state(
     omni: &mut OmniBucket,
     client: &mut Client,
-) -> Result<(), TombError> {
+) -> Result<(), NativeError> {
     let bucket_id = match omni.get_id() {
         Ok(bucket_id) => bucket_id,
         Err(err) => {
@@ -117,7 +123,7 @@ pub async fn sync_bucket(
     omni: &mut OmniBucket,
     client: &mut Client,
     global: &mut GlobalConfig,
-) -> Result<String, TombError> {
+) -> Result<String, NativeError> {
     match &omni.sync_state {
         // Download the Bucket
         SyncState::Unlocalized | SyncState::Behind => {
@@ -129,16 +135,10 @@ pub async fn sync_bucket(
             let mut buffer = <Vec<u8>>::new();
             // Write every chunk to it
             while let Some(chunk) = byte_stream.next().await {
-                tokio::io::copy(
-                    &mut chunk.map_err(ClientError::http_error)?.as_ref(),
-                    &mut buffer,
-                )
-                .await?;
+                tokio::io::copy(&mut chunk.map_err(ApiError::http)?.as_ref(), &mut buffer).await?;
             }
             // Attempt to create a CARv2 BlockStore from the data
-            let metadata = CarV2MemoryBlockStore::try_from(buffer).map_err(|_| {
-                TombError::custom_error("Failed to represent metadata download as blockstore")
-            })?;
+            let metadata = CarV2MemoryBlockStore::try_from(buffer)?;
             // Grab the metadata file
             let mut metadata_file =
                 tokio::fs::File::create(&omni.get_local()?.metadata.path).await?;
@@ -161,8 +161,7 @@ pub async fn sync_bucket(
             // If there is still no ID, that means the remote Bucket was never created
             if omni.get_id().is_err() {
                 let public_key = wrapping_key.public_key()?;
-                let pem = String::from_utf8(public_key.export().await?)
-                    .map_err(|_| TombError::custom_error("unable to represent pem from utf8"))?;
+                let pem = String::from_utf8(public_key.export().await?)?;
                 let (remote, _) = Bucket::create(
                     local.name.clone(),
                     pem,
@@ -182,11 +181,11 @@ pub async fn sync_bucket(
             let local_content_cid = local
                 .content
                 .get_root()
-                .ok_or(TombError::custom_error("Bucket has no root CID"))?;
+                .ok_or(FilesystemError::missing_metadata("root cid"))?;
             let local_metadata_cid = local
                 .metadata
                 .get_root()
-                .ok_or(TombError::custom_error("Bucket has no metadata CID"))?;
+                .ok_or(FilesystemError::missing_metadata("metdata cid"))?;
             let delta = local.content.get_delta()?;
 
             // Push the metadata
@@ -257,7 +256,7 @@ pub async fn sync_bucket(
                                 new_metadata
                             )
                         })
-                        .map_err(TombError::client_error)
+                        .map_err(NativeError::api)
                 }
                 // Upload failed
                 Err(_) => Ok(format!(
@@ -289,7 +288,7 @@ pub async fn sync_bucket(
                     &local
                         .metadata
                         .get_root()
-                        .ok_or(TombError::custom_error("no metadata root_cid"))?,
+                        .ok_or(FilesystemError::missing_metadata("root cid"))?,
                 )
                 .await
                 .is_err()
@@ -307,7 +306,7 @@ pub async fn sync_bucket(
             // Open the FileSystem
             let fs = FsMetadata::unlock(&global.wrapping_key().await?, &local.metadata).await?;
             // Reconstruct the data on disk
-            let restoration_result = restore::pipeline(fs, omni, client).await;
+            let restoration_result = restore::pipeline(fs, &mut *omni, client).await;
             // If we succeed at reconstructing
             if restoration_result.is_ok() {
                 // Save the metadata in the content store as well
@@ -315,8 +314,13 @@ pub async fn sync_bucket(
                 let ipld = local
                     .metadata
                     .get_deserializable::<Ipld>(&metadata_cid)
-                    .await?;
-                let content_cid = local.content.put_serializable(&ipld).await?;
+                    .await
+                    .map_err(Box::from)?;
+                let content_cid = local
+                    .content
+                    .put_serializable(&ipld)
+                    .await
+                    .map_err(Box::from)?;
                 local.content.set_root(&content_cid);
                 assert_eq!(metadata_cid, content_cid);
                 // We're now all synced up

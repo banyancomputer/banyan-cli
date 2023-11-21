@@ -6,19 +6,19 @@ mod header;
 pub use block::Block;
 pub use header::Header;
 
-// Code
 use crate::car::{
     v2::index::{indexable::Indexable, indexsorted::Bucket, Index, INDEX_SORTED_CODEC},
     Streamable,
 };
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
-use wnfs::{common::BlockStoreError, libipld::Cid};
+use wnfs::libipld::Cid;
+
+use super::error::CarError;
 
 /// Reading / writing a CARv1 from a Byte Stream
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -31,7 +31,10 @@ pub struct CarV1 {
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
-    pub fn read_bytes<R: Read + Seek>(index_offset: Option<u64>, mut r: R) -> Result<Self> {
+    pub fn read_bytes<R: Read + Seek>(
+        index_offset: Option<u64>,
+        mut r: R,
+    ) -> Result<Self, CarError> {
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
         // End of the header
@@ -56,7 +59,7 @@ impl CarV1 {
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
-    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64> {
+    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64, CarError> {
         // Save our starting point
         let carv1_start = rw.stream_position()?;
         // Read the old header
@@ -126,17 +129,17 @@ impl CarV1 {
     }
 
     /// Get a Block directly from the CarV1
-    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block> {
+    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block, CarError> {
         if let Some(block_offset) = self.index.borrow().get_offset(cid) {
             r.seek(SeekFrom::Start(block_offset))?;
             Block::read_bytes(&mut r)
         } else {
-            Err(BlockStoreError::CIDNotFound(*cid).into())
+            Err(CarError::missing_block(cid))
         }
     }
 
     /// Set a Block directly in the CarV1
-    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<()> {
+    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<(), CarError> {
         let mut index = self.index.borrow_mut();
         // Move to the end
         w.seek(SeekFrom::End(0))?;
@@ -149,7 +152,10 @@ impl CarV1 {
     }
 
     /// Create a new CARv1 struct by writing into a stream, then deserializing it
-    pub fn new<RW: Read + Write + Seek>(index_offset: Option<u64>, mut rw: RW) -> Result<Self> {
+    pub fn new<RW: Read + Write + Seek>(
+        index_offset: Option<u64>,
+        mut rw: RW,
+    ) -> Result<Self, CarError> {
         let car = Self::default(if index_offset.is_none() { 1 } else { 2 });
         car.header.write_bytes(&mut rw)?;
         rw.seek(SeekFrom::Start(0))?;
@@ -199,10 +205,12 @@ impl CarV1 {
 #[cfg(not(target_arch = "wasm32"))]
 mod test {
     use crate::{
-        car::v1::{block::Block, CarV1},
+        car::{
+            error::CarError,
+            v1::{block::Block, CarV1},
+        },
         utils::{get_read_write, testing::blockstores::car_test_setup},
     };
-    use anyhow::Result;
     use serial_test::serial;
     use std::{
         fs::{File, OpenOptions},
@@ -213,7 +221,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn from_disk_basic() -> Result<()> {
+    fn from_disk_basic() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "from_disk_basic")?;
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
@@ -257,16 +265,16 @@ mod test {
         assert_eq!(blocks[7].cid, block_cids[7]);
 
         // Ensure content is correct
-        assert_eq!(blocks[0].content, hex::decode("a2646c696e6bd82a582300122002acecc5de2438ea4126a3010ecb1f8a599c8eff22fff1a1dcffe999b27fd3de646e616d6564626c6970")?);
-        assert_eq!(blocks[1].content, hex::decode("122e0a2401551220b6fbd675f98e2abd22d4ed29fdc83150fedc48597e92dd1a7a24381d44a274511204626561721804122f0a22122079a982de3c9907953d4d323cee1d0fb1ed8f45f8ef02870c0cb9e09246bd530a12067365636f6e64189501")?);
-        assert_eq!(blocks[2].content, hex::decode("63636363")?);
-        assert_eq!(blocks[3].content, hex::decode("122d0a240155122081cc5b17018674b401b42f35ba07bb79e211239c23bffe658da1577e3e6468771203646f671804122d0a221220e7dc486e97e6ebe5cdabab3e392bdad128b6e09acc94bb4e2aa2af7b986d24d0120566697273741833")?);
-        assert_eq!(blocks[4].content, hex::decode("62626262")?);
-        assert_eq!(blocks[5].content, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804")?);
-        assert_eq!(blocks[6].content, hex::decode("61616161")?);
+        assert_eq!(blocks[0].content, hex::decode("a2646c696e6bd82a582300122002acecc5de2438ea4126a3010ecb1f8a599c8eff22fff1a1dcffe999b27fd3de646e616d6564626c6970").unwrap());
+        assert_eq!(blocks[1].content, hex::decode("122e0a2401551220b6fbd675f98e2abd22d4ed29fdc83150fedc48597e92dd1a7a24381d44a274511204626561721804122f0a22122079a982de3c9907953d4d323cee1d0fb1ed8f45f8ef02870c0cb9e09246bd530a12067365636f6e64189501").unwrap());
+        assert_eq!(blocks[2].content, hex::decode("63636363").unwrap());
+        assert_eq!(blocks[3].content, hex::decode("122d0a240155122081cc5b17018674b401b42f35ba07bb79e211239c23bffe658da1577e3e6468771203646f671804122d0a221220e7dc486e97e6ebe5cdabab3e392bdad128b6e09acc94bb4e2aa2af7b986d24d0120566697273741833").unwrap());
+        assert_eq!(blocks[4].content, hex::decode("62626262").unwrap());
+        assert_eq!(blocks[5].content, hex::decode("122d0a240155122061be55a8e2f6b4e172338bddf184d6dbee29c98853e0a0485ecee7f27b9af0b412036361741804").unwrap());
+        assert_eq!(blocks[6].content, hex::decode("61616161").unwrap());
         assert_eq!(
             blocks[7].content,
-            hex::decode("a2646c696e6bf6646e616d65656c696d626f")?
+            hex::decode("a2646c696e6bf6646e616d65656c696d626f").unwrap()
         );
 
         Ok(())
@@ -274,7 +282,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn set_root() -> Result<()> {
+    fn set_root() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "set_root_original")?;
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
@@ -300,7 +308,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn put_get_block() -> Result<()> {
+    fn put_get_block() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "put_get_block")?;
         // Define reader and writer
         let mut original_file = File::open(car_path)?;
@@ -340,7 +348,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_no_offset() -> Result<()> {
+    fn to_from_disk_no_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_no_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
@@ -365,7 +373,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_with_offset() -> Result<()> {
+    fn to_from_disk_with_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_with_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
@@ -395,7 +403,7 @@ mod test {
 
     #[test]
     #[serial]
-    fn to_from_disk_with_data() -> Result<()> {
+    fn to_from_disk_with_data() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;

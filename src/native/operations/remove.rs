@@ -1,13 +1,11 @@
-use super::error::TombError;
 use crate::{
     filesystem::wnfsio::path_to_segments,
-    native::configuration::{bucket::LocalBucket, globalconfig::GlobalConfig},
+    native::{configuration::globalconfig::GlobalConfig, sync::LocalBucket, NativeError},
 };
-use anyhow::Result;
 use std::path::Path;
 
 /// The pipeline for removing an individual file from a WNFS
-pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), TombError> {
+pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), NativeError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;
@@ -21,7 +19,8 @@ pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), TombEr
             &fs.forest,
             &local.metadata,
         )
-        .await?;
+        .await
+        .map_err(Box::from)?;
 
     // Store all the updated information, now that we've written the file
     local.save_fs(&mut fs).await?;

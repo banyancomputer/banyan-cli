@@ -94,6 +94,21 @@ mod test {
         Ok(())
     }
 
+    #[wasm_bindgen_test]
+    async fn rename() -> TombResult<()> {
+        log!("tomb_wasm_test: create_bucket_rename()");
+        let mut client = authenticated_client().await?;
+        let (_, initial_bucket_key_pem) = ecencryption_key_pair().await;
+        let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
+        client
+            .rename_bucket(bucket.id().to_string(), "new_name".to_string())
+            .await?;
+        let buckets = client.list_buckets().await?;
+        let bucket = WasmBucket::try_from(buckets.get(0)).unwrap();
+        assert_eq!(bucket.name(), "new_name");
+        Ok(())
+    }
+
     // TODO: probably for API tests
     #[wasm_bindgen_test]
     async fn mount() -> TombResult<()> {
@@ -103,6 +118,22 @@ mod test {
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mount = client.mount(bucket.id().to_string(), private_pem).await?;
         assert!(!mount.locked());
+        Ok(())
+    }
+
+    #[wasm_bindgen_test]
+    async fn mount_rename() -> TombResult<()> {
+        log!("tomb_wasm_test: create_bucket_mount_rename()");
+        let mut client = authenticated_client().await?;
+        let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
+        let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
+        let mut mount = client
+            .mount(bucket.id().to_string(), private_pem.clone())
+            .await?;
+        mount.rename("new_name".to_string()).await?;
+        assert_eq!(mount.bucket().name(), "new_name");
+        let mount = client.mount(bucket.id().to_string(), private_pem).await?;
+        assert_eq!(mount.bucket().name(), "new_name");
         Ok(())
     }
 

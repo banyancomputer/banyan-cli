@@ -289,6 +289,30 @@ impl TombWasm {
         Ok(WasmBucketKey(bucket_key))
     }
 
+    /// Rename a bucket
+    /// # Arguments
+    /// * `bucket_id` - The id of the bucket to rename
+    /// * `name` - the new name to give to the bucket
+    /// # Returns Promise<void> in js speak
+    #[wasm_bindgen(js_name = renameBucket)]
+    pub async fn rename_bucket(&mut self, bucket_id: String, name: String) -> TombResult<()> {
+        log!("tomb-wasm: rename_bucket()");
+
+        // Parse the bucket id
+        let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+
+        // We have to read here since the endpoint is expecting a PUT request
+        let mut bucket = Bucket::read(self.client(), bucket_id)
+            .await
+            .map_err(|err| TombWasmError(format!("failed to read renamed bucket: {err}")))?;
+
+        bucket.name = name;
+        bucket
+            .update(self.client())
+            .await
+            .map_err(|err| TombWasmError(format!("failed to rename bucket: {err}")).into())
+    }
+
     /// Delete a bucket
     /// # Arguments
     /// * `bucket_id` - The id of the bucket to delete

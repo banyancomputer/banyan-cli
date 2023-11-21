@@ -1,10 +1,9 @@
-use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
 
 use super::push::PushContent;
 use crate::{
-    api::{client::Client, error::ClientError},
+    api::{client::Client, error::ApiError},
     blockstore::CarV2MemoryBlockStore,
 };
 
@@ -15,31 +14,38 @@ pub type ContentType = std::io::Cursor<Vec<u8>>;
 
 #[async_trait(?Send)]
 pub trait UploadContent {
-    fn get_hash(&self) -> Result<String>;
-    async fn get_body(&self) -> Result<ContentType>;
-    fn get_length(&self) -> Result<u64>;
+    type UploadError: From<ApiError>;
+
+    fn get_hash(&self) -> Result<String, Self::UploadError>;
+    async fn get_body(&self) -> Result<ContentType, Self::UploadError>;
+    fn get_length(&self) -> Result<u64, Self::UploadError>;
 
     async fn upload(
         &self,
         host_url: String,
         metadata_id: Uuid,
         client: &mut Client,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), Self::UploadError> {
+        let push_content = PushContent {
+            host_url,
+            metadata_id,
+            content: self.get_body().await?,
+            content_len: self.get_length()?,
+            content_hash: self.get_hash()?,
+        };
+
         client
-            .multipart_no_content(PushContent {
-                host_url,
-                metadata_id,
-                content: self.get_body().await?,
-                content_len: self.get_length()?,
-                content_hash: self.get_hash()?,
-            })
+            .multipart_no_content(push_content)
             .await
+            .map_err(|err| err.into())
     }
 }
 
 #[async_trait(?Send)]
 impl UploadContent for CarV2MemoryBlockStore {
-    fn get_hash(&self) -> anyhow::Result<String> {
+    type UploadError = ApiError;
+
+    fn get_hash(&self) -> Result<String, Self::UploadError> {
         let data = self.get_data();
         let mut hasher = blake3::Hasher::new();
         hasher.update(&data);
@@ -47,7 +53,7 @@ impl UploadContent for CarV2MemoryBlockStore {
     }
 
     #[allow(refining_impl_trait)]
-    async fn get_body(&self) -> anyhow::Result<ContentType> {
+    async fn get_body(&self) -> Result<ContentType, Self::UploadError> {
         #[cfg(target_arch = "wasm32")]
         return Ok(std::io::Cursor::new(self.get_data()));
 
@@ -55,7 +61,7 @@ impl UploadContent for CarV2MemoryBlockStore {
         return Ok(self.get_data().into());
     }
 
-    fn get_length(&self) -> Result<u64> {
+    fn get_length(&self) -> Result<u64, Self::UploadError> {
         Ok(self.get_data().len() as u64)
     }
 }
@@ -64,14 +70,14 @@ impl UploadContent for CarV2MemoryBlockStore {
 #[cfg(feature = "integration-tests")]
 mod test {
     use crate::api::{
-        error::ClientError, models::metadata::test::setup_and_push_metadata,
+        error::ApiError, models::metadata::test::setup_and_push_metadata,
         requests::staging::upload::content::UploadContent,
     };
     use serial_test::serial;
 
     #[tokio::test]
     #[serial]
-    async fn upload_content() -> Result<(), ClientError> {
+    async fn upload_content() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("upload_content").await?;
         // Create a grant and upload content
         setup
