@@ -87,11 +87,11 @@ pub async fn restore_nodes(
                     symlink(origin, built_path)?;
                 } else {
                     // If the parent does not yet exist
-                    if let Some(parent) = built_path.parent()
-                        && !parent.exists()
-                    {
-                        // Create the directories
-                        std::fs::create_dir_all(parent)?;
+                    if let Some(parent) = built_path.parent() {
+                        if !parent.exists() {
+                            // Create the directories
+                            std::fs::create_dir_all(parent)?;
+                        }
                     }
                     // Create the file at the desired location
                     let mut output_file = File::create(built_path)?;

@@ -74,15 +74,12 @@ impl GlobalConfig {
 
     // Get the Gredentials
     async fn get_credentials(&self) -> Result<Credentials, NativeError> {
-        if let Ok(signing_key) = self.api_key().await
-            && let Some(user_id) = self.remote_user_id
-        {
-            Ok(Credentials {
+        match (self.api_key().await, self.remote_user_id) {
+            (Ok(signing_key), Some(user_id)) => Ok(Credentials {
                 signing_key,
                 user_id,
-            })
-        } else {
-            Err(NativeError::missing_credentials())
+            }),
+            _ => Err(NativeError::missing_credentials()),
         }
     }
 
@@ -136,15 +133,15 @@ impl GlobalConfig {
 
     /// Initialize from file on disk
     pub async fn from_disk() -> Result<Self, NativeError> {
-        if let Ok(file) = get_read(&config_path())
-            && let Ok(config) = serde_json::from_reader(file)
-        {
-            Ok(config)
-        } else {
-            let config = Self::create().await?;
-            config.to_disk()?;
-            Ok(config)
+        if let Ok(file) = get_read(&config_path()) {
+            if let Ok(config) = serde_json::from_reader(file) {
+                return Ok(config);
+            }
         }
+
+        let config = Self::create().await?;
+        config.to_disk()?;
+        Ok(config)
     }
 
     /// Remove a BucketConfig for an origin

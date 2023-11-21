@@ -140,12 +140,13 @@ impl OmniBucket {
             sync_state: SyncState::Unknown,
         };
         // If this bucket already exists both locally and remotely
-        if let Some(bucket) = global.get_bucket(origin)
-            && let Some(remote_id) = bucket.remote_id
-            && RemoteBucket::read(client, remote_id).await.is_ok()
-        {
-            // Prevent the user from re-creating it
-            return Err(NativeError::unique_error());
+        if let Some(bucket) = global.get_bucket(origin) {
+            if let Some(remote_id) = bucket.remote_id {
+                if RemoteBucket::read(client, remote_id).await.is_ok() {
+                    // Prevent the user from re-creating it
+                    return Err(NativeError::unique_error());
+                }
+            }
         }
 
         // Grab the wrapping key, public key and pem
@@ -191,24 +192,24 @@ impl OmniBucket {
         local_deletion: bool,
         mut remote_deletion: bool,
     ) -> Result<String, NativeError> {
-        if let Ok(local) = self.get_local()
-            && local_deletion
-        {
-            local.remove_data()?;
-            // Find index of bucket
-            let index = global
-                .buckets
-                .iter()
-                .position(|b| b == &local)
-                .ok_or(NativeError::missing_local_drive())?;
-            // Remove bucket config from global config
-            global.buckets.remove(index);
+        if local_deletion {
+            if let Ok(local) = self.get_local() {
+                local.remove_data()?;
+                // Find index of bucket
+                let index = global
+                    .buckets
+                    .iter()
+                    .position(|b| b == &local)
+                    .ok_or(NativeError::missing_local_drive())?;
+                // Remove bucket config from global config
+                global.buckets.remove(index);
+            }
         }
 
-        if let Ok(remote) = self.get_remote()
-            && remote_deletion
-        {
-            remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
+        if remote_deletion {
+            if let Ok(remote) = self.get_remote() {
+                remote_deletion = RemoteBucket::delete_by_id(client, remote.id).await.is_ok();
+            }
         }
 
         Ok(format!(
