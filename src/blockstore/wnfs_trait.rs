@@ -5,10 +5,12 @@ use wnfs::libipld::{Cid, IpldCodec};
 
 use crate::LibipldError;
 
-use super::{
-    BanyanApiBlockStore, BlockStoreError, CarV2DiskBlockStore, CarV2MemoryBlockStore,
-    MemoryBlockStore, MultiCarV2DiskBlockStore,
+use crate::blockstore::{
+    BanyanApiBlockStore, BlockStoreError, CarV2MemoryBlockStore, MemoryBlockStore,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore};
 
 #[async_trait(?Send)]
 pub trait BanyanBlockStore: wnfs::common::BlockStore {
@@ -42,5 +44,7 @@ macro_rules! impl_wnfs_blockstore {
 impl_wnfs_blockstore!(BanyanApiBlockStore);
 impl_wnfs_blockstore!(MemoryBlockStore);
 impl_wnfs_blockstore!(CarV2MemoryBlockStore);
+#[cfg(not(target_arch = "wasm32"))]
 impl_wnfs_blockstore!(CarV2DiskBlockStore);
+#[cfg(not(target_arch = "wasm32"))]
 impl_wnfs_blockstore!(MultiCarV2DiskBlockStore);
