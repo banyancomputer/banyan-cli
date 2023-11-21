@@ -23,7 +23,7 @@ use crate::{
     prelude::filesystem::FsMetadata,
 };
 use gloo::console::log;
-use js_sys::Array;
+use js_sys::{Array, Uint8Array};
 use std::{
     convert::{From, TryFrom},
     str::FromStr,
@@ -406,11 +406,13 @@ impl TombWasm {
     }
 
     #[wasm_bindgen(js_name = receiveFile)]
-    pub async fn receive_file(&mut self, shared_file: WasmSharedFile) -> TombResult<()> {
+    pub async fn receive_file(&mut self, shared_file: WasmSharedFile) -> TombResult<Uint8Array> {
         let banyan_api_blockstore = BanyanApiBlockStore::from(self.client().clone());
-        let file = FsMetadata::receive_file(shared_file.0, &banyan_api_blockstore)
+        let file_content = FsMetadata::receive_file_content(shared_file.0, &banyan_api_blockstore)
             .await
             .unwrap();
-        return Err(TombWasmError(format!("unknown error!")).into());
+        let bytes = file_content.into_boxed_slice();
+        let array = Uint8Array::from(&bytes[..]);
+        Ok(array)
     }
 }
