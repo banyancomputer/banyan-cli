@@ -36,17 +36,14 @@ impl MultiCarV2DiskBlockStore {
             }
 
             let mut deltas = Vec::new();
-            // For each child in the directory
             for dir_entry in fs::read_dir(dir)?.flatten() {
-                // If the dir entry is valid, the file is a .car, and a MultiCarV2DiskBlockStore can be read from it
                 if dir_entry
                     .file_name()
                     .to_str()
                     .expect("no file name str")
-                    .contains(".car")
+                    .ends_with(".car")
                 {
                     if let Ok(car) = CarV2DiskBlockStore::new(&dir_entry.path()) {
-                        // Push this to the vec
                         deltas.push(car);
                     }
                 }

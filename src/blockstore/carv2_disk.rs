@@ -35,7 +35,7 @@ impl CarV2DiskBlockStore {
                 File::create(path)?;
             }
 
-            // If the file is already a valid CarV2v2
+            // If the file is already a valid CARv2
             if let Ok(mut file) = File::open(path) {
                 if let Ok(car) = CarV2::read_bytes(&mut file) {
                     return Ok(Self {
