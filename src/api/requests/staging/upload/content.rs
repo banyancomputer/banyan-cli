@@ -52,7 +52,6 @@ impl UploadContent for CarV2MemoryBlockStore {
         Ok(hasher.finalize().to_string())
     }
 
-    #[allow(refining_impl_trait)]
     async fn get_body(&self) -> Result<ContentType, Self::UploadError> {
         #[cfg(target_arch = "wasm32")]
         return Ok(std::io::Cursor::new(self.get_data()));

@@ -7,14 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo check --all-targets --examples
 
   lints:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
       - run: rustup component add rustfmt clippy && cargo fmt --all -- --check; cargo clippy --all-targets --all-features --tests -- -D warnings
 
   tests:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
       - run: RUST_BACKTRACE=1 && cargo test --features cli
 
   # TODO: wasm tests once we don't need a remote to run them
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
       - run: RUST_BACKTRACE=1 && cargo test --all-features --doc
 
   # TODO: wasm docs tests once we figure out how to properly run them. Right now they assume target is NOT wasm32-unknown-unknown
