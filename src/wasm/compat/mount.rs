@@ -9,7 +9,6 @@ use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wnfs::private::PrivateNode;
 
-use crate::wasm::compat::WasmSharedFile;
 use crate::{
     api::{
         client::Client,
@@ -21,7 +20,9 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
-    wasm::{TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSnapshot},
+    wasm::{
+        TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
+    },
 };
 
 /// Mount point for a Bucket in WASM
