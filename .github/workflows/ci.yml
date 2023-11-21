@@ -35,4 +35,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: RUST_BACKTRACE=1 && cargo test --all-features --doc
 
+  wasm:
+    name: wasm compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - run: wasm-pack build
+
   # TODO: wasm docs tests once we figure out how to properly run them. Right now they assume target is NOT wasm32-unknown-unknown
