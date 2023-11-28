@@ -52,6 +52,7 @@ impl Error for LocationRequestError {}
 #[cfg(feature = "integration-tests")]
 mod test {
     use std::collections::BTreeSet;
+    use wnfs::libipld::Cid;
 
     use crate::{
         api::{
@@ -66,11 +67,9 @@ mod test {
         blockstore::{BanyanApiBlockStore, DoubleSplitStore},
         filesystem::FilesystemError,
     };
-    use serial_test::serial;
-    use wnfs::libipld::Cid;
 
     #[tokio::test]
-    #[serial]
+
     async fn get_locations() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("get_locations").await?;
         // Create a grant and upload content
@@ -88,10 +87,10 @@ mod test {
             )
             .await?;
 
-        let mut blockstore_client = setup.client.clone();
-        blockstore_client
-            .with_remote(&setup.storage_ticket.host)
-            .expect("Failed to create blockstore client");
+        // Wait for the content to be uploaded
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+        let blockstore_client = setup.client.clone();
         let api_blockstore = BanyanApiBlockStore::from(blockstore_client);
         let node = setup
             .fs
@@ -123,7 +122,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
+
     async fn get_bad_location() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let mut cids = BTreeSet::new();
