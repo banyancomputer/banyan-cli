@@ -276,11 +276,7 @@ pub async fn sync_bucket(
                 .map(|ticket| ticket.host)
                 .unwrap_or(global.endpoints.data.clone());
 
-            let mut api_blockstore_client = client.clone();
-            api_blockstore_client
-                .with_remote(&storage_host)
-                .expect("could not create blockstore client");
-
+            let api_blockstore_client = client.clone();
             let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
             // If getting a block is an error
             if api_blockstore

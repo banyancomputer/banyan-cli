@@ -639,10 +639,7 @@ impl WasmMount {
             panic!("Bucket is locked");
         };
 
-        let mut api_blockstore_client = self.client.clone();
-        api_blockstore_client
-            .with_remote(self.client.remote_data.as_str())
-            .expect("could not create blockstore client");
+        let api_blockstore_client = self.client.clone();
         let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
 
         let fs = self.fs_metadata.as_mut().unwrap();
