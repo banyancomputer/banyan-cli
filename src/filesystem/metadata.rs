@@ -2,7 +2,7 @@ use crate::{
     blockstore::{BanyanBlockStore, CarV2MemoryBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{
         serialize::{load_dir, load_forest, store_dir, store_forest, store_share_manager},
-        sharing::manager::ShareManager,
+        sharing::{manager::ShareManager, SharedFile},
         wnfsio::path_to_segments,
     },
 };
@@ -21,7 +21,9 @@ use wnfs::{
     common::{BlockStore, Metadata},
     libipld::{Cid, Ipld},
     namefilter::Namefilter,
-    private::{PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory},
+    private::{
+        share::SharePayload, PrivateDirectory, PrivateForest, PrivateNode, PrivateNodeOnPathHistory,
+    },
 };
 
 use super::error::FilesystemError;
@@ -227,7 +229,7 @@ impl FsMetadata {
         })
     }
 
-    /// Share with
+    /// Share read write access with another key bearer
     pub async fn share_with(
         &mut self,
         recipient: &EcPublicEncryptionKey,
@@ -257,6 +259,76 @@ impl FsMetadata {
         store.set_root(&metadata_cid);
         // Update the metadata
         Ok(())
+    }
+
+    /// Share a single version of an individual node
+    pub async fn share_file(
+        &mut self,
+        path_segments: &[String],
+        metadata_store: &impl RootedBlockStore,
+        content_store: &impl BanyanBlockStore,
+    ) -> Result<SharedFile, FilesystemError> {
+        let mut rng = thread_rng();
+        let node = self
+            .get_node(path_segments, metadata_store)
+            .await?
+            .ok_or(FilesystemError::node_not_found(&path_segments.join("/")))?;
+
+        // Force cast as file and panic otherwise
+        if node.is_dir() {
+            return Err(FilesystemError::wnfs(Box::from(
+                "unable to share directories",
+            )));
+        }
+        let file = node.as_file().map_err(Box::from)?;
+
+        // Extract relevant bits of metadata
+        let metadata = file.get_metadata();
+        let mime_type = match metadata.0.get("mime_type") {
+            Some(Ipld::String(mime_type)) => Some(String::from(mime_type)),
+            _ => None,
+        };
+        let size = match metadata.0.get("size") {
+            Some(Ipld::Integer(size)) => Some(*size as u64),
+            _ => None,
+        };
+        let file_name = path_segments.last().expect("No file name").to_owned();
+
+        // Share the Node by storing it
+        let sharer_payload =
+            SharePayload::from_node(&node, false, &mut self.forest, content_store, &mut rng)
+                .await
+                .map_err(Box::from)?;
+
+        let forest_cid = store_forest(&self.forest, content_store, content_store).await?;
+
+        Ok(SharedFile {
+            payload: sharer_payload,
+            forest_cid,
+            file_name,
+            mime_type,
+            size,
+        })
+    }
+
+    #[cfg(test)]
+    pub async fn receive_file_content(
+        shared_file: SharedFile,
+        store: &impl BlockStore,
+    ) -> Result<Vec<u8>, FilesystemError> {
+        let forest = load_forest(&shared_file.forest_cid, store).await?;
+        // Grab node using share label.
+        match shared_file.payload {
+            SharePayload::Temporal(_) => todo!(),
+            SharePayload::Snapshot(snapshot) => {
+                let file = PrivateNode::load_from_snapshot(snapshot, &forest, store)
+                    .await
+                    .map_err(Box::from)?
+                    .as_file()
+                    .map_err(Box::from)?;
+                Ok(file.get_content(&forest, store).await.map_err(Box::from)?)
+            }
+        }
     }
 
     /// Get the original root directory
@@ -333,12 +405,12 @@ impl FsMetadata {
             .get_node(path_segments, true, &self.forest, metadata_store)
             .await;
 
-        if let Ok(Some(_)) = result {
-        }
-        // If there was an error searching for the Node or
-        else {
-            // Create the subdirectory
-            self.root_dir
+        match result {
+            // Dir already exitsts
+            Ok(Some(_)) => Ok(()),
+            // Dir needs to be made
+            Ok(None) | Err(_) => self
+                .root_dir
                 .mkdir(
                     path_segments,
                     true,
@@ -348,9 +420,8 @@ impl FsMetadata {
                     &mut thread_rng(),
                 )
                 .await
-                .map_err(Box::from)?;
+                .map_err(|err| FilesystemError::wnfs(Box::from(err))),
         }
-        Ok(())
     }
 
     /// Ls the root directory at the path provided
@@ -691,10 +762,10 @@ pub struct FsMetadataEntry {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod test {
-
     use crate::{
         blockstore::MemoryBlockStore,
         filesystem::{error::FilesystemError, metadata::FsMetadata},
+        prelude::filesystem::sharing::SharedFile,
     };
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
     use wnfs::private::PrivateNode;
@@ -764,6 +835,44 @@ mod test {
         let new_kitty_bytes = fs_metadata
             .read(&cat_path, &metadata_store, &content_store)
             .await?;
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn add_share_receive() -> Result<(), FilesystemError> {
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata =
+            _init_save_unlock(wrapping_key, &metadata_store, &content_store).await?;
+
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
+        // Add a new file
+        fs_metadata
+            .write(
+                &cat_path,
+                &metadata_store,
+                &content_store,
+                kitty_bytes.clone(),
+            )
+            .await?;
+
+        let shared_file = fs_metadata
+            .share_file(&cat_path, &metadata_store, &content_store)
+            .await?;
+
+        let share_string = shared_file.export_b64_url()?;
+
+        println!("b64 url: {:?}", share_string);
+
+        let reconstructed_shared_file = SharedFile::import_b64_url(share_string)?;
+
+        let new_kitty_bytes =
+            FsMetadata::receive_file_content(reconstructed_shared_file, &content_store).await?;
+
         assert_eq!(kitty_bytes, new_kitty_bytes);
 
         Ok(())

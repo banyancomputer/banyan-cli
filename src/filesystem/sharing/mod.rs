@@ -6,6 +6,9 @@ mod error;
 pub mod manager;
 /// Maps key fingerprints to RsaPublicKeys and encrypted TemporalKeys
 pub mod mapper;
+/// Takes snapshots of data
+mod shared_file;
+pub use shared_file::SharedFile;
 
 pub(crate) use error::SharingError;
 
