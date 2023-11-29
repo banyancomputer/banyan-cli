@@ -20,7 +20,9 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
-    wasm::{TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSnapshot},
+    wasm::{
+        TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
+    },
 };
 
 /// Mount point for a Bucket in WASM
@@ -845,6 +847,47 @@ impl WasmMount {
 
         // Ok
         Ok(())
+    }
+
+    /// Share a file snapshot
+    #[wasm_bindgen(js_name = shareFile)]
+    pub async fn share_file(&mut self, path_segments: Array) -> TombResult<String> {
+        // Read the array as a Vec<String>
+        let path_segments = path_segments
+            .iter()
+            .map(|s| s.as_string().unwrap())
+            .collect::<Vec<String>>();
+
+        if self.locked() {
+            return Err(
+                TombWasmError("unable to share a file from a locked bucket".to_string()).into(),
+            );
+        };
+
+        let shared_file = self
+            .fs_metadata
+            .as_mut()
+            .unwrap()
+            .share_file(
+                &path_segments,
+                &self.metadata_blockstore,
+                &self.content_blockstore,
+            )
+            .await
+            .map_err(|err| TombWasmError(format!("share_file: {err}")))?;
+
+        // Mark as dirty so and additional blocks are persisted remotely
+        self.dirty = true;
+
+        log!(
+            "tomb-wasm: mount/share_file/{} - dirty, syncing changes",
+            self.bucket.id.to_string()
+        );
+
+        self.sync().await.expect("could not sync");
+
+        let shared_file = WasmSharedFile(shared_file);
+        Ok(shared_file.export_b64_url()?)
     }
 
     /// Return boolean indiciating whether or not the currently mounted bucket is snapshotted
