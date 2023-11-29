@@ -24,6 +24,12 @@ notice = "deny"
 ignore = [
     # This is an unsoundness bug in atty that has been ignored for the CI baseline
     "RUSTSEC-2021-0145",
+
+    # This is a bug in the rsa crate which is dependended on by jwt-simple, we
+    # don't use the rsa features in jwt-simple, there isn't an upstream fix for
+    # it, and there isn't a feature flag to disable support for rsa on the
+    # crate.
+    "RUSTSEC-2023-0071",
 ]
 
 [licenses]
