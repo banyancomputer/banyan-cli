@@ -72,6 +72,7 @@ unsigned-varint = { version = "^0.8" }
 url = { version = "^2" }
 uuid = { version = "^1", features = ["serde", "v4"] }
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", version = "^0.1" }
+gloo = "0.10.0"
 
 # Dependencies that must exist independent of architecture for testing
 # [dev-dependencies]

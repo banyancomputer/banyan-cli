@@ -7,6 +7,7 @@ mod test {
             wasm::{TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmFsMetadataEntry},
         },
         gloo::console::log,
+        tracing::debug,
         js_sys::{Array, Uint8Array},
         std::convert::TryFrom,
         tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey},
