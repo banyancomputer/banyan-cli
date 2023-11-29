@@ -21,15 +21,9 @@ impl std::error::Error for NativeError {}
 impl Display for NativeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match &self.kind {
-            NativeErrorKind::MissingApiKey => {
-                "Unable to find API Key".to_owned()
-            }
-            NativeErrorKind::MissingWrappingKey => {
-                "Unable to find Wrapping Key".to_owned()
-            }
-            NativeErrorKind::MissingUserId => {
-                "Unable to find remote User Id".to_owned()
-            }
+            NativeErrorKind::MissingApiKey => "Unable to find API Key".to_owned(),
+            NativeErrorKind::MissingWrappingKey => "Unable to find Wrapping Key".to_owned(),
+            NativeErrorKind::MissingUserId => "Unable to find remote User Id".to_owned(),
             NativeErrorKind::MissingIdentifier => {
                 "Unable to find a remote Identifier associated with that Drive".to_owned()
             }

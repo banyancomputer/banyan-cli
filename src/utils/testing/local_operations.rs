@@ -29,6 +29,7 @@ pub async fn test_setup_structured(
     structure.generate(&input_path).map_err(Box::from)?;
     // Deinitialize existing data / metadata
     configure::deinit(&input_path).await?;
+    configure::init(test_name, &input_path).await?;
     // Return all paths
     Ok(input_path.clone())
 }
