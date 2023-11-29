@@ -139,13 +139,12 @@ impl OmniBucket {
             remote: None,
             sync_state: SyncState::Unknown,
         };
+
         // If this bucket already exists both locally and remotely
         if let Some(bucket) = global.get_bucket(origin) {
-            if let Some(remote_id) = bucket.remote_id {
-                if RemoteBucket::read(client, remote_id).await.is_ok() {
-                    // Prevent the user from re-creating it
-                    return Err(NativeError::unique_error());
-                }
+            if bucket.remote_id.is_some() {
+                // Prevent the user from re-creating it
+                return Err(NativeError::unique_error());
             }
         }
 
