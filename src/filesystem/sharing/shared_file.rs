@@ -1,52 +1,34 @@
+use super::SharingError;
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use wnfs::{common::dagcbor, libipld::Cid, private::share::SharePayload};
 
-use super::SharingError;
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedFile {
+    #[serde(serialize_with = "serialize_payload")]
+    #[serde(deserialize_with = "deserialize_payload")]
     pub payload: SharePayload,
     pub forest_cid: Cid,
     pub file_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
 }
 
-impl Serialize for SharedFile {
-    fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let payload_bytes = dagcbor::encode(&self.payload).expect("failed to serialize payload");
-        (
-            payload_bytes,
-            self.forest_cid,
-            self.file_name.clone(),
-            self.mime_type.clone(),
-            self.size,
-        )
-            .serialize(serializer)
-    }
+fn serialize_payload<S: Serializer>(
+    payload: &SharePayload,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let bytes = dagcbor::encode(&payload).expect("failed to serialize payload");
+    bytes.serialize(serializer)
 }
 
-impl<'de> Deserialize<'de> for SharedFile {
-    fn deserialize<D>(deserializer: D) -> std::prelude::v1::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let (payload_bytes, forest_cid, file_name, mime_type, size) =
-            <(Vec<u8>, Cid, String, Option<String>, Option<u64>)>::deserialize(deserializer)?;
-        let payload: SharePayload =
-            dagcbor::decode(&payload_bytes).expect("failed to deserialize payload");
-        Ok(SharedFile {
-            payload,
-            forest_cid,
-            file_name,
-            mime_type,
-            size,
-        })
-    }
+fn deserialize_payload<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<SharePayload, D::Error> {
+    let bytes = <Vec<u8>>::deserialize(deserializer)?;
+    Ok(dagcbor::decode::<SharePayload>(&bytes).expect("failed to deserialize payload"))
 }
 
 impl SharedFile {
