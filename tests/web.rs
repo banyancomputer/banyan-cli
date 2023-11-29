@@ -12,7 +12,7 @@ mod test {
         std::convert::TryFrom,
         tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey},
         tracing::debug,
-        wasm_bindgen::JsValue,
+        wasm_bindgen::{convert::TryFromJsValue, JsValue},
         wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure},
     };
     wasm_bindgen_test_configure!(run_in_browser);
@@ -108,7 +108,7 @@ mod test {
             .rename_bucket(bucket.id().to_string(), "new_name".to_string())
             .await?;
         let buckets = client.list_buckets().await?;
-        let bucket = WasmBucket::try_from(buckets.get(0)).unwrap();
+        let bucket = WasmBucket::try_from_js_value(buckets.get(0)).unwrap();
         assert_eq!(bucket.name(), "new_name");
         Ok(())
     }

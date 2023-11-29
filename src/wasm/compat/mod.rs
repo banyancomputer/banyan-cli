@@ -5,7 +5,7 @@ mod types;
 pub use mount::WasmMount;
 pub use types::{
     TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry,
-    WasmNodeMetadata, WasmSnapshot,
+    WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
 };
 
 use crate::api::{

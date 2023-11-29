@@ -5,11 +5,11 @@ mod version;
 /// Expose all the compatibility types directly
 pub use compat::{
     TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata,
-    WasmFsMetadataEntry, WasmMount, WasmNodeMetadata, WasmSnapshot,
+    WasmFsMetadataEntry, WasmMount, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
 };
 
 use std::sync::Once;
-use tracing::{debug, warn, Level};
+use tracing::{debug, warn};
 use tracing_subscriber::{
     fmt::{format::Pretty, time::UtcTime},
     prelude::*,
@@ -35,7 +35,7 @@ static INIT: Once = Once::new();
 
 #[wasm_bindgen(start)]
 pub fn register_log() {
-    INIT.call_once(|| {
+    INIT.call_once(|_| {
         #[cfg(feature = "console_error_panic_hook")]
         set_panic_hook();
 
