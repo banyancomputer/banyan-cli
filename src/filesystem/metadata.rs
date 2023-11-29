@@ -404,10 +404,12 @@ impl FsMetadata {
             .get_node(path_segments, true, &self.forest, metadata_store)
             .await;
 
-        // If there was an error getting the node
-        if result.is_err() || result.unwrap().is_none() {
-            // Create the subdirectory
-            self.root_dir
+        match result {
+            // Dir already exitsts
+            Ok(Some(_)) => Ok(()),
+            // Dir needs to be made
+            Ok(None) | Err(_) => self
+                .root_dir
                 .mkdir(
                     path_segments,
                     true,
@@ -417,9 +419,8 @@ impl FsMetadata {
                     &mut thread_rng(),
                 )
                 .await
-                .map_err(Box::from)?;
+                .map_err(|err| FilesystemError::wnfs(Box::from(err))),
         }
-        Ok(())
     }
 
     /// Ls the root directory at the path provided
