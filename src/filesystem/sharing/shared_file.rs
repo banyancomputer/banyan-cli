@@ -9,8 +9,8 @@ pub struct SharedFile {
     pub payload: SharePayload,
     pub forest_cid: Cid,
     pub file_name: String,
-    pub mime_type: String,
-    pub size: u64,
+    pub mime_type: Option<String>,
+    pub size: Option<u64>,
 }
 
 impl Serialize for SharedFile {
@@ -36,7 +36,7 @@ impl<'de> Deserialize<'de> for SharedFile {
         D: serde::Deserializer<'de>,
     {
         let (payload_bytes, forest_cid, file_name, mime_type, size) =
-            <(Vec<u8>, Cid, String, String, u64)>::deserialize(deserializer)?;
+            <(Vec<u8>, Cid, String, Option<String>, Option<u64>)>::deserialize(deserializer)?;
         let payload: SharePayload =
             dagcbor::decode(&payload_bytes).expect("failed to deserialize payload");
         Ok(SharedFile {

@@ -285,12 +285,12 @@ impl FsMetadata {
         // Extract relevant bits of metadata
         let metadata = file.get_metadata();
         let mime_type = match metadata.0.get("mime_type") {
-            Some(Ipld::String(mime_type)) => mime_type.to_owned(),
-            _ => "NA".to_owned(),
+            Some(Ipld::String(mime_type)) => Some(String::from(mime_type)),
+            _ => None,
         };
         let size = match metadata.0.get("size") {
-            Some(Ipld::Integer(size)) => *size as u64,
-            _ => 0,
+            Some(Ipld::Integer(size)) => Some(*size as u64),
+            _ => None,
         };
         let file_name = path_segments.last().expect("No file name").to_owned();
 
@@ -311,6 +311,7 @@ impl FsMetadata {
         })
     }
 
+    #[cfg(test)]
     pub async fn receive_file_content(
         shared_file: SharedFile,
         store: &impl BlockStore,
