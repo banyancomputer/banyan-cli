@@ -21,8 +21,14 @@ impl std::error::Error for NativeError {}
 impl Display for NativeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match &self.kind {
-            NativeErrorKind::MissingCredentials => {
-                "Expected local Authorization Credentials but failed to find them".to_owned()
+            NativeErrorKind::MissingApiKey => {
+                "Unable to find API Key".to_owned()
+            }
+            NativeErrorKind::MissingWrappingKey => {
+                "Unable to find Wrapping Key".to_owned()
+            }
+            NativeErrorKind::MissingUserId => {
+                "Unable to find remote User Id".to_owned()
             }
             NativeErrorKind::MissingIdentifier => {
                 "Unable to find a remote Identifier associated with that Drive".to_owned()
@@ -55,9 +61,21 @@ impl Display for NativeError {
 }
 
 impl NativeError {
-    pub fn missing_credentials() -> Self {
+    pub fn missing_api_key() -> Self {
         Self {
-            kind: NativeErrorKind::MissingCredentials,
+            kind: NativeErrorKind::MissingApiKey,
+        }
+    }
+
+    pub fn missing_wrapping_key() -> Self {
+        Self {
+            kind: NativeErrorKind::MissingWrappingKey,
+        }
+    }
+
+    pub fn missing_user_id() -> Self {
+        Self {
+            kind: NativeErrorKind::MissingUserId,
         }
     }
 
@@ -140,7 +158,9 @@ impl NativeError {
 
 #[derive(Debug)]
 enum NativeErrorKind {
-    MissingCredentials,
+    MissingApiKey,
+    MissingWrappingKey,
+    MissingUserId,
     MissingIdentifier,
     MissingLocalDrive,
     MissingRemoteDrive,

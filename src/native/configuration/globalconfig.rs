@@ -64,23 +64,17 @@ impl GlobalConfig {
 
     /// Get the wrapping key
     pub async fn wrapping_key(&self) -> Result<EcEncryptionKey, NativeError> {
-        wrapping_key(&self.wrapping_key_path).await
+        wrapping_key(&self.wrapping_key_path).await.map_err(|_| NativeError::missing_wrapping_key())
     }
 
     /// Get the api key
     pub async fn api_key(&self) -> Result<EcSignatureKey, NativeError> {
-        load_api_key(&self.api_key_path).await
+        load_api_key(&self.api_key_path).await.map_err(|_| NativeError::missing_api_key())
     }
 
     // Get the Gredentials
     async fn get_credentials(&self) -> Result<Credentials, NativeError> {
-        match (self.api_key().await, self.remote_user_id) {
-            (Ok(signing_key), Some(user_id)) => Ok(Credentials {
-                signing_key,
-                user_id,
-            }),
-            _ => Err(NativeError::missing_credentials()),
-        }
+        Ok(Credentials { user_id: self.remote_user_id.ok_or(NativeError::missing_user_id())?, signing_key: self.api_key().await? })
     }
 
     /// Get the Client data
