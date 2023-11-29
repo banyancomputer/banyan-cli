@@ -113,7 +113,7 @@ mod test {
     async fn configure_remote() -> Result<(), UtilityError> {
         let address = "http://app.tomb.com.net.org:5423/";
         configure::deinit_all().await?;
-        let _ = GlobalConfig::from_disk().await?;
+        let _ = GlobalConfig::new().await?;
         // Configure the remote endpoint
         configure::remote_core(address).await?;
         // Assert it was actually modified
