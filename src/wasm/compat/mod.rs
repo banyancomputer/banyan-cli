@@ -9,21 +9,17 @@ pub use types::{
     WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
 };
 
-use crate::{
-    api::{
-        client::{Client, Credentials},
-        models::{
-            account::Account,
-            bucket::{Bucket, BucketType, StorageClass},
-            bucket_key::BucketKey,
-        },
-        requests::core::auth::device_api_key::regwait::end::EndRegwait,
+use crate::api::{
+    client::{Client, Credentials},
+    models::{
+        account::Account,
+        bucket::{Bucket, BucketType, StorageClass},
+        bucket_key::BucketKey,
     },
-    blockstore::BanyanApiBlockStore,
-    prelude::filesystem::FsMetadata,
+    requests::core::auth::device_api_key::regwait::end::EndRegwait,
 };
 use gloo::console::log;
-use js_sys::{Array, Uint8Array};
+use js_sys::Array;
 use std::{
     convert::{From, TryFrom},
     str::FromStr,

@@ -24,12 +24,12 @@ impl WasmSharedFile {
     }
 
     #[wasm_bindgen(js_name = "mimeType")]
-    pub fn mime_type(&self) -> String {
+    pub fn mime_type(&self) -> Option<String> {
         self.0.mime_type.clone()
     }
 
-    pub fn size(&self) -> String {
-        self.0.size.to_string()
+    pub fn size(&self) -> Option<String> {
+        self.0.size.map(|value| value.to_string())
     }
 
     #[wasm_bindgen(js_name = "fileName")]
