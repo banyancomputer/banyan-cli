@@ -13,7 +13,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{create_dir_all, remove_file, OpenOptions},
+    fs::{remove_file, OpenOptions},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -194,9 +194,6 @@ impl GlobalConfig {
         name: &str,
         origin: &Path,
     ) -> Result<LocalBucket, NativeError> {
-        if !origin.exists() {
-            create_dir_all(origin)?;
-        }
         let wrapping_key = self.wrapping_key().await?;
         let mut bucket = LocalBucket::new(origin, &wrapping_key).await?;
         bucket.name = name.to_string();

@@ -18,7 +18,7 @@ use uuid::Uuid;
 use wnfs::{libipld::Cid, private::PrivateNodeOnPathHistory};
 
 const BUCKET_METADATA_FILE_NAME: &str = "metadata.car";
-const BUCKET_CONTENT_DIR_NAME: &str = "deltas";
+const BUCKET_CONTENT_DIR_NAME: &str = "content";
 
 fn bucket_data_home(local_id: &str) -> PathBuf {
     xdg_data_home().join(local_id)
@@ -29,12 +29,7 @@ fn bucket_metadata_path(name: &str) -> PathBuf {
 }
 
 fn bucket_content_path(name: &str) -> PathBuf {
-    let path = xdg_data_home().join(name).join(BUCKET_CONTENT_DIR_NAME);
-    // If the directory doesnt exist yet, make it!
-    if !path.exists() {
-        create_dir_all(&path).expect("failed to create XDG data home");
-    }
-    path
+    xdg_data_home().join(name).join(BUCKET_CONTENT_DIR_NAME)
 }
 
 // TODO: This is maybe better concieved of as a Bucket
@@ -85,6 +80,7 @@ impl LocalBucket {
         origin: &Path,
         wrapping_key: &EcEncryptionKey,
     ) -> Result<Self, FilesystemError> {
+        create_dir_all(origin).expect("already exists");
         let name = origin
             .file_name()
             .expect("no file name")
@@ -98,6 +94,8 @@ impl LocalBucket {
             .map(char::from)
             .collect();
         // Compose the generated directory
+        let bucket_home = bucket_data_home(&local_id);
+        create_dir_all(bucket_home).expect("already exists");
         let metadata_path = bucket_metadata_path(&local_id);
         let content_path = bucket_content_path(&local_id);
         let metadata = CarV2DiskBlockStore::new(&metadata_path)?;
@@ -178,11 +176,9 @@ mod test {
             remove_dir_all(&origin)?;
         }
         create_dir_all(&origin)?;
-
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.clone().wrapping_key().await?;
         let mut config = global.get_or_init_bucket("test", &origin).await?;
-
         let mut rng = thread_rng();
         let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;
         config.content.add_delta()?;

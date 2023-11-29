@@ -24,40 +24,50 @@ pub struct MultiCarV2DiskBlockStore {
 }
 
 impl MultiCarV2DiskBlockStore {
-    /// Create a new CARv2 MultifileMultiCarV2DiskBlockStore from a directory
+    /// Create a new MultiCarV2DiskBlockStore at a directory
     pub fn new(dir: &Path) -> Result<Self, BlockStoreError> {
-        if dir.is_file() {
-            Err(BlockStoreError::missing_directory(dir))
-        } else {
-            // If the folder doesn't already exist
-            if !dir.exists() {
-                // Make it
-                create_dir_all(dir)?;
-            }
+        if dir.exists() {
+            return Err(BlockStoreError::exists(dir));
+        }
 
-            let mut deltas = Vec::new();
-            for dir_entry in fs::read_dir(dir)?.flatten() {
-                if dir_entry
-                    .file_name()
-                    .to_str()
-                    .expect("no file name str")
-                    .ends_with(".car")
-                {
-                    if let Ok(car) = CarV2DiskBlockStore::new(&dir_entry.path()) {
-                        deltas.push(car);
-                    }
+        // Make the directory
+        create_dir_all(dir)?;
+
+        // Ok
+        Ok(Self {
+            path: dir.to_path_buf(),
+            deltas: Vec::new(),
+        })
+    }
+
+    /// Load a MultiCarV2DiskBlockStore from a directory
+    pub fn load(dir: &Path) -> Result<Self, BlockStoreError> {
+        if dir.is_file() {
+            return Err(BlockStoreError::missing_directory(dir));
+        }
+
+        let mut deltas = Vec::new();
+        for dir_entry in fs::read_dir(dir)?.flatten() {
+            if dir_entry
+                .file_name()
+                .to_str()
+                .expect("no file name str")
+                .ends_with(".car")
+            {
+                if let Ok(car) = CarV2DiskBlockStore::load(&dir_entry.path()) {
+                    deltas.push(car);
                 }
             }
-
-            // Sort so that the most recent delta is last in the list
-            deltas.sort_by(|a, b| a.path.cmp(&b.path));
-
-            // Ok
-            Ok(Self {
-                path: dir.to_path_buf(),
-                deltas,
-            })
         }
+
+        // Sort so that the most recent delta is last in the list
+        deltas.sort_by(|a, b| a.path.cmp(&b.path));
+
+        // Ok
+        Ok(Self {
+            path: dir.to_path_buf(),
+            deltas,
+        })
     }
 
     /// Add a new delta file / CAR file
@@ -171,7 +181,7 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
         D: serde::Deserializer<'de>,
     {
         let path = PathBuf::deserialize(deserializer)?;
-        Self::new(&path).map_err(|err| {
+        Self::load(&path).map_err(|err| {
             serde::de::Error::custom(format!("MultiCARv2 Deserialization error: {err}"))
         })
     }
@@ -179,7 +189,6 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
 
 #[cfg(test)]
 mod test {
-
     use serial_test::serial;
     use std::{fs::remove_dir_all, path::Path};
     use wnfs::{

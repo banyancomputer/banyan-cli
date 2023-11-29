@@ -59,7 +59,6 @@ mod test {
 
     /// Simplified Restore call function
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
-        println!("restoring");
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
         let mut client = Client::new("http://google.com", "http://google.com")?;
