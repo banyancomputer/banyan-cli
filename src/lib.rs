@@ -47,8 +47,8 @@ pub mod prelude {
     #[cfg(target_arch = "wasm32")]
     pub mod wasm {
         pub use crate::wasm::{
-            TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata,
-            WasmFsMetadataEntry, WasmMount, WasmNodeMetadata, WasmSnapshot,
+            register_log, TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey,
+            WasmBucketMetadata, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata, WasmSnapshot,
         };
     }
 }

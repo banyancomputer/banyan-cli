@@ -23,8 +23,8 @@ use std::{
     str::FromStr,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
-use uuid::Uuid;
 use tracing::debug;
+use uuid::Uuid;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 
 /// Special Result type for WASM builds
