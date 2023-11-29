@@ -21,7 +21,8 @@ use crate::{
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
     wasm::{
-        TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
+        register_log, TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSharedFile,
+        WasmSnapshot,
     },
 };
 
@@ -58,6 +59,7 @@ impl WasmMount {
         key: &EcEncryptionKey,
         client: &Client,
     ) -> Result<Self, TombWasmError> {
+        register_log();
         debug!("tomb-wasm: mount/new()/{}", wasm_bucket.id());
 
         let bucket = Bucket::from(wasm_bucket.clone());
