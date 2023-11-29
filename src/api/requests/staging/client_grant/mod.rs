@@ -6,15 +6,13 @@ pub mod create;
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
-    use serial_test::serial;
-
     use crate::api::{
         error::ApiError, models::metadata::test::setup_and_push_metadata,
         requests::staging::upload::content::UploadContent,
     };
 
     #[tokio::test]
-    #[serial]
+
     async fn create_grant() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("create_grant").await?;
         setup.storage_ticket.create_grant(&mut setup.client).await?;
@@ -22,7 +20,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[serial]
+
     async fn authorization_grants() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("authorization_grants").await?;
         // Create a grant
@@ -42,6 +40,10 @@ mod test {
                 &mut setup.client,
             )
             .await?;
+
+        // Sleep to allow upload report to be processed
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
         // Successfully get a new bearer token which can access the new grants
         setup.bucket.get_grants_token(&mut setup.client).await?;
         Ok(())

@@ -58,12 +58,11 @@ mod test {
         },
         blockstore::BanyanApiBlockStore,
     };
-    use serial_test::serial;
     use wnfs::common::BlockStore;
     use wnfs::libipld::Cid;
 
     #[tokio::test]
-    #[serial]
+
     async fn download_content() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("download_content").await?;
         // Create a grant and upload content
@@ -80,6 +79,9 @@ mod test {
                 &mut setup.client,
             )
             .await?;
+
+        // Sleep to allow block locations to be updated
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         let mut cids = <BTreeSet<Cid>>::new();
         for bucket in setup.content_store.car.car.index.borrow().clone().buckets {

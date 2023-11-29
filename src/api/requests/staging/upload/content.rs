@@ -72,10 +72,9 @@ mod test {
         error::ApiError, models::metadata::test::setup_and_push_metadata,
         requests::staging::upload::content::UploadContent,
     };
-    use serial_test::serial;
 
     #[tokio::test]
-    #[serial]
+
     async fn upload_content() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("upload_content").await?;
         // Create a grant and upload content
