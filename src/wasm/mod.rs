@@ -10,6 +10,7 @@ pub use compat::{
 
 use std::sync::Once;
 use tracing::{debug, warn};
+use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::{
     fmt::{format::Pretty, time::UtcTime},
     prelude::*,
@@ -26,7 +27,7 @@ macro_rules! value {
     };
 }
 
-#[cfg(feature = "console_error_panic_hook")]
+#[cfg(debug_assertions)]
 pub(crate) fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
@@ -35,15 +36,25 @@ static INIT: Once = Once::new();
 
 #[wasm_bindgen(start)]
 pub fn register_log() {
-    INIT.call_once(|_| {
-        #[cfg(feature = "console_error_panic_hook")]
+    INIT.call_once(|| {
+        #[cfg(debug_assertions)]
         set_panic_hook();
+
+        let filter = if cfg!(debug_assertions) {
+            LevelFilter::DEBUG
+        } else {
+            LevelFilter::ERROR
+        };
 
         let fmt_layer = tracing_subscriber::fmt::layer()
             .with_ansi(false)
             .with_timer(UtcTime::rfc_3339())
-            .with_writer(MakeConsoleWriter);
-        let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
+            .with_writer(MakeConsoleWriter)
+            .with_filter(filter);
+
+        let perf_layer = performance_layer()
+            .with_details_from_fields(Pretty::default())
+            .with_filter(filter);
 
         // Install these as subscribers to tracing events
         tracing_subscriber::registry()
@@ -51,7 +62,6 @@ pub fn register_log() {
             .with(perf_layer)
             .init();
 
-        // tracing_web::set_as_global_default_with_config(wasm_log_config);
         debug!("tomb-wasm: new() with version {}", version());
         warn!("tomb-wasm: warning in case debug does not go though.");
     });
