@@ -1,4 +1,5 @@
 use crate::prelude::filesystem::sharing::SharedFile;
+use crate::wasm::compat::to_wasm_error_with_debug;
 use crate::wasm::{TombResult, TombWasmError};
 use std::ops::Deref;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -17,9 +18,8 @@ impl WasmSharedFile {
 
     pub fn import_b64_url(b64_string: String) -> TombResult<WasmSharedFile> {
         Ok(WasmSharedFile(
-            SharedFile::import_b64_url(b64_string).map_err(|_| {
-                TombWasmError(format!("Unable to import shared file from b64 url data"))
-            })?,
+            SharedFile::import_b64_url(b64_string)
+                .map_err(to_wasm_error_with_debug("import shared file from b64"))?,
         ))
     }
 

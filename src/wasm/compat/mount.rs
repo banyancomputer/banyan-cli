@@ -21,7 +21,8 @@ use crate::{
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
     wasm::{
-        TombResult, TombWasmError, WasmBucket, WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
+        compat::to_wasm_error_with_debug, TombResult, TombWasmError, WasmBucket,
+        WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
     },
 };
 
@@ -106,7 +107,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket.id, client)
             .await
-            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
+            .map_err(to_wasm_error_with_debug("read metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -160,7 +161,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(|err| TombWasmError(format!("unable to read current metadata: {err}")))?;
+            .map_err(to_wasm_error_with_debug("read current metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -311,24 +312,20 @@ impl WasmMount {
                 }
                 .create_grant(&mut self.client)
                 .await
-                .map_err(|err| TombWasmError(format!("unable to register storage grant: {err}")))?;
+                .map_err(to_wasm_error_with_debug("register storage grant"))?;
 
                 // Then perform upload
                 self.content_blockstore
                     .upload(host, metadata_id, &mut self.client)
                     .await
-                    .map_err(|err| {
-                        TombWasmError(format!("created grant but unable to upload: {err}"))
-                    })?;
+                    .map_err(to_wasm_error_with_debug("created grant; failed upload"))?;
             }
             // Already granted, still upload
             (Some(host), None) => {
                 self.content_blockstore
                     .upload(host, metadata_id, &mut self.client)
                     .await
-                    .map_err(|err| {
-                        TombWasmError(format!("no grant needed but unable to upload: {err}"))
-                    })?;
+                    .map_err(to_wasm_error_with_debug("no grant; failed upload"))?;
             }
             // No uploading required
             _ => {
@@ -381,7 +378,7 @@ impl WasmMount {
         // Now try unlocking the metadata
         let fs_metadata = FsMetadata::unlock(key, &self.metadata_blockstore)
             .await
-            .map_err(|err| TombWasmError(format!("could not unlock fs metadata: {err}")))?;
+            .map_err(to_wasm_error_with_debug("unlock FsMetadata"))?;
 
         log!(format!(
             "tomb-wasm: mount/unlock()/{} - unlocked",
@@ -481,7 +478,7 @@ impl WasmMount {
             .unwrap()
             .ls(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(|err| TombWasmError(format!("could not list directory entries: {err}")))?;
+            .map_err(to_wasm_error_with_debug("list directory entries"))?;
 
         log!(format!(
             "tomb-wasm: mount/ls/{} - mapping entries",
@@ -874,7 +871,7 @@ impl WasmMount {
                 &self.content_blockstore,
             )
             .await
-            .map_err(|err| TombWasmError(format!("share_file: {err}")))?;
+            .map_err(to_wasm_error_with_debug("share_file"))?;
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
@@ -921,7 +918,7 @@ impl WasmMount {
         let snapshot_id = metadata
             .snapshot(&mut self.client)
             .await
-            .map_err(|err| TombWasmError(format!("unable to take a snapshot: {err}")))?;
+            .map_err(to_wasm_error_with_debug("take drive snapshot"))?;
 
         metadata.snapshot_id = Some(snapshot_id);
         self.metadata = Some(metadata.to_owned());

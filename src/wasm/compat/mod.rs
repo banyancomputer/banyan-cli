@@ -5,8 +5,9 @@ mod types;
 
 pub use mount::WasmMount;
 pub use types::{
-    TombWasmError, WasmBucket, WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry,
-    WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
+    to_js_error_with_debug, to_wasm_error, to_wasm_error_with_debug, TombWasmError, WasmBucket,
+    WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile,
+    WasmSnapshot,
 };
 
 use crate::api::{
@@ -75,7 +76,7 @@ impl TombWasm {
         let mut client = Client::new(&core_endpoint, &data_endpoint).unwrap();
         let signing_key = EcSignatureKey::import(signing_key_pem.as_bytes())
             .await
-            .map_err(|err| TombWasmError(format!("unable to create signature key from pem: {err}")))
+            .map_err(to_js_error_with_debug("signature key from pem"))
             .unwrap();
 
         let user_id = Uuid::parse_str(&user_id).unwrap();
@@ -106,7 +107,7 @@ impl TombWasm {
     pub async fn get_usage(&mut self) -> TombResult<u64> {
         Account::usage(self.client())
             .await
-            .map_err(|err| TombWasmError(format!("failed to retrieve usage: {err}")).into())
+            .map_err(to_js_error_with_debug("retrieve usage"))
     }
 
     /// Get the current usage limit for the current account in bytes
@@ -114,7 +115,7 @@ impl TombWasm {
     pub async fn get_usage_limit(&mut self) -> TombResult<u64> {
         Account::usage_limit(self.client())
             .await
-            .map_err(|err| TombWasmError(format!("failed to get usage limit: {err}")).into())
+            .map_err(to_js_error_with_debug("retrieve usage limit"))
     }
 
     /// List the buckets for the current account
@@ -122,15 +123,13 @@ impl TombWasm {
     pub async fn list_buckets(&mut self) -> TombResult<Array> {
         let buckets = Bucket::read_all(self.client())
             .await
-            .map_err(|err| TombWasmError(format!("failed to read all buckets: {err}")))?;
+            .map_err(to_js_error_with_debug("read all buckets"))?;
 
         buckets
             .iter()
             .map(|bucket| {
                 let wasm_bucket = WasmBucket::from(bucket.clone());
-                JsValue::try_from(wasm_bucket).map_err(|err| {
-                    TombWasmError(format!("failed to convert bucket to JsValue: {err}")).into()
-                })
+                JsValue::try_from(wasm_bucket).map_err(to_js_error_with_debug("bucket to JsValue"))
             })
             .collect()
     }
@@ -162,16 +161,15 @@ impl TombWasm {
         // Call the API
         let snapshots = Bucket::list_snapshots_by_bucket_id(self.client(), bucket_id)
             .await
-            .map_err(|err| TombWasmError(format!("unable to list snapshots for bucket: {err}")))?;
+            .map_err(to_js_error_with_debug("list snapshots for bucket"))?;
 
         // Convert the snapshots
         snapshots
             .into_iter()
             .map(|snapshot| {
                 let wasm_snapshot = WasmSnapshot::from(snapshot);
-                JsValue::try_from(wasm_snapshot).map_err(|err| {
-                    TombWasmError(format!("failed to convert snapshot to JsValue: {err}")).into()
-                })
+                JsValue::try_from(wasm_snapshot)
+                    .map_err(to_js_error_with_debug("snapshot to JsValue"))
             })
             .collect()
     }
@@ -199,15 +197,13 @@ impl TombWasm {
         // Call the API
         let keys = BucketKey::read_all(bucket_id, self.client())
             .await
-            .map_err(|err| TombWasmError(format!("unable to read bucket keys: {err}")))?;
+            .map_err(to_js_error_with_debug("read bucket keys"))?;
 
         // Convert the keys
         keys.iter()
             .map(|key| {
                 let wasm_key = WasmBucketKey(key.clone());
-                JsValue::try_from(wasm_key).map_err(|err| {
-                    TombWasmError(format!("failed to convert key to JsValue: {err}")).into()
-                })
+                JsValue::try_from(wasm_key).map_err(to_js_error_with_debug("bucket key to JsValue"))
             })
             .collect()
     }
@@ -263,24 +259,23 @@ impl TombWasm {
     #[wasm_bindgen(js_name = createBucketKey)]
     pub async fn create_bucket_key(&mut self, bucket_id: String) -> TombResult<WasmBucketKey> {
         log!("tomb-wasm: create_bucket_key()");
-        let bucket_id = Uuid::parse_str(&bucket_id).unwrap();
+        let bucket_id =
+            Uuid::parse_str(&bucket_id).map_err(to_js_error_with_debug("uuid parsing"))?;
 
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::generate()
             .await
-            .map_err(|err| TombWasmError(format!("failed to generate ec encryption key: {err}")))?;
-        let key = key.public_key().map_err(|err| {
-            TombWasmError(format!(
-                "unable to get public key from ec encryption key: {err}"
-            ))
-        })?;
+            .map_err(to_js_error_with_debug("ec encryption key generation"))?;
+        let key = key
+            .public_key()
+            .map_err(to_js_error_with_debug("ec encryption key to public key"))?;
 
         let pem = String::from_utf8(key.export().await.unwrap()).unwrap();
 
         // Call the API
         let bucket_key = BucketKey::create(bucket_id, pem, self.client())
             .await
-            .map_err(|err| TombWasmError(format!("failed to create bucket: {err}")))?;
+            .map_err(to_js_error_with_debug("bucket creation"))?;
 
         Ok(WasmBucketKey(bucket_key))
     }
@@ -300,13 +295,13 @@ impl TombWasm {
         // We have to read here since the endpoint is expecting a PUT request
         let mut bucket = Bucket::read(self.client(), bucket_id)
             .await
-            .map_err(|err| TombWasmError(format!("failed to read renamed bucket: {err}")))?;
+            .map_err(to_js_error_with_debug("read renamed bucket"))?;
 
         bucket.name = name;
         bucket
             .update(self.client())
             .await
-            .map_err(|err| TombWasmError(format!("failed to rename bucket: {err}")).into())
+            .map_err(to_js_error_with_debug("rename bucket"))
     }
 
     /// Delete a bucket
@@ -323,7 +318,7 @@ impl TombWasm {
         // Call the API
         Bucket::delete_by_id(self.client(), bucket_id)
             .await
-            .map_err(|err| TombWasmError(format!("failed to delete bucket: {err}")).into())
+            .map_err(to_js_error_with_debug("delete bucket"))
     }
 
     /// End Registration waiting
@@ -336,9 +331,7 @@ impl TombWasm {
         self.client()
             .call_no_content(EndRegwait { fingerprint })
             .await
-            .map_err(|err| {
-                TombWasmError(format!("failed to complete device key registration: {err}")).into()
-            })
+            .map_err(to_js_error_with_debug("end regwait"))
     }
     /* Bucket Mounting interface */
 
@@ -367,7 +360,7 @@ impl TombWasm {
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
-            .map_err(|err| TombWasmError(format!("Unable to import encryption key: {err}")))?;
+            .map_err(to_js_error_with_debug("import encryption key"))?;
         log!(format!(
             "tomb-wasm: mount / {} / reading bucket",
             &bucket_id
@@ -376,7 +369,7 @@ impl TombWasm {
         // Load the bucket
         let bucket: WasmBucket = Bucket::read(self.client(), bucket_id_uuid)
             .await
-            .map_err(|err| TombWasmError(format!("failed to read bucket: {err}")))?
+            .map_err(to_js_error_with_debug("read bucket"))?
             .into();
 
         log!(format!("tomb-wasm: mount / {} / pulling mount", &bucket_id));
