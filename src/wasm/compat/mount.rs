@@ -26,8 +26,6 @@ use crate::{
     },
 };
 
-use super::to_js_error_with_debug;
-
 /// Mount point for a Bucket in WASM
 ///
 /// Enables to call Fs methods on a Bucket, pulling metadata from a remote
@@ -648,12 +646,15 @@ impl WasmMount {
         let api_blockstore_client = self.client.clone();
         let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
 
-        let fs = self.fs_metadata.as_mut().ok_or(TombWasmError::new("missing FsMetadata"))?;
+        let fs = self
+            .fs_metadata
+            .as_mut()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?;
 
         let node = fs
             .get_node(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(to_js_error_with_debug("access FsMetadata"))?
+            .map_err(to_wasm_error_with_debug("access FsMetadata"))?
             .ok_or(TombWasmError::new("no node at path"))?;
 
         if let PrivateNode::File(file) = node {
@@ -765,7 +766,10 @@ impl WasmMount {
             panic!("Bucket is locked");
         };
 
-        let fs = self.fs_metadata.as_mut().ok_or(TombWasmError::new("missing FsMetadata"))?;
+        let fs = self
+            .fs_metadata
+            .as_mut()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?;
 
         let node = fs
             .get_node(&path_segments, &self.metadata_blockstore)

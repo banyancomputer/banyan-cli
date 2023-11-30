@@ -76,7 +76,7 @@ impl TombWasm {
         let mut client = Client::new(&core_endpoint, &data_endpoint).unwrap();
         let signing_key = EcSignatureKey::import(signing_key_pem.as_bytes())
             .await
-            .map_err(to_js_error_with_debug("signature key from pem"))
+            .map_err(to_wasm_error_with_debug("signature key from pem"))
             .unwrap();
 
         let user_id = Uuid::parse_str(&user_id).unwrap();
@@ -123,7 +123,7 @@ impl TombWasm {
     pub async fn list_buckets(&mut self) -> TombResult<Array> {
         let buckets = Bucket::read_all(self.client())
             .await
-            .map_err(to_js_error_with_debug("read all buckets"))?;
+            .map_err(to_wasm_error_with_debug("read all buckets"))?;
 
         buckets
             .iter()
@@ -156,12 +156,13 @@ impl TombWasm {
     pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> TombResult<Array> {
         log!("tomb-wasm: list_bucket_snapshots()");
         // Parse the bucket id
-        let bucket_id = Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
+        let bucket_id =
+            Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
 
         // Call the API
         let snapshots = Bucket::list_snapshots_by_bucket_id(self.client(), bucket_id)
             .await
-            .map_err(to_js_error_with_debug("list snapshots for bucket"))?;
+            .map_err(to_wasm_error_with_debug("list snapshots for bucket"))?;
 
         // Convert the snapshots
         snapshots
@@ -192,12 +193,13 @@ impl TombWasm {
     pub async fn list_bucket_keys(&mut self, bucket_id: String) -> TombResult<Array> {
         log!("tomb-wasm: list_bucket_keys()");
         // Parse the bucket id
-        let bucket_id = Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
+        let bucket_id =
+            Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
 
         // Call the API
         let keys = BucketKey::read_all(bucket_id, self.client())
             .await
-            .map_err(to_js_error_with_debug("read bucket keys"))?;
+            .map_err(to_wasm_error_with_debug("read bucket keys"))?;
 
         // Convert the keys
         keys.iter()
@@ -234,9 +236,9 @@ impl TombWasm {
     ) -> TombResult<WasmBucket> {
         log!("tomb-wasm: create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class)
-            .map_err(|err| to_js_error_with_debug("invalid storage class")(TombWasmError(err)))?;
+            .map_err(|err| to_wasm_error_with_debug("invalid storage class")(TombWasmError(err)))?;
         let bucket_type = BucketType::from_str(&bucket_type)
-            .map_err(|err| to_js_error_with_debug("invalid drive type")(TombWasmError(err)))?;
+            .map_err(|err| to_wasm_error_with_debug("invalid drive type")(TombWasmError(err)))?;
         // Call the API
         let (bucket, _bucket_key) = Bucket::create(
             name,
@@ -246,7 +248,7 @@ impl TombWasm {
             self.client(),
         )
         .await
-        .map_err(to_js_error_with_debug("create bucket"))?;
+        .map_err(to_wasm_error_with_debug("create bucket"))?;
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
         // Ok
@@ -267,18 +269,22 @@ impl TombWasm {
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::generate()
             .await
-            .map_err(to_js_error_with_debug("ec encryption key generation"))?;
+            .map_err(to_wasm_error_with_debug("ec encryption key generation"))?;
         let key = key
             .public_key()
-            .map_err(to_js_error_with_debug("ec encryption key to public key"))?;
+            .map_err(to_wasm_error_with_debug("ec encryption key to public key"))?;
 
-        let key_bytes = key.export().await.map_err(to_wasm_error_with_debug("export EcPublicEncryptionKey"))?;
-        let pem = String::from_utf8(key_bytes).map_err(to_wasm_error_with_debug("String from UTF8"))?;
+        let key_bytes = key
+            .export()
+            .await
+            .map_err(to_wasm_error_with_debug("export EcPublicEncryptionKey"))?;
+        let pem =
+            String::from_utf8(key_bytes).map_err(to_wasm_error_with_debug("String from UTF8"))?;
 
         // Call the API
         let bucket_key = BucketKey::create(bucket_id, pem, self.client())
             .await
-            .map_err(to_js_error_with_debug("bucket creation"))?;
+            .map_err(to_wasm_error_with_debug("bucket creation"))?;
 
         Ok(WasmBucketKey(bucket_key))
     }
@@ -293,12 +299,13 @@ impl TombWasm {
         log!("tomb-wasm: rename_bucket()");
 
         // Parse the bucket id
-        let bucket_id = Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
+        let bucket_id =
+            Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
 
         // We have to read here since the endpoint is expecting a PUT request
         let mut bucket = Bucket::read(self.client(), bucket_id)
             .await
-            .map_err(to_js_error_with_debug("read renamed bucket"))?;
+            .map_err(to_wasm_error_with_debug("read renamed bucket"))?;
 
         bucket.name = name;
         bucket
@@ -316,7 +323,8 @@ impl TombWasm {
         log!("tomb-wasm: delete_bucket()");
 
         // Parse the bucket id
-        let bucket_id = Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
+        let bucket_id =
+            Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
 
         // Call the API
         Bucket::delete_by_id(self.client(), bucket_id)
@@ -354,7 +362,8 @@ impl TombWasm {
         log!(format!("tomb-wasm: mount / {}", &bucket_id));
 
         // Parse the bucket id
-        let bucket_id_uuid = Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
+        let bucket_id_uuid =
+            Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_debug("parse UUID"))?;
         log!(format!(
             "tomb-wasm: mount / {} / reading key pair",
             &bucket_id
@@ -363,7 +372,7 @@ impl TombWasm {
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
-            .map_err(to_js_error_with_debug("import encryption key"))?;
+            .map_err(to_wasm_error_with_debug("import encryption key"))?;
         log!(format!(
             "tomb-wasm: mount / {} / reading bucket",
             &bucket_id
@@ -372,7 +381,7 @@ impl TombWasm {
         // Load the bucket
         let bucket: WasmBucket = Bucket::read(self.client(), bucket_id_uuid)
             .await
-            .map_err(to_js_error_with_debug("read bucket"))?
+            .map_err(to_wasm_error_with_debug("read bucket"))?
             .into();
 
         log!(format!("tomb-wasm: mount / {} / pulling mount", &bucket_id));
