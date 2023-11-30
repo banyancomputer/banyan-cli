@@ -4,9 +4,9 @@ mod compat;
 
 /// Expose all the compatibility types directly
 pub use compat::{
-    to_js_error_with_debug, to_wasm_error_with_debug, TombResult, TombWasm, TombWasmError,
-    WasmBucket, WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry, WasmMount,
-    WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
+    to_js_error_with_msg, to_wasm_error_with_msg, TombResult, TombWasm, TombWasmError, WasmBucket,
+    WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata,
+    WasmSharedFile, WasmSnapshot,
 };
 
 /// Turn a value into a JsValue

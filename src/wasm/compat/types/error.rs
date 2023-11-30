@@ -25,10 +25,10 @@ impl From<TombWasmError> for js_sys::Error {
 
 impl Error for TombWasmError {}
 
-pub fn to_js_error_with_debug<E: Error>(message: &str) -> impl Fn(E) -> js_sys::Error + '_ {
+pub fn to_js_error_with_msg<E: Error>(message: &str) -> impl Fn(E) -> js_sys::Error + '_ {
     move |err| js_sys::Error::from(TombWasmError(format!("{} | {}", message, err)))
 }
 
-pub fn to_wasm_error_with_debug<E: Error>(message: &str) -> impl Fn(E) -> TombWasmError + '_ {
+pub fn to_wasm_error_with_msg<E: Error>(message: &str) -> impl Fn(E) -> TombWasmError + '_ {
     move |err| TombWasmError(format!("{} | {}", message, err))
 }

@@ -20,7 +20,7 @@ use crate::{
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
     wasm::{
-        to_wasm_error_with_debug, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
+        to_wasm_error_with_msg, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
         WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
     },
 };
@@ -66,16 +66,16 @@ impl WasmMount {
             wasm_bucket.id()
         );
         let metadata_blockstore =
-            BlockStore::new().map_err(to_wasm_error_with_debug("create blockstore"))?;
+            BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
         let content_blockstore =
-            BlockStore::new().map_err(to_wasm_error_with_debug("create blockstore"))?;
+            BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
         log!(
             "tomb-wasm: mount/new()/{} - creating fs metadata",
             wasm_bucket.id()
         );
         let fs_metadata = FsMetadata::init(key)
             .await
-            .map_err(to_wasm_error_with_debug("init FsMetadata"))?;
+            .map_err(to_wasm_error_with_msg("init FsMetadata"))?;
         log!(
             "tomb-wasm: mount/new()/{} - saving fs metadata",
             wasm_bucket.id()
@@ -108,7 +108,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket.id, client)
             .await
-            .map_err(to_wasm_error_with_debug("read metadata"))?;
+            .map_err(to_wasm_error_with_msg("read metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -120,23 +120,23 @@ impl WasmMount {
         let mut stream = metadata
             .pull(client)
             .await
-            .map_err(to_wasm_error_with_debug("pull metadata"))?;
+            .map_err(to_wasm_error_with_msg("pull metadata"))?;
         log!(
             "tomb-wasm: mount/pull()/{} - reading metadata stream",
             wasm_bucket.id()
         );
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
-            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_debug("chunk from stream"))?);
+            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
         }
         log!(
             "tomb-wasm: mount/pull()/{} - creating metadata blockstore",
             wasm_bucket.id()
         );
-        let metadata_blockstore = BlockStore::try_from(data)
-            .map_err(to_wasm_error_with_debug("metadata to blockstore"))?;
+        let metadata_blockstore =
+            BlockStore::try_from(data).map_err(to_wasm_error_with_msg("metadata to blockstore"))?;
         let content_blockstore =
-            BlockStore::new().map_err(to_wasm_error_with_debug("create blockstore"))?;
+            BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
 
         log!("tomb-wasm: mount/pull()/{} - pulled", wasm_bucket.id());
 
@@ -163,7 +163,7 @@ impl WasmMount {
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
-            .map_err(to_wasm_error_with_debug("read current metadata"))?;
+            .map_err(to_wasm_error_with_msg("read current metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
         log!(
@@ -176,7 +176,7 @@ impl WasmMount {
         let mut stream = metadata
             .pull(&mut self.client)
             .await
-            .map_err(to_wasm_error_with_debug("pull metadata"))?;
+            .map_err(to_wasm_error_with_msg("pull metadata"))?;
 
         log!(
             "tomb-wasm: mount/pull()/{} - reading metadata stream",
@@ -185,7 +185,7 @@ impl WasmMount {
 
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
-            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_debug("chunk from stream"))?);
+            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
         }
 
         log!(
@@ -193,10 +193,10 @@ impl WasmMount {
             self.bucket.id.to_string()
         );
 
-        let metadata_blockstore = BlockStore::try_from(data)
-            .map_err(to_wasm_error_with_debug("metadata to blockstore"))?;
+        let metadata_blockstore =
+            BlockStore::try_from(data).map_err(to_wasm_error_with_msg("metadata to blockstore"))?;
         let content_blockstore =
-            BlockStore::new().map_err(to_wasm_error_with_debug("create blockstore"))?;
+            BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
 
         self.metadata = Some(metadata.to_owned());
         self.metadata_blockstore = metadata_blockstore;
@@ -298,7 +298,7 @@ impl WasmMount {
             &mut self.client,
         )
         .await
-        .map_err(to_wasm_error_with_debug("push metadata"))?;
+        .map_err(to_wasm_error_with_msg("push metadata"))?;
 
         assert_eq!(metadata.root_cid, root_cid.to_string());
         assert_eq!(metadata.metadata_cid, metadata_cid.to_string());
@@ -315,20 +315,20 @@ impl WasmMount {
                 }
                 .create_grant(&mut self.client)
                 .await
-                .map_err(to_wasm_error_with_debug("register storage grant"))?;
+                .map_err(to_wasm_error_with_msg("register storage grant"))?;
 
                 // Then perform upload
                 self.content_blockstore
                     .upload(host, metadata_id, &mut self.client)
                     .await
-                    .map_err(to_wasm_error_with_debug("created grant; failed upload"))?;
+                    .map_err(to_wasm_error_with_msg("created grant; failed upload"))?;
             }
             // Already granted, still upload
             (Some(host), None) => {
                 self.content_blockstore
                     .upload(host, metadata_id, &mut self.client)
                     .await
-                    .map_err(to_wasm_error_with_debug("no grant; failed upload"))?;
+                    .map_err(to_wasm_error_with_msg("no grant; failed upload"))?;
             }
             // No uploading required
             _ => {
@@ -384,7 +384,7 @@ impl WasmMount {
         // Now try unlocking the metadata
         let fs_metadata = FsMetadata::unlock(key, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("unlock FsMetadata"))?;
+            .map_err(to_wasm_error_with_msg("unlock FsMetadata"))?;
 
         log!(format!(
             "tomb-wasm: mount/unlock()/{} - unlocked",
@@ -486,7 +486,7 @@ impl WasmMount {
             .ok_or(TombWasmError::new("missing FsMetadata"))?
             .ls(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("list directory entries"))?;
+            .map_err(to_wasm_error_with_msg("list directory entries"))?;
 
         log!(format!(
             "tomb-wasm: mount/ls/{} - mapping entries",
@@ -544,7 +544,7 @@ impl WasmMount {
             .ok_or(TombWasmError::new("missing FsMetadata"))?
             .mkdir(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("mkdir"))?;
+            .map_err(to_wasm_error_with_msg("mkdir"))?;
 
         log!(
             "tomb-wasm: mount/mkdir/{}/{} - dirty, syncing changes",
@@ -600,7 +600,7 @@ impl WasmMount {
                 content,
             )
             .await
-            .map_err(to_wasm_error_with_debug("fs add"))?;
+            .map_err(to_wasm_error_with_msg("fs add"))?;
         log!(
             "tomb-wasm: mount/add/{} - dirty, syncing changes",
             self.bucket.id.to_string()
@@ -655,7 +655,7 @@ impl WasmMount {
         let node = fs
             .get_node(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("access FsMetadata"))?
+            .map_err(to_wasm_error_with_msg("access FsMetadata"))?
             .ok_or(TombWasmError::new("no node at path"))?;
 
         if let PrivateNode::File(file) = node {
@@ -675,7 +675,7 @@ impl WasmMount {
         let vec = fs
             .read(&path_segments, &self.metadata_blockstore, &api_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("read node bytes"))?;
+            .map_err(to_wasm_error_with_msg("read node bytes"))?;
 
         let bytes = vec.into_boxed_slice();
         let array = Uint8Array::from(&bytes[..]);
@@ -729,7 +729,7 @@ impl WasmMount {
                 &self.content_blockstore,
             )
             .await
-            .map_err(to_wasm_error_with_debug("fs mv"))?;
+            .map_err(to_wasm_error_with_msg("fs mv"))?;
 
         log!(
             "tomb-wasm: mount/mv/{} - dirty, syncing changes",
@@ -775,7 +775,7 @@ impl WasmMount {
         let node = fs
             .get_node(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("query node"))?;
+            .map_err(to_wasm_error_with_msg("query node"))?;
 
         // If this is a file, also track all the blocks we just deleted
         if let Some(PrivateNode::File(file)) = node {
@@ -790,7 +790,7 @@ impl WasmMount {
 
         fs.rm(&path_segments, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("fs rm"))?;
+            .map_err(to_wasm_error_with_msg("fs rm"))?;
 
         log!(
             "tomb-wasm: mount/rm/{} - dirty, syncing changes",
@@ -823,12 +823,12 @@ impl WasmMount {
             bucket_key_id.clone()
         );
         let bucket_id = self.bucket.id;
-        let bucket_key_id = uuid::Uuid::parse_str(&bucket_key_id)
-            .map_err(to_wasm_error_with_debug("parse UUID"))?;
+        let bucket_key_id =
+            uuid::Uuid::parse_str(&bucket_key_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
 
         let bucket_key = BucketKey::read(bucket_id, bucket_key_id, &mut self.client)
             .await
-            .map_err(to_wasm_error_with_debug("read drive key"))?;
+            .map_err(to_wasm_error_with_msg("read drive key"))?;
 
         let recipient_key = bucket_key.pem;
         log!(
@@ -837,7 +837,7 @@ impl WasmMount {
         );
         let recipient_key = EcPublicEncryptionKey::import(recipient_key.as_bytes())
             .await
-            .map_err(to_wasm_error_with_debug("import recipient key"))?;
+            .map_err(to_wasm_error_with_msg("import recipient key"))?;
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -848,7 +848,7 @@ impl WasmMount {
             .ok_or(TombWasmError::new("missing FsMetadata"))?
             .share_with(&recipient_key, &self.metadata_blockstore)
             .await
-            .map_err(to_wasm_error_with_debug("fs share_with"))?;
+            .map_err(to_wasm_error_with_msg("fs share_with"))?;
 
         // Mark as dirty so fs is saved with new key info
         self.dirty = true;
@@ -887,7 +887,7 @@ impl WasmMount {
                 &self.content_blockstore,
             )
             .await
-            .map_err(to_wasm_error_with_debug("share_file"))?;
+            .map_err(to_wasm_error_with_msg("share_file"))?;
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
@@ -940,7 +940,7 @@ impl WasmMount {
         let snapshot_id = metadata
             .snapshot(&mut self.client)
             .await
-            .map_err(to_wasm_error_with_debug("take drive snapshot"))?;
+            .map_err(to_wasm_error_with_msg("take drive snapshot"))?;
 
         metadata.snapshot_id = Some(snapshot_id);
         self.metadata = Some(metadata.to_owned());
@@ -965,7 +965,7 @@ impl WasmMount {
         update_bucket
             .update(&mut self.client)
             .await
-            .map_err(to_wasm_error_with_debug("rename bucket"))?;
+            .map_err(to_wasm_error_with_msg("rename bucket"))?;
         self.bucket = update_bucket;
         Ok(())
     }
@@ -985,7 +985,7 @@ impl WasmMount {
         snapshot
             .restore(&mut self.client)
             .await
-            .map_err(to_wasm_error_with_debug("restore snapshot"))?;
+            .map_err(to_wasm_error_with_msg("restore snapshot"))?;
 
         Ok(())
     }
