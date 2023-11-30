@@ -130,7 +130,7 @@ impl WasmMount {
         );
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
-            data.extend_from_slice(&chunk.unwrap());
+            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_debug("chunk from stream"))?);
         }
         log!(
             "tomb-wasm: mount/pull()/{} - creating metadata blockstore",
@@ -188,7 +188,7 @@ impl WasmMount {
 
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
-            data.extend_from_slice(&chunk.unwrap());
+            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_debug("chunk from stream"))?);
         }
 
         log!(
@@ -542,7 +542,7 @@ impl WasmMount {
         );
         self.fs_metadata
             .as_mut()
-            .unwrap()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?
             .mkdir(&path_segments, &self.metadata_blockstore)
             .await
             .map_err(to_wasm_error_with_debug("mkdir"))?;
@@ -593,7 +593,7 @@ impl WasmMount {
 
         self.fs_metadata
             .as_mut()
-            .unwrap()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?
             .write(
                 &path_segments,
                 &self.metadata_blockstore,
@@ -648,7 +648,7 @@ impl WasmMount {
         let api_blockstore_client = self.client.clone();
         let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
 
-        let fs = self.fs_metadata.as_mut().unwrap();
+        let fs = self.fs_metadata.as_mut().ok_or(TombWasmError::new("missing FsMetadata"))?;
 
         let node = fs
             .get_node(&path_segments, &self.metadata_blockstore)
@@ -719,7 +719,7 @@ impl WasmMount {
 
         self.fs_metadata
             .as_mut()
-            .unwrap()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?
             .mv(
                 &from_path_segments,
                 &to_path_segments,
@@ -765,7 +765,7 @@ impl WasmMount {
             panic!("Bucket is locked");
         };
 
-        let fs = self.fs_metadata.as_mut().unwrap();
+        let fs = self.fs_metadata.as_mut().ok_or(TombWasmError::new("missing FsMetadata"))?;
 
         let node = fs
             .get_node(&path_segments, &self.metadata_blockstore)
@@ -840,7 +840,7 @@ impl WasmMount {
 
         self.fs_metadata
             .as_mut()
-            .unwrap()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?
             .share_with(&recipient_key, &self.metadata_blockstore)
             .await
             .map_err(to_wasm_error_with_debug("fs share_with"))?;
@@ -877,7 +877,7 @@ impl WasmMount {
         let shared_file = self
             .fs_metadata
             .as_mut()
-            .unwrap()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?
             .share_file(
                 &path_segments,
                 &self.metadata_blockstore,
