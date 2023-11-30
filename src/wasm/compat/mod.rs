@@ -233,8 +233,10 @@ impl TombWasm {
         initial_bucket_key_pem: String,
     ) -> TombResult<WasmBucket> {
         log!("tomb-wasm: create_bucket()");
-        let storage_class = StorageClass::from_str(&storage_class).expect("Invalid storage class");
-        let bucket_type = BucketType::from_str(&bucket_type).expect("Invalid bucket type");
+        let storage_class = StorageClass::from_str(&storage_class)
+            .map_err(|err| to_js_error_with_debug("invalid storage class")(TombWasmError(err)))?;
+        let bucket_type = BucketType::from_str(&bucket_type)
+            .map_err(|err| to_js_error_with_debug("invalid drive type")(TombWasmError(err)))?;
         // Call the API
         let (bucket, _bucket_key) = Bucket::create(
             name,
@@ -244,7 +246,7 @@ impl TombWasm {
             self.client(),
         )
         .await
-        .expect("Failed to create bucket");
+        .map_err(to_js_error_with_debug("create bucket"))?;
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
         // Ok

@@ -5,6 +5,12 @@ use wasm_bindgen::JsValue;
 #[derive(Debug)]
 pub struct TombWasmError(pub(crate) String);
 
+impl TombWasmError {
+    pub fn new(message: &str) -> TombWasmError {
+        TombWasmError(String::from(message))
+    }
+}
+
 impl Display for TombWasmError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "tomm-wasm (unexpected error): {}", self.0)
