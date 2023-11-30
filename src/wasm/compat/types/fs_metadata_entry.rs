@@ -57,19 +57,21 @@ impl TryFrom<WasmFsMetadataEntry> for JsValue {
             &JsValue::from_str("name"),
             &JsValue::from_str(&name),
         )
-        .expect("we know this is an object");
+        .map_err(|_| TombWasmError::new("name property on object"))?;
+
         Reflect::set(
             &object,
             &JsValue::from_str("type"),
             &JsValue::from_str(entry_type),
         )
-        .expect("we know this is an object");
+        .map_err(|_| TombWasmError::new("type property on object"))?;
+
         Reflect::set(
             &object,
             &JsValue::from_str("metadata"),
             &JsValue::try_from(metadata)?,
         )
-        .expect("we know this is an object");
+        .map_err(|_| TombWasmError::new("metadata property on object"))?;
 
         Ok(value!(object))
     }
@@ -86,12 +88,12 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
         })?;
 
         let name = Reflect::get(&object, &value!("name"))
-            .expect("we know this is an object")
+            .map_err(|_| TombWasmError::new("name property on object"))?
             .as_string()
             .ok_or(TombWasmError::new("name was not a string"))?;
 
         let type_str = Reflect::get(&object, &JsValue::from_str("type"))
-            .expect("we know this is an object")
+            .map_err(|_| TombWasmError::new("type property on object"))?
             .as_string()
             .ok_or(TombWasmError::new("type was not a string"))?;
 
@@ -106,7 +108,7 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
         };
 
         let metadata_obj = Reflect::get(&object, &JsValue::from_str("metadata"))
-            .expect("we know this is an object");
+            .map_err(|_| TombWasmError::new("metadata property on object"))?;
 
         let metadata: WasmNodeMetadata = metadata_obj.try_into().map_err(|err| {
             TombWasmError::new(&format!(

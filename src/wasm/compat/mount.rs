@@ -239,7 +239,7 @@ impl WasmMount {
             let _ = self
                 .fs_metadata
                 .as_mut()
-                .unwrap()
+                .ok_or(TombWasmError::new("missing FsMetadata"))?
                 .save(&self.metadata_blockstore, &self.content_blockstore)
                 .await;
         } else {
@@ -373,7 +373,10 @@ impl WasmMount {
         // TODO change this if we stop using the same CIDs in both.
         let root_cid = self.content_blockstore.get_root().unwrap_or(metadata_cid);
 
-        let metadata = self.metadata.as_ref().unwrap();
+        let metadata = self
+            .metadata
+            .as_ref()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?;
 
         assert_eq!(metadata_cid.to_string(), metadata.metadata_cid);
         assert_eq!(root_cid.to_string(), metadata.root_cid);
@@ -418,7 +421,7 @@ impl WasmMount {
         let metadata = self
             .metadata
             .as_ref()
-            .ok_or(TombWasmError::new("no metadata"))?;
+            .ok_or(TombWasmError::new("missing FsMetadata"))?;
         let wasm_bucket_metadata = WasmBucketMetadata(metadata.clone());
         Ok(wasm_bucket_metadata)
     }
@@ -480,7 +483,7 @@ impl WasmMount {
         let fs_metadata_entries = self
             .fs_metadata
             .as_ref()
-            .unwrap()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?
             .ls(&path_segments, &self.metadata_blockstore)
             .await
             .map_err(to_wasm_error_with_debug("list directory entries"))?;
@@ -914,8 +917,9 @@ impl WasmMount {
         let metadata = self
             .metadata
             .as_ref()
-            .ok_or(TombWasmError::new("missing metadata"))
+            .ok_or(TombWasmError::new("missing FsMetadata"))
             .unwrap();
+
         metadata.snapshot_id.is_some()
     }
 
