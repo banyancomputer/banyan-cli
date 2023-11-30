@@ -456,8 +456,8 @@ impl WasmMount {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         log!(
             "tomb-wasm: mount/ls/{}/{}",
@@ -519,8 +519,8 @@ impl WasmMount {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         log!(
             "tomb-wasm: mount/mkdir/{}/{}",
@@ -573,8 +573,8 @@ impl WasmMount {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         log!(
             "tomb-wasm: mount/add/{}/{}",
@@ -629,8 +629,8 @@ impl WasmMount {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         log!(
             "tomb-wasm: mount/read_bytes/{}/{}",
@@ -699,12 +699,12 @@ impl WasmMount {
     ) -> TombResult<()> {
         let from_path_segments = from_path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
         let to_path_segments = to_path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         log!(
             "tomb-wasm: mount/mv/{}/{} => {}",
@@ -752,8 +752,8 @@ impl WasmMount {
     pub async fn rm(&mut self, path_segments: Array) -> TombResult<()> {
         let path_segments = path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         log!(
             "tomb-wasm: mount/rm/{}/{}",
@@ -868,8 +868,8 @@ impl WasmMount {
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
-            .map(|s| s.as_string().unwrap())
-            .collect::<Vec<String>>();
+            .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
+            .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         if self.locked() {
             return Err(TombWasmError::new("unable to share a file from a locked bucket").into());
