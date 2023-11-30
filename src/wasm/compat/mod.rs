@@ -5,9 +5,8 @@ mod types;
 
 pub use mount::WasmMount;
 pub use types::{
-    to_js_error_with_debug, to_wasm_error, to_wasm_error_with_debug, TombWasmError, WasmBucket,
-    WasmBucketKey, WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile,
-    WasmSnapshot,
+    to_js_error_with_debug, to_wasm_error_with_debug, TombWasmError, WasmBucket, WasmBucketKey,
+    WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
 };
 
 use crate::api::{
@@ -235,10 +234,12 @@ impl TombWasm {
         initial_bucket_key_pem: String,
     ) -> TombResult<WasmBucket> {
         log!("tomb-wasm: create_bucket()");
-        let storage_class = StorageClass::from_str(&storage_class)
-            .map_err(|err| to_wasm_error_with_debug("invalid storage class")(TombWasmError(err)))?;
-        let bucket_type = BucketType::from_str(&bucket_type)
-            .map_err(|err| to_wasm_error_with_debug("invalid drive type")(TombWasmError(err)))?;
+        let storage_class = StorageClass::from_str(&storage_class).map_err(|err| {
+            to_wasm_error_with_debug("invalid storage class")(TombWasmError::new(&err))
+        })?;
+        let bucket_type = BucketType::from_str(&bucket_type).map_err(|err| {
+            to_wasm_error_with_debug("invalid drive type")(TombWasmError::new(&err))
+        })?;
         // Call the API
         let (bucket, _bucket_key) = Bucket::create(
             name,

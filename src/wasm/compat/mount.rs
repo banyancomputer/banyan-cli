@@ -367,7 +367,7 @@ impl WasmMount {
             self.bucket.id,
         ));
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
-            return Err(TombWasmError("unable to retrieve metadata CID".to_string()));
+            return Err(TombWasmError::new("unable to retrieve metadata CID"));
         };
         // Default to the metadata cid if its not present
         // Remember this is the CID of the IPLD, which will be the same in both cases.
@@ -466,10 +466,9 @@ impl WasmMount {
         );
 
         if self.locked() {
-            return Err(TombWasmError(
-                "unable to list directory contents of a locked bucket".to_string(),
-            )
-            .into());
+            return Err(
+                TombWasmError::new("unable to list directory contents of a locked bucket").into(),
+            );
         };
 
         log!(format!(
@@ -498,7 +497,7 @@ impl WasmMount {
             .map(|entry| {
                 let wasm_fs_metadata_entry = WasmFsMetadataEntry::from(entry.clone());
                 JsValue::try_from(wasm_fs_metadata_entry).map_err(|err| {
-                    TombWasmError(format!(
+                    TombWasmError::new(&format!(
                         "unable to convert directory entries to JS objects: {err:?}"
                     ))
                     .into()
@@ -873,9 +872,7 @@ impl WasmMount {
             .collect::<Vec<String>>();
 
         if self.locked() {
-            return Err(
-                TombWasmError("unable to share a file from a locked bucket".to_string()).into(),
-            );
+            return Err(TombWasmError::new("unable to share a file from a locked bucket").into());
         };
 
         let shared_file = self
@@ -932,9 +929,10 @@ impl WasmMount {
     #[wasm_bindgen(js_name = snapshot)]
     pub async fn snapshot(&mut self) -> TombResult<String> {
         log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
-        let metadata = self.metadata.as_mut().ok_or_else(|| {
-            TombWasmError("no metadata associated with mount to snapshot".to_string())
-        })?;
+        let metadata = self
+            .metadata
+            .as_mut()
+            .ok_or_else(|| TombWasmError::new("no metadata associated with mount to snapshot"))?;
 
         let snapshot_id = metadata
             .snapshot(&mut self.client)

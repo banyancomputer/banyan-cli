@@ -13,7 +13,7 @@ impl WasmSharedFile {
         Ok(self
             .0
             .export_b64_url()
-            .map_err(|_| TombWasmError(format!("Unable to export shared file as b64 url data")))?)
+            .map_err(|_| TombWasmError::new("Unable to export shared file as b64 url data"))?)
     }
 
     pub fn import_b64_url(b64_string: String) -> TombResult<WasmSharedFile> {

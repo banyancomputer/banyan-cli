@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 use wasm_bindgen::JsValue;
 
 #[derive(Debug)]
-pub struct TombWasmError(pub(crate) String);
+pub struct TombWasmError(String);
 
 impl TombWasmError {
     pub fn new(message: &str) -> TombWasmError {
@@ -29,10 +29,6 @@ impl From<Box<dyn Error>> for TombWasmError {
     fn from(err: Box<dyn Error>) -> Self {
         TombWasmError(format!("{}", err))
     }
-}
-
-pub fn to_wasm_error(err: impl Error) -> js_sys::Error {
-    TombWasmError(format!("{}", err)).into()
 }
 
 pub fn to_js_error_with_debug<E: Error>(message: &str) -> impl Fn(E) -> js_sys::Error + '_ {

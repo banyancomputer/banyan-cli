@@ -13,7 +13,7 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
     fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
         let object = js_value
             .dyn_into::<Object>()
-            .map_err(|_| TombWasmError("expected an object to be passed in".to_string()))?;
+            .map_err(|_| TombWasmError::new("expected an object to be passed in"))?;
 
         let mut map = BTreeMap::new();
 

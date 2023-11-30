@@ -80,7 +80,7 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
 
     fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
         let object = js_value.dyn_into::<Object>().map_err(|obj| {
-            TombWasmError(format!(
+            TombWasmError::new(&format!(
                 "expected object in version to WasmFsMetadataEntry: {obj:?}"
             ))
         })?;
@@ -88,24 +88,28 @@ impl TryFrom<JsValue> for WasmFsMetadataEntry {
         let name = Reflect::get(&object, &value!("name"))
             .expect("we know this is an object")
             .as_string()
-            .ok_or(TombWasmError("name was not a string".into()))?;
+            .ok_or(TombWasmError::new("name was not a string"))?;
 
         let type_str = Reflect::get(&object, &JsValue::from_str("type"))
             .expect("we know this is an object")
             .as_string()
-            .ok_or(TombWasmError("type was not a string".into()))?;
+            .ok_or(TombWasmError::new("type was not a string"))?;
 
         let entry_type = match type_str.as_str() {
             "dir" => FsMetadataEntryType::Dir,
             "file" => FsMetadataEntryType::File,
-            _ => return Err(TombWasmError(format!("unknown entry type: {type_str}"))),
+            _ => {
+                return Err(TombWasmError::new(&format!(
+                    "unknown entry type: {type_str}"
+                )))
+            }
         };
 
         let metadata_obj = Reflect::get(&object, &JsValue::from_str("metadata"))
             .expect("we know this is an object");
 
         let metadata: WasmNodeMetadata = metadata_obj.try_into().map_err(|err| {
-            TombWasmError(format!(
+            TombWasmError::new(&format!(
                 "unable to parse object into bucket metadata: {err}"
             ))
         })?;
