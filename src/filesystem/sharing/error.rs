@@ -34,6 +34,8 @@ impl SharingError {
     }
 }
 
+impl std::error::Error for SharingError {}
+
 impl Display for SharingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match &self.kind {
