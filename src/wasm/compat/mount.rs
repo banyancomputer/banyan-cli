@@ -1,4 +1,3 @@
-use crate::wasm::WasmBucketMetadata;
 use futures_util::StreamExt;
 use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
@@ -21,7 +20,7 @@ use crate::{
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
     wasm::{
-        compat::to_wasm_error_with_debug, TombResult, TombWasmError, WasmBucket,
+        to_wasm_error_with_debug, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
         WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
     },
 };

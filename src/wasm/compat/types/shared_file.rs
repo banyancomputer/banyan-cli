@@ -1,6 +1,7 @@
-use crate::prelude::filesystem::sharing::SharedFile;
-use crate::wasm::compat::to_wasm_error_with_debug;
-use crate::wasm::{TombResult, TombWasmError};
+use crate::{
+    filesystem::sharing::SharedFile,
+    wasm::{to_wasm_error_with_debug, TombResult, TombWasmError},
+};
 use std::ops::Deref;
 use wasm_bindgen::prelude::wasm_bindgen;
 

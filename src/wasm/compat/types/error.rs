@@ -25,12 +25,6 @@ impl From<TombWasmError> for js_sys::Error {
 
 impl Error for TombWasmError {}
 
-impl From<Box<dyn Error>> for TombWasmError {
-    fn from(err: Box<dyn Error>) -> Self {
-        TombWasmError(format!("{}", err))
-    }
-}
-
 pub fn to_js_error_with_debug<E: Error>(message: &str) -> impl Fn(E) -> js_sys::Error + '_ {
     move |err| js_sys::Error::from(TombWasmError(format!("{} | {}", message, err)))
 }
