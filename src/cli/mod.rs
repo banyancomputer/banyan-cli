@@ -9,9 +9,11 @@ pub mod verbosity;
 
 #[cfg(test)]
 mod test {
+    #[cfg(feature = "integration-tests")]
+    use crate::cli::commands::AccountCommand;
     use crate::{
         cli::{
-            commands::{AccountCommand, DrivesCommand, RunnableCommand, TombCommand},
+            commands::{DrivesCommand, RunnableCommand, TombCommand},
             specifiers::DriveSpecifier,
         },
         native::{configuration::globalconfig::GlobalConfig, NativeError},
