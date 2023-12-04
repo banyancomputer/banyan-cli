@@ -70,12 +70,12 @@ impl BanyanBlockStore for BanyanApiBlockStore {
             }
         }
 
-        // if maybe_url.is_none() {
-        //     maybe_url
-        // }
+        let base_url = maybe_url.ok_or(BlockStoreError::wnfs(Box::from(
+            "BanyanApiBlockstore doesnt know the location of that Block",
+        )))?;
 
         let mut stream = client
-            .stream(PullBlock { cid: *cid }, &maybe_url.unwrap())
+            .stream(PullBlock { cid: *cid }, &base_url)
             .await
             .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
         let mut data = Vec::new();
