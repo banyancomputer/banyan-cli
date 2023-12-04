@@ -32,6 +32,8 @@ impl Display for FilesystemError {
     }
 }
 
+impl std::error::Error for FilesystemError {}
+
 impl FilesystemError {
     pub fn node_not_found(path: &str) -> Self {
         Self {

@@ -13,14 +13,14 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
     fn try_from(js_value: JsValue) -> Result<Self, Self::Error> {
         let object = js_value
             .dyn_into::<Object>()
-            .map_err(|_| TombWasmError("expected an object to be passed in".to_string()))?;
+            .map_err(|_| TombWasmError::new("expected an object to be passed in"))?;
 
         let mut map = BTreeMap::new();
 
         // We know object is an Object already, so this shouldn't be able to panic (that is the
         // only documented way for this to throw an error).
-        let created_ref =
-            Reflect::get(&object, &JsValue::from_str("created")).expect("undocumented error");
+        let created_ref = Reflect::get(&object, &JsValue::from_str("created"))
+            .map_err(|_| TombWasmError::new("created property on object"))?;
         if let Some(timestamp) = created_ref.as_f64() {
             map.insert("created".into(), Ipld::Integer(timestamp as i128));
         } else {
@@ -28,8 +28,8 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
         }
 
         // See created
-        let modified_ref =
-            Reflect::get(&object, &JsValue::from_str("created")).expect("undocumented error");
+        let modified_ref = Reflect::get(&object, &JsValue::from_str("created"))
+            .map_err(|_| TombWasmError::new("created property on object"))?;
         if let Some(timestamp) = modified_ref.as_f64() {
             map.insert("modified".into(), Ipld::Integer(timestamp as i128));
         } else {
