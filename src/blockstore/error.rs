@@ -26,6 +26,12 @@ impl BlockStoreError {
         }
     }
 
+    pub fn exists(path: &Path) -> Self {
+        Self {
+            kind: BlockStoreErrorKind::Exists(path.to_path_buf()),
+        }
+    }
+
     pub fn car(err: CarError) -> Self {
         Self {
             kind: BlockStoreErrorKind::Car(err),
@@ -48,6 +54,12 @@ impl Display for BlockStoreError {
             BlockStoreErrorKind::MissingDirectory(dir) => {
                 format!("Expected and failed to find directory: {}", dir.display())
             }
+            BlockStoreErrorKind::Exists(dir) => {
+                format!(
+                    "Tried to create a BlockStore at a directory which was already populated: {}",
+                    dir.display()
+                )
+            }
             BlockStoreErrorKind::Car(err) => format!("{} {err}", "CAR ERROR:".underline()),
             BlockStoreErrorKind::Wnfs(err) => format!("{} {err}", "WNFS ERROR:".underline()),
         };
@@ -60,6 +72,7 @@ impl Display for BlockStoreError {
 pub enum BlockStoreErrorKind {
     MissingFile(PathBuf),
     MissingDirectory(PathBuf),
+    Exists(PathBuf),
     Car(CarError),
     Wnfs(WnfsError),
 }

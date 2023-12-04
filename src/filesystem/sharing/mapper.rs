@@ -9,7 +9,7 @@ use wnfs::private::PrivateRef;
 use std::collections::{BTreeMap, HashMap};
 use wnfs::libipld::Ipld;
 
-use crate::filesystem::sharing::enc_ref::EncryptedPrivateRef;
+use crate::{cast, filesystem::sharing::enc_ref::EncryptedPrivateRef};
 
 const PUBLIC_KEY_LABEL: &str = "PUBLIC_KEY";
 const ENCRYPTED_PRIVATE_REF_LABEL: &str = "ENCRYPTED_PRIVATE_REF";
@@ -115,17 +115,17 @@ impl EncRefMapper {
         if let Ipld::Map(map) = ipld {
             // For each key value pair in the IPLD
             for (fingerprint, ipld) in map {
-                let Ipld::Map(sub_map) = ipld else {
-                    return Err(SharingError::unauthorized());
-                };
-                let Some(Ipld::Bytes(public_key)) = sub_map.get(PUBLIC_KEY_LABEL) else {
-                    return Err(SharingError::unauthorized());
-                };
-                let Some(Ipld::String(encrypted_private_ref)) =
-                    sub_map.get(ENCRYPTED_PRIVATE_REF_LABEL)
-                else {
-                    return Err(SharingError::unauthorized());
-                };
+                // Get the expected variables, erroring if we fail
+                let map = cast!(ipld, Ipld::Map).ok_or(SharingError::unauthorized())?;
+                let bytes = map
+                    .get(PUBLIC_KEY_LABEL)
+                    .ok_or(SharingError::unauthorized())?;
+                let string = map
+                    .get(ENCRYPTED_PRIVATE_REF_LABEL)
+                    .ok_or(SharingError::unauthorized())?;
+                let public_key = cast!(bytes, Ipld::Bytes).ok_or(SharingError::unauthorized())?;
+                let encrypted_private_ref =
+                    cast!(string, Ipld::String).ok_or(SharingError::unauthorized())?;
 
                 // Insert the new value into the mapper
                 mapper.0.insert(

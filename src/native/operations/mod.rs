@@ -59,7 +59,6 @@ mod test {
 
     /// Simplified Restore call function
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
-        println!("restoring");
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
         let mut client = Client::new("http://google.com")?;
@@ -114,7 +113,7 @@ mod test {
     async fn configure_remote() -> Result<(), UtilityError> {
         let address = "http://app.tomb.com.net.org:5423/";
         configure::deinit_all().await?;
-        let _ = GlobalConfig::from_disk().await?;
+        let _ = GlobalConfig::new().await?;
         // Configure the remote endpoint
         configure::remote_core(address).await?;
         // Assert it was actually modified
