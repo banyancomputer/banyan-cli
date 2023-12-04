@@ -274,7 +274,9 @@ pub async fn sync_bucket(
                 .clone()
                 .storage_ticket
                 .map(|ticket| ticket.host)
-                .unwrap_or(global.endpoints.data.clone());
+                .ok_or(NativeError::custom_error(
+                    "unable to determine storage host",
+                ))?;
 
             let api_blockstore_client = client.clone();
             let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);

@@ -84,13 +84,13 @@ pub mod test {
     use crate::api::{client::Client, error::ApiError, models::account::Account};
 
     pub async fn authenticated_client() -> Client {
-        let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap();
+        let mut client = Client::new("http://127.0.0.1:3001").unwrap();
         let _ = Account::create_fake(&mut client).await.unwrap();
         client
     }
 
     pub async fn unauthenticated_client() -> Client {
-        Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002").unwrap()
+        Client::new("http://127.0.0.1:3001").unwrap()
     }
 
     #[tokio::test]

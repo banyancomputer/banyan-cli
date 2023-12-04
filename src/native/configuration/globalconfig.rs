@@ -86,7 +86,7 @@ impl GlobalConfig {
     /// Get the Client data
     pub async fn get_client(&self) -> Result<Client, NativeError> {
         // Create a new Client
-        let mut client = Client::new(&self.endpoints.core, &self.endpoints.data)?;
+        let mut client = Client::new(&self.endpoints.core)?;
         // If there are already credentials
         if let Ok(credentials) = self.get_credentials().await {
             // Set the credentials
@@ -100,7 +100,6 @@ impl GlobalConfig {
     pub async fn save_client(&mut self, client: Client) -> Result<(), NativeError> {
         // Update the Remote endpoints
         self.endpoints.core = client.remote_core.to_string();
-        self.endpoints.data = client.remote_data.to_string();
         // If there is a Claim
         if let Some(token) = client.claims {
             // Update the remote account ID

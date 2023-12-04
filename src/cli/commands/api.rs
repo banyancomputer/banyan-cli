@@ -20,12 +20,6 @@ pub enum ApiCommand {
         #[clap(subcommand)]
         command: Option<AddressCommand>,
     },
-    /// Address of Data server
-    Data {
-        /// Server address
-        #[clap(subcommand)]
-        command: Option<AddressCommand>,
-    },
     /// Address of Frontend server
     Frontend {
         /// Server address
@@ -58,10 +52,6 @@ impl RunnableCommand<NativeError> for ApiCommand {
             // Core service
             ApiCommand::Core { command: address } => {
                 process_field("CORE", &mut global.endpoints.core, address)
-            }
-            // Data service
-            ApiCommand::Data { command: address } => {
-                process_field("DATA", &mut global.endpoints.data, address)
             }
             // Frontend service
             ApiCommand::Frontend { command: address } => {

@@ -46,7 +46,7 @@ mod test {
     async fn prepare_pipeline(origin: &Path) -> Result<String, NativeError> {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://google.com", "http://google.com")?;
+        let mut client = Client::new("http://google.com")?;
         let name = origin.file_name().unwrap().to_string_lossy().to_string();
         let mut omni = OmniBucket::create(&mut global, &mut client, &name, origin).await?;
         let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
@@ -62,7 +62,7 @@ mod test {
         println!("restoring");
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://google.com", "http://google.com")?;
+        let mut client = Client::new("http://google.com")?;
         let mut omni = OmniBucket::from_specifier(
             &global,
             &mut client,
