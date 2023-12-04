@@ -32,4 +32,4 @@ pub(crate) mod sync;
 pub mod utils;
 
 mod error;
-pub(crate) use error::NativeError;
+pub use error::NativeError;
