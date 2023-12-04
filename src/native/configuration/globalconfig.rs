@@ -13,7 +13,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{create_dir_all, remove_file, OpenOptions},
+    fs::{remove_file, OpenOptions},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -52,9 +52,11 @@ impl Default for GlobalConfig {
 
 // Self
 impl GlobalConfig {
-    async fn create() -> Result<Self, NativeError> {
+    /// Create a new Global Configuration, keys, and save them all
+    pub async fn new() -> Result<Self, NativeError> {
         // Create a default config
         let config = Self::default();
+        config.to_disk()?;
         // Create the key files referenced
         let _wrapping_key = new_wrapping_key(&config.wrapping_key_path).await?;
         let _api_key = new_api_key(&config.api_key_path).await?;
@@ -64,23 +66,24 @@ impl GlobalConfig {
 
     /// Get the wrapping key
     pub async fn wrapping_key(&self) -> Result<EcEncryptionKey, NativeError> {
-        wrapping_key(&self.wrapping_key_path).await
+        wrapping_key(&self.wrapping_key_path)
+            .await
+            .map_err(|_| NativeError::missing_wrapping_key())
     }
 
     /// Get the api key
     pub async fn api_key(&self) -> Result<EcSignatureKey, NativeError> {
-        load_api_key(&self.api_key_path).await
+        load_api_key(&self.api_key_path)
+            .await
+            .map_err(|_| NativeError::missing_api_key())
     }
 
     // Get the Gredentials
     async fn get_credentials(&self) -> Result<Credentials, NativeError> {
-        match (self.api_key().await, self.remote_user_id) {
-            (Ok(signing_key), Some(user_id)) => Ok(Credentials {
-                signing_key,
-                user_id,
-            }),
-            _ => Err(NativeError::missing_credentials()),
-        }
+        Ok(Credentials {
+            user_id: self.remote_user_id.ok_or(NativeError::missing_user_id())?,
+            signing_key: self.api_key().await?,
+        })
     }
 
     /// Get the Client data
@@ -133,14 +136,8 @@ impl GlobalConfig {
 
     /// Initialize from file on disk
     pub async fn from_disk() -> Result<Self, NativeError> {
-        if let Ok(file) = get_read(&config_path()) {
-            if let Ok(config) = serde_json::from_reader(file) {
-                return Ok(config);
-            }
-        }
-
-        let config = Self::create().await?;
-        config.to_disk()?;
+        let file = get_read(&config_path())?;
+        let config = serde_json::from_reader(file).map_err(|_| NativeError::bad_data())?;
         Ok(config)
     }
 
@@ -194,9 +191,6 @@ impl GlobalConfig {
         name: &str,
         origin: &Path,
     ) -> Result<LocalBucket, NativeError> {
-        if !origin.exists() {
-            create_dir_all(origin)?;
-        }
         let wrapping_key = self.wrapping_key().await?;
         let mut bucket = LocalBucket::new(origin, &wrapping_key).await?;
         bucket.name = name.to_string();
@@ -260,9 +254,7 @@ mod test {
             remove_file(&known_path)?;
         }
         // Create default
-        let original = GlobalConfig::create().await?;
-        // Save to disk
-        original.to_disk()?;
+        let original = GlobalConfig::new().await?;
         // Load from disk
         let reconstructed = GlobalConfig::from_disk().await?;
         assert_eq!(original, reconstructed);
@@ -289,7 +281,7 @@ mod test {
             remove_file(&known_path)?;
         }
         // Load from disk
-        let reconstructed = GlobalConfig::from_disk().await?;
+        let reconstructed = GlobalConfig::new().await?;
         // Assert that it is just the default config
         let known_path = default_wrapping_key_path();
         // Remove it if it exists
@@ -301,7 +293,7 @@ mod test {
         if known_path.exists() {
             remove_file(&known_path)?;
         }
-        assert_eq!(GlobalConfig::create().await?, reconstructed);
+        assert_eq!(GlobalConfig::from_disk().await?, reconstructed);
         Ok(())
     }
 
@@ -317,11 +309,10 @@ mod test {
 
         let origin = Path::new("test");
 
-        // Load from disk
-        let mut original = GlobalConfig::from_disk().await?;
+        // Create
+        let mut original = GlobalConfig::new().await?;
         let original_bucket = original.get_or_init_bucket("new", origin).await?;
-
-        // Serialize to disk
+        // Save
         original.to_disk()?;
         let reconstructed = GlobalConfig::from_disk().await?;
         let reconstructed_bucket = reconstructed

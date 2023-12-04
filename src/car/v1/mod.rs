@@ -37,26 +37,24 @@ impl CarV1 {
     ) -> Result<Self, CarError> {
         // Read the Header
         let header = Header::read_bytes(&mut r)?;
-        // End of the header
-        let header_end = r.stream_position()?;
-        // If we're in a CARv2
+        // If we're in a CARv2, we dont have to construct an Index manually
         if let Some(index_offset) = index_offset {
-            if r.seek(SeekFrom::Start(index_offset)).is_ok() {
-                if let Ok(index) = <Index<Bucket>>::read_bytes(&mut r) {
-                    return Ok(Self {
-                        header,
-                        index: RefCell::new(index),
-                    });
-                }
-            }
+            // Skip the entire content of the CARv1
+            r.seek(SeekFrom::Start(index_offset))?;
+            // Read the index from the CARv2 and return
+            let index = <Index<Bucket>>::read_bytes(&mut r)?;
+            Ok(Self {
+                header,
+                index: RefCell::new(index),
+            })
+        } else {
+            // If we're in a CARv1, we have to create an Index by scanning over the Blocks
+            let index = Index::read_from_carv1(&mut r)?;
+            Ok(Self {
+                header,
+                index: RefCell::new(index),
+            })
         }
-
-        r.seek(SeekFrom::Start(header_end))?;
-        let index = Index::read_from_carv1(&mut r)?;
-        Ok(Self {
-            header,
-            index: RefCell::new(index),
-        })
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
