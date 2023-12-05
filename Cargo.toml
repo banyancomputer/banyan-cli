@@ -69,7 +69,7 @@ serde_json = { version = "^1", features = ["std"]}
 thiserror = { version = "^1" }
 tomb-crypt = { git = "https://github.com/banyancomputer/tomb-crypt", branch = "main", version = "^0.1" }
 unsigned-varint = { version = "^0.8" }
-url = { version = "^2" }
+url = { version = "^2", features = ["serde"] }
 uuid = { version = "^1", features = ["serde", "v4"] }
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", version = "^0.1" }
 

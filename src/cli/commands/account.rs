@@ -77,7 +77,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 // Open this url
                 open::that(format!(
                     "{}/registerDevice?spki={}",
-                    GlobalConfig::from_disk().await?.endpoints.frontend,
+                    GlobalConfig::from_disk().await?.endpoint,
                     der_url
                 ))
                 .expect("failed to open browser");
