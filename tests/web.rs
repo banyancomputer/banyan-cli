@@ -25,6 +25,7 @@ mod test {
     }
 
     pub async fn authenticated_client() -> TombResult<TombWasm> {
+        register_log();
         let mut client = Client::new("http://127.0.0.1:3001", "http://127.0.0.1:3002")
             .expect("client creation failed");
 
@@ -87,9 +88,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn get_usage() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: get_usage()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: get_usage()");
         let usage = client.get_usage().await?;
         assert_eq!(usage, 0);
         let usage_limit = client.get_usage_limit().await?;
@@ -99,9 +99,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn rename() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_rename()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_rename()");
         let (_, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         client
@@ -116,9 +115,8 @@ mod test {
     // TODO: probably for API tests
     #[wasm_bindgen_test]
     async fn mount() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mount = client.mount(bucket.id().to_string(), private_pem).await?;
@@ -128,9 +126,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn mount_rename() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_rename()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_rename()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mut mount = client
@@ -145,9 +142,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn share_with() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_share_with()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_share_with()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let wasm_bucket_key: WasmBucketKey =
@@ -162,9 +158,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn snapshot() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_snapshot()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_snapshot()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mut mount = client
@@ -190,8 +185,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn mkdir() -> TombResult<()> {
-        register_log();
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: mkdir()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
 
@@ -216,9 +211,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn mkdir_remount() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
 
         info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): create_bucket()");
@@ -248,9 +242,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn write() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_mkdir()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_mkdir()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mut mount = client.mount(bucket.id().to_string(), private_pem).await?;
@@ -273,9 +266,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn write_read() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_mkdir()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_mkdir()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mut mount = client.mount(bucket.id().to_string(), private_pem).await?;
@@ -302,9 +294,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn write_remount() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
 
         info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): create_bucket()");
@@ -340,9 +331,8 @@ mod test {
 
     #[wasm_bindgen_test]
     async fn write_rm() -> TombResult<()> {
-        register_log();
-        info!("tomb_wasm_test: create_bucket_mount_write_rm()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_write_rm()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mut mount = client.mount(bucket.id().to_string(), private_pem).await?;
@@ -366,8 +356,8 @@ mod test {
     #[wasm_bindgen_test]
     async fn write_mv() -> TombResult<()> {
         register_log();
-        info!("tomb_wasm_test: create_bucket_mount_write_mv()");
         let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_write_mv()");
         let (private_pem, initial_bucket_key_pem) = ecencryption_key_pair().await;
         let bucket = create_bucket(&mut client, initial_bucket_key_pem).await?;
         let mut mount = client.mount(bucket.id().to_string(), private_pem).await?;

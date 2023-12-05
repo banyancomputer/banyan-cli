@@ -18,7 +18,7 @@ use std::{
     str::FromStr,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
-use tracing::{info, warn};
+use tracing::info;
 pub use types::{
     to_js_error_with_msg, to_wasm_error_with_msg, TombWasmError, WasmBucket, WasmBucketKey,
     WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
@@ -142,7 +142,7 @@ impl TombWasm {
     /// ```
     #[wasm_bindgen(js_name = listBucketSnapshots)]
     pub async fn list_bucket_snapshots(&mut self, bucket_id: String) -> TombResult<Array> {
-        info!("tomb-wasm: list_bucket_snapshots()");
+        info!("list_bucket_snapshots()");
         // Parse the bucket id
         let bucket_id =
             Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
@@ -179,7 +179,7 @@ impl TombWasm {
     /// ```
     #[wasm_bindgen(js_name = listBucketKeys)]
     pub async fn list_bucket_keys(&mut self, bucket_id: String) -> TombResult<Array> {
-        info!("tomb-wasm: list_bucket_keys()");
+        info!("list_bucket_keys()");
         // Parse the bucket id
         let bucket_id =
             Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
@@ -222,8 +222,7 @@ impl TombWasm {
         bucket_type: String,
         initial_bucket_key_pem: String,
     ) -> TombResult<WasmBucket> {
-        info!("tomb-wasm: create_bucket()");
-        warn!("woah there new bucket!!");
+        info!("create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class)
             .map_err(|_| TombWasmError::new("invalid storage class"))?;
         let bucket_type = BucketType::from_str(&bucket_type)
@@ -251,7 +250,7 @@ impl TombWasm {
     /// The WasmBucketKey that was created
     #[wasm_bindgen(js_name = createBucketKey)]
     pub async fn create_bucket_key(&mut self, bucket_id: String) -> TombResult<WasmBucketKey> {
-        info!("tomb-wasm: create_bucket_key()");
+        info!("create_bucket_key()");
         let bucket_id =
             Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
 
@@ -285,7 +284,7 @@ impl TombWasm {
     /// # Returns Promise<void> in js speak
     #[wasm_bindgen(js_name = renameBucket)]
     pub async fn rename_bucket(&mut self, bucket_id: String, name: String) -> TombResult<()> {
-        info!("tomb-wasm: rename_bucket()");
+        info!("rename_bucket()");
 
         // Parse the bucket id
         let bucket_id =
@@ -309,7 +308,7 @@ impl TombWasm {
     /// # Returns the id of the bucket that was deleted
     #[wasm_bindgen(js_name = deleteBucket)]
     pub async fn delete_bucket(&mut self, bucket_id: String) -> TombResult<()> {
-        info!("tomb-wasm: delete_bucket()");
+        info!("delete_bucket()");
 
         // Parse the bucket id
         let bucket_id =
@@ -348,18 +347,18 @@ impl TombWasm {
         bucket_id: String,
         encryption_key_pem: String,
     ) -> TombResult<WasmMount> {
-        info!("tomb-wasm: mount / {}", &bucket_id);
+        info!("mount()/{}", &bucket_id);
 
         // Parse the bucket id
         let bucket_id_uuid =
             Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
-        info!("tomb-wasm: mount / {} / reading key pair", &bucket_id);
+        info!("mount()/{}/reading key pair", &bucket_id);
 
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
             .map_err(to_wasm_error_with_msg("import encryption key"))?;
-        info!("tomb-wasm: mount / {} / reading bucket", &bucket_id);
+        info!("mount()/{}/reading bucket", &bucket_id);
 
         // Load the bucket
         let bucket: WasmBucket = Bucket::read(self.client(), bucket_id_uuid)
@@ -367,16 +366,13 @@ impl TombWasm {
             .map_err(to_wasm_error_with_msg("read bucket"))?
             .into();
 
-        info!("tomb-wasm: mount / {} / pulling mount", &bucket_id);
+        info!("mount()/{}/pulling mount", &bucket_id);
 
         // Get the bucket id
         // Try to pull the mount. Otherwise create it and push an initial piece of metadata
         let mount = match WasmMount::pull(bucket.clone(), self.client()).await {
             Ok(mut mount) => {
-                info!(
-                    "tomb-wasm: mount / {} / pulled mount, unlocking",
-                    &bucket_id
-                );
+                info!("mount()/{}/pulled mount, unlocking", &bucket_id);
 
                 // Unlock the mount
                 let unlock_result = mount.unlock(&key).await;
@@ -387,17 +383,14 @@ impl TombWasm {
 
                 // Check the result
                 match unlock_result {
-                    Ok(_) => info!("tomb-wasm: mount / {} / unlocked mount", &bucket_id),
-                    Err(_) => info!("tomb-wasm: mount / {} / could not unlock mount", &bucket_id),
+                    Ok(_) => info!("mount()/{}/unlocked mount", &bucket_id),
+                    Err(_) => info!("mount()/{}/could not unlock mount", &bucket_id),
                 };
 
                 mount
             }
             Err(_) => {
-                info!(
-                    "tomb-wasm: mount / {} / failed to pull mount, creating",
-                    &bucket_id
-                );
+                info!("mount()/{}/failed to pull mount, creating", &bucket_id);
                 // Create the mount and push an initial piece of metadata
                 WasmMount::new(bucket.clone(), &key, self.client()).await?
             }

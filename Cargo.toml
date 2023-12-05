@@ -49,7 +49,7 @@ serial_test = { version = "^2" }
 # Dependencies that must exist independent of architecture
 [dependencies]
 tracing = { version = "^0.1" }
-tracing-subscriber = { version = "^0.3", features = ["env-filter", "fmt", "time"] }
+tracing-subscriber = { version = "^0.3", features = ["env-filter", "fmt", "time", "json"] }
 base64 = { version = "^0.21" }
 async-recursion = { version = "^1" }
 async-trait = { version = "^0.1" }
@@ -84,7 +84,7 @@ integration-tests = []
 # Dependencies that only need to exist when we are in WASM
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 tracing-web = { version = "0.1.3" }
-time = { version = "0.3", features = ["wasm-bindgen"] }
+time = { version = "0.3", features = ["wasm-bindgen", "macros"] }
 async-trait = { version = "^0.1" }
 console_error_panic_hook = { version = "^0.1" }
 getrandom = { version = "^0.2", features = ["js"] }
