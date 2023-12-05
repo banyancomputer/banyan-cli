@@ -1,7 +1,7 @@
 use crate::{value, wasm::TombWasmError};
 use js_sys::{Object, Reflect};
 use std::collections::BTreeMap;
-use tracing::debug;
+use tracing::info;
 use wasm_bindgen::prelude::{JsCast, JsValue};
 use wnfs::{common::Metadata as NodeMetadata, libipld::Ipld};
 
@@ -24,7 +24,7 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
         if let Some(timestamp) = created_ref.as_f64() {
             map.insert("created".into(), Ipld::Integer(timestamp as i128));
         } else {
-            debug!("WARNING: WasmNodeMetadata did not contain a 'created' timestamp");
+            info!("WARNING: WasmNodeMetadata did not contain a 'created' timestamp");
         }
 
         // See created
@@ -33,7 +33,7 @@ impl TryFrom<JsValue> for WasmNodeMetadata {
         if let Some(timestamp) = modified_ref.as_f64() {
             map.insert("modified".into(), Ipld::Integer(timestamp as i128));
         } else {
-            debug!("WARNING: WasmNodeMetadata did not contain a 'modified' timestamp");
+            info!("WARNING: WasmNodeMetadata did not contain a 'modified' timestamp");
         }
 
         Ok(Self(NodeMetadata(map)))
