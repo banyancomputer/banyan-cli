@@ -101,11 +101,9 @@ impl RunnableCommand<NativeError> for DrivesCommand {
                 follow_links,
             } => {
                 let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                println!("got the omni");
                 let fs =
                     FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
                         .await?;
-                println!("unlocked");
                 let result = prepare::pipeline(fs, &mut omni, client, follow_links).await;
                 global.update_config(&omni.get_local()?)?;
                 result

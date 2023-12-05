@@ -64,9 +64,15 @@ impl GlobalConfig {
         // Create a default config
         let config = Self::default();
         config.to_disk()?;
-        // Create the key files referenced
-        let _wrapping_key = new_wrapping_key(&config.wrapping_key_path).await?;
-        let _api_key = new_api_key(&config.api_key_path).await?;
+
+        // Do not blindly overwrite key files if they exist
+        if !config.wrapping_key_path.exists() {
+            let _wrapping_key = new_wrapping_key(&config.wrapping_key_path).await?;
+        }
+        if !config.api_key_path.exists() {
+            let _api_key = new_api_key(&config.api_key_path).await?;
+        }
+
         // Ok
         Ok(config)
     }
