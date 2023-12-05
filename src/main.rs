@@ -12,7 +12,8 @@ use {
         cli::{args::Args, commands::RunnableCommand},
     },
     clap::Parser,
-    std::io::Write,
+    tracing::Level,
+    tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -22,15 +23,20 @@ async fn main() {
     // Parse command line arguments. see args.rs
     let cli = Args::parse();
 
-    // TODO eventually make options to format it differently?
-    std::env::set_var("RUST_LOG", "info");
-    env_logger::Builder::new()
-        .filter_level(cli.verbose.into())
-        .format(|buf, record| writeln!(buf, "[{}] {}", record.level(), record.args()))
-        .format_timestamp(None)
-        .format_level(true)
-        .format_module_path(false)
-        .init();
+    let (non_blocking_writer, _guard) = tracing_appender::non_blocking(std::io::stderr());
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(Level::DEBUG.into())
+        .from_env_lossy();
+
+    let stderr_layer = tracing_subscriber::fmt::layer()
+        .pretty()
+        .with_target(false)
+        .with_file(false)
+        .with_line_number(false)
+        .with_writer(non_blocking_writer)
+        .with_filter(env_filter);
+
+    tracing_subscriber::registry().with(stderr_layer).init();
 
     // Determine the command being executed run appropriate subcommand
     let _ = cli.command.run().await;

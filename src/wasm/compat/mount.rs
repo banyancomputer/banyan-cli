@@ -1,10 +1,10 @@
 use futures_util::StreamExt;
-use gloo::console::log;
 use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey};
+use tracing::info;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wnfs::private::PrivateNode;
 
@@ -58,28 +58,19 @@ impl WasmMount {
         key: &EcEncryptionKey,
         client: &Client,
     ) -> Result<Self, TombWasmError> {
-        log!("tomb-wasm: mount/new()/{}", wasm_bucket.id());
+        info!("new()/{}", wasm_bucket.id());
 
         let bucket = Bucket::from(wasm_bucket.clone());
-        log!(
-            "tomb-wasm: mount/new()/{} - creating blockstores",
-            wasm_bucket.id()
-        );
+        info!("new()/{} - creating blockstores", wasm_bucket.id());
         let metadata_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
-        log!(
-            "tomb-wasm: mount/new()/{} - creating fs metadata",
-            wasm_bucket.id()
-        );
+        info!("new()/{} - creating fs metadata", wasm_bucket.id());
         let fs_metadata = FsMetadata::init(key)
             .await
             .map_err(to_wasm_error_with_msg("init FsMetadata"))?;
-        log!(
-            "tomb-wasm: mount/new()/{} - saving fs metadata",
-            wasm_bucket.id()
-        );
+        info!("new()/{} - saving fs metadata", wasm_bucket.id());
         let mut mount = Self {
             client: client.to_owned(),
             bucket,
@@ -94,14 +85,14 @@ impl WasmMount {
             fs_metadata: Some(fs_metadata),
         };
 
-        log!("tomb-wasm: mount/new()/{} - syncing", wasm_bucket.id());
+        info!("new()/{} - syncing", wasm_bucket.id());
         mount.sync().await?;
         // Ok
         Ok(mount)
     }
     /// Initialize a new Wasm callable mount with metadata for a bucket and a client
     pub async fn pull(wasm_bucket: WasmBucket, client: &mut Client) -> Result<Self, TombWasmError> {
-        log!("tomb-wasm: mount/pull()/{}", wasm_bucket.id());
+        info!("pull()/{}", wasm_bucket.id());
         // Get the underlying bucket
         let bucket = Bucket::from(wasm_bucket.clone());
 
@@ -111,8 +102,8 @@ impl WasmMount {
             .map_err(to_wasm_error_with_msg("read metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
-        log!(
-            "tomb-wasm: mount/pull()/{} - pulling metadata at version {}",
+        info!(
+            "pull()/{} - pulling metadata at version {}",
             wasm_bucket.id(),
             metadata_cid
         );
@@ -121,24 +112,18 @@ impl WasmMount {
             .pull(client)
             .await
             .map_err(to_wasm_error_with_msg("pull metadata"))?;
-        log!(
-            "tomb-wasm: mount/pull()/{} - reading metadata stream",
-            wasm_bucket.id()
-        );
+        info!("pull()/{} - reading metadata stream", wasm_bucket.id());
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
         }
-        log!(
-            "tomb-wasm: mount/pull()/{} - creating metadata blockstore",
-            wasm_bucket.id()
-        );
+        info!("pull()/{} - creating metadata blockstore", wasm_bucket.id());
         let metadata_blockstore =
             BlockStore::try_from(data).map_err(to_wasm_error_with_msg("metadata to blockstore"))?;
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
 
-        log!("tomb-wasm: mount/pull()/{} - pulled", wasm_bucket.id());
+        info!("pull()/{} - pulled", wasm_bucket.id());
 
         // Ok
         Ok(Self {
@@ -166,8 +151,8 @@ impl WasmMount {
             .map_err(to_wasm_error_with_msg("read current metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
-        log!(
-            "tomb-wasm: mount/pull()/{} - pulling metadata at version {}",
+        info!(
+            "pull()/{} - pulling metadata at version {}",
             self.bucket.id.to_string(),
             metadata_cid
         );
@@ -178,8 +163,8 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("pull metadata"))?;
 
-        log!(
-            "tomb-wasm: mount/pull()/{} - reading metadata stream",
+        info!(
+            "pull()/{} - reading metadata stream",
             self.bucket.id.to_string()
         );
 
@@ -188,8 +173,8 @@ impl WasmMount {
             data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
         }
 
-        log!(
-            "tomb-wasm: mount/pull()/{} - creating metadata blockstore",
+        info!(
+            "pull()/{} - creating metadata blockstore",
             self.bucket.id.to_string()
         );
 
@@ -205,10 +190,7 @@ impl WasmMount {
         self.append = false;
         self.fs_metadata = None;
 
-        log!(
-            "tomb-wasm: mount/pull()/{} - pulled",
-            self.bucket.id.to_string()
-        );
+        info!("pull()/{} - pulled", self.bucket.id.to_string());
         self.unlock(key).await?;
         // Ok
         Ok(())
@@ -216,24 +198,21 @@ impl WasmMount {
 
     /// Sync the current fs_metadata with the remote
     pub async fn sync(&mut self) -> Result<(), TombWasmError> {
-        log!("tomb-wasm: mount/sync()/{}", self.bucket.id.to_string());
+        info!("sync()/{}", self.bucket.id.to_string());
         // Check if the bucket is locked
         if self.locked() {
-            log!(
-                "tomb-wasm: mount/sync()/{} - bucket is locked",
-                self.bucket.id.to_string()
-            );
+            info!("sync()/{} - bucket is locked", self.bucket.id.to_string());
             panic!("Bucket is locked");
         };
-        log!(
-            "tomb-wasm: mount/sync()/{} - saving changes",
-            self.bucket.id.to_string()
+        info!(
+            "sync()/{} - saving changes; dirty: {}",
+            self.bucket.id.to_string(),
+            self.dirty()
         );
 
-        log!(format!("tomb-wasm: self.dirty: {}", self.dirty()));
         if self.dirty() {
-            log!(
-                "tomb-wasm: mount/sync()/{} - saving changes to fs",
+            info!(
+                "sync()/{} - saving changes to fs",
                 self.bucket.id.to_string()
             );
             let _ = self
@@ -243,16 +222,10 @@ impl WasmMount {
                 .save(&self.metadata_blockstore, &self.content_blockstore)
                 .await;
         } else {
-            log!(
-                "tomb-wasm: mount/sync()/{} - no changes to fs",
-                self.bucket.id.to_string()
-            );
+            info!("sync()/{} - no changes to fs", self.bucket.id.to_string());
         }
 
-        log!(
-            "tomb-wasm: mount/sync()/{} - pushing changes",
-            self.bucket.id.to_string()
-        );
+        info!("sync()/{} - pushing changes", self.bucket.id.to_string());
 
         let root_cid = self
             .content_blockstore
@@ -262,22 +235,22 @@ impl WasmMount {
             .metadata_blockstore
             .get_root()
             .ok_or(TombWasmError::new("get metadata cid"))?;
-        log!(
-            "tomb-wasm: mount/sync()/{} - pushing metadata at version {}",
+        info!(
+            "sync()/{} - pushing metadata at version {}",
             self.bucket.id.to_string(),
             metadata_cid.to_string()
         );
-        log!(format!(
-            "tomb-wasm: mount/sync()/{} - pushing root at version {}",
+        info!(
+            "sync()/{} - pushing root at version {}",
             self.bucket.id, root_cid,
-        ));
+        );
         // Assume that the metadata is always at least as big as the content
         let mut data_size = 0;
         if self.append {
             data_size = self.content_blockstore.data_size();
         }
-        log!(
-            "tomb-wasm: mount/sync()/{} - content size difference {data_size}",
+        info!(
+            "sync()/{} - metadata cid {} ; content size difference {}",
             self.bucket.id.to_string(),
             metadata_cid.to_string(),
             data_size
@@ -332,39 +305,30 @@ impl WasmMount {
             }
             // No uploading required
             _ => {
-                log!("tomb-wasm: mount/sync()/ - no need to push content");
+                info!("sync()/ - no need to push content");
             }
         }
 
         self.dirty = false;
         self.append = false;
 
-        log!(format!(
-            "tomb-wasm: mount/sync()/{} - synced",
-            self.bucket.id.to_string()
-        ));
+        info!("sync()/{} - synced", self.bucket.id.to_string());
 
         Ok(())
     }
 
     /// Unlock the current fs_metadata
     pub async fn unlock(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
-        log!(format!("tomb-wasm: mount/unlock()/{}", self.bucket.id));
+        info!("unlock()/{}", self.bucket.id);
 
         // Check if the bucket is already unlocked
         if !self.locked() {
             return Ok(());
         }
 
-        log!(format!(
-            "tomb-wasm: mount/unlock()/{} - unlocking",
-            self.bucket.id,
-        ));
+        info!("unlock()/{} - unlocking", self.bucket.id,);
 
-        log!(format!(
-            "tomb-wasm: mount/unlock()/{} - checking versioning",
-            self.bucket.id,
-        ));
+        info!("unlock()/{} - checking versioning", self.bucket.id,);
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
             return Err(TombWasmError::new("unable to retrieve metadata CID"));
         };
@@ -386,10 +350,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("unlock FsMetadata"))?;
 
-        log!(format!(
-            "tomb-wasm: mount/unlock()/{} - unlocked",
-            self.bucket.id,
-        ));
+        info!("unlock()/{} - unlocked", self.bucket.id,);
 
         self.locked = false;
         self.fs_metadata = Some(fs_metadata);
@@ -461,8 +422,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        log!(
-            "tomb-wasm: mount/ls/{}/{}",
+        info!(
+            "ls()/{}/{}",
             self.bucket.id.to_string(),
             &path_segments.join("/")
         );
@@ -473,11 +434,11 @@ impl WasmMount {
             );
         };
 
-        log!(format!(
-            "tomb-wasm: mount/ls/{}/{} - getting entries",
+        info!(
+            "ls()/{}/{} - getting entries",
             self.bucket.id,
             &path_segments.join("/")
-        ));
+        );
 
         // Get the entries
         let fs_metadata_entries = self
@@ -488,10 +449,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("list directory entries"))?;
 
-        log!(format!(
-            "tomb-wasm: mount/ls/{} - mapping entries",
-            self.bucket.id,
-        ));
+        info!("ls()/{} - mapping entries", self.bucket.id);
 
         // Map the entries back to JsValues
         fs_metadata_entries
@@ -524,8 +482,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        log!(
-            "tomb-wasm: mount/mkdir/{}/{}",
+        info!(
+            "mkdir()/{}/{}",
             self.bucket.id.to_string(),
             &path_segments.join("/")
         );
@@ -534,8 +492,8 @@ impl WasmMount {
             panic!("Bucket is locked");
         };
 
-        log!(
-            "tomb-wasm: mount/mkdir/{}/{} - mkdir",
+        info!(
+            "mkdir()/{}/{} - mkdir",
             self.bucket.id.to_string(),
             &path_segments.join("/")
         );
@@ -546,9 +504,10 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("mkdir"))?;
 
-        log!(
-            "tomb-wasm: mount/mkdir/{}/{} - dirty, syncing changes",
-            self.bucket.id.to_string()
+        info!(
+            "mkdir()/{}/{} - dirty, syncing changes",
+            self.bucket.id.to_string(),
+            &path_segments.join("/")
         );
         self.dirty = true;
         self.sync().await?;
@@ -578,8 +537,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        log!(
-            "tomb-wasm: mount/add/{}/{}",
+        info!(
+            "add()/{}/{}",
             self.bucket.id.to_string(),
             &path_segments.join("/")
         );
@@ -601,8 +560,8 @@ impl WasmMount {
             )
             .await
             .map_err(to_wasm_error_with_msg("fs add"))?;
-        log!(
-            "tomb-wasm: mount/add/{} - dirty, syncing changes",
+        info!(
+            "add()/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
         self.dirty = true;
@@ -634,8 +593,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        log!(
-            "tomb-wasm: mount/read_bytes/{}/{}",
+        info!(
+            "read_bytes()/{}/{}",
             self.bucket.id.to_string(),
             &path_segments.join("/")
         );
@@ -667,10 +626,7 @@ impl WasmMount {
             api_blockstore.find_cids(cids).await.ok();
         }
 
-        log!(format!(
-            "tomb-wasm: running fs_get_node @ {:?}",
-            path_segments
-        ));
+        info!("read_bytes() running fs.read @ {:?}", path_segments);
 
         let vec = fs
             .read(&path_segments, &self.metadata_blockstore, &api_blockstore)
@@ -708,8 +664,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        log!(
-            "tomb-wasm: mount/mv/{}/{} => {}",
+        info!(
+            "mv()/{}/{} => {}",
             self.bucket.id.to_string(),
             &from_path_segments.join("/"),
             &to_path_segments.join("/")
@@ -731,8 +687,8 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("fs mv"))?;
 
-        log!(
-            "tomb-wasm: mount/mv/{} - dirty, syncing changes",
+        info!(
+            "mv()/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
         self.dirty = true;
@@ -757,8 +713,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        log!(
-            "tomb-wasm: mount/rm/{}/{}",
+        info!(
+            "rm()/{}/{}",
             self.bucket.id.to_string(),
             path_segments.join("/")
         );
@@ -792,8 +748,8 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("fs rm"))?;
 
-        log!(
-            "tomb-wasm: mount/rm/{} - dirty, syncing changes",
+        info!(
+            "rm()/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
         self.dirty = true;
@@ -817,8 +773,8 @@ impl WasmMount {
     /// * `could not share with` - If the share fails
     #[wasm_bindgen(js_name = shareWith)]
     pub async fn share_with(&mut self, bucket_key_id: String) -> TombResult<()> {
-        log!(
-            "tomb-wasm: mount/share_with/{}/{}",
+        info!(
+            "share_with/{}/{}",
             self.bucket.id.to_string(),
             bucket_key_id.clone()
         );
@@ -831,10 +787,7 @@ impl WasmMount {
             .map_err(to_wasm_error_with_msg("read drive key"))?;
 
         let recipient_key = bucket_key.pem;
-        log!(
-            "tomb-wasm: mount/share_with/{} - importing key",
-            recipient_key.clone()
-        );
+        info!("share_with/{} - importing key", recipient_key.clone());
         let recipient_key = EcPublicEncryptionKey::import(recipient_key.as_bytes())
             .await
             .map_err(to_wasm_error_with_msg("import recipient key"))?;
@@ -853,8 +806,8 @@ impl WasmMount {
         // Mark as dirty so fs is saved with new key info
         self.dirty = true;
 
-        log!(
-            "tomb-wasm: mount/share_with/{} - dirty, syncing changes",
+        info!(
+            "share_with/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
 
@@ -892,8 +845,8 @@ impl WasmMount {
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
 
-        log!(
-            "tomb-wasm: mount/share_file/{} - dirty, syncing changes",
+        info!(
+            "share_file/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
 
@@ -910,10 +863,7 @@ impl WasmMount {
     /// * "missing metadata" - If the metadata is missing
     #[wasm_bindgen(js_name = hasSnapshot)]
     pub fn has_snapshot(&self) -> bool {
-        log!(
-            "tomb-wasm: mount/is_snapshotted/{}",
-            self.bucket.id.to_string()
-        );
+        info!("has_snapshot()/{}", self.bucket.id.to_string());
         let metadata = self
             .metadata
             .as_ref()
@@ -931,7 +881,7 @@ impl WasmMount {
     /// * "could not snapshot" - If the snapshot fails
     #[wasm_bindgen(js_name = snapshot)]
     pub async fn snapshot(&mut self) -> TombResult<String> {
-        log!("tomb-wasm: mount/snapshot/{}", self.bucket.id.to_string());
+        info!("snapshot()/{}", self.bucket.id.to_string());
         let metadata = self
             .metadata
             .as_mut()
@@ -955,11 +905,7 @@ impl WasmMount {
     /// A Promise<void> in js speak. Should also update the internal state of the bucket
     /// on a successful update
     pub async fn rename(&mut self, name: String) -> TombResult<()> {
-        log!(
-            "tomb-wasm: mount/rename/{}/{}",
-            self.bucket.id.to_string(),
-            &name
-        );
+        info!("rename()/{}/{}", self.bucket.id.to_string(), &name);
         let mut update_bucket = self.bucket.clone();
         update_bucket.name = name;
         update_bucket
@@ -976,8 +922,8 @@ impl WasmMount {
     /// # Returns
     /// A Promise<void> in js speak. Should update the mount to the version of the snapshot
     pub async fn restore(&mut self, wasm_snapshot: WasmSnapshot) -> TombResult<()> {
-        log!(
-            "tomb-wasm: mount/restore/{}/{}",
+        info!(
+            "restore()/{}/{}",
             self.bucket.id.to_string(),
             wasm_snapshot.id()
         );
