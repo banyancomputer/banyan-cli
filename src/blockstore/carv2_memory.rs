@@ -12,7 +12,7 @@ use wnfs::libipld::{Cid, IpldCodec};
 
 use super::BanyanBlockStore;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 /// CarV2 formatted memory blockstore
 pub struct CarV2MemoryBlockStore {
     data: RefCell<Cursor<Vec<u8>>>,

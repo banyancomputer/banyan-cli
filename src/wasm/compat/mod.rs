@@ -18,13 +18,15 @@ use std::{
     str::FromStr,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
-use tracing::info;
+use tracing::{info, error};
 pub use types::{
     to_js_error_with_msg, to_wasm_error_with_msg, TombWasmError, WasmBucket, WasmBucketKey,
     WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
 };
 use uuid::Uuid;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
+
+use self::mount::WasmBucketMount;
 
 /// Special Result type for WASM builds
 pub type TombResult<T> = Result<T, js_sys::Error>;
@@ -204,20 +206,20 @@ impl TombWasm {
     /// The bucket's metadata as a WasmBucket
     /// ```json
     /// {
-    /// "id": "uuid",
     /// "name": "string"
-    /// "type": "string",
+    /// "bucket_type": "string",
     /// "storage_class": "string",
     /// }
     /// ```
-    #[wasm_bindgen(js_name = createBucket)]
-    pub async fn create_bucket(
+    #[wasm_bindgen(js_name = createBucketAndMount)]
+    pub async fn create_bucket_and_mount(
         &mut self,
         name: String,
         storage_class: String,
         bucket_type: String,
-        initial_bucket_key_pem: String,
-    ) -> TombResult<WasmBucket> {
+        private_pem: String,
+        public_pem: String,
+    ) -> TombResult<WasmBucketMount> {
         info!("create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class)
             .map_err(|_| TombWasmError::new("invalid storage class"))?;
@@ -226,7 +228,7 @@ impl TombWasm {
         // Call the API
         let (bucket, _bucket_key) = Bucket::create(
             name,
-            initial_bucket_key_pem,
+            public_pem,
             bucket_type,
             storage_class,
             self.client(),
@@ -235,8 +237,10 @@ impl TombWasm {
         .map_err(to_wasm_error_with_msg("create bucket"))?;
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
+        let private_key = EcEncryptionKey::import(private_pem.as_bytes()).await.map_err(to_wasm_error_with_msg("Failed to initialize a new wasm mount"))?;
+        let wasm_mount = WasmMount::new(wasm_bucket.clone(), &private_key, self.client()).await?;
         // Ok
-        Ok(wasm_bucket)
+        Ok(WasmBucketMount::new(wasm_bucket, wasm_mount))
     }
 
     /// Create a bucket key for a bucket
@@ -385,10 +389,9 @@ impl TombWasm {
 
                 mount
             }
-            Err(_) => {
-                info!("mount()/{}/failed to pull mount, creating", &bucket_id);
-                // Create the mount and push an initial piece of metadata
-                WasmMount::new(bucket.clone(), &key, self.client()).await?
+            Err(err) => {
+                error!("mount()/{}/failure to pull mount: {}", &bucket_id, err);
+                return Err(err.into());
             }
         };
 

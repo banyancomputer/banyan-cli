@@ -28,7 +28,7 @@ use crate::{
 /// Mount point for a Bucket in WASM
 ///
 /// Enables to call Fs methods on a Bucket, pulling metadata from a remote
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct WasmMount {
     client: Client,
@@ -934,5 +934,30 @@ impl WasmMount {
             .map_err(to_wasm_error_with_msg("restore snapshot"))?;
 
         Ok(())
+    }
+}
+
+#[wasm_bindgen]
+pub struct WasmBucketMount {
+    bucket: WasmBucket, 
+    mount: WasmMount 
+}
+
+#[wasm_bindgen]
+impl WasmBucketMount {
+
+    #[wasm_bindgen]
+    pub fn new(bucket: WasmBucket, mount: WasmMount) -> WasmBucketMount {
+        WasmBucketMount { bucket, mount }
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn bucket(&self) -> WasmBucket {
+        self.bucket.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn mount(&self) -> WasmMount {
+        self.mount.clone()
     }
 }
