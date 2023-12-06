@@ -197,14 +197,17 @@ impl TombWasm {
     /// * `name` - The name of the bucket to create
     /// * `storage_class` - The storage class of the bucket to create
     /// * `bucket_type` - The type of the bucket to create
-    /// * `encryption_key` - The encryption key to use for the bucket
+    /// * `private_pem` - The private encryption key to use for the bucket
+    /// * `public_pem` - The public encryption key to use for the bucket
     /// # Returns
     /// The bucket's metadata as a WasmBucket
     /// ```json
     /// {
     /// "name": "string"
-    /// "bucket_type": "string",
     /// "storage_class": "string",
+    /// "bucket_type": "string",
+    /// "private_pem": "string",
+    /// "public_pem": "string",
     /// }
     /// ```
     #[wasm_bindgen(js_name = createBucketAndMount)]
