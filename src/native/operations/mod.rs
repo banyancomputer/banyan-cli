@@ -46,7 +46,7 @@ mod test {
     async fn prepare_pipeline(origin: &Path) -> Result<String, NativeError> {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://google.com", "http://google.com")?;
+        let mut client = Client::new("http://127.0.0.1")?;
         let name = origin.file_name().unwrap().to_string_lossy().to_string();
         let mut omni = OmniBucket::create(&mut global, &mut client, &name, origin).await?;
         let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
@@ -61,7 +61,7 @@ mod test {
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://google.com", "http://google.com")?;
+        let mut client = Client::new("http://127.0.0.1")?;
         let mut omni = OmniBucket::from_specifier(
             &global,
             &mut client,
@@ -118,7 +118,7 @@ mod test {
         configure::remote_core(address).await?;
         // Assert it was actually modified
         assert_eq!(
-            GlobalConfig::from_disk().await?.endpoints.core,
+            GlobalConfig::from_disk().await?.endpoint.to_string(),
             address.to_string()
         );
         Ok(())

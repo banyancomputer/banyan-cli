@@ -49,8 +49,6 @@ const AUDIENCE: &str = "banyan-platform";
 pub struct Client {
     /// Base URL for interacting with core service
     pub remote_core: Url,
-    /// Base URL for pulling data
-    pub remote_data: Url,
     /// Bearer auth
     pub claims: Option<ApiToken>,
     /// Credentials for signing
@@ -67,7 +65,7 @@ impl Client {
     /// * `remote` - The base URL for the API
     /// # Returns
     /// * `Self` - The client
-    pub fn new(remote_core: &str, remote_data: &str) -> Result<Self, ApiError> {
+    pub fn new(remote_core: &str) -> Result<Self, ApiError> {
         let mut default_headers = HeaderMap::new();
         default_headers.insert("Content-Type", HeaderValue::from_static("application/json"));
         let reqwest_client = ReqwestClient::builder()
@@ -76,7 +74,6 @@ impl Client {
 
         Ok(Self {
             remote_core: Url::parse(remote_core)?,
-            remote_data: Url::parse(remote_data)?,
             claims: None,
             signing_key: None,
             bearer_token: None,

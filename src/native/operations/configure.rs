@@ -1,3 +1,5 @@
+use url::Url;
+
 use crate::native::{configuration::globalconfig::GlobalConfig, NativeError};
 use std::path::Path;
 
@@ -35,15 +37,7 @@ pub async fn deinit_all() -> Result<(), NativeError> {
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
 pub async fn remote_core(address: &str) -> Result<String, NativeError> {
     let mut config = GlobalConfig::from_disk().await?;
-    config.endpoints.core = address.to_string();
-    config.to_disk()?;
-    Ok("saved remote address".to_string())
-}
-
-/// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
-pub async fn remote_data(address: &str) -> Result<String, NativeError> {
-    let mut config = GlobalConfig::from_disk().await?;
-    config.endpoints.data = address.to_string();
+    config.endpoint = Url::parse(address).map_err(|_| NativeError::bad_data())?;
     config.to_disk()?;
     Ok("saved remote address".to_string())
 }

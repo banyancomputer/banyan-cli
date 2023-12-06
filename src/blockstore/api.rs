@@ -70,10 +70,9 @@ impl BanyanBlockStore for BanyanApiBlockStore {
             }
         }
 
-        let base_url = match maybe_url {
-            Some(url) => url,
-            None => client.remote_data.clone(),
-        };
+        let base_url = maybe_url.ok_or(BlockStoreError::wnfs(Box::from(
+            "BanyanApiBlockstore doesnt know the location of that Block",
+        )))?;
 
         let mut stream = client
             .stream(PullBlock { cid: *cid }, &base_url)
