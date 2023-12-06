@@ -1,15 +1,14 @@
-use wasm_bindgen::prelude::wasm_bindgen;
 use super::{WasmBucket, WasmMount};
+use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 pub struct WasmBucketMount {
-    bucket: WasmBucket, 
-    mount: WasmMount 
+    bucket: WasmBucket,
+    mount: WasmMount,
 }
 
 #[wasm_bindgen]
 impl WasmBucketMount {
-
     #[wasm_bindgen]
     pub fn new(bucket: WasmBucket, mount: WasmMount) -> WasmBucketMount {
         WasmBucketMount { bucket, mount }

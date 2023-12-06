@@ -15,11 +15,11 @@ use std::{
     str::FromStr,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
-use tracing::{info, error};
+use tracing::{error, info};
 pub use types::{
     to_js_error_with_msg, to_wasm_error_with_msg, TombWasmError, WasmBucket, WasmBucketKey,
-    WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
-    WasmMount, WasmBucketMount
+    WasmBucketMetadata, WasmBucketMount, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata,
+    WasmSharedFile, WasmSnapshot,
 };
 use uuid::Uuid;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
@@ -222,15 +222,10 @@ impl TombWasm {
         let bucket_type = BucketType::from_str(&bucket_type)
             .map_err(|_| TombWasmError::new("invalid drive type"))?;
         // Call the API
-        let (bucket, _bucket_key) = Bucket::create(
-            name,
-            public_pem,
-            bucket_type,
-            storage_class,
-            self.client(),
-        )
-        .await
-        .map_err(to_wasm_error_with_msg("create bucket"))?;
+        let (bucket, _bucket_key) =
+            Bucket::create(name, public_pem, bucket_type, storage_class, self.client())
+                .await
+                .map_err(to_wasm_error_with_msg("create bucket"))?;
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
         let wasm_mount = WasmMount::new(wasm_bucket.clone(), private_pem, self.client()).await?;

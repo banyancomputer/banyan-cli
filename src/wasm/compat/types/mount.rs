@@ -3,7 +3,7 @@ use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
-use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey, PrivateKey};
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PrivateKey, PublicKey};
 use tracing::info;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wnfs::private::PrivateNode;
@@ -67,7 +67,9 @@ impl WasmMount {
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
         info!("new()/{} - creating fs metadata", wasm_bucket.id());
-        let key = EcEncryptionKey::import(private_pem.as_bytes()).await.map_err(to_wasm_error_with_msg("import private key pem"))?;
+        let key = EcEncryptionKey::import(private_pem.as_bytes())
+            .await
+            .map_err(to_wasm_error_with_msg("import private key pem"))?;
         let fs_metadata = FsMetadata::init(&key)
             .await
             .map_err(to_wasm_error_with_msg("init FsMetadata"))?;
