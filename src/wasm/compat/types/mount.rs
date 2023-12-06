@@ -43,12 +43,14 @@ pub struct WasmMount {
     locked: bool,
     /// Whether or not a change requires a call to save
     dirty: bool,
-
     /// Whether or not data has been appended to the content blockstore
     append: bool,
 
     /// Deleted Block CIDs
     deleted_block_cids: BTreeSet<String>,
+
+    /// Previous root CID of the Metadata BlockStore
+    previous_cid: Option<String>,
 
     metadata_blockstore: BlockStore,
     content_blockstore: BlockStore,
@@ -81,6 +83,8 @@ impl WasmMount {
             client: client.to_owned(),
             bucket,
             metadata: None,
+            fs_metadata: Some(fs_metadata),
+
             locked: false,
             dirty: true,
             append: false,
@@ -88,7 +92,7 @@ impl WasmMount {
             deleted_block_cids: BTreeSet::new(),
             metadata_blockstore,
             content_blockstore,
-            fs_metadata: Some(fs_metadata),
+            previous_cid: None,
         };
 
         info!("new()/{} - syncing", wasm_bucket.id());
@@ -96,6 +100,7 @@ impl WasmMount {
         // Ok
         Ok(mount)
     }
+
     /// Initialize a new Wasm callable mount with metadata for a bucket and a client
     pub async fn pull(wasm_bucket: WasmBucket, client: &mut Client) -> Result<Self, TombWasmError> {
         info!("pull()/{}", wasm_bucket.id());
@@ -143,6 +148,7 @@ impl WasmMount {
 
             metadata_blockstore,
             content_blockstore,
+            previous_cid: Some(metadata_cid),
             fs_metadata: None,
         })
     }
@@ -267,7 +273,7 @@ impl WasmMount {
                 expected_data_size: data_size,
                 root_cid: root_cid.to_string(),
                 metadata_cid: metadata_cid.to_string(),
-                previous_cid: None,
+                previous_cid: self.previous_cid.clone(),
                 valid_keys: self
                     .fs_metadata
                     .as_ref()
