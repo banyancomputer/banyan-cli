@@ -233,8 +233,7 @@ impl TombWasm {
         .map_err(to_wasm_error_with_msg("create bucket"))?;
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
-        let private_key = EcEncryptionKey::import(private_pem.as_bytes()).await.map_err(to_wasm_error_with_msg("Failed to initialize a new wasm mount"))?;
-        let wasm_mount = WasmMount::new(wasm_bucket.clone(), &private_key, self.client()).await?;
+        let wasm_mount = WasmMount::new(wasm_bucket.clone(), private_pem, self.client()).await?;
         // Ok
         Ok(WasmBucketMount::new(wasm_bucket, wasm_mount))
     }
