@@ -3,6 +3,7 @@ use crate::{
     blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore},
     filesystem::{FilesystemError, FsMetadata},
     native::configuration::xdg::xdg_data_home,
+    prelude::blockstore::RootedBlockStore,
 };
 use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
@@ -13,7 +14,7 @@ use std::{
     fs::{create_dir_all, remove_dir_all},
     path::{Path, PathBuf},
 };
-use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey};
+use tomb_crypt::prelude::EcEncryptionKey;
 use uuid::Uuid;
 use wnfs::{libipld::Cid, private::PrivateNodeOnPathHistory};
 
@@ -52,6 +53,8 @@ pub struct LocalBucket {
     pub metadata: CarV2DiskBlockStore,
     /// BlockStore for storing metadata and file content
     pub content: MultiCarV2DiskBlockStore,
+    /// Previous root cid of the metadata BlockStore, if there is one
+    pub previous_cid: Option<Cid>,
 }
 
 impl Display for LocalBucket {
@@ -103,16 +106,9 @@ impl LocalBucket {
         content.add_delta()?;
 
         // Initialize the fs metadata
-        let mut fs_metadata = FsMetadata::init(wrapping_key).await?;
-        let public_key = wrapping_key.public_key()?;
-
+        let mut fs = FsMetadata::init(wrapping_key).await?;
         // Save our fs to establish map
-        fs_metadata.save(&metadata, &content).await?;
-        // Share it with the owner of this wrapping key
-        fs_metadata.share_with(&public_key, &metadata).await?;
-        // Save our fs again
-        fs_metadata.save(&metadata, &content).await?;
-
+        fs.save(&metadata, &content).await?;
         Ok(Self {
             name,
             origin: origin.to_path_buf(),
@@ -122,6 +118,7 @@ impl LocalBucket {
             deleted_block_cids: BTreeSet::new(),
             metadata,
             content,
+            previous_cid: None,
         })
     }
 
@@ -142,7 +139,8 @@ impl LocalBucket {
     }
 
     /// Shortcut for saving a filesystem
-    pub async fn save_fs(&self, fs: &mut FsMetadata) -> Result<(), FilesystemError> {
+    pub async fn save_fs(&mut self, fs: &mut FsMetadata) -> Result<(), FilesystemError> {
+        self.previous_cid = self.metadata.get_root();
         fs.save(&self.metadata, &self.content).await
     }
 
@@ -151,8 +149,8 @@ impl LocalBucket {
         &self,
         wrapping_key: &EcEncryptionKey,
     ) -> Result<PrivateNodeOnPathHistory, FilesystemError> {
-        let mut fs_metadata = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
-        fs_metadata.history(&self.metadata).await
+        let mut fs = FsMetadata::unlock(wrapping_key, &self.metadata).await?;
+        fs.history(&self.metadata).await
     }
 }
 

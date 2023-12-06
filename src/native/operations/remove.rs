@@ -5,7 +5,7 @@ use crate::{
 use std::path::Path;
 
 /// The pipeline for removing an individual file from a WNFS
-pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), NativeError> {
+pub async fn pipeline(mut local: LocalBucket, wnfs_path: &Path) -> Result<(), NativeError> {
     // Global config
     let mut global = GlobalConfig::from_disk().await?;
     let wrapping_key = global.clone().wrapping_key().await?;

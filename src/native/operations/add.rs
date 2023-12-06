@@ -8,7 +8,7 @@ use std::path::Path;
 
 /// The pipeline for adding an individual file to a WNFS
 pub async fn pipeline(
-    local: LocalBucket,
+    mut local: LocalBucket,
     input_file: &Path,
     wnfs_path: &Path,
 ) -> Result<String, NativeError> {

@@ -196,7 +196,7 @@ pub async fn sync_bucket(
                     expected_data_size: delta.data_size(),
                     root_cid: local_content_cid.to_string(),
                     metadata_cid: local_metadata_cid.to_string(),
-                    previous_cid: None,
+                    previous_cid: local.previous_cid.map(|cid| cid.to_string()),
                     valid_keys: fs.share_manager.public_fingerprints(),
                     deleted_block_cids: local
                         .deleted_block_cids
