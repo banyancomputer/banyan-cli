@@ -277,7 +277,7 @@ mod test {
                 expected_data_size: 0,
                 root_cid: String::from("root_cid"),
                 metadata_cid: String::from("metadata_cid"),
-                previous_metadata_cid: None,
+                previous_cid: None,
                 valid_keys: vec![initial_bucket_key.fingerprint, bucket_key.fingerprint],
                 deleted_block_cids: BTreeSet::new(),
                 metadata_stream: Body::from("metadata_stream"),

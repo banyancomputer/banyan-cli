@@ -67,7 +67,7 @@ pub struct Metadata {
     /// The CID of the Metadata CAR root
     pub metadata_cid: String,
     /// The previous CID of the Metadata CAR root
-    pub previous_metadata_cid: Option<String>,
+    pub previous_cid: Option<String>,
     /// The size of the data in bytes that this metadata points to
     pub data_size: u64,
     /// The state of the metadata
@@ -102,7 +102,7 @@ impl Metadata {
             bucket_id: push_metadata.bucket_id,
             root_cid: push_metadata.root_cid.clone(),
             metadata_cid: push_metadata.metadata_cid.clone(),
-            previous_metadata_cid: push_metadata.previous_metadata_cid.clone(),
+            previous_cid: push_metadata.previous_cid.clone(),
             data_size: 0,
             state: MetadataState::UploadFailed,
             snapshot_id: None,
@@ -177,7 +177,7 @@ impl Metadata {
             bucket_id,
             root_cid: response.root_cid,
             metadata_cid: response.metadata_cid,
-            previous_metadata_cid: response.previous_metadata_cid,
+            previous_cid: response.previous_cid,
             data_size: response.data_size as u64,
             state: response.state,
             snapshot_id: response.snapshot_id,
@@ -221,7 +221,7 @@ pub(crate) mod test {
                 expected_data_size: 0,
                 root_cid: String::from("root_cid"),
                 metadata_cid: String::from("metadata_cid"),
-                previous_metadata_cid: None,
+                previous_cid: None,
                 valid_keys: vec![],
                 deleted_block_cids: BTreeSet::new(),
                 metadata_stream: Body::from("metadata_stream".as_bytes()),
@@ -297,7 +297,7 @@ pub(crate) mod test {
                     .get_root()
                     .ok_or(ApiError::missing_data("metadata_cid"))?
                     .to_string(),
-                previous_metadata_cid: None,
+                previous_cid: None,
                 valid_keys: fs.share_manager.public_fingerprints(),
                 deleted_block_cids: BTreeSet::new(),
                 metadata_stream: content_store.get_data().into(),
