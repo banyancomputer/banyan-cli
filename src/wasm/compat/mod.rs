@@ -1,5 +1,3 @@
-/// Mounted FileSystem functionality
-mod mount;
 /// Types with WASM wrappers
 mod types;
 use crate::prelude::api::{
@@ -12,7 +10,6 @@ use crate::prelude::api::{
     requests::core::auth::device_api_key::regwait::end::EndRegwait,
 };
 use js_sys::Array;
-pub use mount::WasmMount;
 use std::{
     convert::{From, TryFrom},
     str::FromStr,
@@ -22,11 +19,10 @@ use tracing::{info, error};
 pub use types::{
     to_js_error_with_msg, to_wasm_error_with_msg, TombWasmError, WasmBucket, WasmBucketKey,
     WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
+    WasmMount, WasmBucketMount
 };
 use uuid::Uuid;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
-
-use self::mount::WasmBucketMount;
 
 /// Special Result type for WASM builds
 pub type TombResult<T> = Result<T, js_sys::Error>;

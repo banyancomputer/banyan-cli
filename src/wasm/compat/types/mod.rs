@@ -6,6 +6,8 @@ mod fs_metadata_entry;
 mod node_metadata;
 mod shared_file;
 mod snapshot;
+mod mount;
+mod bucketmount;
 
 pub use bucket::WasmBucket;
 pub use bucket_key::WasmBucketKey;
@@ -15,3 +17,5 @@ pub use fs_metadata_entry::WasmFsMetadataEntry;
 pub use node_metadata::WasmNodeMetadata;
 pub use shared_file::WasmSharedFile;
 pub use snapshot::WasmSnapshot;
+pub use mount::WasmMount;
+pub use bucketmount::WasmBucketMount;
