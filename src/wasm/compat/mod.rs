@@ -1,5 +1,3 @@
-/// Mounted FileSystem functionality
-mod mount;
 /// Types with WASM wrappers
 mod types;
 use crate::prelude::api::{
@@ -12,16 +10,16 @@ use crate::prelude::api::{
     requests::core::auth::device_api_key::regwait::end::EndRegwait,
 };
 use js_sys::Array;
-pub use mount::WasmMount;
 use std::{
     convert::{From, TryFrom},
     str::FromStr,
 };
 use tomb_crypt::prelude::{EcEncryptionKey, EcSignatureKey, PrivateKey, PublicKey};
-use tracing::info;
+use tracing::{error, info};
 pub use types::{
     to_js_error_with_msg, to_wasm_error_with_msg, TombWasmError, WasmBucket, WasmBucketKey,
-    WasmBucketMetadata, WasmFsMetadataEntry, WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
+    WasmBucketMetadata, WasmBucketMount, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata,
+    WasmSharedFile, WasmSnapshot,
 };
 use uuid::Uuid;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
@@ -199,44 +197,43 @@ impl TombWasm {
     /// * `name` - The name of the bucket to create
     /// * `storage_class` - The storage class of the bucket to create
     /// * `bucket_type` - The type of the bucket to create
-    /// * `encryption_key` - The encryption key to use for the bucket
+    /// * `private_pem` - The private encryption key to use for the bucket
+    /// * `public_pem` - The public encryption key to use for the bucket
     /// # Returns
     /// The bucket's metadata as a WasmBucket
     /// ```json
     /// {
-    /// "id": "uuid",
     /// "name": "string"
-    /// "type": "string",
     /// "storage_class": "string",
+    /// "bucket_type": "string",
+    /// "private_pem": "string",
+    /// "public_pem": "string",
     /// }
     /// ```
-    #[wasm_bindgen(js_name = createBucket)]
-    pub async fn create_bucket(
+    #[wasm_bindgen(js_name = createBucketAndMount)]
+    pub async fn create_bucket_and_mount(
         &mut self,
         name: String,
         storage_class: String,
         bucket_type: String,
-        initial_bucket_key_pem: String,
-    ) -> TombResult<WasmBucket> {
+        private_pem: String,
+        public_pem: String,
+    ) -> TombResult<WasmBucketMount> {
         info!("create_bucket()");
         let storage_class = StorageClass::from_str(&storage_class)
             .map_err(|_| TombWasmError::new("invalid storage class"))?;
         let bucket_type = BucketType::from_str(&bucket_type)
             .map_err(|_| TombWasmError::new("invalid drive type"))?;
         // Call the API
-        let (bucket, _bucket_key) = Bucket::create(
-            name,
-            initial_bucket_key_pem,
-            bucket_type,
-            storage_class,
-            self.client(),
-        )
-        .await
-        .map_err(to_wasm_error_with_msg("create bucket"))?;
+        let (bucket, _bucket_key) =
+            Bucket::create(name, public_pem, bucket_type, storage_class, self.client())
+                .await
+                .map_err(to_wasm_error_with_msg("create bucket"))?;
         // Convert the bucket
         let wasm_bucket = WasmBucket::from(bucket);
+        let wasm_mount = WasmMount::new(wasm_bucket.clone(), private_pem, self.client()).await?;
         // Ok
-        Ok(wasm_bucket)
+        Ok(WasmBucketMount::new(wasm_bucket, wasm_mount))
     }
 
     /// Create a bucket key for a bucket
@@ -385,10 +382,9 @@ impl TombWasm {
 
                 mount
             }
-            Err(_) => {
-                info!("mount()/{}/failed to pull mount, creating", &bucket_id);
-                // Create the mount and push an initial piece of metadata
-                WasmMount::new(bucket.clone(), &key, self.client()).await?
+            Err(err) => {
+                error!("mount()/{}/failure to pull mount: {}", &bucket_id, err);
+                return Err(err.into());
             }
         };
 

@@ -37,7 +37,7 @@ const TOMB_REPO_VERSION_LABEL: &str = "TOMB_REPO_VERSION";
 // TODO: Allow ser / de against a cbor file on disk -- that would be straight up easier to debug
 /// Describes how to serialize / deserialize metadata for a Wnfs Fs against
 /// * a tomb blockstore
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FsMetadata {
     /// Private Forest over File system
     pub forest: Rc<PrivateForest>,

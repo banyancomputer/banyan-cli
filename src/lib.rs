@@ -48,7 +48,8 @@ pub mod prelude {
     pub mod wasm {
         pub use crate::wasm::{
             register_log, TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey,
-            WasmBucketMetadata, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata, WasmSnapshot,
+            WasmBucketMetadata, WasmBucketMount, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata,
+            WasmSnapshot,
         };
     }
 }

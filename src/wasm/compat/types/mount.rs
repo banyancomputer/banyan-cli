@@ -3,7 +3,7 @@ use js_sys::{Array, ArrayBuffer, Uint8Array};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
-use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PublicKey};
+use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PrivateKey, PublicKey};
 use tracing::info;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wnfs::private::PrivateNode;
@@ -19,6 +19,7 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
+    prelude::blockstore::DoubleSplitStore,
     wasm::{
         to_wasm_error_with_msg, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
         WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
@@ -28,7 +29,7 @@ use crate::{
 /// Mount point for a Bucket in WASM
 ///
 /// Enables to call Fs methods on a Bucket, pulling metadata from a remote
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct WasmMount {
     client: Client,
@@ -55,7 +56,7 @@ impl WasmMount {
     /// Initialize a new Wasm callable mount with metadata for a bucket and a client
     pub async fn new(
         wasm_bucket: WasmBucket,
-        key: &EcEncryptionKey,
+        private_pem: String,
         client: &Client,
     ) -> Result<Self, TombWasmError> {
         info!("new()/{}", wasm_bucket.id());
@@ -67,7 +68,10 @@ impl WasmMount {
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
         info!("new()/{} - creating fs metadata", wasm_bucket.id());
-        let fs_metadata = FsMetadata::init(key)
+        let key = EcEncryptionKey::import(private_pem.as_bytes())
+            .await
+            .map_err(to_wasm_error_with_msg("import private key pem"))?;
+        let fs_metadata = FsMetadata::init(&key)
             .await
             .map_err(to_wasm_error_with_msg("init FsMetadata"))?;
         info!("new()/{} - saving fs metadata", wasm_bucket.id());
@@ -621,15 +625,19 @@ impl WasmMount {
             let cids = file
                 .get_cids(&fs.forest, &self.metadata_blockstore)
                 .await
-                .ok()
-                .ok_or(TombWasmError::new("retrieve CIDs"))?;
-            api_blockstore.find_cids(cids).await.ok();
+                .map_err(|_| TombWasmError::new("retrieve CIDs"))?;
+            api_blockstore
+                .find_cids(cids)
+                .await
+                .map_err(to_wasm_error_with_msg("find_cids"))?;
         }
 
         info!("read_bytes() running fs.read @ {:?}", path_segments);
 
+        // Attempt to fetch from local first, remote second
+        let split_store = DoubleSplitStore::new(&self.content_blockstore, &api_blockstore);
         let vec = fs
-            .read(&path_segments, &self.metadata_blockstore, &api_blockstore)
+            .read(&path_segments, &self.metadata_blockstore, &split_store)
             .await
             .map_err(to_wasm_error_with_msg("read node bytes"))?;
 
