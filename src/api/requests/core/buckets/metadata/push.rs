@@ -23,6 +23,7 @@ pub struct PushMetadata {
     pub expected_data_size: u64,
     pub root_cid: String,
     pub metadata_cid: String,
+    pub previous_metadata_cid: Option<String>,
     pub valid_keys: Vec<String>,
     pub deleted_block_cids: BTreeSet<String>,
 
@@ -34,6 +35,7 @@ struct PushMetadataData {
     pub expected_data_size: u64,
     pub root_cid: String,
     pub metadata_cid: String,
+    pub previous_metadata_cid: Option<String>,
     pub valid_keys: Vec<String>,
     pub deleted_block_cids: BTreeSet<String>,
 }
@@ -60,6 +62,7 @@ impl ApiRequest for PushMetadata {
             expected_data_size: self.expected_data_size,
             root_cid: self.root_cid,
             metadata_cid: self.metadata_cid,
+            previous_metadata_cid: self.previous_metadata_cid,
             valid_keys: self.valid_keys,
             deleted_block_cids: self.deleted_block_cids,
         };

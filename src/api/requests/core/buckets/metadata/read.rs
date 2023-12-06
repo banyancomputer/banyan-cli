@@ -28,6 +28,7 @@ pub struct ReadMetadataResponse {
     pub id: Uuid,
     pub root_cid: String,
     pub metadata_cid: String,
+    pub previous_metadata_cid: Option<String>,
     pub data_size: i64,
     pub state: MetadataState,
     pub created_at: i64,
