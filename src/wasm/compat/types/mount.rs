@@ -19,6 +19,7 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
+    prelude::blockstore::DoubleSplitStore,
     wasm::{
         to_wasm_error_with_msg, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
         WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
@@ -624,15 +625,19 @@ impl WasmMount {
             let cids = file
                 .get_cids(&fs.forest, &self.metadata_blockstore)
                 .await
-                .ok()
-                .ok_or(TombWasmError::new("retrieve CIDs"))?;
-            api_blockstore.find_cids(cids).await.ok();
+                .map_err(|_| TombWasmError::new("retrieve CIDs"))?;
+            api_blockstore
+                .find_cids(cids)
+                .await
+                .map_err(to_wasm_error_with_msg("find_cids"))?;
         }
 
         info!("read_bytes() running fs.read @ {:?}", path_segments);
 
+        // Attempt to fetch from local first, remote second
+        let split_store = DoubleSplitStore::new(&self.content_blockstore, &api_blockstore);
         let vec = fs
-            .read(&path_segments, &self.metadata_blockstore, &api_blockstore)
+            .read(&path_segments, &self.metadata_blockstore, &split_store)
             .await
             .map_err(to_wasm_error_with_msg("read node bytes"))?;
 
