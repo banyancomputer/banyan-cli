@@ -116,6 +116,7 @@ impl ApiRequest for PushMetadata {
             expected_data_size: self.expected_data_size,
             root_cid: self.root_cid,
             metadata_cid: self.metadata_cid,
+            previous_cid: self.previous_cid,
             valid_keys: self.valid_keys,
             deleted_block_cids: self.deleted_block_cids,
         };

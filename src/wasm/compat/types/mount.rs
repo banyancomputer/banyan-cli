@@ -19,7 +19,9 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
-    prelude::blockstore::DoubleSplitStore,
+    prelude::{
+        api::requests::core::buckets::metadata::push::PushMetadata, blockstore::DoubleSplitStore,
+    },
     wasm::{
         to_wasm_error_with_msg, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
         WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
@@ -260,18 +262,21 @@ impl WasmMount {
             data_size
         );
         let (metadata, host, authorization) = Metadata::push(
-            self.bucket.id,
-            root_cid.to_string(),
-            metadata_cid.to_string(),
-            data_size,
-            self.fs_metadata
-                .as_ref()
-                .ok_or(TombWasmError::new("missing FsMetadata"))?
-                .share_manager
-                .public_fingerprints(),
-            // This may lint as an error but it is not
-            self.deleted_block_cids.clone(),
-            Cursor::new(self.metadata_blockstore.get_data()),
+            PushMetadata {
+                bucket_id: self.bucket.id,
+                expected_data_size: data_size,
+                root_cid: root_cid.to_string(),
+                metadata_cid: metadata_cid.to_string(),
+                previous_cid: None,
+                valid_keys: self
+                    .fs_metadata
+                    .as_ref()
+                    .ok_or(TombWasmError::new("missing FsMetadata"))?
+                    .share_manager
+                    .public_fingerprints(),
+                deleted_block_cids: self.deleted_block_cids.clone(),
+                metadata_stream: Cursor::new(self.metadata_blockstore.get_data()),
+            },
             &mut self.client,
         )
         .await
