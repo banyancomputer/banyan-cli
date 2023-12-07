@@ -55,6 +55,8 @@ impl Snapshot {
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
+    use std::collections::BTreeSet;
+
     use crate::api::{
         error::ApiError,
         models::{
@@ -68,7 +70,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
         let (metadata, _, _) = push_empty_metadata(bucket.id, &mut client).await.unwrap();
-        let _snapshot_id = metadata.snapshot(&mut client).await.unwrap();
+        let _snapshot_id = metadata.snapshot(BTreeSet::new(), &mut client).await.unwrap();
         //let restored_metadata_id = snapshot.restore(&mut client).await.unwrap();
         //assert_eq!(restored_metadata_id, metadata.id);
         //let restored_metadata = Metadata::read(bucket.id, restored_metadata_id, &mut client)

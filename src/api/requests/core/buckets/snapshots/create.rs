@@ -1,9 +1,11 @@
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use wnfs::libipld::Cid;
 
 use crate::api::requests::ApiRequest;
 
@@ -11,6 +13,7 @@ use crate::api::requests::ApiRequest;
 pub struct CreateSnapshot {
     pub bucket_id: Uuid,
     pub metadata_id: Uuid,
+    pub active_cids: BTreeSet<Cid>
 }
 
 #[derive(Debug, Deserialize)]

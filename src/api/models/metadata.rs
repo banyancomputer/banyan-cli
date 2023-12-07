@@ -1,5 +1,6 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use wnfs::libipld::Cid;
 use std::collections::BTreeSet;
 use std::fmt::Display;
 use uuid::Uuid;
@@ -192,11 +193,12 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(&self, client: &mut Client) -> Result<Uuid, ApiError> {
+    pub async fn snapshot(&self, active_cids: BTreeSet<Cid>, client: &mut Client) -> Result<Uuid, ApiError> {
         let snapshot_resp = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
                 metadata_id: self.id,
+                active_cids
             })
             .await?;
 
@@ -251,7 +253,7 @@ pub(crate) mod test {
         client: &mut Client,
     ) -> Result<(Metadata, Option<String>, Option<String>, Uuid), ApiError> {
         let (metadata, host, authorization) = push_empty_metadata(bucket_id, client).await?;
-        let snapshot_id = metadata.snapshot(client).await?;
+        let snapshot_id = metadata.snapshot(BTreeSet::new(), client).await?;
         Ok((metadata, host, authorization, snapshot_id))
     }
 
@@ -397,7 +399,7 @@ pub(crate) mod test {
         }
         assert_eq!(data, "metadata_stream".as_bytes());
 
-        let _snapshot_id = read_metadata.snapshot(&mut client).await?;
+        let _snapshot_id = read_metadata.snapshot(BTreeSet::new(), &mut client).await?;
         //assert_eq!(snapshot.bucket_id, bucket.id);
         //assert_eq!(snapshot.metadata_id, metadata.id);
         //assert!(snapshot.created_at > 0);
