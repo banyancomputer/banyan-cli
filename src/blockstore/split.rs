@@ -38,7 +38,7 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
         BlockStore::put_block(self.secondary, bytes.clone(), codec)
             .await
-            .ok();
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
         BlockStore::put_block(self.primary, bytes, codec)
             .await
             .map_err(|err| BlockStoreError::wnfs(Box::from(err)))

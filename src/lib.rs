@@ -49,7 +49,7 @@ pub mod prelude {
         pub use crate::wasm::{
             register_log, TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey,
             WasmBucketMetadata, WasmBucketMount, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata,
-            WasmSnapshot,
+            WasmSnapshot, WasmSharedFile
         };
     }
 }

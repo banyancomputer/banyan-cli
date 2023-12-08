@@ -311,7 +311,7 @@ impl FsMetadata {
         })
     }
 
-    #[cfg(test)]
+    // #[cfg(test)]
     pub async fn receive_file_content(
         shared_file: SharedFile,
         store: &impl BlockStore,
@@ -619,13 +619,14 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BlockStore,
+        content_store: &impl RootedBlockStore,
         content: Vec<u8>,
     ) -> Result<(), FilesystemError> {
         let time = Utc::now();
         let data_size = content.len();
         let mut rng = thread_rng();
 
+        let ds_store = DoubleSplitStore::new(metadata_store, content_store);
         let result = self
             .root_dir
             .open_file_mut(
@@ -633,7 +634,7 @@ impl FsMetadata {
                 true,
                 time,
                 &mut self.forest,
-                metadata_store,
+                &ds_store,
                 &mut rng,
             )
             .await;

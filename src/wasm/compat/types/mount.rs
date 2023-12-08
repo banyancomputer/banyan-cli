@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use tomb_crypt::prelude::{EcEncryptionKey, EcPublicEncryptionKey, PrivateKey, PublicKey};
-use tracing::info;
+use tracing::{info, warn};
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wnfs::private::PrivateNode;
 
@@ -18,7 +18,7 @@ use crate::{
         requests::staging::upload::content::UploadContent,
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
-    filesystem::FsMetadata,
+    filesystem::{FsMetadata, sharing::SharedFile},
     prelude::blockstore::DoubleSplitStore,
     wasm::{
         to_wasm_error_with_msg, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
@@ -252,8 +252,13 @@ impl WasmMount {
         let mut data_size = 0;
         if self.append {
             data_size = self.content_blockstore.data_size();
+            warn!(
+                "sync()/{} - appending {} bytes",
+                self.bucket.id.to_string(),
+                data_size
+            );
         }
-        info!(
+        warn!(
             "sync()/{} - metadata cid {} ; content size difference {}",
             self.bucket.id.to_string(),
             metadata_cid.to_string(),
@@ -813,6 +818,8 @@ impl WasmMount {
 
         // Mark as dirty so fs is saved with new key info
         self.dirty = true;
+        // Mark as append so blocks we write to content are propagated to a storage host
+        self.append = true;
 
         info!(
             "share_with/{} - dirty, syncing changes",
@@ -852,6 +859,8 @@ impl WasmMount {
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
+        // Mark as append so blocks we write to content are propagated to a storage host
+        self.append = true;
 
         info!(
             "share_file/{} - dirty, syncing changes",
@@ -862,6 +871,21 @@ impl WasmMount {
 
         let shared_file = WasmSharedFile(shared_file);
         Ok(shared_file.export_b64_url()?)
+    }
+
+    // #[cfg(test)]
+    pub async fn receive_file_content(
+        &mut self,
+        shared_file: WasmSharedFile,
+    ) -> TombResult<Uint8Array> {
+        let shared_file = SharedFile::from(shared_file);
+        let content = FsMetadata
+            ::receive_file_content(shared_file, &self.content_blockstore)
+            .await
+            .map_err(to_wasm_error_with_msg("recieve_shared_file_content"))?;
+        let bytes = content.into_boxed_slice();
+        let array = Uint8Array::from(&bytes[..]);
+        Ok(array) 
     }
 
     /// Return boolean indiciating whether or not the currently mounted bucket is snapshotted

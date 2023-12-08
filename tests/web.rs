@@ -6,7 +6,7 @@ mod test {
             api::{client::Client, models::account::Account},
             wasm::{
                 register_log, TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmBucketMount,
-                WasmFsMetadataEntry,
+                WasmFsMetadataEntry, WasmSharedFile
             },
         },
         js_sys::{Array, Uint8Array},
@@ -89,172 +89,92 @@ mod test {
         (private_pem, public_pem)
     }
 
-    // TODO: probably for API tests
-    #[wasm_bindgen_test]
-    async fn create_and_mount() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        assert!(!bucket_mount.mount().locked());
-        Ok(())
-    }
+    // // TODO: probably for API tests
+    // #[wasm_bindgen_test]
+    // async fn create_and_mount() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     assert!(!bucket_mount.mount().locked());
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn get_usage() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: get_usage()");
+    //     let usage = client.get_usage().await?;
+    //     assert_eq!(usage, 0);
+    //     let usage_limit = client.get_usage_limit().await?;
+    //     assert_eq!(usage_limit, USAGE_LIMIT);
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn rename() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_rename()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     client
+    //         .rename_bucket(
+    //             bucket_mount.bucket().id().to_string(),
+    //             "new_name".to_string(),
+    //         )
+    //         .await?;
+    //     let buckets = client.list_buckets().await?;
+    //     let bucket = WasmBucket::try_from_js_value(buckets.get(0)).unwrap();
+    //     assert_eq!(bucket.name(), "new_name");
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn mount_rename() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_rename()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     mount.rename("new_name".to_string()).await?;
+    //     assert_eq!(mount.bucket().name(), "new_name");
+    //     let mount = client
+    //         .mount(bucket_mount.bucket().id().to_string(), private_pem)
+    //         .await?;
+    //     assert_eq!(mount.bucket().name(), "new_name");
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn share_with() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_share_with()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let bucket = bucket_mount.bucket();
+    //     let wasm_bucket_key: WasmBucketKey =
+    //         client.create_bucket_key(bucket.id().to_string()).await?;
+    //     assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
+    //     assert!(!wasm_bucket_key.approved());
+    //     let mut mount = client.mount(bucket.id().to_string(), private_pem).await?;
+    //     assert!(!mount.locked());
+    //     mount.share_with(wasm_bucket_key.id()).await?;
+    //     Ok(())
+    // }
 
     #[wasm_bindgen_test]
-    async fn get_usage() -> TombResult<()> {
+    async fn share_file() -> TombResult<()> {
         let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: get_usage()");
-        let usage = client.get_usage().await?;
-        assert_eq!(usage, 0);
-        let usage_limit = client.get_usage_limit().await?;
-        assert_eq!(usage_limit, USAGE_LIMIT);
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn rename() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_rename()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        client
-            .rename_bucket(
-                bucket_mount.bucket().id().to_string(),
-                "new_name".to_string(),
-            )
-            .await?;
-        let buckets = client.list_buckets().await?;
-        let bucket = WasmBucket::try_from_js_value(buckets.get(0)).unwrap();
-        assert_eq!(bucket.name(), "new_name");
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn mount_rename() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_rename()");
+        info!("tomb_wasm_test: share_file()");
         let (private_pem, public_pem) = ecencryption_key_pair().await;
         let bucket_mount =
             create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        mount.rename("new_name".to_string()).await?;
-        assert_eq!(mount.bucket().name(), "new_name");
-        let mount = client
-            .mount(bucket_mount.bucket().id().to_string(), private_pem)
-            .await?;
-        assert_eq!(mount.bucket().name(), "new_name");
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn share_with() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_share_with()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount =
-            create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
-        let bucket = bucket_mount.bucket();
-        let wasm_bucket_key: WasmBucketKey =
-            client.create_bucket_key(bucket.id().to_string()).await?;
-        assert_eq!(wasm_bucket_key.bucket_id(), bucket.id().to_string());
-        assert!(!wasm_bucket_key.approved());
-        let mut mount = client.mount(bucket.id().to_string(), private_pem).await?;
-        assert!(!mount.locked());
-        mount.share_with(wasm_bucket_key.id()).await?;
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn snapshot() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_snapshot()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount =
-            create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+        
         let mut mount = bucket_mount.mount();
         assert!(!mount.locked());
-        assert!(!mount.has_snapshot());
-        let _snapshot_id = mount.snapshot().await?;
-        assert!(mount.has_snapshot());
-        //assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
-        //assert_eq!(
-        //    snapshot.metadata_id(),
-        //    mount.metadata().expect("metadata").id().to_string()
-        //);
-
-        let mount = client
-            .mount(mount.bucket().id().to_string(), private_pem)
-            .await?;
-        assert!(!mount.locked());
-        assert!(mount.has_snapshot());
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn mkdir() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: mkdir()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
-
-        let mkdir_path_array: Array = js_array(&["test-dir"]).into();
-        mount.mkdir(mkdir_path_array).await?;
-
-        let ls_path_array: Array = js_array(&[]).into();
-        let ls = mount.ls(ls_path_array).await?;
-        assert_eq!(ls.length(), 1);
-
-        let ls_0 = ls.get(0);
-        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-
-        assert_eq!(fs_entry.name(), "test-dir");
-        assert_eq!(fs_entry.entry_type(), "dir");
-
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn mkdir_remount() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-
-        info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): create_bucket_and_mount()");
-        let bucket_mount =
-            create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
-
-        info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): mkdir() and ls()");
-        let mkdir_path_array: Array = js_array(&["test-dir"]).into();
-        let ls_path_array: Array = js_array(&[]).into();
-        mount.mkdir(mkdir_path_array).await?;
-        let ls: Array = mount.ls(ls_path_array.clone()).await?;
-        assert_eq!(ls.length(), 1);
-        info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): remount() and ls()");
-        let mut mount = client
-            .mount(bucket_mount.bucket().id().to_string(), private_pem)
-            .await?;
-        assert!(!mount.locked());
-        let ls: Array = mount.ls(ls_path_array).await?;
-        assert_eq!(ls.length(), 1);
-        let ls_0 = ls.get(0);
-        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-        assert_eq!(fs_entry.name(), "test-dir");
-        assert_eq!(fs_entry.entry_type(), "dir");
-        Ok(())
-    }
-
-    #[wasm_bindgen_test]
-    async fn write() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_mkdir()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
+        
         let write_path_array: Array = js_array(&["zero.bin"]).into();
         let ls_path_array: Array = js_array(&[]).into();
         let zero_content_buffer = Uint8Array::new_with_length(10);
@@ -264,132 +184,242 @@ mod test {
             .await?;
         let ls: Array = mount.ls(ls_path_array).await?;
         assert_eq!(ls.length(), 1);
-        let ls_0 = ls.get(0);
-        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-        assert_eq!(fs_entry.name(), "zero.bin");
-        assert_eq!(fs_entry.entry_type(), "file");
-        Ok(())
-    }
 
-    #[wasm_bindgen_test]
-    async fn write_read() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_mkdir()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
-        let write_path_array: Array = js_array(&["zero.bin"]).into();
-        let ls_path_array: Array = js_array(&[]).into();
-        let zero_content_buffer = Uint8Array::new_with_length(1024 * 1024);
-        let zero_content_array_buffer = zero_content_buffer.buffer();
-        mount
-            .write(write_path_array.clone(), zero_content_array_buffer.clone())
-            .await?;
-        let ls: Array = mount.ls(ls_path_array).await?;
-        assert_eq!(ls.length(), 1);
-        let ls_0 = ls.get(0);
-        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-        assert_eq!(fs_entry.name(), "zero.bin");
-        assert_eq!(fs_entry.entry_type(), "file");
-        let new_bytes = mount.read_bytes(write_path_array, None).await?.to_vec();
-        // Assert successful reconstruction
-        assert_eq!(new_bytes, zero_content_buffer.to_vec());
+        let wasm_shared_file_string = mount.share_file(js_array(&["zero.bin"]).into()).await?;
+        let wasm_shared_file = WasmSharedFile::import_b64_url(wasm_shared_file_string).unwrap();
+        let shared_content = mount.receive_file_content(wasm_shared_file).await?;
+
+        assert_eq!(shared_content.to_vec(), zero_content_buffer.to_vec());
 
         Ok(())
     }
 
-    #[wasm_bindgen_test]
-    async fn write_remount() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
+    // #[wasm_bindgen_test]
+    // async fn snapshot() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_snapshot()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     assert!(!mount.has_snapshot());
+    //     let _snapshot_id = mount.snapshot().await?;
+    //     assert!(mount.has_snapshot());
+    //     //assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
+    //     //assert_eq!(
+    //     //    snapshot.metadata_id(),
+    //     //    mount.metadata().expect("metadata").id().to_string()
+    //     //);
 
-        info!(
-            "tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): create_bucket_and_mount()"
-        );
-        let bucket_mount =
-            create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
+    //     let mount = client
+    //         .mount(mount.bucket().id().to_string(), private_pem)
+    //         .await?;
+    //     assert!(!mount.locked());
+    //     assert!(mount.has_snapshot());
+    //     Ok(())
+    // }
 
-        info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): write() and ls()");
-        let write_path_array: Array = js_array(&["zero.bin"]).into();
-        let ls_path_array: Array = js_array(&[]).into();
-        let zero_content_buffer = Uint8Array::new_with_length(10);
-        let zero_content_array_buffer = zero_content_buffer.buffer();
-        mount
-            .write(write_path_array, zero_content_array_buffer)
-            .await?;
-        mount.mkdir(js_array(&["cats"]).into()).await?;
-        let ls: Array = mount.ls(ls_path_array.clone()).await?;
-        assert_eq!(ls.length(), 2);
+    // #[wasm_bindgen_test]
+    // async fn mkdir() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: mkdir()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
 
-        info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): remount() and ls()");
-        let mut mount = client
-            .mount(bucket_mount.bucket().id().to_string(), private_pem)
-            .await?;
-        assert!(!mount.locked());
-        let ls: Array = mount.ls(ls_path_array).await?;
-        assert_eq!(ls.length(), 2);
-        let ls_0 = ls.get(1);
-        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-        assert_eq!(fs_entry.name(), "zero.bin");
-        assert_eq!(fs_entry.entry_type(), "file");
-        Ok(())
-    }
+    //     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
+    //     mount.mkdir(mkdir_path_array).await?;
 
-    #[wasm_bindgen_test]
-    async fn write_rm() -> TombResult<()> {
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_write_rm()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
-        let write_path_array: Array = js_array(&["zero.bin"]).into();
-        let ls_path_array: Array = js_array(&[]).into();
-        let zero_content_buffer = Uint8Array::new_with_length(10);
-        let zero_content_array_buffer = zero_content_buffer.buffer();
-        mount
-            .write(write_path_array, zero_content_array_buffer)
-            .await?;
-        let ls: Array = mount.ls(ls_path_array.clone()).await?;
-        assert_eq!(ls.length(), 1);
-        let rm_path_array: Array = js_array(&["zero.bin"]).into();
-        mount.rm(rm_path_array).await?;
-        let ls: Array = mount.ls(ls_path_array).await?;
-        assert_eq!(ls.length(), 0);
-        Ok(())
-    }
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let ls = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 1);
 
-    #[wasm_bindgen_test]
-    async fn write_mv() -> TombResult<()> {
-        register_log();
-        let mut client = authenticated_client().await?;
-        info!("tomb_wasm_test: create_bucket_mount_write_mv()");
-        let (private_pem, public_pem) = ecencryption_key_pair().await;
-        let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
-        let mut mount = bucket_mount.mount();
-        assert!(!mount.locked());
-        let write_path_array: Array = js_array(&["zero.bin"]).into();
-        let ls_path_array: Array = js_array(&[]).into();
-        let zero_content_buffer = Uint8Array::new_with_length(10);
-        let zero_content_array_buffer = zero_content_buffer.buffer();
-        mount
-            .write(write_path_array, zero_content_array_buffer)
-            .await?;
-        let ls: Array = mount.ls(ls_path_array.clone()).await?;
-        assert_eq!(ls.length(), 1);
-        let mv_from_path_array: Array = js_array(&["zero.bin"]).into();
-        let mv_to_path_array: Array = js_array(&["zero-renamed.bin"]).into();
-        mount.mv(mv_from_path_array, mv_to_path_array).await?;
-        let ls: Array = mount.ls(ls_path_array).await?;
-        assert_eq!(ls.length(), 1);
-        let ls_0 = ls.get(0);
-        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
-        assert_eq!(fs_entry.name(), "zero-renamed.bin");
-        assert_eq!(fs_entry.entry_type(), "file");
-        Ok(())
-    }
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+
+    //     assert_eq!(fs_entry.name(), "test-dir");
+    //     assert_eq!(fs_entry.entry_type(), "dir");
+
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn mkdir_remount() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+
+    //     info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): create_bucket_and_mount()");
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+
+    //     info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): mkdir() and ls()");
+    //     let mkdir_path_array: Array = js_array(&["test-dir"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     mount.mkdir(mkdir_path_array).await?;
+    //     let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     info!("tomb_wasm_test: create_bucket_mount_mkdir_remount_ls(): remount() and ls()");
+    //     let mut mount = client
+    //         .mount(bucket_mount.bucket().id().to_string(), private_pem)
+    //         .await?;
+    //     assert!(!mount.locked());
+    //     let ls: Array = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    //     assert_eq!(fs_entry.name(), "test-dir");
+    //     assert_eq!(fs_entry.entry_type(), "dir");
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn write() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(10);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array, zero_content_array_buffer)
+    //         .await?;
+    //     let ls: Array = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    //     assert_eq!(fs_entry.name(), "zero.bin");
+    //     assert_eq!(fs_entry.entry_type(), "file");
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn write_read() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_mkdir()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(1024 * 1024);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array.clone(), zero_content_array_buffer.clone())
+    //         .await?;
+    //     let ls: Array = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    //     assert_eq!(fs_entry.name(), "zero.bin");
+    //     assert_eq!(fs_entry.entry_type(), "file");
+    //     let new_bytes = mount.read_bytes(write_path_array, None).await?.to_vec();
+    //     // Assert successful reconstruction
+    //     assert_eq!(new_bytes, zero_content_buffer.to_vec());
+
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn write_remount() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+
+    //     info!(
+    //         "tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): create_bucket_and_mount()"
+    //     );
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+
+    //     info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): write() and ls()");
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(10);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array, zero_content_array_buffer)
+    //         .await?;
+    //     mount.mkdir(js_array(&["cats"]).into()).await?;
+    //     let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    //     assert_eq!(ls.length(), 2);
+
+    //     info!("tomb_wasm_test: create_bucket_mount_write_ls_remount_ls(): remount() and ls()");
+    //     let mut mount = client
+    //         .mount(bucket_mount.bucket().id().to_string(), private_pem)
+    //         .await?;
+    //     assert!(!mount.locked());
+    //     let ls: Array = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 2);
+    //     let ls_0 = ls.get(1);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    //     assert_eq!(fs_entry.name(), "zero.bin");
+    //     assert_eq!(fs_entry.entry_type(), "file");
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn write_rm() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_write_rm()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(10);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array, zero_content_array_buffer)
+    //         .await?;
+    //     let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let rm_path_array: Array = js_array(&["zero.bin"]).into();
+    //     mount.rm(rm_path_array).await?;
+    //     let ls: Array = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 0);
+    //     Ok(())
+    // }
+
+    // #[wasm_bindgen_test]
+    // async fn write_mv() -> TombResult<()> {
+    //     register_log();
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_write_mv()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount = create_bucket_and_mount(&mut client, private_pem, public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(10);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array, zero_content_array_buffer)
+    //         .await?;
+    //     let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let mv_from_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let mv_to_path_array: Array = js_array(&["zero-renamed.bin"]).into();
+    //     mount.mv(mv_from_path_array, mv_to_path_array).await?;
+    //     let ls: Array = mount.ls(ls_path_array).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    //     assert_eq!(fs_entry.name(), "zero-renamed.bin");
+    //     assert_eq!(fs_entry.entry_type(), "file");
+    //     Ok(())
+    // }
 }

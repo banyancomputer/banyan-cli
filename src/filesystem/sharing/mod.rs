@@ -8,9 +8,8 @@ pub mod manager;
 pub mod mapper;
 /// Takes snapshots of data
 mod shared_file;
+pub use error::SharingError;
 pub use shared_file::SharedFile;
-
-pub(crate) use error::SharingError;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
