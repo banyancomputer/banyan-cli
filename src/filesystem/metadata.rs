@@ -316,16 +316,26 @@ impl FsMetadata {
         shared_file: SharedFile,
         store: &impl BlockStore,
     ) -> Result<Vec<u8>, FilesystemError> {
+        tracing::info!("Receiving file content");
         let forest = load_forest(&shared_file.forest_cid, store).await?;
+        tracing::info!("Loaded forest");
         // Grab node using share label.
         match shared_file.payload {
             SharePayload::Temporal(_) => todo!(),
             SharePayload::Snapshot(snapshot) => {
-                let file = PrivateNode::load_from_snapshot(snapshot, &forest, store)
+                tracing::info!("Loading node from snapshot: {:?}", snapshot);
+                let node = PrivateNode::load_from_snapshot(snapshot, &forest, store)
                     .await
-                    .map_err(Box::from)?
+                    .map_err(Box::from)?;
+
+                tracing::info!("Loaded file from node");
+
+                let file = node
                     .as_file()
                     .map_err(Box::from)?;
+                
+                tracing::info!("Loaded file from node");
+                
                 Ok(file.get_content(&forest, store).await.map_err(Box::from)?)
             }
         }

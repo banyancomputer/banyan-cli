@@ -145,61 +145,6 @@ impl WasmMount {
         })
     }
 
-    /// Refresh the current fs_metadata with the remote
-    pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
-        let bucket_id = self.bucket.id;
-
-        // Get the metadata associated with the bucket
-        let metadata = Metadata::read_current(bucket_id, &mut self.client)
-            .await
-            .map_err(to_wasm_error_with_msg("read current metadata"))?;
-
-        let metadata_cid = metadata.metadata_cid.clone();
-        info!(
-            "pull()/{} - pulling metadata at version {}",
-            self.bucket.id.to_string(),
-            metadata_cid
-        );
-
-        // Pull the Fs metadata on the matching entry
-        let mut stream = metadata
-            .pull(&mut self.client)
-            .await
-            .map_err(to_wasm_error_with_msg("pull metadata"))?;
-
-        info!(
-            "pull()/{} - reading metadata stream",
-            self.bucket.id.to_string()
-        );
-
-        let mut data = Vec::new();
-        while let Some(chunk) = stream.next().await {
-            data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
-        }
-
-        info!(
-            "pull()/{} - creating metadata blockstore",
-            self.bucket.id.to_string()
-        );
-
-        let metadata_blockstore =
-            BlockStore::try_from(data).map_err(to_wasm_error_with_msg("metadata to blockstore"))?;
-        let content_blockstore =
-            BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
-
-        self.metadata = Some(metadata.to_owned());
-        self.metadata_blockstore = metadata_blockstore;
-        self.content_blockstore = content_blockstore;
-        self.dirty = false;
-        self.append = false;
-        self.fs_metadata = None;
-
-        info!("pull()/{} - pulled", self.bucket.id.to_string());
-        self.unlock(key).await?;
-        // Ok
-        Ok(())
-    }
-
     /// Sync the current fs_metadata with the remote
     pub async fn sync(&mut self) -> Result<(), TombWasmError> {
         info!("sync()/{}", self.bucket.id.to_string());
@@ -879,8 +824,10 @@ impl WasmMount {
         shared_file: WasmSharedFile,
     ) -> TombResult<Uint8Array> {
         let shared_file = SharedFile::from(shared_file);
+        let ds_store = DoubleSplitStore::new(&self.metadata_blockstore, &self.content_blockstore);
+
         let content = FsMetadata
-            ::receive_file_content(shared_file, &self.content_blockstore)
+            ::receive_file_content(shared_file, &ds_store)
             .await
             .map_err(to_wasm_error_with_msg("recieve_shared_file_content"))?;
         let bytes = content.into_boxed_slice();

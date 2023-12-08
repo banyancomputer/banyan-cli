@@ -38,6 +38,7 @@ impl RunnableCommand<NativeError> for ApiCommand {
             )),
             ApiCommand::Set { address } => {
                 global.endpoint = Url::parse(&address).map_err(|_| NativeError::bad_data())?;
+                global.to_disk()?;
                 Ok(format!("{}", "<< ENDPOINT UPDATED SUCCESSFULLY >>".green()))
             }
             ApiCommand::Reset => {
