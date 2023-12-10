@@ -7,7 +7,7 @@ use crate::prelude::api::{
         bucket::{Bucket, BucketType, StorageClass},
         bucket_key::BucketKey,
     },
-    requests::core::auth::device_api_key::regwait::end::EndRegwait,
+    requests::core::auth::device_api_key::{create::CreateDeviceApiKey, regwait::end::EndRegwait},
 };
 use js_sys::Array;
 use std::{
@@ -313,18 +313,28 @@ impl TombWasm {
             .map_err(to_js_error_with_msg("delete bucket"))
     }
 
-    /// End Registration waiting
-    ///
-    #[wasm_bindgen(js_name = completeDeviceKeyRegistration)]
-    pub async fn complete_device_key_registration(
-        &mut self,
-        fingerprint: String,
-    ) -> TombResult<()> {
+    /// Approve the device key and end Registration waiting
+    /// # Arguments
+    /// * pem - The public PEM of the key being approved
+    /// # Returns
+    /// The result of ending the registration wait
+    #[wasm_bindgen(js_name = approveDeviceApiKey)]
+    pub async fn approve_device_api_key(&mut self, pem: String) -> TombResult<()> {
+        // Create the Device Api Key
+        let fingerprint = self
+            .client()
+            .call(CreateDeviceApiKey { pem })
+            .await
+            .map_err(to_wasm_error_with_msg("create device api key"))?
+            .fingerprint;
+
+        // End the registration waiting task, now that the updated shared metadata has triggered an internal approval
         self.client()
             .call_no_content(EndRegwait { fingerprint })
             .await
             .map_err(to_js_error_with_msg("end regwait"))
     }
+
     /* Bucket Mounting interface */
 
     /// Mount a bucket as a File System that can be managed by the user

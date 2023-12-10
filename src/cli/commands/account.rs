@@ -40,7 +40,7 @@ pub enum AccountCommand {
 impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(
         self,
-        _: &mut GlobalConfig,
+        global: &mut GlobalConfig,
         client: &mut Client,
     ) -> Result<String, NativeError> {
         // Process the command
@@ -55,9 +55,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 // Create a fingerprint from the public key
                 let fingerprint =
                     hex_fingerprint(public_device_key.fingerprint().await?.as_slice());
-                // URL encoded DER bytes
-                let der_url = general_purpose::URL_SAFE_NO_PAD
-                    .encode(public_device_key.export_bytes().await?);
+
                 // Create a new request object with the nonce
                 let start_regwait = StartRegwait {
                     fingerprint: fingerprint.clone(),
@@ -74,13 +72,17 @@ impl RunnableCommand<NativeError> for AccountCommand {
                             .map_err(|err| err.to_string())
                     });
 
-                // Open this url
-                open::that(format!(
-                    "{}/registerDevice?spki={}",
-                    GlobalConfig::from_disk().await?.endpoint,
-                    der_url
-                ))
-                .expect("failed to open browser");
+                // URL encoded DER bytes
+                let spki_b64 =
+                    general_purpose::STANDARD.encode(public_device_key.export_bytes().await?);
+                let spki_b64_url_safe =
+                    url::form_urlencoded::byte_serialize(spki_b64.as_bytes()).collect::<String>();
+                // Construct the proper URL to open
+                let url = global
+                    .endpoint
+                    .join(&format!("register-device/{}", spki_b64_url_safe))
+                    .unwrap();
+                open::that(url.as_str()).expect("failed to open browser");
 
                 // Now await the completion of the original request
                 let start_response = join_handle
