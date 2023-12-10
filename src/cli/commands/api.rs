@@ -27,8 +27,8 @@ pub enum ApiCommand {
 impl RunnableCommand<NativeError> for ApiCommand {
     async fn run_internal(
         self,
-        global: &mut GlobalConfig,
-        _: &mut Client,
+        mut global: GlobalConfig,
+        _: Client,
     ) -> Result<String, NativeError> {
         match self {
             ApiCommand::Display => Ok(format!(
@@ -38,6 +38,7 @@ impl RunnableCommand<NativeError> for ApiCommand {
             )),
             ApiCommand::Set { address } => {
                 global.endpoint = Url::parse(&address).map_err(|_| NativeError::bad_data())?;
+                global.to_disk()?;
                 Ok(format!("{}", "<< ENDPOINT UPDATED SUCCESSFULLY >>".green()))
             }
             ApiCommand::Reset => {
@@ -48,6 +49,7 @@ impl RunnableCommand<NativeError> for ApiCommand {
                 })
                 .expect("unable to parse known URLs");
                 global.endpoint = endpoint;
+                global.to_disk()?;
                 Ok(format!("{}", "<< ENDPOINTS HAVE BEEN RESET >>".green()))
             }
         }

@@ -130,8 +130,8 @@ impl GlobalConfig {
             // Save the API key to disk
             save_api_key(&self.api_key_path, api_key).await?;
         }
-        // Ok
-        Ok(())
+
+        self.to_disk()
     }
 
     /// Write to disk

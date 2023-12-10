@@ -14,8 +14,8 @@ where
     /// The internal running operation
     async fn run_internal(
         self,
-        global: &mut GlobalConfig,
-        client: &mut Client,
+        mut global: GlobalConfig,
+        mut client: Client,
     ) -> Result<String, ErrorType>;
 
     /// Run the internal command, passing a reference to a global configuration which is saved after completion
@@ -27,12 +27,7 @@ where
                 .expect("unable to create new config"),
         );
         let mut client = global.get_client().await.expect("unable to load client");
-        let result = self.run_internal(&mut global, &mut client).await;
-        global
-            .save_client(client)
-            .await
-            .expect("unable to save client to config");
-        global.to_disk().expect("unable to save global config");
+        let result = self.run_internal(global, client).await;
 
         // Provide output based on that
         match result {

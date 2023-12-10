@@ -40,8 +40,8 @@ pub enum AccountCommand {
 impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(
         self,
-        global: &mut GlobalConfig,
-        client: &mut Client,
+        mut global: GlobalConfig,
+        mut client: Client,
     ) -> Result<String, NativeError> {
         // Process the command
         match self {
@@ -140,15 +140,21 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     response.id
                 ))
             }
-            AccountCommand::WhoAmI => Account::who_am_i(client)
-                .await
-                .map(|v| v.to_string())
-                .map_err(NativeError::api),
+            AccountCommand::WhoAmI => {
+                let result = Account::who_am_i(&mut client)
+                    .await
+                    .map(|v| v.to_string())
+                    .map_err(NativeError::api);
+
+                global.save_client(client).await?;
+
+                result
+            }
             AccountCommand::Usage => {
                 let mut output = format!("{}", "| ACCOUNT USAGE INFO |".yellow());
 
-                let usage_current_result = Account::usage(client).await;
-                let usage_limit_result = Account::usage_limit(client).await;
+                let usage_current_result = Account::usage(&mut client).await;
+                let usage_limit_result = Account::usage_limit(&mut client).await;
 
                 if usage_current_result.is_err() && usage_limit_result.is_err() {
                     return Err(NativeError::custom_error(
@@ -162,6 +168,8 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 if let Ok(usage_limit) = usage_limit_result {
                     output = format!("{}\nusage_limit:\t{}", output, ByteSize(usage_limit));
                 }
+
+                global.save_client(client).await?;
 
                 Ok(output)
             }
