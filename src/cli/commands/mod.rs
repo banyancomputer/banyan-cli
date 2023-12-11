@@ -7,19 +7,15 @@ mod runnable_command;
 
 use std::io::Read;
 
+use crate::native::NativeError;
 pub use account::AccountCommand;
 pub use api::ApiCommand;
+use async_trait::async_trait;
+use clap::Subcommand;
 pub use drives::DrivesCommand;
 pub use keys::KeyCommand;
 pub use metadata::MetadataCommand;
 pub use runnable_command::RunnableCommand;
-
-use crate::{
-    api::client::Client,
-    native::{configuration::globalconfig::GlobalConfig, NativeError},
-};
-use async_trait::async_trait;
-use clap::Subcommand;
 
 /// Prompt the user for a y/n answer
 pub fn prompt_for_bool(msg: &str) -> bool {
@@ -60,15 +56,11 @@ pub enum TombCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for TombCommand {
-    async fn run_internal(
-        self,
-        global: &mut GlobalConfig,
-        client: &mut Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
         match self {
-            TombCommand::Api { command } => Ok(command.run_internal(global, client).await?),
-            TombCommand::Account { command } => Ok(command.run_internal(global, client).await?),
-            TombCommand::Drives { command } => command.run_internal(global, client).await,
+            TombCommand::Api { command } => Ok(command.run_internal().await?),
+            TombCommand::Account { command } => Ok(command.run_internal().await?),
+            TombCommand::Drives { command } => command.run_internal().await,
         }
     }
 }

@@ -1,8 +1,5 @@
 use super::RunnableCommand;
-use crate::{
-    api::client::Client,
-    native::{configuration::globalconfig::GlobalConfig, NativeError},
-};
+use crate::native::{configuration::globalconfig::GlobalConfig, NativeError};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -25,19 +22,16 @@ pub enum ApiCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for ApiCommand {
-    async fn run_internal(
-        self,
-        global: &mut GlobalConfig,
-        _: &mut Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        let mut global = GlobalConfig::from_disk().await?;
         match self {
             ApiCommand::Display => Ok(format!(
                 "{}\n{}\n",
                 "| ADDRESS INFO |".yellow(),
-                global.endpoint
+                global.get_endpoint()
             )),
             ApiCommand::Set { address } => {
-                global.endpoint = Url::parse(&address).map_err(|_| NativeError::bad_data())?;
+                global.set_endpoint(Url::parse(&address).map_err(|_| NativeError::bad_data())?)?;
                 Ok(format!("{}", "<< ENDPOINT UPDATED SUCCESSFULLY >>".green()))
             }
             ApiCommand::Reset => {
@@ -47,7 +41,7 @@ impl RunnableCommand<NativeError> for ApiCommand {
                     "https://alpha.data.banyan.computer"
                 })
                 .expect("unable to parse known URLs");
-                global.endpoint = endpoint;
+                global.set_endpoint(endpoint)?;
                 Ok(format!("{}", "<< ENDPOINTS HAVE BEEN RESET >>".green()))
             }
         }

@@ -27,6 +27,5 @@ pub async fn pipeline(local: LocalBucket, wnfs_path: &Path) -> Result<(), Native
 
     // Update global
     global.update_config(&local)?;
-    global.to_disk()?;
     Ok(())
 }
