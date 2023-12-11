@@ -1,15 +1,13 @@
 #[cfg(feature = "cli")]
 use crate::cli::specifiers::DriveSpecifier;
 use crate::{
-    api::{
-        client::Client,
-        models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
-    },
+    api::models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
     native::{
         configuration::globalconfig::GlobalConfig,
-        sync::{determine_sync_state, LocalBucket, SyncState},
+        sync::{LocalBucket, SyncState},
         NativeError,
     },
+    prelude::filesystem::FsMetadata,
 };
 use colored::{ColoredString, Colorize};
 use std::{
@@ -71,7 +69,7 @@ impl OmniBucket {
                 }
 
                 // Determine the sync state
-                let _ = determine_sync_state(&mut omni, &mut client).await;
+                let _ = omni.determine_sync_state().await;
             }
         }
 
@@ -130,12 +128,9 @@ impl OmniBucket {
     }
 
     /// Create a new bucket
-    pub async fn create(
-        global: &mut GlobalConfig,
-        client: &mut Client,
-        name: &str,
-        origin: &Path,
-    ) -> Result<OmniBucket, NativeError> {
+    pub async fn create(name: &str, origin: &Path) -> Result<OmniBucket, NativeError> {
+        let mut global = GlobalConfig::from_disk().await?;
+
         let mut omni = OmniBucket {
             local: None,
             remote: None,
@@ -161,7 +156,7 @@ impl OmniBucket {
             pem,
             BucketType::Interactive,
             StorageClass::Hot,
-            client,
+            &mut global.get_client().await?,
         )
         .await
         {
@@ -179,6 +174,7 @@ impl OmniBucket {
             // Update in global and obj
             global.update_config(&local.clone())?;
             omni.local = Some(local);
+            warn!("omni: {:?}", omni);
         }
 
         Ok(omni)
@@ -187,28 +183,19 @@ impl OmniBucket {
     /// Delete an individual Bucket
     pub async fn delete(
         &self,
-        global: &mut GlobalConfig,
-        client: &mut Client,
         local_deletion: bool,
         mut remote_deletion: bool,
     ) -> Result<String, NativeError> {
+        let mut global = GlobalConfig::from_disk().await?;
         if local_deletion {
-            let local = self.get_local()?;
-            local.remove_data()?;
-            // Find index of bucket
-            let index = global
-                .buckets
-                .iter()
-                .position(|b| b == &local)
-                .ok_or(NativeError::missing_local_drive())?;
-            // Remove bucket config from global config
-            global.buckets.remove(index);
+            global.remove_bucket(&self.get_local()?)?;
         }
 
         if remote_deletion {
-            remote_deletion = RemoteBucket::delete_by_id(client, self.get_remote()?.id)
-                .await
-                .is_ok();
+            remote_deletion =
+                RemoteBucket::delete_by_id(&mut global.get_client().await?, self.get_remote()?.id)
+                    .await
+                    .is_ok();
         }
 
         Ok(format!(
@@ -220,9 +207,14 @@ impl OmniBucket {
     }
 
     /// List all available Buckets
-    pub async fn ls(global: &GlobalConfig, client: &mut Client) -> Vec<OmniBucket> {
-        let local_buckets = &global.buckets;
-        let remote_buckets = match RemoteBucket::read_all(client).await {
+    pub async fn ls() -> Result<Vec<OmniBucket>, NativeError> {
+        let mut client = GlobalConfig::from_disk().await?.get_client().await?;
+        let local_buckets = if let Ok(global) = GlobalConfig::from_disk().await {
+            global.buckets
+        } else {
+            Vec::new()
+        };
+        let remote_buckets = match RemoteBucket::read_all(&mut client).await {
             Ok(buckets) => buckets,
             Err(_) => {
                 error!(
@@ -236,7 +228,7 @@ impl OmniBucket {
         let mut map: HashMap<Option<Uuid>, OmniBucket> = HashMap::new();
 
         for local in local_buckets {
-            map.insert(local.remote_id, OmniBucket::from_local(local));
+            map.insert(local.remote_id, OmniBucket::from_local(&local));
         }
 
         for remote in remote_buckets {
@@ -248,7 +240,7 @@ impl OmniBucket {
                     sync_state: SyncState::Unknown,
                 };
 
-                let _ = determine_sync_state(&mut omni, client).await;
+                omni.determine_sync_state().await?;
 
                 map.insert(key, omni);
             } else {
@@ -256,15 +248,11 @@ impl OmniBucket {
             }
         }
 
-        let omnis: Vec<OmniBucket> = map.into_values().collect();
-        omnis
+        Ok(map.into_values().collect::<Vec<OmniBucket>>())
     }
 
     /// Get the origin for this bucket or create one in the default tomb directory if a local bucket does not yet exist
-    pub async fn get_or_init_origin(
-        &mut self,
-        global: &mut GlobalConfig,
-    ) -> Result<PathBuf, NativeError> {
+    pub async fn get_or_init_origin(&mut self) -> Result<PathBuf, NativeError> {
         if let Ok(local) = self.get_local() {
             Ok(local.origin)
         } else {
@@ -277,7 +265,8 @@ impl OmniBucket {
 
             // Create a new local bucket
             self.set_local({
-                let mut value = global
+                let mut value = GlobalConfig::from_disk()
+                    .await?
                     .get_or_init_bucket(&self.get_remote()?.name, &new_local_origin)
                     .await?;
                 value.remote_id = Some(self.get_remote()?.id);
@@ -286,6 +275,16 @@ impl OmniBucket {
 
             Ok(new_local_origin)
         }
+    }
+
+    /// Unlock FsMetadata
+    pub async fn unlock(&self) -> Result<FsMetadata, NativeError> {
+        let local = self.get_local()?;
+        let global = GlobalConfig::from_disk().await?;
+        let wrapping_key = global.wrapping_key().await?;
+        FsMetadata::unlock(&wrapping_key, &local.metadata)
+            .await
+            .map_err(NativeError::filesytem)
     }
 }
 

@@ -48,7 +48,7 @@ mod test {
         let wrapping_key = global.wrapping_key().await?;
         let mut client = Client::new("http://127.0.0.1")?;
         let name = origin.file_name().unwrap().to_string_lossy().to_string();
-        let mut omni = OmniBucket::create(&mut global, &mut client, &name, origin).await?;
+        let mut omni = OmniBucket::create(&name, origin).await?;
         let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
         let result = prepare::pipeline(fs, &mut omni, &mut client, true).await;
         global.update_config(&omni.get_local()?)?;

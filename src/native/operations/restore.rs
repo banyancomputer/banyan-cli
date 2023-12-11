@@ -2,10 +2,7 @@ use crate::{
     api::client::Client,
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
-    native::{
-        configuration::globalconfig::GlobalConfig, sync::OmniBucket, utils::get_progress_bar,
-        NativeError,
-    },
+    native::{sync::OmniBucket, utils::get_progress_bar, NativeError},
 };
 use std::{fs::File, io::Write, os::unix::fs::symlink, path::PathBuf};
 use wnfs::private::PrivateNode;
@@ -28,9 +25,7 @@ pub async fn pipeline(
 ) -> Result<String, NativeError> {
     // Announce that we're starting
     info!("🚀 Starting restoration pipeline...");
-    let restored = omni
-        .get_or_init_origin(&mut GlobalConfig::from_disk().await?)
-        .await?;
+    let restored = omni.get_or_init_origin().await?;
     // Having a local bucket is non-optional
     let local = omni.get_local()?;
 
