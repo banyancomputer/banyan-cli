@@ -33,11 +33,9 @@ pub enum KeyCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for KeyCommand {
-    async fn run_internal(
-        self,
-        global: GlobalConfig,
-        mut client: Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        let global = GlobalConfig::from_disk().await?;
+        let mut client = global.get_client().await?;
         match self {
             KeyCommand::RequestAccess(drive_specifier) => {
                 let private_key = global.wrapping_key().await?;

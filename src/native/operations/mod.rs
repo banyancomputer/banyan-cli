@@ -44,35 +44,24 @@ mod test {
 
     /// Simplified Prepare call function
     async fn prepare_pipeline(origin: &Path) -> Result<String, NativeError> {
-        let mut global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://127.0.0.1")?;
         let name = origin.file_name().unwrap().to_string_lossy().to_string();
-        let mut omni = OmniBucket::create(&name, origin).await?;
-        let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
-        let result = prepare::pipeline(fs, &mut omni, &mut client, true).await;
-        global.update_config(&omni.get_local()?)?;
-        result
+        let omni = OmniBucket::create(&name, origin).await?;
+        prepare::pipeline(omni, true).await
     }
 
     /// Simplified Restore call function
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
-        let mut global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://127.0.0.1")?;
-        let mut omni = OmniBucket::from_specifier(&DriveSpecifier {
+        let omni = OmniBucket::from_specifier(&DriveSpecifier {
             drive_id: None,
             name: None,
             origin: Some(origin.to_path_buf()),
         })
         .await;
-        let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
         let tmp = origin.parent().unwrap().join("tmp");
         rename(origin, &tmp)?;
-        let result = restore::pipeline(fs, &mut omni, &mut client).await;
+        let result = restore::pipeline(omni).await;
         rename(origin, restored)?;
         rename(tmp, origin)?;
-        global.update_config(&omni.get_local()?)?;
         result
     }
 

@@ -60,15 +60,11 @@ pub enum TombCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for TombCommand {
-    async fn run_internal(
-        self,
-        global: GlobalConfig,
-        client: Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
         match self {
-            TombCommand::Api { command } => Ok(command.run_internal(global, client).await?),
-            TombCommand::Account { command } => Ok(command.run_internal(global, client).await?),
-            TombCommand::Drives { command } => command.run_internal(global, client).await,
+            TombCommand::Api { command } => Ok(command.run_internal().await?),
+            TombCommand::Account { command } => Ok(command.run_internal().await?),
+            TombCommand::Drives { command } => command.run_internal().await,
         }
     }
 }

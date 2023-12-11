@@ -1,7 +1,7 @@
 use super::RunnableCommand;
 use crate::{
     api::{
-        client::{Client, Credentials},
+        client::Credentials,
         models::account::Account,
         requests::core::auth::device_api_key::regwait::start::{
             StartRegwait, StartRegwaitResponse,
@@ -39,11 +39,10 @@ pub enum AccountCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for AccountCommand {
-    async fn run_internal(
-        self,
-        global: GlobalConfig,
-        mut client: Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        let global = GlobalConfig::from_disk().await?;
+        let mut client = global.get_client().await?;
+
         // Process the command
         match self {
             AccountCommand::RegisterDevice => {

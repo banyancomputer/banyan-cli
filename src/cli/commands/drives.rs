@@ -71,11 +71,7 @@ pub enum DrivesCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for DrivesCommand {
-    async fn run_internal(
-        self,
-        mut global: GlobalConfig,
-        mut client: Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
         match self {
             // List all Buckets tracked remotely and locally
             DrivesCommand::Ls => {
@@ -101,24 +97,16 @@ impl RunnableCommand<NativeError> for DrivesCommand {
             } => {
                 let mut omni = OmniBucket::from_specifier(&drive_specifier).await;
                 let fs = omni.unlock().await?;
-                let result = prepare::pipeline(fs, &mut omni, &mut client, follow_links).await;
-                global.update_config(&omni.get_local()?)?;
-                result
+                prepare::pipeline(omni, follow_links).await
             }
             DrivesCommand::Restore { drive_specifier } => {
                 let mut omni = OmniBucket::from_specifier(&drive_specifier).await;
                 let fs = omni.unlock().await?;
-                let result = restore::pipeline(fs, &mut omni, &mut client).await;
-                global.update_config(&omni.get_local()?)?;
-                result
+                restore::pipeline(omni).await
             }
             DrivesCommand::Sync(drive_specifier) => {
                 let mut omni = OmniBucket::from_specifier(&drive_specifier).await;
-                let result = omni.sync_bucket().await;
-                if let Ok(local) = omni.get_local() {
-                    global.update_config(&local)?;
-                }
-                result
+                omni.sync_bucket().await
             }
             DrivesCommand::Delete(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(&drive_specifier).await;
@@ -133,8 +121,10 @@ impl RunnableCommand<NativeError> for DrivesCommand {
                 Ok(format!("{omni}"))
             }
             DrivesCommand::Usage(drive_specifier) => {
-                let omni = OmniBucket::from_specifier(&drive_specifier).await;
-                let remote = omni.get_remote()?;
+                let mut client = GlobalConfig::from_disk().await?.get_client().await?;
+                let remote = OmniBucket::from_specifier(&drive_specifier)
+                    .await
+                    .get_remote()?;
                 remote
                     .usage(&mut client)
                     .await
@@ -148,8 +138,8 @@ impl RunnableCommand<NativeError> for DrivesCommand {
                     })
                     .map_err(NativeError::api)
             }
-            DrivesCommand::Metadata { subcommand } => subcommand.run_internal(global, client).await,
-            DrivesCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,
+            DrivesCommand::Metadata { subcommand } => subcommand.run_internal().await,
+            DrivesCommand::Keys { subcommand } => subcommand.run_internal().await,
         }
     }
 }

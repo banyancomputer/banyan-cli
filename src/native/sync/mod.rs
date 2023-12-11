@@ -171,6 +171,7 @@ impl OmniBucket {
 
                     self.set_remote(remote.clone());
                     local.remote_id = Some(remote.id);
+                    global.update_config(&local)?;
                     self.set_local(local.clone());
                 }
 
@@ -304,7 +305,7 @@ impl OmniBucket {
                 // Open the FileSystem
                 let fs = FsMetadata::unlock(&global.wrapping_key().await?, &local.metadata).await?;
                 // Reconstruct the data on disk
-                let restoration_result = restore::pipeline(fs, self, &mut client).await;
+                let restoration_result = restore::pipeline(self.clone()).await;
                 // If we succeed at reconstructing
                 if restoration_result.is_ok() {
                     // Save the metadata in the content store as well

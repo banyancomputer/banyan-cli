@@ -25,11 +25,8 @@ pub enum ApiCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for ApiCommand {
-    async fn run_internal(
-        self,
-        mut global: GlobalConfig,
-        _: Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        let mut global = GlobalConfig::from_disk().await?;
         match self {
             ApiCommand::Display => Ok(format!(
                 "{}\n{}\n",

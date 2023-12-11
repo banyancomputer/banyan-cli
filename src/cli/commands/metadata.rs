@@ -25,11 +25,8 @@ pub enum MetadataCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for MetadataCommand {
-    async fn run_internal(
-        self,
-        _: GlobalConfig,
-        mut client: Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        let mut client = GlobalConfig::from_disk().await?.get_client().await?;
         match self {
             // List all Metadata for a Bucket
             MetadataCommand::Ls(drive_specifier) => {
