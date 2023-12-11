@@ -147,8 +147,13 @@ impl Client {
                         #[cfg(not(test))]
                         #[cfg(not(target_arch = "wasm32"))]
                         {
-                            let mut global = GlobalConfig::from_disk().await.unwrap();
-                            global.save_client(self.clone()).await.unwrap();
+                            let mut global = GlobalConfig::from_disk()
+                                .await
+                                .map_err(|_| ApiError::update_client())?;
+                            global
+                                .save_client(self.clone())
+                                .await
+                                .map_err(|_| ApiError::update_client())?
                         }
 
                         Ok(self.bearer_token.clone().unwrap())
