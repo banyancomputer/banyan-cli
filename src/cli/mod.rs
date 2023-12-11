@@ -47,16 +47,7 @@ mod test {
         let local = global
             .get_bucket(origin)
             .ok_or(NativeError::missing_local_drive())?;
-        local.remove_data()?;
-        // Find index of bucket
-        let index = global
-            .buckets
-            .iter()
-            .position(|b| b == &local)
-            .expect("cannot find index in buckets");
-        // Remove bucket config from global config
-        global.buckets.remove(index);
-        global.to_disk()?;
+        global.remove_bucket(&local)?;
         Ok(())
     }
 

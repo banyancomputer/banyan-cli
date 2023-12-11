@@ -1,5 +1,5 @@
 use crate::{
-    api::{client::Client, models::metadata::Metadata},
+    api::models::metadata::Metadata,
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
@@ -30,19 +30,16 @@ use wnfs::private::PrivateNode;
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(
-    mut fs: FsMetadata,
-    omni: &mut OmniBucket,
-    client: &mut Client,
-    follow_links: bool,
-) -> Result<String, NativeError> {
-    // Local is non-optional
+pub async fn pipeline(mut omni: OmniBucket, follow_links: bool) -> Result<String, NativeError> {
+    let mut fs = omni.unlock().await?;
     let mut local = omni.get_local()?;
+    let mut global = GlobalConfig::from_disk().await?;
+    let mut client = global.get_client().await?;
 
     // If there is a remote Bucket with metadatas that include a content root cid which has already been persisted
     if client.is_authenticated().await {
         if let Ok(remote) = omni.get_remote() {
-            if let Ok(metadatas) = Metadata::read_all(remote.id, client).await {
+            if let Ok(metadatas) = Metadata::read_all(remote.id, &mut client).await {
                 if metadatas.iter().any(|metadata| {
                     Some(metadata.root_cid.clone())
                         == local.content.get_root().map(|cid| cid.to_string())
@@ -111,6 +108,7 @@ pub async fn pipeline(
     }
 
     local.save_fs(&mut fs).await?;
+    global.update_config(&local)?;
     omni.set_local(local);
 
     Ok(format!(

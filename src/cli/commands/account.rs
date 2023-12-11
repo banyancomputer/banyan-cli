@@ -1,13 +1,14 @@
 use super::RunnableCommand;
 use crate::{
     api::{
-        client::{Client, Credentials},
+        client::Credentials,
         models::account::Account,
         requests::core::auth::device_api_key::regwait::start::{
             StartRegwait, StartRegwaitResponse,
         },
     },
     native::{configuration::globalconfig::GlobalConfig, NativeError},
+    prelude::api::requests::core::auth::who_am_i::read::ReadWhoAmI,
 };
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
@@ -38,26 +39,25 @@ pub enum AccountCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for AccountCommand {
-    async fn run_internal(
-        self,
-        _: &mut GlobalConfig,
-        client: &mut Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        let mut global = GlobalConfig::from_disk().await?;
+        let mut client = global.get_client().await?;
+
         // Process the command
         match self {
             AccountCommand::RegisterDevice => {
-                // let device_key = EcEncryptionKey::generate().await?;
                 let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
-
-                // Create a public key from the
                 let public_device_key = private_device_key.public_key()?;
+
+                // If this device api key is alreaddy registered
+                if client.call(ReadWhoAmI).await.is_ok() {
+                    return Ok(format!("{}", "THIS DEVICE IS ALREADY REGISTERED".green()));
+                }
 
                 // Create a fingerprint from the public key
                 let fingerprint =
                     hex_fingerprint(public_device_key.fingerprint().await?.as_slice());
-                // URL encoded DER bytes
-                let der_url = general_purpose::URL_SAFE_NO_PAD
-                    .encode(public_device_key.export_bytes().await?);
+
                 // Create a new request object with the nonce
                 let start_regwait = StartRegwait {
                     fingerprint: fingerprint.clone(),
@@ -74,13 +74,24 @@ impl RunnableCommand<NativeError> for AccountCommand {
                             .map_err(|err| err.to_string())
                     });
 
-                // Open this url
-                open::that(format!(
-                    "{}/registerDevice?spki={}",
-                    GlobalConfig::from_disk().await?.endpoint,
-                    der_url
-                ))
-                .expect("failed to open browser");
+                // URL encoded DER bytes
+                let spki_b64 =
+                    general_purpose::STANDARD.encode(public_device_key.export_bytes().await?);
+                let spki_b64_url_safe =
+                    url::form_urlencoded::byte_serialize(spki_b64.as_bytes()).collect::<String>();
+                // Construct the proper URL to open
+                let url = global
+                    .get_endpoint()
+                    .join(&format!("register-device/{}", spki_b64_url_safe))
+                    .unwrap();
+
+                // Offer the link directly if it fails to open
+                if open::that(url.as_str()).is_err() {
+                    warn!(
+                        "failed to open link in browser, try clicking instead:\n{}",
+                        url.as_str().bright_blue()
+                    );
+                }
 
                 // Now await the completion of the original request
                 let start_response = join_handle
@@ -94,9 +105,11 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     signing_key: private_device_key,
                 });
 
+                global.save_client(client).await?;
+
                 // Respond
                 Ok(format!(
-                    "{}\nuser_id:\t{}\ndevice_key_fingerprint:\t{}",
+                    "{}\nuser_id:\t\t{}\ndevice_key_fingerprint:\t{}",
                     "<< DEVICE KEY SUCCESSFULLY ADDED TO ACCOUNT >>".green(),
                     start_response.user_id,
                     fingerprint
@@ -104,6 +117,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
             }
             AccountCommand::Logout => {
                 client.logout();
+                global.save_client(client).await?;
                 Ok(format!(
                     "{}",
                     "<< SUCCESSFULLY LOGGED OUT OF REMOTE ACCESS >>".green()
@@ -138,15 +152,15 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     response.id
                 ))
             }
-            AccountCommand::WhoAmI => Account::who_am_i(client)
+            AccountCommand::WhoAmI => Account::who_am_i(&mut client)
                 .await
                 .map(|v| v.to_string())
                 .map_err(NativeError::api),
             AccountCommand::Usage => {
                 let mut output = format!("{}", "| ACCOUNT USAGE INFO |".yellow());
 
-                let usage_current_result = Account::usage(client).await;
-                let usage_limit_result = Account::usage_limit(client).await;
+                let usage_current_result = Account::usage(&mut client).await;
+                let usage_limit_result = Account::usage_limit(&mut client).await;
 
                 if usage_current_result.is_err() && usage_limit_result.is_err() {
                     return Err(NativeError::custom_error(

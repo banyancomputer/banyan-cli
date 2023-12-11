@@ -1,14 +1,12 @@
 use crate::{
-    api::client::Client,
     cli::{
         commands::{prompt_for_bool, KeyCommand, MetadataCommand, RunnableCommand},
         specifiers::DriveSpecifier,
     },
-    filesystem::FsMetadata,
     native::{
         configuration::globalconfig::GlobalConfig,
         operations::{prepare, restore},
-        sync::{sync_bucket, OmniBucket},
+        sync::OmniBucket,
         NativeError,
     },
 };
@@ -72,15 +70,11 @@ pub enum DrivesCommand {
 
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for DrivesCommand {
-    async fn run_internal(
-        self,
-        global: &mut GlobalConfig,
-        client: &mut Client,
-    ) -> Result<String, NativeError> {
+    async fn run_internal(self) -> Result<String, NativeError> {
         match self {
             // List all Buckets tracked remotely and locally
             DrivesCommand::Ls => {
-                let omnis = OmniBucket::ls(global, client).await;
+                let omnis = OmniBucket::ls().await?;
                 if !omnis.is_empty() {
                     Ok(omnis
                         .iter()
@@ -92,7 +86,7 @@ impl RunnableCommand<NativeError> for DrivesCommand {
             // Create a new Bucket. This attempts to create the Bucket both locally and remotely, but settles for a simple local creation if remote permissions fail
             DrivesCommand::Create { name, origin } => {
                 let origin = origin.unwrap_or(current_dir()?);
-                let omni = OmniBucket::create(global, client, &name, &origin).await?;
+                let omni = OmniBucket::create(&name, &origin).await?;
                 let output = format!("{}\n{}", "<< NEW DRIVE CREATED >>".green(), omni);
                 Ok(output)
             }
@@ -100,49 +94,39 @@ impl RunnableCommand<NativeError> for DrivesCommand {
                 drive_specifier,
                 follow_links,
             } => {
-                let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let fs =
-                    FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
-                        .await?;
-                let result = prepare::pipeline(fs, &mut omni, client, follow_links).await;
-                global.update_config(&omni.get_local()?)?;
-                result
+                prepare::pipeline(
+                    OmniBucket::from_specifier(&drive_specifier).await,
+                    follow_links,
+                )
+                .await
             }
             DrivesCommand::Restore { drive_specifier } => {
-                let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let fs =
-                    FsMetadata::unlock(&global.wrapping_key().await?, &omni.get_local()?.metadata)
-                        .await?;
-                let result = restore::pipeline(fs, &mut omni, client).await;
-                global.update_config(&omni.get_local()?)?;
-                result
+                restore::pipeline(OmniBucket::from_specifier(&drive_specifier).await).await
             }
             DrivesCommand::Sync(drive_specifier) => {
-                let mut omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let result = sync_bucket(&mut omni, client, global).await;
-                if let Ok(local) = omni.get_local() {
-                    global.update_config(&local)?;
-                }
-                result
+                OmniBucket::from_specifier(&drive_specifier)
+                    .await
+                    .sync_bucket()
+                    .await
             }
             DrivesCommand::Delete(drive_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
+                let omni = OmniBucket::from_specifier(&drive_specifier).await;
                 let local_deletion = prompt_for_bool("Do you want to delete this Bucket locally?");
                 let remote_deletion =
                     prompt_for_bool("Do you want to delete this Bucket remotely?");
-
-                omni.delete(global, client, local_deletion, remote_deletion)
-                    .await
+                omni.delete(local_deletion, remote_deletion).await
             }
             DrivesCommand::Info(drive_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
+                let omni = OmniBucket::from_specifier(&drive_specifier).await;
                 Ok(format!("{omni}"))
             }
             DrivesCommand::Usage(drive_specifier) => {
-                let omni = OmniBucket::from_specifier(global, client, &drive_specifier).await;
-                let remote = omni.get_remote()?;
+                let mut client = GlobalConfig::from_disk().await?.get_client().await?;
+                let remote = OmniBucket::from_specifier(&drive_specifier)
+                    .await
+                    .get_remote()?;
                 remote
-                    .usage(client)
+                    .usage(&mut client)
                     .await
                     .map(|v| {
                         format!(
@@ -154,8 +138,8 @@ impl RunnableCommand<NativeError> for DrivesCommand {
                     })
                     .map_err(NativeError::api)
             }
-            DrivesCommand::Metadata { subcommand } => subcommand.run_internal(global, client).await,
-            DrivesCommand::Keys { subcommand } => subcommand.run_internal(global, client).await,
+            DrivesCommand::Metadata { subcommand } => subcommand.run_internal().await,
+            DrivesCommand::Keys { subcommand } => subcommand.run_internal().await,
         }
     }
 }

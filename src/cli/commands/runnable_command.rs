@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::{api::client::Client, native::configuration::globalconfig::GlobalConfig, WnfsError};
+use crate::{
+    native::configuration::{globalconfig::GlobalConfig, xdg::config_path},
+    WnfsError,
+};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -12,27 +15,15 @@ where
     ErrorType: Into<WnfsError> + std::fmt::Debug + Display,
 {
     /// The internal running operation
-    async fn run_internal(
-        self,
-        global: &mut GlobalConfig,
-        client: &mut Client,
-    ) -> Result<String, ErrorType>;
+    async fn run_internal(self) -> Result<String, ErrorType>;
 
     /// Run the internal command, passing a reference to a global configuration which is saved after completion
     async fn run(self) -> Result<(), ErrorType> {
-        // Grab global config
-        let mut global = GlobalConfig::from_disk().await.unwrap_or(
-            GlobalConfig::new()
-                .await
-                .expect("unable to create new config"),
-        );
-        let mut client = global.get_client().await.expect("unable to load client");
-        let result = self.run_internal(&mut global, &mut client).await;
-        global
-            .save_client(client)
-            .await
-            .expect("unable to save client to config");
-        global.to_disk().expect("unable to save global config");
+        if !config_path().exists() {
+            GlobalConfig::new().await.expect("new config");
+        }
+
+        let result = self.run_internal().await;
 
         // Provide output based on that
         match result {
