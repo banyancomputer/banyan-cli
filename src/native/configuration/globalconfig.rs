@@ -30,9 +30,9 @@ pub struct GlobalConfig {
     /// Location of api key on disk in PEM format
     pub api_key_path: PathBuf,
     /// Remote endpoint
-    pub endpoint: Url,
+    endpoint: Url,
     /// Remote account id
-    pub remote_user_id: Option<Uuid>,
+    remote_user_id: Option<Uuid>,
     /// Bucket Configurations
     pub(crate) buckets: Vec<LocalBucket>,
 }
@@ -134,8 +134,17 @@ impl GlobalConfig {
         self.to_disk()
     }
 
+    pub fn get_endpoint(&self) -> Url {
+        self.endpoint.clone()
+    }
+
+    pub fn set_endpoint(&mut self, endpoint: Url) -> Result<(), NativeError> {
+        self.endpoint = endpoint;
+        self.to_disk()
+    }
+
     /// Write to disk
-    pub fn to_disk(&self) -> Result<(), NativeError> {
+    fn to_disk(&self) -> Result<(), NativeError> {
         let writer = OpenOptions::new()
             .create(true)
             .append(false)
@@ -165,11 +174,11 @@ impl GlobalConfig {
             .expect("cannot find index in buckets");
         // Remove bucket config from global config
         self.buckets.remove(index);
-        Ok(())
+        self.to_disk()
     }
 
     /// Remove Config data associated with each Bucket
-    pub fn remove_data(&self) -> Result<(), NativeError> {
+    pub fn remove_all_data(&self) -> Result<(), NativeError> {
         // Remove bucket data
         for bucket in &self.buckets {
             bucket.remove_data()?;
@@ -179,8 +188,7 @@ impl GlobalConfig {
         if path.exists() {
             remove_file(path)?;
         }
-        // Ok
-        Ok(())
+        self.to_disk()
     }
 
     /// Update a given BucketConfig
@@ -193,8 +201,7 @@ impl GlobalConfig {
             .ok_or(NativeError::missing_local_drive())?;
         // Update bucket at index
         self.buckets[index] = bucket.clone();
-        // Ok
-        Ok(())
+        self.to_disk()
     }
 
     /// Create a new bucket
@@ -207,6 +214,7 @@ impl GlobalConfig {
         let mut bucket = LocalBucket::new(origin, &wrapping_key).await?;
         bucket.name = name.to_string();
         self.buckets.push(bucket.clone());
+        self.to_disk()?;
         Ok(bucket)
     }
 

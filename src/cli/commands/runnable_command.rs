@@ -21,12 +21,12 @@ where
     /// Run the internal command, passing a reference to a global configuration which is saved after completion
     async fn run(self) -> Result<(), ErrorType> {
         // Grab global config
-        let mut global = GlobalConfig::from_disk().await.unwrap_or(
+        let global = GlobalConfig::from_disk().await.unwrap_or(
             GlobalConfig::new()
                 .await
                 .expect("unable to create new config"),
         );
-        let mut client = global.get_client().await.expect("unable to load client");
+        let client = global.get_client().await.expect("unable to load client");
         let result = self.run_internal(global, client).await;
 
         // Provide output based on that

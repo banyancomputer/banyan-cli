@@ -51,9 +51,7 @@ mod test {
         let mut omni = OmniBucket::create(&mut global, &mut client, &name, origin).await?;
         let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
         let result = prepare::pipeline(fs, &mut omni, &mut client, true).await;
-        global.save_client(client).await?;
         global.update_config(&omni.get_local()?)?;
-        global.to_disk()?;
         result
     }
 
@@ -62,15 +60,11 @@ mod test {
         let mut global = GlobalConfig::from_disk().await?;
         let wrapping_key = global.wrapping_key().await?;
         let mut client = Client::new("http://127.0.0.1")?;
-        let mut omni = OmniBucket::from_specifier(
-            &global,
-            &mut client,
-            &DriveSpecifier {
-                drive_id: None,
-                name: None,
-                origin: Some(origin.to_path_buf()),
-            },
-        )
+        let mut omni = OmniBucket::from_specifier(&DriveSpecifier {
+            drive_id: None,
+            name: None,
+            origin: Some(origin.to_path_buf()),
+        })
         .await;
         let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
         let tmp = origin.parent().unwrap().join("tmp");
@@ -78,9 +72,7 @@ mod test {
         let result = restore::pipeline(fs, &mut omni, &mut client).await;
         rename(origin, restored)?;
         rename(tmp, origin)?;
-        global.save_client(client).await?;
         global.update_config(&omni.get_local()?)?;
-        global.to_disk()?;
         result
     }
 
@@ -118,7 +110,7 @@ mod test {
         configure::remote_core(address).await?;
         // Assert it was actually modified
         assert_eq!(
-            GlobalConfig::from_disk().await?.endpoint.to_string(),
+            GlobalConfig::from_disk().await?.get_endpoint().to_string(),
             address.to_string()
         );
         Ok(())

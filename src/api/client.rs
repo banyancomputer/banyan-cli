@@ -1,3 +1,5 @@
+use crate::native::configuration::globalconfig::GlobalConfig;
+
 use super::{
     error::ApiError,
     requests::{ApiRequest, StreamableApiRequest},
@@ -139,6 +141,13 @@ impl Client {
                 match &self.signing_key {
                     Some(signing_key) => {
                         self.bearer_token = Some(claims.encode_to(signing_key).await?);
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            let mut global = GlobalConfig::from_disk().await.unwrap();
+                            global.save_client(self.clone()).await.unwrap();
+                        }
+
                         Ok(self.bearer_token.clone().unwrap())
                     }
                     _ => Err(ApiError::auth_required()),

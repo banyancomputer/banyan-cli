@@ -9,8 +9,7 @@ pub async fn init(name: &str, path: &Path) -> Result<(), NativeError> {
         Ok(global) => global,
         Err(_) => GlobalConfig::new().await?,
     };
-    global.get_or_init_bucket(name, path).await?;
-    global.to_disk()
+    global.get_or_init_bucket(name, path).await.map(|_| ())
 }
 
 /// Remove all configuration data for a given bucket
@@ -19,7 +18,6 @@ pub async fn deinit(path: &Path) -> Result<(), NativeError> {
         if let Some(local) = global.get_bucket(path) {
             global.remove_bucket(&local)?;
         }
-        return global.to_disk();
     }
 
     Ok(())
@@ -28,7 +26,7 @@ pub async fn deinit(path: &Path) -> Result<(), NativeError> {
 /// Remove all configuration data
 pub async fn deinit_all() -> Result<(), NativeError> {
     if let Ok(config) = GlobalConfig::from_disk().await {
-        return config.remove_data();
+        return config.remove_all_data();
     }
 
     Ok(())
@@ -37,7 +35,6 @@ pub async fn deinit_all() -> Result<(), NativeError> {
 /// Configure the remote endpoint in a given directory, assuming initializtion has already taken place
 pub async fn remote_core(address: &str) -> Result<String, NativeError> {
     let mut config = GlobalConfig::from_disk().await?;
-    config.endpoint = Url::parse(address).map_err(|_| NativeError::bad_data())?;
-    config.to_disk()?;
+    config.set_endpoint(Url::parse(address).map_err(|_| NativeError::bad_data())?)?;
     Ok("saved remote address".to_string())
 }

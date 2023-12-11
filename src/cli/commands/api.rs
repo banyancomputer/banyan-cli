@@ -34,11 +34,10 @@ impl RunnableCommand<NativeError> for ApiCommand {
             ApiCommand::Display => Ok(format!(
                 "{}\n{}\n",
                 "| ADDRESS INFO |".yellow(),
-                global.endpoint
+                global.get_endpoint()
             )),
             ApiCommand::Set { address } => {
-                global.endpoint = Url::parse(&address).map_err(|_| NativeError::bad_data())?;
-                global.to_disk()?;
+                global.set_endpoint(Url::parse(&address).map_err(|_| NativeError::bad_data())?)?;
                 Ok(format!("{}", "<< ENDPOINT UPDATED SUCCESSFULLY >>".green()))
             }
             ApiCommand::Reset => {
@@ -48,8 +47,7 @@ impl RunnableCommand<NativeError> for ApiCommand {
                     "https://alpha.data.banyan.computer"
                 })
                 .expect("unable to parse known URLs");
-                global.endpoint = endpoint;
-                global.to_disk()?;
+                global.set_endpoint(endpoint)?;
                 Ok(format!("{}", "<< ENDPOINTS HAVE BEEN RESET >>".green()))
             }
         }

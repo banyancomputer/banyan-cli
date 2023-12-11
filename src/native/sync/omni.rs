@@ -35,43 +35,45 @@ pub struct OmniBucket {
 impl OmniBucket {
     /// Use local and remote to find
     #[cfg(feature = "cli")]
-    pub async fn from_specifier(
-        global: &GlobalConfig,
-        client: &mut Client,
-        drive_specifier: &DriveSpecifier,
-    ) -> Self {
+    pub async fn from_specifier(drive_specifier: &DriveSpecifier) -> Self {
         let mut omni = Self {
             local: None,
             remote: None,
             sync_state: SyncState::Unknown,
         };
 
-        // Search for a local bucket
-        let local_result = global.buckets.clone().into_iter().find(|bucket| {
-            let check_remote = bucket.remote_id == drive_specifier.drive_id;
-            let check_origin = Some(bucket.origin.clone()) == drive_specifier.origin;
-            let check_name = Some(bucket.name.clone()) == drive_specifier.name;
-            check_remote || check_origin || check_name
-        });
-        omni.local = local_result;
+        if let Ok(global) = GlobalConfig::from_disk().await {
+            // Search for a local bucket
+            let local_result = global.buckets.clone().into_iter().find(|bucket| {
+                let check_remote = bucket.remote_id == drive_specifier.drive_id;
+                let check_origin = Some(bucket.origin.clone()) == drive_specifier.origin;
+                let check_name = Some(bucket.name.clone()) == drive_specifier.name;
+                check_remote || check_origin || check_name
+            });
+            omni.local = local_result;
 
-        // Search for a remote bucket
-        let all_remote_buckets = RemoteBucket::read_all(client).await.unwrap_or(Vec::new());
-        let remote_result = all_remote_buckets.into_iter().find(|bucket| {
-            let check_id = Some(bucket.id) == drive_specifier.drive_id;
-            let check_name = Some(bucket.name.clone()) == drive_specifier.name;
-            check_id || check_name
-        });
-        omni.remote = remote_result;
+            if let Ok(mut client) = global.get_client().await {
+                // Search for a remote bucket
+                let all_remote_buckets = RemoteBucket::read_all(&mut client)
+                    .await
+                    .unwrap_or(Vec::new());
+                let remote_result = all_remote_buckets.into_iter().find(|bucket| {
+                    let check_id = Some(bucket.id) == drive_specifier.drive_id;
+                    let check_name = Some(bucket.name.clone()) == drive_specifier.name;
+                    check_id || check_name
+                });
+                omni.remote = remote_result;
 
-        if omni.local.is_some() && omni.remote.is_some() {
-            let mut local = omni.get_local().unwrap();
-            local.remote_id = Some(omni.get_remote().unwrap().id);
-            omni.local = Some(local);
+                if omni.local.is_some() && omni.remote.is_some() {
+                    let mut local = omni.get_local().unwrap();
+                    local.remote_id = Some(omni.get_remote().unwrap().id);
+                    omni.local = Some(local);
+                }
+
+                // Determine the sync state
+                let _ = determine_sync_state(&mut omni, &mut client).await;
+            }
         }
-
-        // Determine the sync state
-        let _ = determine_sync_state(&mut omni, client).await;
 
         omni
     }
@@ -176,7 +178,6 @@ impl OmniBucket {
             }
             // Update in global and obj
             global.update_config(&local.clone())?;
-            global.to_disk()?;
             omni.local = Some(local);
         }
 

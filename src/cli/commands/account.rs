@@ -8,6 +8,7 @@ use crate::{
         },
     },
     native::{configuration::globalconfig::GlobalConfig, NativeError},
+    prelude::api::requests::core::auth::who_am_i::read::ReadWhoAmI,
 };
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
@@ -40,17 +41,19 @@ pub enum AccountCommand {
 impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(
         self,
-        mut global: GlobalConfig,
+        global: GlobalConfig,
         mut client: Client,
     ) -> Result<String, NativeError> {
         // Process the command
         match self {
             AccountCommand::RegisterDevice => {
-                // let device_key = EcEncryptionKey::generate().await?;
                 let private_device_key = GlobalConfig::from_disk().await?.api_key().await?;
-
-                // Create a public key from the
                 let public_device_key = private_device_key.public_key()?;
+
+                // If this device api key is alreaddy registered
+                if client.call(ReadWhoAmI).await.is_ok() {
+                    return Ok(format!("{}", "THIS DEVICE IS ALREADY REGISTERED".green()));
+                }
 
                 // Create a fingerprint from the public key
                 let fingerprint =
@@ -79,7 +82,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     url::form_urlencoded::byte_serialize(spki_b64.as_bytes()).collect::<String>();
                 // Construct the proper URL to open
                 let url = global
-                    .endpoint
+                    .get_endpoint()
                     .join(&format!("register-device/{}", spki_b64_url_safe))
                     .unwrap();
                 open::that(url.as_str()).expect("failed to open browser");
@@ -140,16 +143,10 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     response.id
                 ))
             }
-            AccountCommand::WhoAmI => {
-                let result = Account::who_am_i(&mut client)
-                    .await
-                    .map(|v| v.to_string())
-                    .map_err(NativeError::api);
-
-                global.save_client(client).await?;
-
-                result
-            }
+            AccountCommand::WhoAmI => Account::who_am_i(&mut client)
+                .await
+                .map(|v| v.to_string())
+                .map_err(NativeError::api),
             AccountCommand::Usage => {
                 let mut output = format!("{}", "| ACCOUNT USAGE INFO |".yellow());
 
@@ -168,8 +165,6 @@ impl RunnableCommand<NativeError> for AccountCommand {
                 if let Ok(usage_limit) = usage_limit_result {
                     output = format!("{}\nusage_limit:\t{}", output, ByteSize(usage_limit));
                 }
-
-                global.save_client(client).await?;
 
                 Ok(output)
             }
