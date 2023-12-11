@@ -113,6 +113,7 @@ impl GlobalConfig {
     }
 
     /// Save the Client data to the config
+    #[allow(unused)]
     pub async fn save_client(&mut self, client: Client) -> Result<(), NativeError> {
         // Update the Remote endpoints
         self.endpoint = client.remote_core;
@@ -134,6 +135,7 @@ impl GlobalConfig {
         self.to_disk()
     }
 
+    #[allow(unused)]
     pub fn get_endpoint(&self) -> Url {
         self.endpoint.clone()
     }

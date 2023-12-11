@@ -1,5 +1,4 @@
 use crate::{
-    api::client::Client,
     cli::{
         commands::{prompt_for_bool, KeyCommand, MetadataCommand, RunnableCommand},
         specifiers::DriveSpecifier,
@@ -95,25 +94,26 @@ impl RunnableCommand<NativeError> for DrivesCommand {
                 drive_specifier,
                 follow_links,
             } => {
-                let mut omni = OmniBucket::from_specifier(&drive_specifier).await;
-                let fs = omni.unlock().await?;
-                prepare::pipeline(omni, follow_links).await
+                prepare::pipeline(
+                    OmniBucket::from_specifier(&drive_specifier).await,
+                    follow_links,
+                )
+                .await
             }
             DrivesCommand::Restore { drive_specifier } => {
-                let mut omni = OmniBucket::from_specifier(&drive_specifier).await;
-                let fs = omni.unlock().await?;
-                restore::pipeline(omni).await
+                restore::pipeline(OmniBucket::from_specifier(&drive_specifier).await).await
             }
             DrivesCommand::Sync(drive_specifier) => {
-                let mut omni = OmniBucket::from_specifier(&drive_specifier).await;
-                omni.sync_bucket().await
+                OmniBucket::from_specifier(&drive_specifier)
+                    .await
+                    .sync_bucket()
+                    .await
             }
             DrivesCommand::Delete(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(&drive_specifier).await;
                 let local_deletion = prompt_for_bool("Do you want to delete this Bucket locally?");
                 let remote_deletion =
                     prompt_for_bool("Do you want to delete this Bucket remotely?");
-
                 omni.delete(local_deletion, remote_deletion).await
             }
             DrivesCommand::Info(drive_specifier) => {

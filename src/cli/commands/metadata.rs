@@ -1,5 +1,5 @@
 use crate::{
-    api::{client::Client, models::metadata::Metadata},
+    api::models::metadata::Metadata,
     native::{configuration::globalconfig::GlobalConfig, sync::OmniBucket, NativeError},
 };
 

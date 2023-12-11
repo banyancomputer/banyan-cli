@@ -1,5 +1,5 @@
 use crate::{
-    api::{client::Client, models::metadata::Metadata},
+    api::models::metadata::Metadata,
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{

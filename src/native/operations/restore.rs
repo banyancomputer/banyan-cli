@@ -1,5 +1,4 @@
 use crate::{
-    api::client::Client,
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{

@@ -7,19 +7,15 @@ mod runnable_command;
 
 use std::io::Read;
 
+use crate::native::NativeError;
 pub use account::AccountCommand;
 pub use api::ApiCommand;
+use async_trait::async_trait;
+use clap::Subcommand;
 pub use drives::DrivesCommand;
 pub use keys::KeyCommand;
 pub use metadata::MetadataCommand;
 pub use runnable_command::RunnableCommand;
-
-use crate::{
-    api::client::Client,
-    native::{configuration::globalconfig::GlobalConfig, NativeError},
-};
-use async_trait::async_trait;
-use clap::Subcommand;
 
 /// Prompt the user for a y/n answer
 pub fn prompt_for_bool(msg: &str) -> bool {

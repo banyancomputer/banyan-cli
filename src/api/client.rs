@@ -1,3 +1,5 @@
+#[cfg(not(test))]
+#[cfg(not(target_arch = "wasm32"))]
 use crate::native::configuration::globalconfig::GlobalConfig;
 
 use super::{
@@ -142,6 +144,7 @@ impl Client {
                     Some(signing_key) => {
                         self.bearer_token = Some(claims.encode_to(signing_key).await?);
 
+                        #[cfg(not(test))]
                         #[cfg(not(target_arch = "wasm32"))]
                         {
                             let mut global = GlobalConfig::from_disk().await.unwrap();

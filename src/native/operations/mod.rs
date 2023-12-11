@@ -13,7 +13,6 @@ pub mod restore;
 #[cfg(feature = "cli")]
 mod test {
     use crate::{
-        api::client::Client,
         cli::specifiers::DriveSpecifier,
         filesystem::wnfsio::{decompress_bytes, path_to_segments},
         native::{
