@@ -41,7 +41,6 @@ impl OmniBucket {
         };
 
         if let Ok(global) = GlobalConfig::from_disk().await {
-            // Search for a local bucket
             let local_result = global.buckets.clone().into_iter().find(|bucket| {
                 let check_remote = bucket.remote_id == drive_specifier.drive_id;
                 let check_origin = Some(bucket.origin.clone()) == drive_specifier.origin;
@@ -51,7 +50,6 @@ impl OmniBucket {
             omni.local = local_result;
 
             if let Ok(mut client) = global.get_client().await {
-                // Search for a remote bucket
                 let all_remote_buckets = RemoteBucket::read_all(&mut client)
                     .await
                     .unwrap_or(Vec::new());
