@@ -271,27 +271,25 @@ impl OmniBucket {
             // Reconstruct the Bucket locally
             SyncState::MetadataSynced => {
                 let local = self.get_local()?;
-                let storage_host = local
-                    .clone()
-                    .storage_ticket
-                    .map(|ticket| ticket.host)
-                    .ok_or(NativeError::custom_error(
-                        "unable to determine storage host",
-                    ))?;
-
                 let api_blockstore_client = client.clone();
-                let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
+                let mut api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
+                let metadata_root_cid = local
+                    .metadata
+                    .get_root()
+                    .ok_or(FilesystemError::missing_metadata("root cid"))?;
+                let mut cids = BTreeSet::new();
+                cids.insert(metadata_root_cid);
+                api_blockstore.find_cids(cids).await?;
                 // If getting a block is an error
-                if api_blockstore
-                    .get_block(
-                        &local
-                            .metadata
-                            .get_root()
-                            .ok_or(FilesystemError::missing_metadata("root cid"))?,
-                    )
-                    .await
-                    .is_err()
-                {
+                if api_blockstore.get_block(&metadata_root_cid).await.is_err() {
+                    // Grab storage host
+                    let storage_host = local
+                        .clone()
+                        .storage_ticket
+                        .map(|ticket| ticket.host)
+                        .ok_or(NativeError::custom_error(
+                            "unable to determine storage host",
+                        ))?;
                     // Get authorization
                     let authorization = self.get_remote()?.get_grants_token(&mut client).await?;
                     // Create a grant for this Client so that future BlockStore calls will succeed

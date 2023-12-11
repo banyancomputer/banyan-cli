@@ -50,12 +50,7 @@ mod test {
 
     /// Simplified Restore call function
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
-        let omni = OmniBucket::from_specifier(&DriveSpecifier {
-            drive_id: None,
-            name: None,
-            origin: Some(origin.to_path_buf()),
-        })
-        .await;
+        let omni = OmniBucket::from_specifier(&DriveSpecifier::with_origin(origin)).await;
         let tmp = origin.parent().unwrap().join("tmp");
         rename(origin, &tmp)?;
         let result = restore::pipeline(omni).await;
