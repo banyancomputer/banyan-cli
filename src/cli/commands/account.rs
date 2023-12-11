@@ -40,7 +40,7 @@ pub enum AccountCommand {
 #[async_trait(?Send)]
 impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
-        let global = GlobalConfig::from_disk().await?;
+        let mut global = GlobalConfig::from_disk().await?;
         let mut client = global.get_client().await?;
 
         // Process the command
@@ -84,7 +84,14 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     .get_endpoint()
                     .join(&format!("register-device/{}", spki_b64_url_safe))
                     .unwrap();
-                open::that(url.as_str()).expect("failed to open browser");
+
+                // Offer the link directly if it fails to open
+                if open::that(url.as_str()).is_err() {
+                    warn!(
+                        "failed to open link in browser, try clicking instead:\n{}",
+                        url.as_str().bright_blue()
+                    );
+                }
 
                 // Now await the completion of the original request
                 let start_response = join_handle
@@ -98,9 +105,11 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     signing_key: private_device_key,
                 });
 
+                global.save_client(client).await?;
+
                 // Respond
                 Ok(format!(
-                    "{}\nuser_id:\t{}\ndevice_key_fingerprint:\t{}",
+                    "{}\nuser_id:\t\t{}\ndevice_key_fingerprint:\t{}",
                     "<< DEVICE KEY SUCCESSFULLY ADDED TO ACCOUNT >>".green(),
                     start_response.user_id,
                     fingerprint
@@ -108,6 +117,7 @@ impl RunnableCommand<NativeError> for AccountCommand {
             }
             AccountCommand::Logout => {
                 client.logout();
+                global.save_client(client).await?;
                 Ok(format!(
                     "{}",
                     "<< SUCCESSFULLY LOGGED OUT OF REMOTE ACCESS >>".green()

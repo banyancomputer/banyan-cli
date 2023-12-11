@@ -122,8 +122,6 @@ impl GlobalConfig {
             // Update the remote account ID
             self.remote_user_id =
                 Some(Uuid::from_str(token.sub()?).map_err(|_| NativeError::bad_data())?);
-        } else {
-            self.remote_user_id = None;
         }
 
         // If the Client has an API key

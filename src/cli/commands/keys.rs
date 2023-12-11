@@ -88,7 +88,7 @@ impl RunnableCommand<NativeError> for KeyCommand {
                     .map_err(NativeError::api)
             }
             KeyCommand::Info(ks) => {
-                let (bucket_id, id) = get_key_info(&mut client, &ks).await?;
+                let (bucket_id, id) = get_key_info(&client, &ks).await?;
                 let my_fingerprint = hex_fingerprint(
                     &global
                         .wrapping_key()
@@ -104,14 +104,14 @@ impl RunnableCommand<NativeError> for KeyCommand {
                     .map_err(NativeError::api)
             }
             KeyCommand::Delete(ks) => {
-                let (bucket_id, id) = get_key_info(&mut client, &ks).await?;
+                let (bucket_id, id) = get_key_info(&client, &ks).await?;
                 BucketKey::delete_by_id(bucket_id, id, &mut client)
                     .await
                     .map(|id| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
                     .map_err(NativeError::api)
             }
             KeyCommand::Reject(ks) => {
-                let (bucket_id, id) = get_key_info(&mut client, &ks).await?;
+                let (bucket_id, id) = get_key_info(&client, &ks).await?;
                 BucketKey::reject(bucket_id, id, &mut client)
                     .await
                     .map(|_| format!("{}", "<< REJECTED KEY SUCCESSFULLY >>".green()))
@@ -122,14 +122,14 @@ impl RunnableCommand<NativeError> for KeyCommand {
 }
 
 async fn get_key_info(
-    client: &mut Client,
+    client: &Client,
     key_specifier: &KeySpecifier,
 ) -> Result<(Uuid, Uuid), NativeError> {
     let bucket_id = OmniBucket::from_specifier(&key_specifier.drive_specifier)
         .await
         .get_id()?;
 
-    let all_keys = BucketKey::read_all(bucket_id, client).await?;
+    let all_keys = BucketKey::read_all(bucket_id, &mut client.to_owned()).await?;
     let key_index = all_keys
         .iter()
         .position(|key| key.fingerprint == key_specifier.fingerprint)

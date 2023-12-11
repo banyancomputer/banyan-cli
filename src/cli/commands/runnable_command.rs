@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::WnfsError;
+use crate::{
+    native::configuration::{globalconfig::GlobalConfig, xdg::config_path},
+    WnfsError,
+};
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
@@ -16,6 +19,10 @@ where
 
     /// Run the internal command, passing a reference to a global configuration which is saved after completion
     async fn run(self) -> Result<(), ErrorType> {
+        if !config_path().exists() {
+            GlobalConfig::new().await.expect("new config");
+        }
+
         let result = self.run_internal().await;
 
         // Provide output based on that

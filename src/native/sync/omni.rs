@@ -174,7 +174,6 @@ impl OmniBucket {
             // Update in global and obj
             global.update_config(&local.clone())?;
             omni.local = Some(local);
-            warn!("omni: {:?}", omni);
         }
 
         Ok(omni)
