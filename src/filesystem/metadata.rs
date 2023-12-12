@@ -496,24 +496,38 @@ impl FsMetadata {
         let ds_store = DoubleSplitStore::new(metadata_store, content_store);
         let result = self
             .root_dir
-            .get_node(src_path_segments, true, &self.forest, &ds_store)
+            .get_node(src_path_segments, true, &self.forest, metadata_store)
             .await
             .map_err(Box::from)?;
         match result {
-            Some(_) => self
-                .root_dir
-                .basic_mv(
-                    src_path_segments,
-                    dest_path_segments,
-                    true,
-                    Utc::now(),
-                    &mut self.forest,
-                    &ds_store,
-                    &mut thread_rng(),
-                )
-                .await
-                .map_err(Box::from)
-                .map_err(FilesystemError::wnfs),
+            Some(_) => {
+                self.root_dir
+                    .basic_mv(
+                        src_path_segments,
+                        dest_path_segments,
+                        true,
+                        Utc::now(),
+                        &mut self.forest,
+                        &ds_store,
+                        &mut thread_rng(),
+                    )
+                    .await
+                    .map_err(Box::from)
+                    .map_err(FilesystemError::wnfs)?;
+
+                // Explicitly store the file in the content store -- this makes it available for sharing
+                let file = match self.get_node(dest_path_segments, metadata_store).await? {
+                    Some(PrivateNode::File(file)) => file,
+                    _ => return Ok(()),
+                };
+
+                file.store(&mut self.forest, &ds_store, &mut thread_rng())
+                    .await
+                    .map_err(Box::from)
+                    .map_err(FilesystemError::wnfs)?;
+
+                Ok(())
+            }
             None => Err(FilesystemError::node_not_found(
                 &src_path_segments.join("/"),
             )),

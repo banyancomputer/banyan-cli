@@ -707,7 +707,12 @@ impl WasmMount {
             "mv()/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
+
         self.dirty = true;
+        // In order to keep sharing working, we need to append the content blockstore on move.
+        // Not ideal but it works.
+        self.append = true;
+
         self.sync().await?;
 
         // Ok
