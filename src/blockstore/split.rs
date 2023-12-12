@@ -30,10 +30,9 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
         match BlockStore::get_block(self.primary, cid).await {
             Ok(blk) => Ok(blk),
             Err(_) => {
-                let blk = BlockStore::get_block(self.secondary, cid)
+                BlockStore::get_block(self.secondary, cid)
                     .await
-                    .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
-                Ok(blk)
+                    .map_err(|err| BlockStoreError::wnfs(Box::from(err)))
             }
         }
     }
