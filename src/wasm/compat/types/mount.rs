@@ -836,6 +836,12 @@ impl WasmMount {
     /// Share a file snapshot
     #[wasm_bindgen(js_name = shareFile)]
     pub async fn share_file(&mut self, path_segments: Array) -> TombResult<String> {
+        info!(
+            "share_file()/{}/{}",
+            self.bucket.id.to_string(),
+            &path_segments.join("/")
+        );
+
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -850,7 +856,11 @@ impl WasmMount {
             .fs_metadata
             .as_mut()
             .ok_or(TombWasmError::new("missing FsMetadata"))?
-            .share_file(&path_segments, &self.content_blockstore)
+            .share_file(
+                &path_segments,
+                &self.metadata_blockstore,
+                &self.content_blockstore,
+            )
             .await
             .map_err(to_wasm_error_with_msg("share_file"))?;
 

@@ -265,12 +265,13 @@ impl FsMetadata {
     pub async fn share_file(
         &mut self,
         path_segments: &[String],
+        metadata_store: &impl RootedBlockStore,
         content_store: &impl BanyanBlockStore,
     ) -> Result<SharedFile, FilesystemError> {
         let mut rng = thread_rng();
 
         let node = self
-            .get_node(path_segments, content_store)
+            .get_node(path_segments, metadata_store)
             .await?
             .ok_or(FilesystemError::node_not_found(&path_segments.join("/")))?;
 
@@ -490,7 +491,7 @@ impl FsMetadata {
         src_path_segments: &[String],
         dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl RootedBlockStore,
+        content_store: &impl BanyanBlockStore,
     ) -> Result<(), FilesystemError> {
         let ds_store = DoubleSplitStore::new(metadata_store, content_store);
         let result = self
@@ -642,11 +643,11 @@ impl FsMetadata {
 
         if let Ok(file) = result {
             file.set_content(
-                Utc::now(),
+                time,
                 content.as_slice(),
                 &mut self.forest,
                 content_store,
-                &mut thread_rng(),
+                &mut rng,
             )
             .await
             .map_err(Box::from)?;
@@ -868,7 +869,9 @@ mod test {
             )
             .await?;
 
-        let shared_file = fs_metadata.share_file(&cat_path, &content_store).await?;
+        let shared_file = fs_metadata
+            .share_file(&cat_path, &metadata_store, &content_store)
+            .await?;
 
         let share_string = shared_file.export_b64_url()?;
 
