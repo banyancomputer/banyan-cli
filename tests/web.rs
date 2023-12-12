@@ -167,7 +167,7 @@ mod test {
     }
 
     #[wasm_bindgen_test]
-    async fn add_share_receive_local() -> Result<(), FilesystemError> {
+    async fn write_share_receive_local() -> Result<(), FilesystemError> {
         let metadata_store = MemoryBlockStore::default();
         let content_store = MemoryBlockStore::default();
         let wrapping_key = &EcEncryptionKey::generate().await?;
@@ -202,7 +202,7 @@ mod test {
     }
 
     #[wasm_bindgen_test]
-    async fn write_share_receive_local_cs() -> TombResult<()> {
+    async fn mount_write_share_receive_local() -> TombResult<()> {
         let mut client = authenticated_client().await?;
         info!("tomb_wasm_test: create_bucket_mount_write_share_receive()");
         let (private_pem, public_pem) = ecencryption_key_pair().await;

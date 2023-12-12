@@ -265,16 +265,12 @@ impl FsMetadata {
     pub async fn share_file(
         &mut self,
         path_segments: &[String],
-        // metadata_store: &impl BanyanBlockStore,
         content_store: &impl BanyanBlockStore,
     ) -> Result<SharedFile, FilesystemError> {
         let mut rng = thread_rng();
 
-        // let ds_store = DoubleSplitStore::new(metadata_store, content_store);
-
         let node = self
             .get_node(path_segments, content_store)
-            // .get_node(path_segments, &ds_store)
             .await?
             .ok_or(FilesystemError::node_not_found(&path_segments.join("/")))?;
 
@@ -300,12 +296,10 @@ impl FsMetadata {
 
         // Share the Node by storing it
         let sharer_payload =
-            // SharePayload::from_node(&node, false, &mut self.forest, &ds_store, &mut rng)
             SharePayload::from_node(&node, false, &mut self.forest, content_store, &mut rng)
                 .await
                 .map_err(Box::from)?;
 
-        // let forest_cid = store_forest(&self.forest, &ds_store, &ds_store).await?;
         let forest_cid = store_forest(&self.forest, content_store, content_store).await?;
 
         Ok(SharedFile {
@@ -632,7 +626,6 @@ impl FsMetadata {
         let data_size = content.len();
         let mut rng = thread_rng();
 
-        // ++ lets try using a split store for open file
         let ds_store = DoubleSplitStore::new(metadata_store, content_store);
 
         let result = self
@@ -648,12 +641,10 @@ impl FsMetadata {
             .await;
 
         if let Ok(file) = result {
-            tracing::debug!("FsMetadata::write -- PrivateFile: {:?}", file);
             file.set_content(
                 Utc::now(),
                 content.as_slice(),
                 &mut self.forest,
-                // Still just using the content store for now here
                 content_store,
                 &mut thread_rng(),
             )

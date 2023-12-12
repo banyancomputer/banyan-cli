@@ -29,11 +29,9 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         match BlockStore::get_block(self.primary, cid).await {
             Ok(blk) => Ok(blk),
-            Err(_) => {
-                BlockStore::get_block(self.secondary, cid)
-                    .await
-                    .map_err(|err| BlockStoreError::wnfs(Box::from(err)))
-            }
+            Err(_) => BlockStore::get_block(self.secondary, cid)
+                .await
+                .map_err(|err| BlockStoreError::wnfs(Box::from(err))),
         }
     }
 

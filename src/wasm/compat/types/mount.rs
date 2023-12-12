@@ -850,16 +850,13 @@ impl WasmMount {
             .fs_metadata
             .as_mut()
             .ok_or(TombWasmError::new("missing FsMetadata"))?
-            .share_file(
-                &path_segments,
-                // &self.metadata_blockstore,
-                &self.content_blockstore,
-            )
+            .share_file(&path_segments, &self.content_blockstore)
             .await
             .map_err(to_wasm_error_with_msg("share_file"))?;
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
+        // Mark as append so the content blockstore is uploaded
         self.append = true;
 
         info!(
