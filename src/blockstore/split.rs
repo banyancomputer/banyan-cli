@@ -29,19 +29,25 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         match BlockStore::get_block(self.primary, cid).await {
             Ok(blk) => Ok(blk),
-            Err(_) => BlockStore::get_block(self.secondary, cid)
-                .await
-                .map_err(|err| BlockStoreError::wnfs(Box::from(err))),
+            Err(_) => {
+                let blk = BlockStore::get_block(self.secondary, cid)
+                    .await
+                    .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
+                Ok(blk)
+            }
         }
     }
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
+        // TODO: this needs to be .ok() since some workflows use a BanyanApiBlockStore as the secondary
+        // and it does not implement put_block ...
         BlockStore::put_block(self.secondary, bytes.clone(), codec)
             .await
             .ok();
-        BlockStore::put_block(self.primary, bytes, codec)
+        let cid = BlockStore::put_block(self.primary, bytes, codec)
             .await
-            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
+        Ok(cid)
     }
 }
 

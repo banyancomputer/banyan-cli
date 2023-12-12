@@ -361,6 +361,14 @@ impl WasmMount {
 
         Ok(())
     }
+
+    pub fn content_blockstore(&self) -> BlockStore {
+        self.content_blockstore.clone()
+    }
+
+    pub fn metadata_blockstore(&self) -> BlockStore {
+        self.metadata_blockstore.clone()
+    }
 }
 
 #[wasm_bindgen]
@@ -844,7 +852,7 @@ impl WasmMount {
             .ok_or(TombWasmError::new("missing FsMetadata"))?
             .share_file(
                 &path_segments,
-                &self.metadata_blockstore,
+                // &self.metadata_blockstore,
                 &self.content_blockstore,
             )
             .await
@@ -852,6 +860,7 @@ impl WasmMount {
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
+        self.append = true;
 
         info!(
             "share_file/{} - dirty, syncing changes",

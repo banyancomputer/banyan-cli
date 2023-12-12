@@ -265,12 +265,16 @@ impl FsMetadata {
     pub async fn share_file(
         &mut self,
         path_segments: &[String],
-        metadata_store: &impl RootedBlockStore,
+        // metadata_store: &impl BanyanBlockStore,
         content_store: &impl BanyanBlockStore,
     ) -> Result<SharedFile, FilesystemError> {
         let mut rng = thread_rng();
+
+        // let ds_store = DoubleSplitStore::new(metadata_store, content_store);
+
         let node = self
-            .get_node(path_segments, metadata_store)
+            .get_node(path_segments, content_store)
+            // .get_node(path_segments, &ds_store)
             .await?
             .ok_or(FilesystemError::node_not_found(&path_segments.join("/")))?;
 
@@ -296,10 +300,12 @@ impl FsMetadata {
 
         // Share the Node by storing it
         let sharer_payload =
+            // SharePayload::from_node(&node, false, &mut self.forest, &ds_store, &mut rng)
             SharePayload::from_node(&node, false, &mut self.forest, content_store, &mut rng)
                 .await
                 .map_err(Box::from)?;
 
+        // let forest_cid = store_forest(&self.forest, &ds_store, &ds_store).await?;
         let forest_cid = store_forest(&self.forest, content_store, content_store).await?;
 
         Ok(SharedFile {
@@ -311,12 +317,12 @@ impl FsMetadata {
         })
     }
 
-    #[cfg(test)]
     pub async fn receive_file_content(
         shared_file: SharedFile,
         store: &impl BlockStore,
     ) -> Result<Vec<u8>, FilesystemError> {
         let forest = load_forest(&shared_file.forest_cid, store).await?;
+
         // Grab node using share label.
         match shared_file.payload {
             SharePayload::Temporal(_) => todo!(),
@@ -619,12 +625,15 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BlockStore,
+        content_store: &impl BanyanBlockStore,
         content: Vec<u8>,
     ) -> Result<(), FilesystemError> {
         let time = Utc::now();
         let data_size = content.len();
         let mut rng = thread_rng();
+
+        // ++ lets try using a split store for open file
+        let ds_store = DoubleSplitStore::new(metadata_store, content_store);
 
         let result = self
             .root_dir
@@ -633,16 +642,18 @@ impl FsMetadata {
                 true,
                 time,
                 &mut self.forest,
-                metadata_store,
+                &ds_store,
                 &mut rng,
             )
             .await;
 
         if let Ok(file) = result {
+            tracing::debug!("FsMetadata::write -- PrivateFile: {:?}", file);
             file.set_content(
                 Utc::now(),
                 content.as_slice(),
                 &mut self.forest,
+                // Still just using the content store for now here
                 content_store,
                 &mut thread_rng(),
             )
@@ -660,6 +671,12 @@ impl FsMetadata {
                 .metadata
                 .put("size", Ipld::Integer(data_size as i128));
 
+            // Be extra sure to store the private file content back into the content store
+            // This is important for retrieving snapshotted files later on
+            // For some reason removing this will keep native tests passing but break wasm tests
+            file.store(&mut self.forest, &ds_store, &mut rng)
+                .await
+                .map_err(Box::from)?;
             Ok(())
         } else {
             Err(FilesystemError::node_not_found(&path_segments.join("/")))
@@ -670,7 +687,7 @@ impl FsMetadata {
     pub async fn get_node(
         &self,
         path_segments: &[String],
-        store: &impl RootedBlockStore,
+        store: &impl BanyanBlockStore,
     ) -> Result<Option<PrivateNode>, FilesystemError> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
@@ -860,13 +877,9 @@ mod test {
             )
             .await?;
 
-        let shared_file = fs_metadata
-            .share_file(&cat_path, &metadata_store, &content_store)
-            .await?;
+        let shared_file = fs_metadata.share_file(&cat_path, &content_store).await?;
 
         let share_string = shared_file.export_b64_url()?;
-
-        println!("b64 url: {:?}", share_string);
 
         let reconstructed_shared_file = SharedFile::import_b64_url(share_string)?;
 
@@ -874,7 +887,6 @@ mod test {
             FsMetadata::receive_file_content(reconstructed_shared_file, &content_store).await?;
 
         assert_eq!(kitty_bytes, new_kitty_bytes);
-
         Ok(())
     }
 

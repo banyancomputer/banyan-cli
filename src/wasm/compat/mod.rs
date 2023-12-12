@@ -402,3 +402,39 @@ impl TombWasm {
         Ok(mount)
     }
 }
+
+impl TombWasm {
+    pub async fn read_shared_file_from_bs(
+        &mut self,
+        shared_file_payload: String,
+        bs: &impl wnfs::common::BlockStore,
+    ) -> TombResult<Vec<u8>> {
+        use crate::prelude::filesystem::{sharing::SharedFile, FsMetadata};
+
+        let shared_file = SharedFile::import_b64_url(shared_file_payload).unwrap();
+
+        let data = FsMetadata::receive_file_content(shared_file, bs)
+            .await
+            .unwrap();
+
+        Ok(data)
+    }
+
+    pub async fn read_shared_file(&mut self, shared_file_payload: String) -> TombResult<Vec<u8>> {
+        use crate::prelude::{
+            blockstore::BanyanApiBlockStore,
+            filesystem::{sharing::SharedFile, FsMetadata},
+        };
+
+        let api_blockstore_client = self.client().clone();
+        let api_blockstore = BanyanApiBlockStore::from(api_blockstore_client);
+
+        let shared_file = SharedFile::import_b64_url(shared_file_payload).unwrap();
+
+        let data = FsMetadata::receive_file_content(shared_file, &api_blockstore)
+            .await
+            .unwrap();
+
+        Ok(data)
+    }
+}
