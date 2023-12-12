@@ -43,10 +43,9 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
         BlockStore::put_block(self.secondary, bytes.clone(), codec)
             .await
             .ok();
-        let cid = BlockStore::put_block(self.primary, bytes, codec)
+        BlockStore::put_block(self.primary, bytes, codec)
             .await
-            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
-        Ok(cid)
+            .map_err(|err| BlockStoreError::wnfs(Box::from(err)))
     }
 }
 
