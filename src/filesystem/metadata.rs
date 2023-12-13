@@ -269,6 +269,7 @@ impl FsMetadata {
         content_store: &impl BanyanBlockStore,
     ) -> Result<SharedFile, FilesystemError> {
         let mut rng = thread_rng();
+
         let node = self
             .get_node(path_segments, metadata_store)
             .await?
@@ -311,12 +312,12 @@ impl FsMetadata {
         })
     }
 
-    #[cfg(test)]
     pub async fn receive_file_content(
         shared_file: SharedFile,
         store: &impl BlockStore,
     ) -> Result<Vec<u8>, FilesystemError> {
         let forest = load_forest(&shared_file.forest_cid, store).await?;
+
         // Grab node using share label.
         match shared_file.payload {
             SharePayload::Temporal(_) => todo!(),
@@ -490,29 +491,43 @@ impl FsMetadata {
         src_path_segments: &[String],
         dest_path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl RootedBlockStore,
+        content_store: &impl BanyanBlockStore,
     ) -> Result<(), FilesystemError> {
         let ds_store = DoubleSplitStore::new(metadata_store, content_store);
         let result = self
             .root_dir
-            .get_node(src_path_segments, true, &self.forest, &ds_store)
+            .get_node(src_path_segments, true, &self.forest, metadata_store)
             .await
             .map_err(Box::from)?;
         match result {
-            Some(_) => self
-                .root_dir
-                .basic_mv(
-                    src_path_segments,
-                    dest_path_segments,
-                    true,
-                    Utc::now(),
-                    &mut self.forest,
-                    &ds_store,
-                    &mut thread_rng(),
-                )
-                .await
-                .map_err(Box::from)
-                .map_err(FilesystemError::wnfs),
+            Some(_) => {
+                self.root_dir
+                    .basic_mv(
+                        src_path_segments,
+                        dest_path_segments,
+                        true,
+                        Utc::now(),
+                        &mut self.forest,
+                        &ds_store,
+                        &mut thread_rng(),
+                    )
+                    .await
+                    .map_err(Box::from)
+                    .map_err(FilesystemError::wnfs)?;
+
+                // Explicitly store the file in the content store -- this makes it available for sharing
+                let file = match self.get_node(dest_path_segments, metadata_store).await? {
+                    Some(PrivateNode::File(file)) => file,
+                    _ => return Ok(()),
+                };
+
+                file.store(&mut self.forest, &ds_store, &mut thread_rng())
+                    .await
+                    .map_err(Box::from)
+                    .map_err(FilesystemError::wnfs)?;
+
+                Ok(())
+            }
             None => Err(FilesystemError::node_not_found(
                 &src_path_segments.join("/"),
             )),
@@ -619,12 +634,14 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BlockStore,
+        content_store: &impl BanyanBlockStore,
         content: Vec<u8>,
     ) -> Result<(), FilesystemError> {
         let time = Utc::now();
         let data_size = content.len();
         let mut rng = thread_rng();
+
+        let ds_store = DoubleSplitStore::new(metadata_store, content_store);
 
         let result = self
             .root_dir
@@ -633,18 +650,18 @@ impl FsMetadata {
                 true,
                 time,
                 &mut self.forest,
-                metadata_store,
+                &ds_store,
                 &mut rng,
             )
             .await;
 
         if let Ok(file) = result {
             file.set_content(
-                Utc::now(),
+                time,
                 content.as_slice(),
                 &mut self.forest,
                 content_store,
-                &mut thread_rng(),
+                &mut rng,
             )
             .await
             .map_err(Box::from)?;
@@ -660,6 +677,12 @@ impl FsMetadata {
                 .metadata
                 .put("size", Ipld::Integer(data_size as i128));
 
+            // Be extra sure to store the private file content back into the content store
+            // This is important for retrieving snapshotted files later on
+            // For some reason removing this will keep native tests passing but break wasm tests
+            file.store(&mut self.forest, &ds_store, &mut rng)
+                .await
+                .map_err(Box::from)?;
             Ok(())
         } else {
             Err(FilesystemError::node_not_found(&path_segments.join("/")))
@@ -670,7 +693,7 @@ impl FsMetadata {
     pub async fn get_node(
         &self,
         path_segments: &[String],
-        store: &impl RootedBlockStore,
+        store: &impl BanyanBlockStore,
     ) -> Result<Option<PrivateNode>, FilesystemError> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
@@ -866,15 +889,12 @@ mod test {
 
         let share_string = shared_file.export_b64_url()?;
 
-        println!("b64 url: {:?}", share_string);
-
         let reconstructed_shared_file = SharedFile::import_b64_url(share_string)?;
 
         let new_kitty_bytes =
             FsMetadata::receive_file_content(reconstructed_shared_file, &content_store).await?;
 
         assert_eq!(kitty_bytes, new_kitty_bytes);
-
         Ok(())
     }
 

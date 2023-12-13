@@ -4,6 +4,8 @@ mod test {
     use {
         banyan_cli::prelude::{
             api::{client::Client, models::account::Account},
+            blockstore::MemoryBlockStore,
+            filesystem::{sharing::SharedFile, FilesystemError, FsMetadata},
             wasm::{
                 register_log, TombResult, TombWasm, WasmBucket, WasmBucketKey, WasmBucketMount,
                 WasmFsMetadataEntry,
@@ -165,6 +167,118 @@ mod test {
     }
 
     #[wasm_bindgen_test]
+    async fn write_share_receive_local() -> Result<(), FilesystemError> {
+        let metadata_store = MemoryBlockStore::default();
+        let content_store = MemoryBlockStore::default();
+        let wrapping_key = &EcEncryptionKey::generate().await?;
+        let mut fs_metadata = FsMetadata::init(&wrapping_key).await?;
+        fs_metadata.save(&metadata_store, &content_store).await?;
+        fs_metadata = FsMetadata::unlock(wrapping_key, &metadata_store).await?;
+
+        let cat_path = vec!["cat.txt".to_string()];
+        let kitty_bytes = "hello kitty".as_bytes().to_vec();
+        // Add a new file
+        fs_metadata
+            .write(
+                &cat_path,
+                &metadata_store,
+                &content_store,
+                kitty_bytes.clone(),
+            )
+            .await?;
+
+        let shared_file = fs_metadata
+            .share_file(&cat_path, &metadata_store, &content_store)
+            .await?;
+
+        let share_string = shared_file.export_b64_url()?;
+
+        let reconstructed_shared_file = SharedFile::import_b64_url(share_string)?;
+
+        let new_kitty_bytes =
+            FsMetadata::receive_file_content(reconstructed_shared_file, &content_store).await?;
+
+        assert_eq!(kitty_bytes, new_kitty_bytes);
+
+        Ok(())
+    }
+
+    #[wasm_bindgen_test]
+    async fn mount_write_share_receive_local() -> TombResult<()> {
+        let mut client = authenticated_client().await?;
+        info!("tomb_wasm_test: create_bucket_mount_write_share_receive()");
+        let (private_pem, public_pem) = ecencryption_key_pair().await;
+        let bucket_mount =
+            create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+        let mut mount = bucket_mount.mount();
+        assert!(!mount.locked());
+        let write_path_array: Array = js_array(&["zero.bin"]).into();
+        let ls_path_array: Array = js_array(&[]).into();
+        let zero_content_buffer = Uint8Array::new_with_length(10);
+        let zero_content_array_buffer = zero_content_buffer.buffer();
+        mount
+            .write(write_path_array.clone(), zero_content_array_buffer.clone())
+            .await?;
+        let ls: Array = mount.ls(ls_path_array.clone()).await?;
+        assert_eq!(ls.length(), 1);
+        let ls_0 = ls.get(0);
+        let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+        assert_eq!(fs_entry.name(), "zero.bin");
+        assert_eq!(fs_entry.entry_type(), "file");
+        let shared_string = mount.share_file(write_path_array).await?;
+
+        let cs = mount.content_blockstore();
+        let new_bytes = client
+            .read_shared_file_from_bs(shared_string, &cs)
+            .await?
+            .to_vec();
+        // Assert successful reconstruction
+        assert_eq!(new_bytes, zero_content_buffer.to_vec());
+
+        Ok(())
+    }
+
+    // // TODO: this is failing due to the server not receiving appropriate updates in a timely manner
+    // #[wasm_bindgen_test]
+    // async fn mount_write_share_receive() -> TombResult<()> {
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_write_share_receive()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(10);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array.clone(), zero_content_array_buffer.clone())
+    //         .await?;
+    //     let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    //     assert_eq!(ls.length(), 1);
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+    //     assert_eq!(fs_entry.name(), "zero.bin");
+    //     assert_eq!(fs_entry.entry_type(), "file");
+    //     let shared_string = mount.share_file(write_path_array).await?;
+
+    //     // Wait 5 seconds for the write to complete server-side
+    //     gloo_timers::future::TimeoutFuture::new(5_000).await;
+
+    //     let new_bytes = client
+    //         .read_shared_file(shared_string)
+    //         .await
+    //         .expect("read_shared_file_from_bs failed")
+    //         .to_vec();
+
+    //     // Assert successful reconstruction
+    //     assert_eq!(new_bytes, zero_content_buffer.to_vec());
+
+    //     Ok(())
+    // }
+
+    #[wasm_bindgen_test]
     async fn snapshot() -> TombResult<()> {
         let mut client = authenticated_client().await?;
         info!("tomb_wasm_test: create_bucket_mount_snapshot()");
@@ -176,11 +290,6 @@ mod test {
         assert!(!mount.has_snapshot());
         let _snapshot_id = mount.snapshot().await?;
         assert!(mount.has_snapshot());
-        //assert_eq!(snapshot.bucket_id(), bucket.id().to_string());
-        //assert_eq!(
-        //    snapshot.metadata_id(),
-        //    mount.metadata().expect("metadata").id().to_string()
-        //);
 
         let mount = client
             .mount(mount.bucket().id().to_string(), private_pem)
@@ -392,4 +501,49 @@ mod test {
         assert_eq!(fs_entry.entry_type(), "file");
         Ok(())
     }
+
+    // // TODO: this is failing due to the server not receiving appropriate updates in a timely manner
+    // #[wasm_bindgen_test]
+    // async fn write_remount_mv() -> TombResult<()> {
+    //     register_log();
+    //     let mut client = authenticated_client().await?;
+    //     info!("tomb_wasm_test: create_bucket_mount_write_mv()");
+    //     let (private_pem, public_pem) = ecencryption_key_pair().await;
+    //     let bucket_mount =
+    //         create_bucket_and_mount(&mut client, private_pem.clone(), public_pem).await?;
+    //     let mut mount = bucket_mount.mount();
+    //     assert!(!mount.locked());
+    //     let write_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let ls_path_array: Array = js_array(&[]).into();
+    //     let zero_content_buffer = Uint8Array::new_with_length(10);
+    //     let zero_content_array_buffer = zero_content_buffer.buffer();
+    //     mount
+    //         .write(write_path_array, zero_content_array_buffer)
+    //         .await?;
+    //     let ls: Array = mount.ls(ls_path_array.clone()).await?;
+    //     assert_eq!(ls.length(), 1);
+
+    //     // Wait 5 seconds for the write to complete server-side
+    //     gloo_timers::future::TimeoutFuture::new(5_000).await;
+
+    //     let mut mount = client
+    //         .mount(bucket_mount.bucket().id().to_string(), private_pem)
+    //         .await
+    //         .expect("remount failed");
+    //     let mv_from_path_array: Array = js_array(&["zero.bin"]).into();
+    //     let mv_to_path_array: Array = js_array(&["zero-renamed.bin"]).into();
+    //     mount
+    //         .mv(mv_from_path_array, mv_to_path_array)
+    //         .await
+    //         .expect("mv failed");
+    //     let ls: Array = mount.ls(ls_path_array).await.expect("ls failed");
+    //     assert_eq!(ls.length(), 1);
+    //     let ls_0 = ls.get(0);
+    //     let fs_entry = WasmFsMetadataEntry::try_from(ls_0).unwrap();
+
+    //     assert_eq!(fs_entry.name(), "zero-renamed.bin");
+    //     assert_eq!(fs_entry.entry_type(), "file");
+
+    //     Ok(())
+    // }
 }

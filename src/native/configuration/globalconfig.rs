@@ -112,6 +112,7 @@ impl GlobalConfig {
         Ok(client)
     }
 
+    #[allow(unused)]
     /// Save the Client data to the config
     pub async fn save_client(&mut self, client: Client) -> Result<(), NativeError> {
         // Update the Remote endpoints

@@ -36,6 +36,8 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
     }
 
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
+        // TODO: this needs to be .ok() since some workflows use a BanyanApiBlockStore as the secondary
+        // and it does not implement put_block ...
         BlockStore::put_block(self.secondary, bytes.clone(), codec)
             .await
             .ok();

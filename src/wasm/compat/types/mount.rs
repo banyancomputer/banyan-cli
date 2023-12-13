@@ -361,6 +361,14 @@ impl WasmMount {
 
         Ok(())
     }
+
+    pub fn content_blockstore(&self) -> BlockStore {
+        self.content_blockstore.clone()
+    }
+
+    pub fn metadata_blockstore(&self) -> BlockStore {
+        self.metadata_blockstore.clone()
+    }
 }
 
 #[wasm_bindgen]
@@ -699,7 +707,12 @@ impl WasmMount {
             "mv()/{} - dirty, syncing changes",
             self.bucket.id.to_string()
         );
+
         self.dirty = true;
+        // In order to keep sharing working, we need to append the content blockstore on move.
+        // Not ideal but it works.
+        self.append = true;
+
         self.sync().await?;
 
         // Ok
@@ -828,6 +841,12 @@ impl WasmMount {
     /// Share a file snapshot
     #[wasm_bindgen(js_name = shareFile)]
     pub async fn share_file(&mut self, path_segments: Array) -> TombResult<String> {
+        info!(
+            "share_file()/{}/{}",
+            self.bucket.id.to_string(),
+            &path_segments.join("/")
+        );
+
         // Read the array as a Vec<String>
         let path_segments = path_segments
             .iter()
@@ -852,6 +871,8 @@ impl WasmMount {
 
         // Mark as dirty so and additional blocks are persisted remotely
         self.dirty = true;
+        // Mark as append so the content blockstore is uploaded
+        self.append = true;
 
         info!(
             "share_file/{} - dirty, syncing changes",
