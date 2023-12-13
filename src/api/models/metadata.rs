@@ -1,9 +1,9 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use wnfs::libipld::Cid;
 use std::collections::BTreeSet;
 use std::fmt::Display;
 use uuid::Uuid;
+use wnfs::libipld::Cid;
 
 use {
     crate::api::{
@@ -193,12 +193,16 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(&self, active_cids: BTreeSet<Cid>, client: &mut Client) -> Result<Uuid, ApiError> {
+    pub async fn snapshot(
+        &self,
+        active_cids: BTreeSet<Cid>,
+        client: &mut Client,
+    ) -> Result<Uuid, ApiError> {
         let snapshot_resp = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
                 metadata_id: self.id,
-                active_cids
+                active_cids,
             })
             .await?;
 
@@ -248,6 +252,7 @@ pub(crate) mod test {
         .await?;
         Ok((metadata, host, authorization))
     }
+
     pub async fn push_metadata_and_snapshot(
         bucket_id: Uuid,
         client: &mut Client,

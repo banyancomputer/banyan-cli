@@ -13,7 +13,7 @@ use crate::api::requests::ApiRequest;
 pub struct CreateSnapshot {
     pub bucket_id: Uuid,
     pub metadata_id: Uuid,
-    pub active_cids: BTreeSet<Cid>
+    pub active_cids: BTreeSet<Cid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -27,7 +27,7 @@ impl ApiRequest for CreateSnapshot {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let path = format!(
-            "/api/v1/buckets/{}/snapshots/{}",
+            "/api/v1/buckets/{}/metadata/{}/snapshot",
             self.bucket_id, self.metadata_id
         );
         let full_url = base_url.join(&path).unwrap();
