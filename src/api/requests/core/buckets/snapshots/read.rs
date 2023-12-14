@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::api::requests::ApiRequest;
-use crate::prelude::api::models::snapshot::Snapshot;
+
 
 #[derive(Debug, Serialize)]
 pub struct ReadAllSnapshots {
@@ -76,6 +76,9 @@ impl Display for ReadSnapshotError {
 
 impl Error for ReadSnapshotError {}
 
+#[cfg(test)]
+use crate::prelude::api::models::snapshot::Snapshot;
+#[cfg(test)]
 impl ReadSnapshotResponse {
     pub(crate) fn to_snapshot(&self, bucket_id: Uuid) -> Snapshot {
         Snapshot {

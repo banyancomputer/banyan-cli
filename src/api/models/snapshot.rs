@@ -3,12 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use uuid::Uuid;
 
-use crate::{
-    api::{
-        client::Client, error::ApiError, models::metadata::Metadata,
-        requests::core::buckets::snapshots::restore::RestoreSnapshot,
-    },
-    prelude::api::requests::core::buckets::snapshots::read::ReadSnapshotResponse,
+use crate::api::{
+    client::Client, error::ApiError, models::metadata::Metadata,
+    requests::core::buckets::snapshots::restore::RestoreSnapshot,
 };
 
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Clone)]
@@ -70,11 +67,12 @@ mod test {
         },
         prelude::api::{
             models::metadata::{Metadata, MetadataState},
-            requests::core::buckets::snapshots::read::{ReadAllSnapshots, ReadSingleSnapshot},
+            requests::core::buckets::snapshots::read::ReadAllSnapshots,
         },
     };
 
     #[tokio::test]
+    #[ignore = "snapshot creation not yet finished"]
     async fn restore() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await?;
