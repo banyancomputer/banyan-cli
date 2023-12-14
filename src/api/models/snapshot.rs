@@ -90,10 +90,6 @@ mod test {
             })
             .await?;
         let snapshot = snapshots.0[0].to_snapshot(bucket.id);
-        // println!("snapshots: {:?}", snapshots.0);
-        // let snapshot = client.call(ReadSingleSnapshot { bucket_id: bucket.id, snapshot_id }).await?;
-        // println!("snapshot: {:?}", snapshot);
-
         let restored_metadata_id = snapshot.restore(&mut client).await?;
         assert_eq!(restored_metadata_id, metadata.id);
         let restored_metadata =

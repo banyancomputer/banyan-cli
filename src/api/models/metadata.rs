@@ -362,14 +362,12 @@ pub(crate) mod test {
 
         let read_metadata =
             Metadata::read(setup.bucket.id, setup.metadata.id, &mut setup.client).await?;
-        // assert_eq!(setup.metadata, read_metadata);
 
         let mut stream = read_metadata.pull(&mut setup.client).await?;
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
-        // assert_eq!(data, setup.metadata_store.get_data());
         Ok(())
     }
 
