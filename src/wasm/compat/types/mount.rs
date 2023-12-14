@@ -19,7 +19,9 @@ use crate::{
     },
     blockstore::{BanyanApiBlockStore, CarV2MemoryBlockStore as BlockStore, RootedBlockStore},
     filesystem::FsMetadata,
-    prelude::blockstore::DoubleSplitStore,
+    prelude::{
+        api::requests::core::buckets::metadata::push::PushMetadata, blockstore::DoubleSplitStore,
+    },
     wasm::{
         to_wasm_error_with_msg, TombResult, TombWasmError, WasmBucket, WasmBucketMetadata,
         WasmFsMetadataEntry, WasmSharedFile, WasmSnapshot,
@@ -41,12 +43,14 @@ pub struct WasmMount {
     locked: bool,
     /// Whether or not a change requires a call to save
     dirty: bool,
-
     /// Whether or not data has been appended to the content blockstore
     append: bool,
 
     /// Deleted Block CIDs
     deleted_block_cids: BTreeSet<String>,
+
+    /// Previous root CID of the Metadata BlockStore
+    previous_cid: Option<String>,
 
     metadata_blockstore: BlockStore,
     content_blockstore: BlockStore,
@@ -79,6 +83,8 @@ impl WasmMount {
             client: client.to_owned(),
             bucket,
             metadata: None,
+            fs_metadata: Some(fs_metadata),
+
             locked: false,
             dirty: true,
             append: false,
@@ -86,7 +92,7 @@ impl WasmMount {
             deleted_block_cids: BTreeSet::new(),
             metadata_blockstore,
             content_blockstore,
-            fs_metadata: Some(fs_metadata),
+            previous_cid: None,
         };
 
         info!("new()/{} - syncing", wasm_bucket.id());
@@ -94,6 +100,7 @@ impl WasmMount {
         // Ok
         Ok(mount)
     }
+
     /// Initialize a new Wasm callable mount with metadata for a bucket and a client
     pub async fn pull(wasm_bucket: WasmBucket, client: &mut Client) -> Result<Self, TombWasmError> {
         info!("pull()/{}", wasm_bucket.id());
@@ -141,6 +148,7 @@ impl WasmMount {
 
             metadata_blockstore,
             content_blockstore,
+            previous_cid: Some(metadata_cid),
             fs_metadata: None,
         })
     }
@@ -260,18 +268,21 @@ impl WasmMount {
             data_size
         );
         let (metadata, host, authorization) = Metadata::push(
-            self.bucket.id,
-            root_cid.to_string(),
-            metadata_cid.to_string(),
-            data_size,
-            self.fs_metadata
-                .as_ref()
-                .ok_or(TombWasmError::new("missing FsMetadata"))?
-                .share_manager
-                .public_fingerprints(),
-            // This may lint as an error but it is not
-            self.deleted_block_cids.clone(),
-            Cursor::new(self.metadata_blockstore.get_data()),
+            PushMetadata {
+                bucket_id: self.bucket.id,
+                expected_data_size: data_size,
+                root_cid: root_cid.to_string(),
+                metadata_cid: metadata_cid.to_string(),
+                previous_cid: self.previous_cid.clone(),
+                valid_keys: self
+                    .fs_metadata
+                    .as_ref()
+                    .ok_or(TombWasmError::new("missing FsMetadata"))?
+                    .share_manager
+                    .public_fingerprints(),
+                deleted_block_cids: self.deleted_block_cids.clone(),
+                metadata_stream: Cursor::new(self.metadata_blockstore.get_data()),
+            },
             &mut self.client,
         )
         .await

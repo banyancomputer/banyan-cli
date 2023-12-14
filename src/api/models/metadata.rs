@@ -1,9 +1,10 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
-use std::fmt::Display;
+use std::{collections::BTreeSet, fmt::Display};
 use uuid::Uuid;
 use wnfs::libipld::Cid;
+
+use crate::prelude::api::requests::core::buckets::metadata::read::ReadMetadataResponse;
 
 use {
     crate::api::{
@@ -12,7 +13,7 @@ use {
         requests::core::buckets::{
             metadata::{
                 pull::PullMetadata,
-                push::{MetadataStreamType, PushMetadata},
+                push::PushMetadata,
                 read::{ReadAllMetadata, ReadCurrentMetadata, ReadMetadata},
             },
             snapshots::create::CreateSnapshot,
@@ -66,6 +67,8 @@ pub struct Metadata {
     pub root_cid: String,
     /// The CID of the Metadata CAR root
     pub metadata_cid: String,
+    /// The previous CID of the Metadata CAR root
+    pub previous_cid: Option<String>,
     /// The size of the data in bytes that this metadata points to
     pub data_size: u64,
     /// The state of the metadata
@@ -90,37 +93,24 @@ impl Display for Metadata {
 impl Metadata {
     // TODO: This should probably take a generic trait related to Tomb in order to restore these arguments
     /// Push new Metadata for a bucket. Creates a new metadata records and returns a storage ticket
-    #[allow(clippy::too_many_arguments)]
     pub async fn push(
-        bucket_id: Uuid,
-        root_cid: String,
-        metadata_cid: String,
-        expected_data_size: u64,
-        valid_keys: Vec<String>,
-        deleted_block_cids: BTreeSet<String>,
-        metadata_stream: MetadataStreamType,
+        push_metadata: PushMetadata,
         client: &mut Client,
     ) -> Result<(Self, Option<String>, Option<String>), ApiError> {
-        let response = client
-            .multipart(PushMetadata {
-                bucket_id,
-                root_cid: root_cid.clone(),
-                metadata_cid: metadata_cid.clone(),
-                expected_data_size,
-                valid_keys,
-                deleted_block_cids,
-                metadata_stream,
-            })
-            .await?;
-        let metadata = Self {
-            id: response.id,
-            bucket_id,
-            root_cid,
-            metadata_cid,
+        let mut metadata = Self {
+            id: Uuid::default(),
+            bucket_id: push_metadata.bucket_id,
+            root_cid: push_metadata.root_cid.clone(),
+            metadata_cid: push_metadata.metadata_cid.clone(),
+            previous_cid: push_metadata.previous_cid.clone(),
             data_size: 0,
-            state: response.state,
+            state: MetadataState::UploadFailed,
             snapshot_id: None,
         };
+
+        let response = client.multipart(push_metadata).await?;
+        metadata.id = response.id;
+        metadata.state = response.state;
 
         Ok((
             metadata,
@@ -149,15 +139,7 @@ impl Metadata {
     /// Read the a specific metadata of a bucket
     pub async fn read(bucket_id: Uuid, id: Uuid, client: &mut Client) -> Result<Self, ApiError> {
         let response = client.call(ReadMetadata { bucket_id, id }).await?;
-        Ok(Self {
-            id: response.id,
-            bucket_id,
-            root_cid: response.root_cid,
-            metadata_cid: response.metadata_cid,
-            data_size: response.data_size as u64,
-            state: response.state,
-            snapshot_id: response.snapshot_id,
-        })
+        Ok(Self::from_read_response(bucket_id, response))
     }
 
     /// Read all the metadata for a bucket
@@ -166,30 +148,14 @@ impl Metadata {
         Ok(response
             .0
             .into_iter()
-            .map(|response| Self {
-                id: response.id,
-                bucket_id,
-                root_cid: response.root_cid,
-                metadata_cid: response.metadata_cid,
-                data_size: response.data_size as u64,
-                state: response.state,
-                snapshot_id: response.snapshot_id,
-            })
+            .map(|response| Self::from_read_response(bucket_id, response))
             .collect())
     }
 
     /// Read the current metadata for a bucket
     pub async fn read_current(bucket_id: Uuid, client: &mut Client) -> Result<Self, ApiError> {
         let response = client.call(ReadCurrentMetadata { bucket_id }).await?;
-        Ok(Self {
-            id: response.id,
-            bucket_id,
-            root_cid: response.root_cid,
-            metadata_cid: response.metadata_cid,
-            data_size: response.data_size as u64,
-            state: response.state,
-            snapshot_id: response.snapshot_id,
-        })
+        Ok(Self::from_read_response(bucket_id, response))
     }
 
     /// Snapshot the current metadata
@@ -207,6 +173,20 @@ impl Metadata {
             .await?;
 
         Ok(snapshot_resp.id)
+    }
+
+    /// Given a bucket id and a ReadMetadataResponse, create a new Metadata object
+    fn from_read_response(bucket_id: Uuid, response: ReadMetadataResponse) -> Self {
+        Self {
+            id: response.id,
+            bucket_id,
+            root_cid: response.root_cid,
+            metadata_cid: response.metadata_cid,
+            previous_cid: response.previous_cid,
+            data_size: response.data_size as u64,
+            state: response.state,
+            snapshot_id: response.snapshot_id,
+        }
     }
 }
 
@@ -235,7 +215,7 @@ pub(crate) mod test {
         blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
         filesystem::FsMetadata,
         prelude::api::requests::{
-            core::buckets::snapshots::read::ReadSingleSnapshot,
+            core::buckets::{metadata::push::PushMetadata, snapshots::read::ReadSingleSnapshot},
             staging::upload::content::UploadContent,
         },
     };
@@ -245,13 +225,16 @@ pub(crate) mod test {
         client: &mut Client,
     ) -> Result<(Metadata, Option<String>, Option<String>), ApiError> {
         let (metadata, host, authorization) = Metadata::push(
-            bucket_id,
-            "root_cid".to_string(),
-            "metadata_cid".to_string(),
-            0,
-            vec![],
-            BTreeSet::new(),
-            Body::from("metadata_stream".as_bytes()),
+            PushMetadata {
+                bucket_id,
+                expected_data_size: 0,
+                root_cid: String::from("root_cid"),
+                metadata_cid: String::from("metadata_cid"),
+                previous_cid: None,
+                valid_keys: vec![],
+                deleted_block_cids: BTreeSet::new(),
+                metadata_stream: Body::from("metadata_stream".as_bytes()),
+            },
             client,
         )
         .await?;
@@ -318,15 +301,25 @@ pub(crate) mod test {
         .await?;
         // Save
         fs.save(&metadata_store, &content_store).await?;
+
         // Push metadata
         let (metadata, host, authorization) = Metadata::push(
-            bucket.id,
-            content_store.get_root().unwrap().to_string(),
-            metadata_store.get_root().unwrap().to_string(),
-            metadata_store.data_size(),
-            fs.share_manager.public_fingerprints(),
-            BTreeSet::new(),
-            metadata_store.get_data().into(),
+            PushMetadata {
+                bucket_id: bucket.id,
+                expected_data_size: content_store.data_size(),
+                root_cid: content_store
+                    .get_root()
+                    .ok_or(ApiError::missing_data("root_cid"))?
+                    .to_string(),
+                metadata_cid: metadata_store
+                    .get_root()
+                    .ok_or(ApiError::missing_data("metadata_cid"))?
+                    .to_string(),
+                previous_cid: None,
+                valid_keys: fs.share_manager.public_fingerprints(),
+                deleted_block_cids: BTreeSet::new(),
+                metadata_stream: content_store.get_data().into(),
+            },
             &mut client,
         )
         .await?;

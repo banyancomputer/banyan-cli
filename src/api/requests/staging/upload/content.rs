@@ -74,7 +74,6 @@ mod test {
     };
 
     #[tokio::test]
-
     async fn upload_content() -> Result<(), ApiError> {
         let mut setup = setup_and_push_metadata("upload_content").await?;
         // Create a grant and upload content
