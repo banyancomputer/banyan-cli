@@ -55,28 +55,48 @@ impl Snapshot {
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
-    use crate::api::{
-        error::ApiError,
-        models::{
-            account::test::authenticated_client, bucket::test::create_bucket,
-            metadata::test::push_empty_metadata,
+    use std::{collections::BTreeSet, thread, time::Duration};
+
+    use crate::{
+        api::{
+            error::ApiError,
+            models::{
+                account::test::authenticated_client, bucket::test::create_bucket,
+                metadata::test::push_empty_metadata,
+            },
+        },
+        prelude::api::{
+            models::metadata::{Metadata, MetadataState},
+            requests::core::buckets::snapshots::read::ReadAllSnapshots,
         },
     };
 
     #[tokio::test]
+    #[ignore = "snapshot creation not yet finished"]
     async fn restore() -> Result<(), ApiError> {
         let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await.unwrap();
-        let (metadata, _, _) = push_empty_metadata(bucket.id, &mut client).await.unwrap();
-        let _snapshot_id = metadata.snapshot(&mut client).await.unwrap();
-        //let restored_metadata_id = snapshot.restore(&mut client).await.unwrap();
-        //assert_eq!(restored_metadata_id, metadata.id);
-        //let restored_metadata = Metadata::read(bucket.id, restored_metadata_id, &mut client)
-        //    .await
-        //    .unwrap();
-        //assert_eq!(restored_metadata.id, metadata.id);
-        //assert_eq!(metadata.bucket_id, restored_metadata.bucket_id);
-        //assert_eq!(restored_metadata.state, MetadataState::Current);
+        let (bucket, _) = create_bucket(&mut client).await?;
+        let (metadata, _, _) = push_empty_metadata(bucket.id, &mut client).await?;
+        let snapshot_id = metadata.snapshot(BTreeSet::new(), &mut client).await?;
+
+        thread::sleep(Duration::new(1, 0));
+
+        println!("searching for snapshot_id {}", snapshot_id);
+
+        // Create a Snapshot object after reading it down
+        let snapshots = client
+            .call(ReadAllSnapshots {
+                bucket_id: bucket.id,
+            })
+            .await?;
+        let snapshot = snapshots.0[0].to_snapshot(bucket.id);
+        let restored_metadata_id = snapshot.restore(&mut client).await?;
+        assert_eq!(restored_metadata_id, metadata.id);
+        let restored_metadata =
+            Metadata::read(bucket.id, restored_metadata_id, &mut client).await?;
+        assert_eq!(restored_metadata.id, metadata.id);
+        assert_eq!(metadata.bucket_id, restored_metadata.bucket_id);
+        assert_eq!(restored_metadata.state, MetadataState::Current);
         Ok(())
     }
 }

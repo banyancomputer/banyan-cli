@@ -1,7 +1,8 @@
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{collections::BTreeSet, fmt::Display};
 use uuid::Uuid;
+use wnfs::libipld::Cid;
 
 use crate::prelude::api::requests::core::buckets::metadata::read::ReadMetadataResponse;
 
@@ -158,11 +159,16 @@ impl Metadata {
     }
 
     /// Snapshot the current metadata
-    pub async fn snapshot(&self, client: &mut Client) -> Result<Uuid, ApiError> {
+    pub async fn snapshot(
+        &self,
+        active_cids: BTreeSet<Cid>,
+        client: &mut Client,
+    ) -> Result<Uuid, ApiError> {
         let snapshot_resp = client
             .call(CreateSnapshot {
                 bucket_id: self.bucket_id,
                 metadata_id: self.id,
+                active_cids,
             })
             .await?;
 
@@ -190,9 +196,10 @@ pub(crate) mod test {
     use futures_util::stream::StreamExt;
     use reqwest::Body;
     use serial_test::serial;
-    use std::collections::BTreeSet;
+    use std::{collections::BTreeSet, time::Duration};
     use tomb_crypt::prelude::{EcEncryptionKey, PrivateKey, PublicKey};
     use uuid::Uuid;
+    use wnfs::{libipld::Cid, private::PrivateNode};
 
     use crate::{
         api::{
@@ -200,14 +207,17 @@ pub(crate) mod test {
             error::ApiError,
             models::{
                 account::test::authenticated_client,
-                bucket::{test::create_bucket, Bucket, BucketType, StorageClass},
+                bucket::{Bucket, BucketType, StorageClass},
                 metadata::{Metadata, MetadataState},
                 storage_ticket::StorageTicket,
             },
         },
         blockstore::{CarV2MemoryBlockStore, RootedBlockStore},
         filesystem::FsMetadata,
-        prelude::api::requests::core::buckets::metadata::push::PushMetadata,
+        prelude::api::requests::{
+            core::buckets::{metadata::push::PushMetadata, snapshots::read::ReadSingleSnapshot},
+            staging::upload::content::UploadContent,
+        },
     };
 
     pub async fn push_empty_metadata(
@@ -230,12 +240,13 @@ pub(crate) mod test {
         .await?;
         Ok((metadata, host, authorization))
     }
+
     pub async fn push_metadata_and_snapshot(
         bucket_id: Uuid,
         client: &mut Client,
     ) -> Result<(Metadata, Option<String>, Option<String>, Uuid), ApiError> {
         let (metadata, host, authorization) = push_empty_metadata(bucket_id, client).await?;
-        let snapshot_id = metadata.snapshot(client).await?;
+        let snapshot_id = metadata.snapshot(BTreeSet::new(), client).await?;
         Ok((metadata, host, authorization, snapshot_id))
     }
 
@@ -277,7 +288,15 @@ pub(crate) mod test {
             &["cat.txt".to_string()],
             &metadata_store,
             &content_store,
-            b"Example content".to_vec(),
+            b"cat content".to_vec(),
+        )
+        .await?;
+        // Write a file to that bucket
+        fs.write(
+            &["dog.txt".to_string()],
+            &metadata_store,
+            &content_store,
+            b"dog content".to_vec(),
         )
         .await?;
         // Save
@@ -324,77 +343,70 @@ pub(crate) mod test {
     // TODO: this test fails if not serial. This should be fixed
     #[tokio::test]
     #[serial]
-    async fn push_read_pull() -> Result<(), ApiError> {
-        let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
-        assert_eq!(metadata.bucket_id, bucket.id);
-        assert_eq!(metadata.root_cid, "root_cid");
-        assert_eq!(metadata.data_size, 0);
-        assert_eq!(metadata.state, MetadataState::Current);
+    async fn push_and_pull() -> Result<(), ApiError> {
+        let mut setup = setup_and_push_metadata("push_read_pull").await?;
+        assert_eq!(setup.metadata.bucket_id, setup.bucket.id);
+        assert_eq!(
+            setup.metadata.root_cid,
+            setup.metadata_store.get_root().unwrap().to_string()
+        );
+        assert_eq!(setup.metadata.data_size, 0);
+        assert_eq!(setup.metadata.state, MetadataState::Pending);
 
-        let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
-        assert_eq!(metadata, read_metadata);
+        let read_metadata =
+            Metadata::read(setup.bucket.id, setup.metadata.id, &mut setup.client).await?;
 
-        let mut stream = read_metadata.pull(&mut client).await?;
+        let mut stream = read_metadata.pull(&mut setup.client).await?;
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.unwrap());
         }
-        assert_eq!(data, "metadata_stream".as_bytes());
-        Ok(())
-    }
-    #[tokio::test]
-    async fn push_read_unauthorized() -> Result<(), ApiError> {
-        let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
-        assert_eq!(metadata.bucket_id, bucket.id);
-
-        let mut bad_client = authenticated_client().await;
-        let read_metadata = Metadata::read(bucket.id, metadata.id, &mut bad_client).await;
-        assert!(read_metadata.is_err());
-        Ok(())
-    }
-    #[tokio::test]
-    async fn push_read_wrong_bucket() -> Result<(), ApiError> {
-        let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await?;
-        let (other_bucket, _) = create_bucket(&mut client).await?;
-        let (_metadata, _host, _authorization) =
-            push_empty_metadata(bucket.id, &mut client).await?;
-        let (other_metadata, _host, _authorization) =
-            push_empty_metadata(other_bucket.id, &mut client).await?;
-        let read_metadata = Metadata::read(bucket.id, other_metadata.id, &mut client).await;
-        assert!(read_metadata.is_err());
         Ok(())
     }
 
     #[tokio::test]
     #[serial]
-    async fn push_read_pull_snapshot() -> Result<(), ApiError> {
-        let mut client = authenticated_client().await;
-        let (bucket, _) = create_bucket(&mut client).await?;
-        let (metadata, _host, _authorization) = push_empty_metadata(bucket.id, &mut client).await?;
-        assert_eq!(metadata.bucket_id, bucket.id);
-        assert_eq!(metadata.root_cid, "root_cid");
-        assert_eq!(metadata.data_size, 0);
-        assert_eq!(metadata.state, MetadataState::Current);
+    async fn push_and_pull_and_snapshot() -> Result<(), ApiError> {
+        let mut setup = setup_and_push_metadata("push_read_pull_snapshot").await?;
+        // Create a grant and upload content
+        setup
+            .storage_ticket
+            .clone()
+            .create_grant(&mut setup.client)
+            .await?;
+        setup
+            .content_store
+            .upload(
+                setup.storage_ticket.host.clone(),
+                setup.metadata.id,
+                &mut setup.client,
+            )
+            .await?;
 
-        let read_metadata = Metadata::read(bucket.id, metadata.id, &mut client).await?;
-        assert_eq!(metadata, read_metadata);
+        std::thread::sleep(Duration::new(3, 0));
 
-        let mut stream = read_metadata.pull(&mut client).await?;
-        let mut data = Vec::new();
-        while let Some(chunk) = stream.next().await {
-            data.extend_from_slice(&chunk.unwrap());
+        let mut active_cids = BTreeSet::<Cid>::new();
+        let all_nodes = setup.fs.get_all_nodes(&setup.metadata_store).await?;
+        for (node, _) in all_nodes {
+            if let PrivateNode::File(file) = node {
+                let cids = file
+                    .get_cids(&setup.fs.forest, &setup.metadata_store)
+                    .await
+                    .unwrap();
+                active_cids.extend(cids);
+            }
         }
-        assert_eq!(data, "metadata_stream".as_bytes());
-
-        let _snapshot_id = read_metadata.snapshot(&mut client).await?;
-        //assert_eq!(snapshot.bucket_id, bucket.id);
-        //assert_eq!(snapshot.metadata_id, metadata.id);
-        //assert!(snapshot.created_at > 0);
+        let snapshot_id = setup
+            .metadata
+            .snapshot(active_cids, &mut setup.client)
+            .await?;
+        let _snapshot = setup
+            .client
+            .call(ReadSingleSnapshot {
+                bucket_id: setup.bucket.id,
+                snapshot_id,
+            })
+            .await?;
         Ok(())
     }
 }

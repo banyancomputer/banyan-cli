@@ -919,7 +919,6 @@ impl WasmMount {
     /// # Errors
     /// * "missing metadata" - If the metadata is missing
     /// * "could not snapshot" - If the snapshot fails
-    #[wasm_bindgen(js_name = snapshot)]
     pub async fn snapshot(&mut self) -> TombResult<String> {
         info!("snapshot()/{}", self.bucket.id.to_string());
         let metadata = self
@@ -927,8 +926,29 @@ impl WasmMount {
             .as_mut()
             .ok_or_else(|| TombWasmError::new("no metadata associated with mount to snapshot"))?;
 
+        let fs = self
+            .fs_metadata
+            .as_mut()
+            .ok_or(TombWasmError::new("missing FsMetadata"))?;
+
+        let all_nodes = fs
+            .get_all_nodes(&self.metadata_blockstore)
+            .await
+            .map_err(to_wasm_error_with_msg("get all nodes"))?;
+
+        let mut active_cids = BTreeSet::new();
+        for (node, _) in all_nodes {
+            if let PrivateNode::File(file) = node {
+                let file_cids = file
+                    .get_cids(&fs.forest, &self.metadata_blockstore)
+                    .await
+                    .map_err(|_| TombWasmError::new("get cids"))?;
+                active_cids.extend(file_cids);
+            }
+        }
+
         let snapshot_id = metadata
-            .snapshot(&mut self.client)
+            .snapshot(active_cids, &mut self.client)
             .await
             .map_err(to_wasm_error_with_msg("take drive snapshot"))?;
 
