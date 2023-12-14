@@ -138,14 +138,17 @@ impl BucketKey {
 #[cfg(feature = "integration-tests")]
 #[cfg(test)]
 mod test {
-    use crate::api::{
-        models::{
-            account::test::authenticated_client,
-            bucket::test::create_bucket,
-            bucket_key::{ApiError, BucketKey},
-            metadata::Metadata,
+    use crate::{
+        api::{
+            models::{
+                account::test::authenticated_client,
+                bucket::test::create_bucket,
+                bucket_key::{ApiError, BucketKey},
+                metadata::Metadata,
+            },
+            utils::generate_bucket_key,
         },
-        utils::generate_bucket_key,
+        prelude::api::requests::core::buckets::metadata::push::PushMetadata,
     };
     use reqwest::Body;
     use std::collections::BTreeSet;
@@ -269,13 +272,16 @@ mod test {
 
         // Push metadata with the new BucketKey listed as valid
         Metadata::push(
-            bucket.id,
-            "root_cid".to_string(),
-            "metadata_cid".to_string(),
-            0,
-            vec![initial_bucket_key.fingerprint, bucket_key.fingerprint],
-            BTreeSet::new(),
-            Body::from("metadata_stream".as_bytes()),
+            PushMetadata {
+                bucket_id: bucket.id,
+                expected_data_size: 0,
+                root_cid: String::from("root_cid"),
+                metadata_cid: String::from("metadata_cid"),
+                previous_cid: None,
+                valid_keys: vec![initial_bucket_key.fingerprint, bucket_key.fingerprint],
+                deleted_block_cids: BTreeSet::new(),
+                metadata_stream: Body::from("metadata_stream"),
+            },
             &mut client,
         )
         .await?;

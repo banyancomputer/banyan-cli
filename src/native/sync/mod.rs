@@ -1,5 +1,6 @@
 mod local;
 mod omni;
+use crate::prelude::api::requests::core::buckets::metadata::push::PushMetadata;
 // mod sync;
 // mod error;
 // pub(crate) use error::SyncError;
@@ -189,18 +190,21 @@ impl OmniBucket {
 
                 // Push the metadata
                 let (metadata, host, authorization) = Metadata::push(
-                    bucket_id,
-                    local_content_cid.to_string(),
-                    local_metadata_cid.to_string(),
-                    delta.data_size(),
-                    fs.share_manager.public_fingerprints(),
-                    local
-                        .deleted_block_cids
-                        .clone()
-                        .iter()
-                        .map(|v| v.to_string())
-                        .collect(),
-                    tokio::fs::File::open(&local.metadata.path).await?.into(),
+                    PushMetadata {
+                        bucket_id,
+                        expected_data_size: delta.data_size(),
+                        root_cid: local_content_cid.to_string(),
+                        metadata_cid: local_metadata_cid.to_string(),
+                        previous_cid: local.previous_cid.map(|cid| cid.to_string()),
+                        valid_keys: fs.share_manager.public_fingerprints(),
+                        deleted_block_cids: local
+                            .deleted_block_cids
+                            .clone()
+                            .iter()
+                            .map(|v| v.to_string())
+                            .collect(),
+                        metadata_stream: tokio::fs::File::open(&local.metadata.path).await?.into(),
+                    },
                     &mut client,
                 )
                 .await?;
