@@ -31,7 +31,7 @@ impl ApiRequest for CreateSnapshot {
             self.bucket_id, self.metadata_id
         );
         let full_url = base_url.join(&path).unwrap();
-        client.post(full_url).json(&self)
+        client.post(full_url).json(&self.active_cids)
     }
 
     fn requires_authentication(&self) -> bool {

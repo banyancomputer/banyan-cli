@@ -7,7 +7,6 @@ use uuid::Uuid;
 
 use crate::api::requests::ApiRequest;
 
-
 #[derive(Debug, Serialize)]
 pub struct ReadAllSnapshots {
     pub bucket_id: Uuid,
