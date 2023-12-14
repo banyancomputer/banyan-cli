@@ -52,7 +52,6 @@ pub async fn pipeline(
 
     // Update global
     global.update_config(&local)?;
-    global.to_disk()?;
     // Ok
     Ok(format!(
         "successfully added {} to bucket",

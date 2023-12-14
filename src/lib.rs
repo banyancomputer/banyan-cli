@@ -42,7 +42,7 @@ pub mod prelude {
         pub use crate::car::{v1, v2};
     }
     pub mod filesystem {
-        pub use crate::filesystem::{serialize, sharing, wnfsio, FsMetadata};
+        pub use crate::filesystem::{serialize, sharing, wnfsio, FilesystemError, FsMetadata};
     }
     #[cfg(target_arch = "wasm32")]
     pub mod wasm {

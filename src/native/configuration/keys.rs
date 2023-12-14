@@ -28,6 +28,7 @@ pub async fn load_api_key(path: &PathBuf) -> Result<EcSignatureKey, NativeError>
     Ok(key)
 }
 
+#[allow(dead_code)]
 /// Save the API key to disk
 pub async fn save_api_key(path: &PathBuf, key: EcSignatureKey) -> Result<(), NativeError> {
     let mut writer = File::create(path)?;

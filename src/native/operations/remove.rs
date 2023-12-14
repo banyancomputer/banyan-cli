@@ -27,6 +27,5 @@ pub async fn pipeline(mut local: LocalBucket, wnfs_path: &Path) -> Result<(), Na
 
     // Update global
     global.update_config(&local)?;
-    global.to_disk()?;
     Ok(())
 }

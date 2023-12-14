@@ -73,9 +73,6 @@ url = { version = "^2", features = ["serde"] }
 uuid = { version = "^1", features = ["serde", "v4"] }
 wnfs = { git = "https://github.com/banyancomputer/rs-wnfs", branch = "main", version = "^0.1" }
 
-# Dependencies that must exist independent of architecture for testing
-# [dev-dependencies]
-
 # Native features
 [features]
 cli = []
@@ -97,6 +94,7 @@ wasm-bindgen-futures = { version = "^0.4" }
 # Dependencies that only need to exist when we are testing WASM
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 wasm-bindgen-test = { version = "^0.3" }
+gloo-timers = { version = "^0.3", features = ["futures"] }
 
 [[bin]]
 name = "banyan"

@@ -13,7 +13,6 @@ pub mod restore;
 #[cfg(feature = "cli")]
 mod test {
     use crate::{
-        api::client::Client,
         cli::specifiers::DriveSpecifier,
         filesystem::wnfsio::{decompress_bytes, path_to_segments},
         native::{
@@ -44,43 +43,19 @@ mod test {
 
     /// Simplified Prepare call function
     async fn prepare_pipeline(origin: &Path) -> Result<String, NativeError> {
-        let mut global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://127.0.0.1")?;
         let name = origin.file_name().unwrap().to_string_lossy().to_string();
-        let mut omni = OmniBucket::create(&mut global, &mut client, &name, origin).await?;
-        let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
-        let result = prepare::pipeline(fs, &mut omni, &mut client, true).await;
-        global.save_client(client).await?;
-        global.update_config(&omni.get_local()?)?;
-        global.to_disk()?;
-        result
+        let omni = OmniBucket::create(&name, origin).await?;
+        prepare::pipeline(omni, true).await
     }
 
     /// Simplified Restore call function
     async fn restore_pipeline(origin: &Path, restored: &Path) -> Result<String, NativeError> {
-        let mut global = GlobalConfig::from_disk().await?;
-        let wrapping_key = global.wrapping_key().await?;
-        let mut client = Client::new("http://127.0.0.1")?;
-        let mut omni = OmniBucket::from_specifier(
-            &global,
-            &mut client,
-            &DriveSpecifier {
-                drive_id: None,
-                name: None,
-                origin: Some(origin.to_path_buf()),
-            },
-        )
-        .await;
-        let fs = omni.get_local()?.unlock_fs(&wrapping_key).await?;
+        let omni = OmniBucket::from_specifier(&DriveSpecifier::with_origin(origin)).await;
         let tmp = origin.parent().unwrap().join("tmp");
         rename(origin, &tmp)?;
-        let result = restore::pipeline(fs, &mut omni, &mut client).await;
+        let result = restore::pipeline(omni).await;
         rename(origin, restored)?;
         rename(tmp, origin)?;
-        global.save_client(client).await?;
-        global.update_config(&omni.get_local()?)?;
-        global.to_disk()?;
         result
     }
 
@@ -118,7 +93,7 @@ mod test {
         configure::remote_core(address).await?;
         // Assert it was actually modified
         assert_eq!(
-            GlobalConfig::from_disk().await?.endpoint.to_string(),
+            GlobalConfig::from_disk().await?.get_endpoint().to_string(),
             address.to_string()
         );
         Ok(())

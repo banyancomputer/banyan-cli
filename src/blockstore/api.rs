@@ -58,7 +58,6 @@ impl BanyanBlockStore for BanyanApiBlockStore {
     #[allow(clippy::await_holding_refcell_ref)]
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         let mut client = self.client.clone();
-
         // Pull the first url that has the block from the map of url: [block_id]
         let mut maybe_url = None;
         for (url, cids) in self.block_locations.borrow().iter() {
@@ -70,9 +69,9 @@ impl BanyanBlockStore for BanyanApiBlockStore {
             }
         }
 
-        let base_url = maybe_url.ok_or(BlockStoreError::wnfs(Box::from(
-            "BanyanApiBlockstore doesnt know the location of that Block",
-        )))?;
+        let base_url = maybe_url.ok_or(BlockStoreError::wnfs(Box::from(format!(
+            "No location found for block {cid}"
+        ))))?;
 
         let mut stream = client
             .stream(PullBlock { cid: *cid }, &base_url)

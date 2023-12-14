@@ -1,5 +1,4 @@
 use crate::{
-    api::client::Client,
     blockstore::{BanyanApiBlockStore, DoubleSplitStore, RootedBlockStore},
     filesystem::{wnfsio::path_to_segments, FsMetadata},
     native::{
@@ -21,18 +20,14 @@ use wnfs::private::PrivateNode;
 ///
 /// # Return Type
 /// Returns `Ok(())` on success, otherwise returns an error.
-pub async fn pipeline(
-    fs: FsMetadata,
-    omni: &mut OmniBucket,
-    client: &mut Client,
-) -> Result<String, NativeError> {
+pub async fn pipeline(mut omni: OmniBucket) -> Result<String, NativeError> {
+    let fs = omni.unlock().await?;
+    let local = omni.get_local()?;
+    let mut global = GlobalConfig::from_disk().await?;
+    let mut client = global.get_client().await?;
     // Announce that we're starting
     info!("🚀 Starting restoration pipeline...");
-    let restored = omni
-        .get_or_init_origin(&mut GlobalConfig::from_disk().await?)
-        .await?;
-    // Having a local bucket is non-optional
-    let local = omni.get_local()?;
+    let restored = omni.get_or_init_origin().await?;
 
     let metadata_store = &local.metadata;
     // Get all the nodes in the FileSystem
@@ -52,6 +47,8 @@ pub async fn pipeline(
         warn!("We notice you're offline or unauthenticated, reconstructing may fail if encrypted data is not already present on disk.");
         restore_nodes(&fs, all_nodes, restored, metadata_store, &local.content).await?;
     }
+
+    global.update_config(&local)?;
 
     Ok("🎉 Data has been successfully reconstructed!".to_string())
 }

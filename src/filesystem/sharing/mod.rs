@@ -10,7 +10,7 @@ pub mod mapper;
 mod shared_file;
 pub use shared_file::SharedFile;
 
-pub(crate) use error::SharingError;
+pub use error::SharingError;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
