@@ -244,10 +244,6 @@ pub(crate) mod test {
         bucket_id: Uuid,
         client: &mut Client,
     ) -> Result<(Metadata, Option<String>, Option<String>), ApiError> {
-        // let wrapping_key = EcEncryptionKey::generate().await?;
-        // let fs = FsMetadata::init(&wrapping_key).await?;
-        // fs.wr
-
         let (metadata, host, authorization) = Metadata::push(
             bucket_id,
             "root_cid".to_string(),
