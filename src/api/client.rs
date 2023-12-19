@@ -6,7 +6,7 @@ use bytes::Bytes;
 use futures_core::stream::Stream;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client as ReqwestClient, Url,
+    Client as ReqwestClient, StatusCode, Url,
 };
 use std::fmt::Debug;
 use tomb_crypt::prelude::{ApiToken, EcSignatureKey};
@@ -190,19 +190,23 @@ impl Client {
                 .await
                 .map_err(ApiError::format)
         } else {
-            // If we got a 404
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Return a HTTP response error
-                return Err(ApiError::http_response(response.status()));
-            }
+            let text = response.text().await?;
+            tracing::error!(text);
+            Err(ApiError::http_response(StatusCode::FORBIDDEN))
 
-            // For other error responses, try to deserialize the error
-            let err = response.json::<T::ErrorType>().await?;
+            // // If we got a 404
+            // if response.status() == reqwest::StatusCode::NOT_FOUND {
+            //     // Return a HTTP response error
+            //     return Err(ApiError::http_response(response.status()));
+            // }
 
-            // Wrap the error
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            // Return Err
-            Err(ApiError::from(err))
+            // // For other error responses, try to deserialize the error
+            // let err = response.json::<T::ErrorType>().await?;
+
+            // // Wrap the error
+            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            // // Return Err
+            // Err(ApiError::from(err))
         }
     }
 

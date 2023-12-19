@@ -49,14 +49,15 @@ impl Error for PullBlockError {}
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
-    use std::collections::BTreeSet;
     use crate::{
         api::{
             error::ApiError, models::metadata::test::setup_and_push_metadata,
             requests::staging::upload::content::UploadContent,
         },
-        blockstore::BanyanApiBlockStore, prelude::blockstore::BanyanBlockStore,
+        blockstore::BanyanApiBlockStore,
+        prelude::blockstore::BanyanBlockStore,
     };
+    use std::collections::BTreeSet;
     use wnfs::libipld::Cid;
 
     #[tokio::test]
