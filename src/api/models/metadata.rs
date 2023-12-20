@@ -125,13 +125,14 @@ impl Metadata {
         client: &mut Client,
     ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ApiError> {
         let base_url = client.remote_core.clone();
+        let mut client = client.clone();
+        client.remote_core = base_url;
         client
             .stream(
                 PullMetadata {
                     bucket_id: self.bucket_id,
                     id: self.id,
                 },
-                &base_url,
             )
             .await
     }

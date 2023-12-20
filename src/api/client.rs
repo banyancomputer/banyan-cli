@@ -260,16 +260,20 @@ impl Client {
                 .await
                 .map_err(ApiError::format)
         } else {
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
-                // You can extend this part to handle other status codes differently if needed
-                return Err(ApiError::http_response(response.status()));
-            }
-            // For other error responses, try to deserialize the error
-            let err = response.json::<T::ErrorType>().await?;
+            let text = response.text().await?;
+            println!("error text: {}", text);
+            Err(ApiError::auth_required())
 
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ApiError::from(err))
+            // if response.status() == reqwest::StatusCode::NOT_FOUND {
+            //     // Handle 404 specifically
+            //     // You can extend this part to handle other status codes differently if needed
+            //     return Err(ApiError::http_response(response.status()));
+            // }
+            // // For other error responses, try to deserialize the error
+            // let err = response.json::<T::ErrorType>().await?;
+
+            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            // Err(ApiError::from(err))
         }
     }
 
@@ -290,16 +294,19 @@ impl Client {
         if response.status().is_success() {
             Ok(())
         } else {
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
-                // You can extend this part to handle other status codes differently if needed
-                return Err(ApiError::http_response(response.status()));
-            }
-            // For other error responses, try to deserialize the error
-            let err = response.json::<T::ErrorType>().await?;
+            let text = response.text().await?;
+            println!("error text: {}", text);
+            Err(ApiError::auth_required())
+            // if response.status() == reqwest::StatusCode::NOT_FOUND {
+            //     // Handle 404 specifically
+            //     // You can extend this part to handle other status codes differently if needed
+            //     return Err(ApiError::http_response(response.status()));
+            // }
+            // // For other error responses, try to deserialize the error
+            // let err = response.json::<T::ErrorType>().await?;
 
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ApiError::from(err))
+            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            // Err(ApiError::from(err))
         }
     }
 
@@ -307,10 +314,10 @@ impl Client {
     pub async fn stream<T: StreamableApiRequest>(
         &mut self,
         request: T,
-        base_url: &Url,
+        // base_url: &Url,
     ) -> Result<impl Stream<Item = Result<Bytes, reqwest::Error>>, ApiError> {
         let add_authentication = request.requires_authentication();
-        let mut request_builder = request.build_request(base_url, &self.reqwest_client);
+        let mut request_builder = request.build_request(&self.remote_core, &self.reqwest_client);
         if add_authentication {
             let bearer_token = self.bearer_token().await?;
             request_builder = request_builder.bearer_auth(bearer_token);

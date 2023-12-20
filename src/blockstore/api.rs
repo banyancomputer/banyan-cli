@@ -1,7 +1,7 @@
 use crate::api::{
     client::Client,
     error::ApiError,
-    requests::{core::blocks::locate::LocationRequest, staging::blocks::PullBlock},
+    requests::{core::blocks::locate::LocationRequest, staging::blocks::ReadBlock},
 };
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -73,8 +73,9 @@ impl BanyanBlockStore for BanyanApiBlockStore {
             "No location found for block {cid}"
         ))))?;
 
+        client.remote_core = base_url;
         let mut stream = client
-            .stream(PullBlock { cid: *cid }, &base_url)
+            .stream(ReadBlock { cid: *cid })
             .await
             .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;
         let mut data = Vec::new();

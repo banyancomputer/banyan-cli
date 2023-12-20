@@ -8,15 +8,15 @@ use wnfs::libipld::Cid;
 use crate::api::requests::StreamableApiRequest;
 
 #[derive(Debug, Serialize)]
-pub struct PullBlock {
+pub struct ReadBlock {
     pub cid: Cid,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PullBlockResponse(pub(crate) Vec<u8>);
+pub struct ReadBlockResponse(pub(crate) Vec<u8>);
 
-impl StreamableApiRequest for PullBlock {
-    type ErrorType = PullBlockError;
+impl StreamableApiRequest for ReadBlock {
+    type ErrorType = ReadBlockError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         // TODO: Figure out how to get the block id
@@ -33,30 +33,31 @@ impl StreamableApiRequest for PullBlock {
 
 #[derive(Debug, Deserialize)]
 #[non_exhaustive]
-pub struct PullBlockError {
+pub struct ReadBlockError {
     #[serde(rename = "msg")]
     message: String,
 }
 
-impl Display for PullBlockError {
+impl Display for ReadBlockError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(self.message.as_ref())
     }
 }
 
-impl Error for PullBlockError {}
+impl Error for ReadBlockError {}
 
 #[cfg(test)]
 #[cfg(feature = "integration-tests")]
 mod test {
-    use std::collections::BTreeSet;
     use crate::{
         api::{
             error::ApiError, models::metadata::test::setup_and_push_metadata,
             requests::staging::upload::content::UploadContent,
         },
-        blockstore::BanyanApiBlockStore, prelude::blockstore::BanyanBlockStore,
+        blockstore::BanyanApiBlockStore,
+        prelude::blockstore::BanyanBlockStore,
     };
+    use std::collections::BTreeSet;
     use wnfs::libipld::Cid;
 
     #[tokio::test]
