@@ -66,7 +66,7 @@ mod test {
     #[tokio::test]
 
     async fn write_cids_read_cids() -> Result<(), ApiError> {
-        let mut setup = setup_and_push_metadata("download_content").await?;
+        let mut setup = setup_and_push_metadata("write_cids_read_cids").await?;
         // Create a grant and upload content
         setup
             .storage_ticket

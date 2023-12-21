@@ -346,20 +346,3 @@ impl Client {
         }
     }
 }
-
-// #[cfg(not(target_arch = "wasm32"))]
-// fn multipart_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-//     // Don't do anything!
-//     request
-// }
-//
-// #[cfg(target_arch = "wasm32")]
-// fn multipart_headers(request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-//     // Unset the content type header. The browser will set it automatically.
-//     // If using in node environment ... 🤷‍♂️
-//     request
-//         .try_clone()
-//         .expect("failed to clone request builder")
-//         .header("Content-Type", "");
-//     request
-// }

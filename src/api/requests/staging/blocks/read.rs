@@ -91,7 +91,8 @@ mod test {
         api_store.find_cids(cids.clone()).await?;
 
         for cid in &cids {
-            BanyanBlockStore::get_block(&api_store, cid).await?;
+            let block = BanyanBlockStore::get_block(&api_store, cid).await?.to_vec();
+            assert_eq!(setup.content_store.get_block(cid).await?.to_vec(), block);
         }
 
         Ok(())
