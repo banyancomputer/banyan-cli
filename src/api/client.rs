@@ -6,9 +6,9 @@ use bytes::Bytes;
 use futures_core::stream::Stream;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
-    Client as ReqwestClient, StatusCode, Url,
+    Client as ReqwestClient, Url,
 };
-use std::{borrow::Borrow, fmt::Debug};
+use std::fmt::Debug;
 use tomb_crypt::prelude::{ApiToken, EcSignatureKey};
 use uuid::Uuid;
 
@@ -292,23 +292,26 @@ impl Client {
         }
 
         let response = request_builder.send().await?;
+        let status = response.status();
+        let bytes = response.bytes().await?.to_vec();
 
-        if response.status().is_success() {
+        if status.is_success() {
             Ok(())
         } else {
-            let text = response.text().await?;
-            println!("error text: {}", text);
-            Err(ApiError::auth_required())
-            // if response.status() == reqwest::StatusCode::NOT_FOUND {
-            //     // Handle 404 specifically
-            //     // You can extend this part to handle other status codes differently if needed
-            //     return Err(ApiError::http_response(response.status()));
-            // }
-            // // For other error responses, try to deserialize the error
-            // let err = response.json::<T::ErrorType>().await?;
-
-            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            // Err(ApiError::from(err))
+            // Handle 404 specifically
+            if status == reqwest::StatusCode::NOT_FOUND {
+                // You can extend this part to handle other status codes differently if needed
+                return Err(ApiError::http_response(status));
+            }
+            // For other error responses, try to deserialize the error
+            if let Ok(err) = serde_json::from_slice::<T::ErrorType>(&bytes) {
+                let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+                Err(ApiError::from(err))
+            } else {
+                Err(ApiError::custom(
+                    &String::from_utf8(bytes).map_err(|_| ApiError::custom("utf8"))?,
+                ))
+            }
         }
     }
 

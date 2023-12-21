@@ -22,10 +22,7 @@ impl ApiRequest for WriteBlock {
     type ResponseType = WriteBlockResponse;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
-        // TODO: Figure out how to get the block id
-        let path = format!("/api/v1/blocks");
-        let full_url = base_url.join(&path).unwrap();
-        println!("full_url: {}", full_url);
+        let full_url = base_url.join("/api/v1/blocks").unwrap();
         client.post(full_url).json(&self)
     }
 
@@ -53,11 +50,13 @@ impl Error for WriteBlockError {}
 #[cfg(feature = "integration-tests")]
 mod test {
     use crate::{
-        api::{error::ApiError, models::metadata::test::setup_and_push_metadata},
-        blockstore::BanyanApiBlockStore,
+        api::error::ApiError,
         prelude::{
-            api::{client::Client, requests::staging::blocks::WriteBlock},
-            blockstore::BanyanBlockStore,
+            api::{
+                models::metadata::test::setup_and_push_metadata,
+                requests::staging::blocks::WriteBlock,
+            },
+            blockstore::{BanyanApiBlockStore, BanyanBlockStore},
         },
     };
     use std::{collections::BTreeSet, thread};
@@ -87,7 +86,7 @@ mod test {
         setup.client.remote_core = Url::parse(&setup.storage_ticket.host).unwrap();
 
         for (i, cid) in cids.iter().enumerate() {
-            let data = BanyanBlockStore::get_block(&setup.content_store, &cid)
+            let data = BanyanBlockStore::get_block(&setup.content_store, cid)
                 .await
                 .unwrap()
                 .to_vec();
