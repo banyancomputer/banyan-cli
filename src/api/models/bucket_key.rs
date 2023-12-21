@@ -219,26 +219,19 @@ mod test {
     }
 
     #[tokio::test]
-    #[should_panic]
     async fn create_delete_by_id_for_extant_bucket() {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        BucketKey::delete_by_id(bucket.id, fake_bucket_key_id, &mut client)
-            .await
-            .unwrap();
+        assert!(BucketKey::delete_by_id(bucket.id, fake_bucket_key_id, &mut client).await.is_err());
     }
 
     #[tokio::test]
-    #[should_panic]
     async fn create_delete_by_id_for_non_extant_bucket() {
         let mut client = authenticated_client().await;
         let fake_bucket_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-
-        BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client)
-            .await
-            .unwrap();
+        assert!(BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client).await.is_err());
     }
 
     #[tokio::test]

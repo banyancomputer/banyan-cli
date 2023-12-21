@@ -277,6 +277,7 @@ pub mod test {
         assert!(bucket_key.approved);
         Ok((bucket, bucket_key))
     }
+    
     pub fn fake_bucket() -> Bucket {
         Bucket {
             id: Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap(),
