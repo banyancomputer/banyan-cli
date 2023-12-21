@@ -1,20 +1,17 @@
-use std::error::Error;
-use std::fmt::{self, Display, Formatter};
-
+use crate::prelude::api::requests::ApiRequest;
 use reqwest::{Client, RequestBuilder, Url};
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 use uuid::Uuid;
 use wnfs::libipld::Cid;
-
-use crate::api::requests::StreamableApiRequest;
-use crate::prelude::api::requests::ApiRequest;
 
 #[derive(Debug, Serialize)]
 pub struct WriteBlock {
     pub cid: Cid,
     pub data: Vec<u8>,
     pub metadata_id: Uuid,
-    pub completed: Option<()>,
+    pub completed: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -56,17 +53,14 @@ impl Error for WriteBlockError {}
 #[cfg(feature = "integration-tests")]
 mod test {
     use crate::{
-        api::{
-            error::ApiError, models::metadata::test::setup_and_push_metadata,
-            requests::staging::upload::content::UploadContent,
-        },
+        api::{error::ApiError, models::metadata::test::setup_and_push_metadata},
         blockstore::BanyanApiBlockStore,
         prelude::{
             api::{client::Client, requests::staging::blocks::WriteBlock},
             blockstore::BanyanBlockStore,
         },
     };
-    use std::collections::BTreeSet;
+    use std::{collections::BTreeSet, thread};
     use url::Url;
     use wnfs::libipld::Cid;
 
@@ -89,6 +83,7 @@ mod test {
             cids.extend(bucket.map.into_keys().collect::<BTreeSet<Cid>>());
         }
 
+        let core_client = setup.client.clone();
         setup.client.remote_core = Url::parse(&setup.storage_ticket.host).unwrap();
 
         for (i, cid) in cids.iter().enumerate() {
@@ -97,7 +92,13 @@ mod test {
                 .unwrap()
                 .to_vec();
 
-            let completed = if i == cids.len() - 1 { Some(()) } else { None };
+            let completed = if i == cids.len() - 1 {
+                Some(true)
+            } else {
+                None
+            };
+
+            println!("completed: {:?}", completed);
 
             let write_request = WriteBlock {
                 cid: cid.to_owned(),
@@ -107,6 +108,15 @@ mod test {
             };
 
             setup.client.call_no_content(write_request).await?;
+        }
+
+        thread::sleep(std::time::Duration::new(3, 0));
+
+        let api_store = BanyanApiBlockStore::from(core_client);
+        api_store.find_cids(cids.clone()).await?;
+
+        for cid in &cids {
+            BanyanBlockStore::get_block(&api_store, cid).await?;
         }
 
         Ok(())

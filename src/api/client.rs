@@ -330,8 +330,8 @@ impl Client {
         if response.status().is_success() {
             Ok(response.bytes_stream())
         } else {
+            // Handle 404 specifically
             if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
                 // You can extend this part to handle other status codes differently if needed
                 return Err(ApiError::http_response(response.status()));
             }
