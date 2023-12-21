@@ -113,9 +113,10 @@ impl BucketKey {
         bucket_id: Uuid,
         id: Uuid,
         client: &mut Client,
-    ) -> Result<String, ApiError> {
-        let response = client.call(DeleteBucketKey { bucket_id, id }).await?;
-        Ok(response.id.to_string())
+    ) -> Result<(), ApiError> {
+        client
+            .call_no_content(DeleteBucketKey { bucket_id, id })
+            .await
     }
 
     /// Reject a Bucket Key
@@ -223,7 +224,7 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        let _ = BucketKey::delete_by_id(bucket.id, fake_bucket_key_id, &mut client)
+        BucketKey::delete_by_id(bucket.id, fake_bucket_key_id, &mut client)
             .await
             .unwrap();
     }
@@ -234,7 +235,8 @@ mod test {
         let mut client = authenticated_client().await;
         let fake_bucket_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        let _ = BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client)
+
+        BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client)
             .await
             .unwrap();
     }

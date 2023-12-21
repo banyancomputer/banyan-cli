@@ -107,7 +107,7 @@ impl RunnableCommand<NativeError> for KeyCommand {
                 let (bucket_id, id) = get_key_info(&client, &ks).await?;
                 BucketKey::delete_by_id(bucket_id, id, &mut client)
                     .await
-                    .map(|id| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
+                    .map(|()| format!("<< DELETED KEY SUCCESSFULLY >>\nid:\t{}", id))
                     .map_err(NativeError::api)
             }
             KeyCommand::Reject(ks) => {

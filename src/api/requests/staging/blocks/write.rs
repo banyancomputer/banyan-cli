@@ -1,4 +1,3 @@
-
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
@@ -35,7 +34,7 @@ impl ApiRequest for WriteBlock {
 
     fn requires_authentication(&self) -> bool {
         true
-    }    
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,9 +61,13 @@ mod test {
             requests::staging::upload::content::UploadContent,
         },
         blockstore::BanyanApiBlockStore,
-        prelude::{blockstore::BanyanBlockStore, api::{requests::staging::blocks::WriteBlock, client::Client}},
+        prelude::{
+            api::{client::Client, requests::staging::blocks::WriteBlock},
+            blockstore::BanyanBlockStore,
+        },
     };
     use std::collections::BTreeSet;
+    use url::Url;
     use wnfs::libipld::Cid;
 
     #[tokio::test]
@@ -77,7 +80,7 @@ mod test {
             .clone()
             .create_grant(&mut setup.client)
             .await?;
-        
+
         // Sleep to allow block locations to be updated
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -86,26 +89,26 @@ mod test {
             cids.extend(bucket.map.into_keys().collect::<BTreeSet<Cid>>());
         }
 
-        let mut staging_client = Client::new(&setup.storage_ticket.host)?;
-        // staging_client.with_credentials(credentials)
-        // staging_client.claims = setup.client.claims.clone();
+        setup.client.remote_core = Url::parse(&setup.storage_ticket.host).unwrap();
 
         for (i, cid) in cids.iter().enumerate() {
-            let data = BanyanBlockStore::get_block(&setup.content_store, &cid).await.unwrap().to_vec();
+            let data = BanyanBlockStore::get_block(&setup.content_store, &cid)
+                .await
+                .unwrap()
+                .to_vec();
 
             let completed = if i == cids.len() - 1 { Some(()) } else { None };
 
-            let write_request = WriteBlock { 
+            let write_request = WriteBlock {
                 cid: cid.to_owned(),
                 data,
-                metadata_id: setup.metadata.id, 
-                completed
+                metadata_id: setup.metadata.id,
+                completed,
             };
 
-            staging_client.call(write_request).await?;
+            setup.client.call_no_content(write_request).await?;
         }
 
-        
         // let api_store = BanyanApiBlockStore::from(setup.client);
         // api_store.find_cids(cids.clone()).await?;
 

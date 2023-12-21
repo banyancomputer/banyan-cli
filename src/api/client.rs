@@ -224,18 +224,21 @@ impl Client {
         if response.status().is_success() {
             Ok(())
         } else {
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                // Handle 404 specifically
-                // You can extend this part to handle other status codes differently if needed
-                return Err(ApiError::http_response(response.status()));
-            }
-            // For other error responses, try to deserialize the error
-            let err = response
-                .json::<T::ErrorType>()
-                .await
-                .map_err(ApiError::format)?;
-            let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
-            Err(ApiError::from(err))
+            let text = response.text().await?;
+            println!("error text: {}", text);
+            Err(ApiError::auth_required())
+            // if response.status() == reqwest::StatusCode::NOT_FOUND {
+            //     // Handle 404 specifically
+            //     // You can extend this part to handle other status codes differently if needed
+            //     return Err(ApiError::http_response(response.status()));
+            // }
+            // // For other error responses, try to deserialize the error
+            // let err = response
+            //     .json::<T::ErrorType>()
+            //     .await
+            //     .map_err(ApiError::format)?;
+            // let err = Box::new(err) as Box<dyn std::error::Error + Send + Sync + 'static>;
+            // Err(ApiError::from(err))
         }
     }
 

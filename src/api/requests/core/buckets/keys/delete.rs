@@ -13,14 +13,8 @@ pub struct DeleteBucketKey {
     pub id: Uuid,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct DeleteBucketKeyResponse {
-    pub id: Uuid,
-    pub approved: bool,
-}
-
 impl ApiRequest for DeleteBucketKey {
-    type ResponseType = DeleteBucketKeyResponse;
+    type ResponseType = ();
     type ErrorType = DeleteBucketKeyError;
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
