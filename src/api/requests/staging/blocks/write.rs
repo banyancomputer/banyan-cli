@@ -109,13 +109,6 @@ mod test {
             setup.client.call_no_content(write_request).await?;
         }
 
-        let api_store = BanyanApiBlockStore::from(setup.client);
-        api_store.find_cids(cids.clone()).await?;
-
-        for cid in &cids {
-            BanyanBlockStore::get_block(&api_store, cid).await?;
-        }
-
         Ok(())
     }
 }

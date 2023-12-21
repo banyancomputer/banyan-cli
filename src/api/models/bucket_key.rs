@@ -223,7 +223,11 @@ mod test {
         let mut client = authenticated_client().await;
         let (bucket, _) = create_bucket(&mut client).await.unwrap();
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        assert!(BucketKey::delete_by_id(bucket.id, fake_bucket_key_id, &mut client).await.is_err());
+        assert!(
+            BucketKey::delete_by_id(bucket.id, fake_bucket_key_id, &mut client)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -231,7 +235,11 @@ mod test {
         let mut client = authenticated_client().await;
         let fake_bucket_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
         let fake_bucket_key_id = Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap();
-        assert!(BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client).await.is_err());
+        assert!(
+            BucketKey::delete_by_id(fake_bucket_id, fake_bucket_key_id, &mut client)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

@@ -27,7 +27,7 @@ impl ApiError {
     }
 
     /// Response format was invalid
-    pub fn format(err: reqwest::Error) -> Self {
+    pub fn format(err: serde_json::Error) -> Self {
         Self {
             kind: ApiErrorKind::ResponseFormat(err),
         }
@@ -70,6 +70,12 @@ impl ApiError {
             kind: ApiErrorKind::MissingData(String::from(msg)),
         }
     }
+
+    pub fn custom(msg: &str) -> Self {
+        Self {
+            kind: ApiErrorKind::Custom(String::from(msg)),
+        }
+    }
 }
 
 impl From<Box<dyn std::error::Error + Send + Sync + 'static>> for ApiError {
@@ -102,6 +108,7 @@ impl Display for ApiError {
             }
             ApiErrorKind::Parse(err) => format!("{} {err}", "PARSING ERROR:".underline()),
             ApiErrorKind::MissingData(msg) => format!("{} {msg}", "MISSING DATA:".underline()),
+            ApiErrorKind::Custom(msg) => format!("{} {msg}", "API ERROR:".underline()),
             #[cfg(test)]
             #[cfg(feature = "integration-tests")]
             ApiErrorKind::Filesystem(err) => format!("{} {err}", "FILESYSTEM ERROR:".underline()),
@@ -143,13 +150,15 @@ enum ApiErrorKind {
     /// HTTP Response indicated error
     HttpResponse(reqwest::StatusCode),
     /// Response format was invalid
-    ResponseFormat(reqwest::Error),
+    ResponseFormat(serde_json::Error),
     /// Cryptography error
     Cryptographic(TombCryptError),
     /// Parsing Error
     Parse(ParseError),
     /// Missing data for performing a request
     MissingData(String),
+    /// Miscellaneous
+    Custom(String),
     /// When we're performing integration tests we also want Filesystem Errors
     #[cfg(test)]
     #[cfg(feature = "integration-tests")]
