@@ -14,10 +14,11 @@ use async_trait::async_trait;
 use bytesize::ByteSize;
 use clap::Subcommand;
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use std::{env::current_dir, path::PathBuf};
 
 /// Subcommand for Drive Management
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
 pub enum DrivesCommand {
     /// List all Drives
     Ls,

@@ -27,6 +27,9 @@ impl Display for NativeError {
             NativeErrorKind::MissingIdentifier => {
                 "Unable to find a remote Identifier associated with that Drive".to_owned()
             }
+            NativeErrorKind::DaemonError(err) => {
+                format!("{} {err}", "DAEMON ERROR:".underline())
+            }
             NativeErrorKind::MissingLocalDrive => {
                 "Unable to find a local Drive with that query".to_owned()
             }
@@ -148,6 +151,14 @@ impl NativeError {
             kind: NativeErrorKind::UnknownDrive(DriveSpecifier::with_id(id)),
         }
     }
+
+    /// Daemon errors
+    #[cfg(feature = "cli")]
+    pub fn daemon_error(msg: String) -> Self {
+        Self {
+            kind: NativeErrorKind::DaemonError(msg),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -160,6 +171,7 @@ enum NativeErrorKind {
     MissingRemoteDrive,
     UniqueDriveError,
     BadData,
+    DaemonError(String),
     Custom(String),
     Cryptographic(TombCryptError),
     Filesystem(Box<FilesystemError>),

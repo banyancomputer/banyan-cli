@@ -15,6 +15,7 @@ use base64::{engine::general_purpose, Engine as _};
 use bytesize::ByteSize;
 use clap::Subcommand;
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 use tomb_crypt::{
     hex_fingerprint,
@@ -22,7 +23,7 @@ use tomb_crypt::{
 };
 
 /// Subcommand for Authentication
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
 pub enum AccountCommand {
     /// Add Device API Key using browser session
     RegisterDevice,

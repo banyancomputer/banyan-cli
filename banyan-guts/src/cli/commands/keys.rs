@@ -10,6 +10,7 @@ use super::{
 use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use tomb_crypt::{
     hex_fingerprint,
     prelude::{PrivateKey, PublicKey},
@@ -17,7 +18,7 @@ use tomb_crypt::{
 use uuid::Uuid;
 
 /// Subcommand for Drive Keys
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
 pub enum KeyCommand {
     /// Request Access to a Drive if you dont already have it
     RequestAccess(DriveSpecifier),

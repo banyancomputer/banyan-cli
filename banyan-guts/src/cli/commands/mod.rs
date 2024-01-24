@@ -16,6 +16,7 @@ pub use drives::DrivesCommand;
 pub use keys::KeyCommand;
 pub use metadata::MetadataCommand;
 pub use runnable_command::RunnableCommand;
+pub use serde::{Deserialize, Serialize};
 
 /// Prompt the user for a y/n answer
 pub fn prompt_for_bool(msg: &str) -> bool {
@@ -32,7 +33,7 @@ pub fn prompt_for_bool(msg: &str) -> bool {
 }
 
 /// Defines the types of commands that can be executed from the CLI.
-#[derive(Debug, Subcommand, Clone)]
+#[derive(Debug, Subcommand, Clone, Serialize, Deserialize)]
 pub enum TombCommand {
     /// Manually configure remote endpoints
     Api {

@@ -13,10 +13,11 @@ use super::{
 };
 use async_trait::async_trait;
 use clap::Subcommand;
+use serde::{Deserialize, Serialize};
 use wnfs::{libipld::Cid, private::PrivateNode};
 
 /// Subcommand for Bucket Metadata
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
 pub enum MetadataCommand {
     /// List all Metadatas associated with Bucket
     Ls(DriveSpecifier),

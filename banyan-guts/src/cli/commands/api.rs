@@ -4,9 +4,10 @@ use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
 
 /// Subcommand for endpoint configuration
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
 pub enum ApiCommand {
     /// Display the current remote endpoint
     Display,

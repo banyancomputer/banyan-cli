@@ -1,9 +1,10 @@
 use clap::Args;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 /// Unified way of specifying a Bucket
-#[derive(Debug, Clone, Args)]
+#[derive(Debug, Clone, Args, Serialize, Deserialize)]
 #[group(required = true, multiple = false)]
 #[clap(
     after_help = "If no bucket is specified manually, tomb will try to use the current directory."
