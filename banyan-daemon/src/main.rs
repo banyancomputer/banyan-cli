@@ -1,23 +1,12 @@
-//! this crate is the binary for the tomb project. It contains the main function and the command line interface.
-#[cfg(target_arch = "wasm32")]
-fn main() {
-    panic!("there is no main in wasm!");
-}
+use banyan_guts::cli::args::Args;
+use banyan_guts::cli::commands::RunnableCommand;
+use clap::Parser;
+use tracing::Level;
+use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::Layer;
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "cli")]
-use {
-    banyan_cli::{
-        self,
-        cli::{args::Args, commands::RunnableCommand},
-    },
-    clap::Parser,
-    tracing::Level,
-    tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer},
-};
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "cli")]
 #[tokio::main]
 async fn main() {
     // Parse command line arguments. see args.rs
@@ -40,11 +29,4 @@ async fn main() {
 
     // Determine the command being executed run appropriate subcommand
     let _ = cli.command.run().await;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "cli"))]
-#[tokio::main]
-async fn main() {
-    println!("Enable the CLI feature to interact with the CLI");
 }

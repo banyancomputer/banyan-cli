@@ -1,0 +1,29 @@
+[package]
+name = "banyan-cli"
+license = "MIT"
+description = "Banyan manages data and security for use with Filecoin"
+homepage = "https://banyan.computer"
+repository = "https://github.com/banyancomputer/tomb"
+version = "1.1.1"
+readme = "README.md"
+edition = "2021"
+
+# Cargo publication optionals
+categories = [
+  "compression",
+  "cryptography",
+  "encoding",
+  "filesystem"
+]
+keywords = [
+    "decentralization",
+    "filecoin",
+    "ipfs",
+    "storage"
+]
+
+[dependencies]
+
+[[bin]]
+name = "banyan-cli"
+path = "src/main.rs"

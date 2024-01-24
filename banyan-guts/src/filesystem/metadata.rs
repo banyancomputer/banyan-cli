@@ -130,15 +130,27 @@ impl FsMetadata {
         // Link our build metadata
         root_map.insert(
             TOMB_BUILD_FEATURES_LABEL.to_string(),
-            Ipld::String(env!("BUILD_FEATURES").to_string()),
+            Ipld::String(
+                std::env::var("BUILD_FEATURES")
+                    .map_err(Box::from)?
+                    .to_string(),
+            ),
         );
         root_map.insert(
             TOMB_BUILD_PROFILE_LABEL.to_string(),
-            Ipld::String(env!("BUILD_PROFILE").to_string()),
+            Ipld::String(
+                std::env::var("BUILD_PROFILE")
+                    .map_err(Box::from)?
+                    .to_string(),
+            ),
         );
         root_map.insert(
             TOMB_REPO_VERSION_LABEL.to_string(),
-            Ipld::String(env!("REPO_VERSION").to_string()),
+            Ipld::String(
+                std::env::var("REPO_VERSION")
+                    .map_err(Box::from)?
+                    .to_string(),
+            ),
         );
 
         // Put the map into BlockStores
