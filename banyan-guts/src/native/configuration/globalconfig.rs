@@ -37,6 +37,26 @@ pub struct GlobalConfig {
     pub(crate) buckets: Vec<LocalBucket>,
 }
 
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tokio::sync::OnceCell;
+
+lazy_static::lazy_static! {
+    /// The global config, kept in a mutex
+    pub static ref GLOBAL_CONFIG: Arc<Mutex<OnceCell<GlobalConfig>>> = Arc::new(Mutex::new(OnceCell::const_new()));
+}
+
+pub async fn _init_global_config_from_disk() -> Result<(), NativeError> {
+    let global_config = GLOBAL_CONFIG.lock().await;
+    if global_config.get().is_none() {
+        let config = GlobalConfig::from_disk().await?;
+        global_config
+            .set(config)
+            .map_err(|_| NativeError::bad_data())?;
+    }
+    Ok(())
+}
+
 impl Default for GlobalConfig {
     fn default() -> Self {
         let endpoint = Url::parse(if option_env!("DEV_ENDPOINTS").is_some() {

@@ -24,7 +24,7 @@ keywords = [
 
 [dependencies]
 async-trait = { workspace = true }
-axum = "0.7.4"
+axum = { version = "0.7.4", features = ["macros"] }
 banyan-guts = { path = "../banyan-guts" , features = ["cli"] }
 clap = { workspace = true }
 daemonize = "0.5.0"

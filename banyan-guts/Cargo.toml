@@ -60,6 +60,7 @@ colored = { version = "^2" }
 futures = { version = "^0.3" }
 futures-core = { version = "^0.3" }
 futures-util = { version = "^0.3" }
+lazy_static = "1.4.0"
 lz4_flex = { version = "^0.11" }
 mime_guess = { version = "^2" }
 rand = { version = "^0.8" }

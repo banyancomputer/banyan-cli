@@ -1,5 +1,7 @@
 use axum::{body::Bytes, http::StatusCode};
 use axum::{routing::post, Router};
+//use banyan_guts::cli::commands::RunnableCommand;
+use banyan_guts::cli::commands::TombCommand;
 use banyan_guts::native::NativeError;
 
 pub async fn start_daemon() -> Result<(), NativeError> {
@@ -40,10 +42,17 @@ pub async fn start_daemon() -> Result<(), NativeError> {
     */
 }
 
+#[axum::debug_handler]
 async fn handler(body: Bytes) -> Result<String, StatusCode> {
-    let parse_body = String::from_utf8(body.to_vec())
-        .unwrap()
-        .parse::<serde_json::Value>()
-        .unwrap();
-    Ok(format!("Hello, World! {parse_body:?}"))
+    let parse_body = serde_json::from_slice::<TombCommand>(&body).unwrap();
+
+    // parse_body
+    //     .run()
+    //     .await
+    //     .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // TODO cleanup
+    Ok(format!(
+        "Hello, World! running {parse_body:?} worked! see remote logs to learn more"
+    ))
 }
