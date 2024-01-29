@@ -8,7 +8,7 @@ use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Layer;
 
 mod cli;
-mod daemon;
+mod service;
 
 #[tokio::main]
 async fn main() {
