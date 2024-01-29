@@ -10,12 +10,12 @@ use tracing_subscriber::Layer;
 claudia todo list
 clean up all unwraps
 clean up all comments
-clean up all errors
-bring things from banyan-guts into appropriate libraries as appropriate
-cut up banyan-guts as appropriate
-variables for localhost endpoint
+variables for localhost endpoint...?
 configurable port?
-config files in general
+config files in general...
+clean up block_on and unsafe Send/Sync as needed
+clean up all unused imports
+sam's include_bytes thing
 */
 
 #[tokio::main]
