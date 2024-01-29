@@ -2,10 +2,7 @@ use super::{BanyanBlockStore, BlockStoreError, RootedBlockStore};
 use crate::LibipldError;
 use async_trait::async_trait;
 use std::borrow::Cow;
-use wnfs::{
-    common::BlockStore,
-    libipld::{Cid, IpldCodec},
-};
+use wnfs::libipld::{Cid, IpldCodec};
 
 /// Blockstore built over two
 #[derive(Debug)]
@@ -14,22 +11,23 @@ pub struct DoubleSplitStore<'a, M: BanyanBlockStore, D: BanyanBlockStore> {
     secondary: &'a D,
 }
 
+#[async_trait]
 impl<M: RootedBlockStore, D: BanyanBlockStore> RootedBlockStore for DoubleSplitStore<'_, M, D> {
-    fn get_root(&self) -> Option<Cid> {
-        self.primary.get_root()
+    async fn get_root(&self) -> Option<Cid> {
+        self.primary.get_root().await
     }
 
-    fn set_root(&self, root: &Cid) {
-        self.primary.set_root(root)
+    async fn set_root(&self, root: &Cid) {
+        self.primary.set_root(root).await
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitStore<'_, M, D> {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
-        match BlockStore::get_block(self.primary, cid).await {
+        match BanyanBlockStore::get_block(self.primary, cid).await {
             Ok(blk) => Ok(blk),
-            Err(_) => BlockStore::get_block(self.secondary, cid)
+            Err(_) => BanyanBlockStore::get_block(self.secondary, cid)
                 .await
                 .map_err(|err| BlockStoreError::wnfs(Box::from(err))),
         }
@@ -38,10 +36,10 @@ impl<M: BanyanBlockStore, D: BanyanBlockStore> BanyanBlockStore for DoubleSplitS
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError> {
         // TODO: this needs to be .ok() since some workflows use a BanyanApiBlockStore as the secondary
         // and it does not implement put_block ...
-        BlockStore::put_block(self.secondary, bytes.clone(), codec)
+        BanyanBlockStore::put_block(self.secondary, bytes.clone(), codec)
             .await
             .ok();
-        BlockStore::put_block(self.primary, bytes, codec)
+        BanyanBlockStore::put_block(self.primary, bytes, codec)
             .await
             .map_err(|err| BlockStoreError::wnfs(Box::from(err)))
     }

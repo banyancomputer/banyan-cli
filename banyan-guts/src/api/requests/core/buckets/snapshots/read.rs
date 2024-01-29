@@ -79,6 +79,7 @@ impl Error for ReadSnapshotError {}
 use crate::prelude::api::models::snapshot::Snapshot;
 #[cfg(test)]
 impl ReadSnapshotResponse {
+    #[allow(dead_code)]
     pub(crate) fn to_snapshot(&self, bucket_id: Uuid) -> Snapshot {
         Snapshot {
             id: self.id,

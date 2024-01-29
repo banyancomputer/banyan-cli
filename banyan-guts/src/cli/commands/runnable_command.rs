@@ -9,7 +9,7 @@ use clap::Subcommand;
 use colored::Colorize;
 
 /// Async function for running a command
-#[async_trait(?Send)]
+#[async_trait]
 pub trait RunnableCommand<ErrorType>: Subcommand
 where
     ErrorType: Into<WnfsError> + std::fmt::Debug + Display,

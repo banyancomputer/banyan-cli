@@ -55,7 +55,7 @@ pub enum TombCommand {
     },
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for TombCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
         match self {

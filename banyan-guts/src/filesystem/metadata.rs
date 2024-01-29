@@ -8,6 +8,7 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use chrono::Utc;
+use futures::executor::block_on;
 use futures_util::future::join_all;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -95,7 +96,7 @@ impl FsMetadata {
         self.share_manager.set_current_ref(&root_dir_ref).await?;
 
         // Try getting the root, if none is set then its safe to set the original ref as well
-        match metadata_store.get_root() {
+        match metadata_store.get_root().await {
             None => self.share_manager.set_original_ref(&root_dir_ref).await?,
             Some(cid) => {
                 if cid == Cid::default() {
@@ -165,15 +166,17 @@ impl FsMetadata {
             .map_err(Box::from)?;
         assert_eq!(root_cid_1, root_cid_2);
 
-        metadata_store.set_root(&root_cid_1);
-        content_store.set_root(&root_cid_1);
+        metadata_store.set_root(&root_cid_1).await;
+        content_store.set_root(&root_cid_1).await;
 
         let root_cid_3 = metadata_store
             .get_root()
+            .await
             .ok_or(FilesystemError::missing_metadata("root cid"))?;
         assert_eq!(root_cid_1, root_cid_3);
         let root_cid_4 = content_store
             .get_root()
+            .await
             .ok_or(FilesystemError::missing_metadata("root cid"))?;
         assert_eq!(root_cid_1, root_cid_4);
 
@@ -190,6 +193,7 @@ impl FsMetadata {
         // Get the map
         let metadata_cid = store
             .get_root()
+            .await
             .ok_or(FilesystemError::missing_metadata("root cid"))?;
         let root_map = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
@@ -208,14 +212,12 @@ impl FsMetadata {
 
         // Get the forests
         let forest = load_forest(forest_cid, store).await?;
-        let forest_store = CarV2MemoryBlockStore::new()?;
+        let forest_store = CarV2MemoryBlockStore::new().await?;
+        let cid = block_on(forest.store(&forest_store)).map_err(Box::from)?;
         let forest = Rc::new(
-            PrivateForest::load(
-                &forest.store(&forest_store).await.map_err(Box::from)?,
-                &forest_store,
-            )
-            .await
-            .map_err(Box::from)?,
+            PrivateForest::load(&cid, &forest_store)
+                .await
+                .map_err(Box::from)?,
         );
 
         // Get the share manager
@@ -231,7 +233,7 @@ impl FsMetadata {
             .ok_or(FilesystemError::missing_metadata("current private ref"))?;
 
         // Get the root directory
-        let root_dir = load_dir(store, current_private_ref, &forest).await?;
+        let root_dir = block_on(load_dir(store, current_private_ref, &forest))?;
         // Return the new metadata
         Ok(Self {
             forest,
@@ -268,7 +270,7 @@ impl FsMetadata {
         // Put the metadata IPLD Map into BlockStores
         let metadata_cid = store.put_serializable(&metadata).await.map_err(Box::from)?;
         // Update the root CID
-        store.set_root(&metadata_cid);
+        store.set_root(&metadata_cid).await;
         // Update the metadata
         Ok(())
     }
@@ -278,13 +280,11 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BanyanBlockStore,
+        content_store: &(impl BanyanBlockStore + wnfs::common::BlockStore + Send),
     ) -> Result<SharedFile, FilesystemError> {
         let mut rng = thread_rng();
 
-        let node = self
-            .get_node(path_segments, metadata_store)
-            .await?
+        let node = block_on(self.get_node(path_segments, metadata_store))?
             .ok_or(FilesystemError::node_not_found(&path_segments.join("/")))?;
 
         // Force cast as file and panic otherwise
@@ -380,6 +380,7 @@ impl FsMetadata {
         // Get the map
         let metadata_cid = store
             .get_root()
+            .await
             .ok_or(FilesystemError::missing_metadata("root cid"))?;
         let metadata = match store.get_deserializable::<Ipld>(&metadata_cid).await {
             Ok(Ipld::Map(map)) => map,
@@ -646,7 +647,7 @@ impl FsMetadata {
         &mut self,
         path_segments: &[String],
         metadata_store: &impl RootedBlockStore,
-        content_store: &impl BanyanBlockStore,
+        content_store: &(impl BanyanBlockStore + wnfs::common::BlockStore + Send),
         content: Vec<u8>,
     ) -> Result<(), FilesystemError> {
         let time = Utc::now();
@@ -705,12 +706,12 @@ impl FsMetadata {
     pub async fn get_node(
         &self,
         path_segments: &[String],
-        store: &impl BanyanBlockStore,
+        store: &(impl wnfs::common::BlockStore + Send),
     ) -> Result<Option<PrivateNode>, FilesystemError> {
         // Search through the PrivateDirectory for a Node that matches the path provided
         let result = self
             .root_dir
-            .get_node(path_segments, true, &self.forest, store)
+            .get_node(path_segments, true, &self.forest.clone(), store)
             .await;
         match result {
             Ok(node) => Ok(node),
@@ -738,7 +739,7 @@ impl FsMetadata {
             Some(self.root_dir.as_node())
         } else {
             self.root_dir
-                .get_node(&segments, true, &self.forest, metadata_store)
+                .get_node(&segments, true, &self.forest.clone(), metadata_store)
                 .await
                 .map_err(Box::from)?
         };
@@ -750,7 +751,7 @@ impl FsMetadata {
                 let mut children = vec![];
                 // List the names of all children
                 let node_names = dir
-                    .ls(&[], true, &self.forest, metadata_store)
+                    .ls(&[], true, &self.forest.clone(), metadata_store)
                     .await
                     .map_err(Box::from)?;
 
@@ -813,7 +814,7 @@ mod test {
         let mut metadata = FsMetadata::init(wrapping_key).await?;
         metadata.save(metadata_store, content_store).await?;
         let unlocked_metadata = FsMetadata::unlock(wrapping_key, metadata_store).await?;
-        assert_eq!(metadata.root_dir, unlocked_metadata.root_dir);
+        assert_eq!(*metadata.root_dir, *unlocked_metadata.root_dir);
         assert_eq!(metadata.share_manager, unlocked_metadata.share_manager);
         Ok(unlocked_metadata)
     }

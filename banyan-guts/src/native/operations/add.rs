@@ -23,6 +23,7 @@ pub async fn pipeline(
     // Turn the relative path into a vector of segments
     let time = Utc::now();
     let mut rng = thread_rng();
+
     let file = fs
         .root_dir
         .open_file_mut(

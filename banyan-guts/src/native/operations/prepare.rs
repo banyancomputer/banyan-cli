@@ -17,6 +17,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use wnfs::private::PrivateNode;
+
 /// Given the input directory, the output directory, the manifest file, and other metadata,
 /// prepare the input directory into the output directory and store a record of how this
 /// operation was performed in the manifest file.
@@ -40,12 +41,17 @@ pub async fn pipeline(mut omni: OmniBucket, follow_links: bool) -> Result<String
     if client.is_authenticated().await {
         if let Ok(remote) = omni.get_remote() {
             if let Ok(metadatas) = Metadata::read_all(remote.id, &mut client).await {
-                if metadatas.iter().any(|metadata| {
+                // if any of the metadatas have a root cid that matches the local root cid
+                if futures::future::join_all(metadatas.iter().map(|metadata| async {
                     Some(metadata.root_cid.clone())
-                        == local.content.get_root().map(|cid| cid.to_string())
-                }) {
+                        == local.content.get_root().await.map(|cid| cid.to_string())
+                }))
+                .await
+                .iter()
+                .any(|x| *x)
+                {
                     info!("Starting a new delta...");
-                    local.content.add_delta()?;
+                    local.content.add_delta().await?;
                     omni.set_local(local.clone());
                 }
             }

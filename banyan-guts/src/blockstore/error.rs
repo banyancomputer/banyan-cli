@@ -6,12 +6,14 @@ use std::{
 
 use crate::{car::error::CarError, WnfsError};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockStoreError {
     kind: BlockStoreErrorKind,
 }
 
 impl std::error::Error for BlockStoreError {}
+
+unsafe impl Send for BlockStoreError {}
 
 impl BlockStoreError {
     pub fn missing_file(path: &Path) -> Self {
@@ -34,13 +36,13 @@ impl BlockStoreError {
 
     pub fn car(err: CarError) -> Self {
         Self {
-            kind: BlockStoreErrorKind::Car(err),
+            kind: BlockStoreErrorKind::Car(err.to_string()),
         }
     }
 
     pub fn wnfs(err: WnfsError) -> Self {
         Self {
-            kind: BlockStoreErrorKind::Wnfs(err),
+            kind: BlockStoreErrorKind::Wnfs(err.to_string()),
         }
     }
 }
@@ -68,13 +70,15 @@ impl Display for BlockStoreError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BlockStoreErrorKind {
     MissingFile(PathBuf),
     MissingDirectory(PathBuf),
     Exists(PathBuf),
-    Car(CarError),
-    Wnfs(WnfsError),
+    /// TODO: also dropping error type here- i need this to be clone, something's going wrong
+    Car(String),
+    /// TODO: i drop the error type here because WNFS errors are not in our codebase and I can't do anything to them
+    Wnfs(String),
 }
 
 impl From<CarError> for BlockStoreError {

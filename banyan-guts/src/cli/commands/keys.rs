@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use clap::Subcommand;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tomb_crypt::{
     hex_fingerprint,
     prelude::{PrivateKey, PublicKey},
@@ -32,7 +33,7 @@ pub enum KeyCommand {
     Reject(KeySpecifier),
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for KeyCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
         let global = GlobalConfig::from_disk().await?;
@@ -47,7 +48,8 @@ impl RunnableCommand<NativeError> for KeyCommand {
 
                 // Get Drive
                 let omni = OmniBucket::from_specifier(&drive_specifier).await;
-                if let Ok(id) = omni.get_id() {
+                if omni.get_id().is_ok() {
+                    let id = omni.get_id()?;
                     let existing_keys = BucketKey::read_all(id, &mut client).await?;
                     if let Some(existing_key) = existing_keys
                         .iter()
@@ -68,8 +70,8 @@ impl RunnableCommand<NativeError> for KeyCommand {
                 }
             }
             KeyCommand::Ls(drive_specifier) => {
-                let omni = OmniBucket::from_specifier(&drive_specifier).await;
-                let id = omni.get_id().unwrap();
+                let omni = Mutex::new(OmniBucket::from_specifier(&drive_specifier).await);
+                let id = omni.lock().await.get_id().unwrap();
                 let my_fingerprint = hex_fingerprint(
                     &global
                         .wrapping_key()

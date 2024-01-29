@@ -6,6 +6,7 @@ use crate::{
     WnfsError,
 };
 use async_trait::async_trait;
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all};
 use std::{
@@ -41,7 +42,7 @@ impl MultiCarV2DiskBlockStore {
     }
 
     /// Load a MultiCarV2DiskBlockStore from a directory
-    pub fn load(dir: &Path) -> Result<Self, BlockStoreError> {
+    pub async fn load(dir: &Path) -> Result<Self, BlockStoreError> {
         if dir.is_file() {
             return Err(BlockStoreError::missing_directory(dir));
         }
@@ -54,7 +55,7 @@ impl MultiCarV2DiskBlockStore {
                 .expect("no file name str")
                 .ends_with(".car")
             {
-                if let Ok(car) = CarV2DiskBlockStore::load(&dir_entry.path()) {
+                if let Ok(car) = CarV2DiskBlockStore::load(&dir_entry.path()).await {
                     deltas.push(car);
                 }
             }
@@ -71,21 +72,25 @@ impl MultiCarV2DiskBlockStore {
     }
 
     /// Add a new delta file / CAR file
-    pub fn add_delta(&mut self) -> Result<(), BlockStoreError> {
+    pub async fn add_delta(&mut self) -> Result<(), BlockStoreError> {
         // Create a new delta for writing
         let new_store =
-            CarV2DiskBlockStore::new(&self.path.join(format!("{}.car", self.deltas.len() + 1)))?;
+            CarV2DiskBlockStore::new(&self.path.join(format!("{}.car", self.deltas.len() + 1)))
+                .await?;
 
         // Set the root depending on previous deltas
         if !self.deltas.is_empty() {
-            new_store.set_root(
-                &self
-                    .get_delta()?
-                    .get_root()
-                    .ok_or(BlockStoreError::car(CarError::missing_root()))?,
-            );
+            new_store
+                .set_root(
+                    &self
+                        .get_delta()?
+                        .get_root()
+                        .await
+                        .ok_or(BlockStoreError::car(CarError::missing_root()))?,
+                )
+                .await;
         } else {
-            new_store.set_root(&Cid::default());
+            new_store.set_root(&Cid::default()).await;
         }
 
         // Add the new store
@@ -103,7 +108,7 @@ impl MultiCarV2DiskBlockStore {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl BanyanBlockStore for MultiCarV2DiskBlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         // Iterate in reverse order
@@ -127,21 +132,24 @@ impl BanyanBlockStore for MultiCarV2DiskBlockStore {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RootedBlockStore for MultiCarV2DiskBlockStore {
-    fn get_root(&self) -> Option<Cid> {
+    async fn get_root(&self) -> Option<Cid> {
         if let Ok(current_delta) = self.get_delta() {
-            current_delta.get_root()
+            current_delta.get_root().await
         } else {
             None
         }
     }
 
-    fn set_root(&self, root: &Cid) {
+    async fn set_root(&self, root: &Cid) {
         if !self.deltas.is_empty() {
             let current_delta = self.get_delta().unwrap();
-            current_delta.set_root(root);
-            current_delta.to_disk().expect("failed to write to disk");
+            current_delta.set_root(root).await;
+            current_delta
+                .to_disk()
+                .await
+                .expect("failed to write to disk");
         }
     }
 }
@@ -181,7 +189,7 @@ impl<'de> Deserialize<'de> for MultiCarV2DiskBlockStore {
         D: serde::Deserializer<'de>,
     {
         let path = PathBuf::deserialize(deserializer)?;
-        Self::load(&path).map_err(|err| {
+        block_on(Self::load(&path)).map_err(|err| {
             serde::de::Error::custom(format!("MultiCARv2 Deserialization error: {err}"))
         })
     }
@@ -209,7 +217,7 @@ mod test {
 
         let mut store = MultiCarV2DiskBlockStore::new(path)?;
         // Create a new delta
-        store.add_delta()?;
+        store.add_delta().await?;
 
         // Assert that there are now two delta CARs
         assert_eq!(store.deltas.len(), 1);
@@ -218,7 +226,7 @@ mod test {
         let hello_kitty_cid = store.put_block(hello_kitty.clone(), IpldCodec::Raw).await?;
 
         // Create a new delta
-        store.add_delta()?;
+        store.add_delta().await?;
         // Assert that there are now two delta CARs
         assert_eq!(store.deltas.len(), 2);
 
@@ -252,7 +260,7 @@ mod test {
         let mut store = MultiCarV2DiskBlockStore::new(path)?;
 
         // Create a new delta
-        store.add_delta()?;
+        store.add_delta().await?;
         // Assert that there is one CAR
         assert_eq!(store.deltas.len(), 1);
 
@@ -285,7 +293,7 @@ mod test {
             remove_dir_all(test_dir)?;
         }
         let mut store = MultiCarV2DiskBlockStore::new(test_dir)?;
-        store.add_delta()?;
+        store.add_delta().await?;
         bs_retrieval_test(&store).await.map_err(Box::from)?;
         bs_duplication_test(&store).await.map_err(Box::from)?;
         Ok(())

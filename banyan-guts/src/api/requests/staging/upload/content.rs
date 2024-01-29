@@ -6,6 +6,7 @@ use crate::{
     api::{client::Client, error::ApiError},
     blockstore::CarV2MemoryBlockStore,
 };
+use futures::executor::block_on;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type ContentType = reqwest::Body;
@@ -46,7 +47,7 @@ impl UploadContent for CarV2MemoryBlockStore {
     type UploadError = ApiError;
 
     fn get_hash(&self) -> Result<String, Self::UploadError> {
-        let data = self.get_data();
+        let data = block_on(self.get_data());
         let mut hasher = blake3::Hasher::new();
         hasher.update(&data);
         Ok(hasher.finalize().to_string())
@@ -57,11 +58,11 @@ impl UploadContent for CarV2MemoryBlockStore {
         return Ok(std::io::Cursor::new(self.get_data()));
 
         #[cfg(not(target_arch = "wasm32"))]
-        return Ok(self.get_data().into());
+        return Ok(self.get_data().await.into());
     }
 
     fn get_length(&self) -> Result<u64, Self::UploadError> {
-        Ok(self.get_data().len() as u64)
+        Ok(block_on(self.get_data()).len() as u64)
     }
 }
 

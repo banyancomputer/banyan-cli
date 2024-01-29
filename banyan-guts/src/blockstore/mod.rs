@@ -24,10 +24,10 @@ pub use wnfs_trait::BanyanBlockStore;
 use async_trait::async_trait;
 use wnfs::libipld::Cid;
 /// Wrap a BlockStore with additional functionality to get / set a root CID
-#[async_trait(?Send)]
-pub trait RootedBlockStore: BanyanBlockStore {
+#[async_trait]
+pub trait RootedBlockStore: BanyanBlockStore + wnfs::common::BlockStore {
     /// Get the root CID
-    fn get_root(&self) -> Option<Cid>;
+    async fn get_root(&self) -> Option<Cid>;
     /// Set the root CID
-    fn set_root(&self, root: &Cid);
+    async fn set_root(&self, root: &Cid);
 }

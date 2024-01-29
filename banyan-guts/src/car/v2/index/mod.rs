@@ -20,7 +20,7 @@ use indexsorted::Bucket;
 
 /// The type of Index requires a format, and contains both a codec and a Bucket vec
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct Index<I: Indexable> {
+pub struct Index<I: Indexable + Send> {
     pub(crate) codec: u128,
     pub(crate) buckets: Vec<I>,
 }
@@ -30,10 +30,11 @@ pub const INDEX_SORTED_CODEC: u128 = 0x0400;
 /// The Codec associated with the MultihashIndexSorted index format
 pub const MULTIHASH_INDEX_SORTED_CODEC: u128 = 0x0401;
 
+#[async_trait::async_trait]
 impl Streamable for Index<Bucket> {
     type StreamError = CarError;
 
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
+    async fn read_bytes<R: Read + Seek + Send>(r: &mut R) -> Result<Self, Self::StreamError> {
         // Grab the codec
         let codec = read_varint_u128(r).expect("Cant read varint from stream");
         if codec != INDEX_SORTED_CODEC {
@@ -42,7 +43,7 @@ impl Streamable for Index<Bucket> {
         // Empty bucket vec
         let mut buckets = <Vec<Bucket>>::new();
         // While we can read buckets
-        while let Ok(bucket) = Bucket::read_bytes(r) {
+        while let Ok(bucket) = Bucket::read_bytes(r).await {
             // Push new bucket to list
             buckets.push(bucket);
         }
@@ -57,13 +58,16 @@ impl Streamable for Index<Bucket> {
         }
     }
 
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
+    async fn write_bytes<W: Write + Seek + Send>(
+        &self,
+        w: &mut W,
+    ) -> Result<(), Self::StreamError> {
         // Write codec
         w.write_all(&encode_varint_u128(self.codec))?;
         // For each bucket
         for bucket in &self.buckets {
             // Write out
-            bucket.write_bytes(w)?;
+            bucket.write_bytes(w).await?;
         }
         Ok(())
     }

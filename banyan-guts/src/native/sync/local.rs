@@ -57,6 +57,8 @@ pub struct LocalBucket {
     pub previous_cid: Option<Cid>,
 }
 
+unsafe impl Send for LocalBucket {}
+
 impl Display for LocalBucket {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
@@ -101,9 +103,9 @@ impl LocalBucket {
         create_dir_all(bucket_home).expect("already exists");
         let metadata_path = bucket_metadata_path(&local_id);
         let content_path = bucket_content_path(&local_id);
-        let metadata = CarV2DiskBlockStore::new(&metadata_path)?;
+        let metadata = CarV2DiskBlockStore::new(&metadata_path).await?;
         let mut content = MultiCarV2DiskBlockStore::new(&content_path)?;
-        content.add_delta()?;
+        content.add_delta().await?;
 
         // Initialize the fs metadata
         let mut fs = FsMetadata::init(wrapping_key).await?;
@@ -140,7 +142,7 @@ impl LocalBucket {
 
     /// Shortcut for saving a filesystem
     pub async fn save_fs(&mut self, fs: &mut FsMetadata) -> Result<(), FilesystemError> {
-        self.previous_cid = self.metadata.get_root();
+        self.previous_cid = self.metadata.get_root().await;
         fs.save(&self.metadata, &self.content).await
     }
 
@@ -158,6 +160,7 @@ impl LocalBucket {
 mod test {
     use crate::native::{configuration::globalconfig::GlobalConfig, NativeError};
     use chrono::Utc;
+    use futures::executor::block_on;
     use rand::thread_rng;
     use serial_test::serial;
     use std::{
@@ -179,39 +182,41 @@ mod test {
         let mut config = global.get_or_init_bucket("test", &origin).await?;
         let mut rng = thread_rng();
         let mut fs = config.unlock_fs(&global.wrapping_key().await?).await?;
-        config.content.add_delta()?;
-        let file = fs
-            .root_dir
-            .open_file_mut(
-                &["cat.png".to_string()],
-                true,
-                Utc::now(),
-                &mut fs.forest,
-                &config.metadata,
-                &mut rng,
-            )
-            .await
-            .map_err(Box::from)?;
-        let file_content = "this is a cat image".as_bytes();
-        file.set_content(
-            Utc::now(),
-            file_content,
-            &mut fs.forest,
-            &config.content,
-            &mut rng,
-        )
-        .await
-        .map_err(Box::from)?;
+        config.content.add_delta().await?;
+        let file_content = {
+            let file = fs
+                .root_dir
+                .open_file_mut(
+                    &["cat.png".to_string()],
+                    true,
+                    Utc::now(),
+                    &mut fs.forest,
+                    &config.metadata,
+                    &mut rng,
+                )
+                .await
+                .map_err(Box::from)?;
 
+            let file_content = "this is a cat image".as_bytes();
+            block_on(file.set_content(
+                Utc::now(),
+                file_content,
+                &mut fs.forest,
+                &config.content,
+                &mut rng,
+            ))
+            .map_err(Box::from)?;
+            file_content
+        };
         config.save_fs(&mut fs).await?;
 
         // Get structs
         let mut new_fs = config.unlock_fs(&wrapping_key).await?;
 
-        assert_eq!(fs.root_dir, new_fs.root_dir);
+        assert_eq!(*fs.root_dir, *new_fs.root_dir);
 
-        let new_file = new_fs
-            .root_dir
+        let mut new_root_dir = new_fs.root_dir;
+        let new_file = new_root_dir
             .open_file_mut(
                 &["cat.png".to_string()],
                 true,
@@ -222,10 +227,8 @@ mod test {
             )
             .await
             .map_err(Box::from)?;
-        let new_file_content = new_file
-            .get_content(&new_fs.forest, &config.content)
-            .await
-            .map_err(Box::from)?;
+        let new_file_content =
+            block_on(new_file.get_content(&new_fs.forest, &config.content)).map_err(Box::from)?;
 
         assert_eq!(file_content, new_file_content);
 

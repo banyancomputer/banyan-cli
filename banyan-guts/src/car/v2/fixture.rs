@@ -7,7 +7,8 @@ mod test {
     use base58::ToBase58;
     use sha2::Digest;
     use std::io::{Cursor, Seek, SeekFrom};
-    use std::{cell::RefCell, str::FromStr};
+    use std::str::FromStr;
+    use tokio::sync::RwLock;
     use wnfs::libipld::Cid;
 
     /// Quick Specification Reference Links:
@@ -350,7 +351,7 @@ mod test {
     }
 
     /// Construct fixture
-    fn build_full_car() -> Vec<u8> {
+    async fn build_full_car() -> Vec<u8> {
         // We're going to cheat and pre-generate all the data we need before we start generating the
         // actual CAR file
         let mut all_car_bytes: Vec<u8> = Vec::new();
@@ -389,7 +390,7 @@ mod test {
         // CARv1 Header
         let header = Header {
             version: 2,
-            roots: RefCell::new(vec![
+            roots: RwLock::new(vec![
                 Cid::from_str(&binary_cid_to_base58_cid(&block_zero_cid))
                     .expect("failed to represent binary as CID"),
                 Cid::from_str(&binary_cid_to_base58_cid(&block_five_cid))
@@ -398,6 +399,7 @@ mod test {
         };
         let header_bytes = header
             .to_ipld_bytes()
+            .await
             .expect("failed to convert header to IPLD");
         let header_length_bytes = dirty_varint(header_bytes.len());
 
@@ -591,23 +593,23 @@ mod test {
         all_car_bytes
     }
 
-    #[test]
-    fn read_data() -> Result<(), CarError> {
-        let car_data = build_full_car();
+    #[tokio::test]
+    async fn read_data() -> Result<(), CarError> {
+        let car_data = build_full_car().await;
         let mut data = Cursor::new(car_data.clone());
-        let car = CarV2::read_bytes(&mut data)?;
+        let car = CarV2::read_bytes(&mut data).await?;
         // Assert that reading it didnt modify the data
         assert_eq!(data.clone().into_inner(), car_data);
 
         let mut all_cids = vec![];
-        for bucket in car.car.index.borrow().clone().buckets {
+        for bucket in car.car.index.read().await.clone().buckets {
             all_cids.extend_from_slice(&bucket.map.into_keys().collect::<Vec<Cid>>())
         }
 
         // For every cid
         for cid in all_cids {
             // Read the block
-            let block = car.get_block(&cid, &mut data)?;
+            let block = car.get_block(&cid, &mut data).await?;
             // Assert that its CID matches
             assert_eq!(cid, block.cid);
         }
@@ -615,18 +617,18 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn read_write_data() -> Result<(), CarError> {
-        let car_data = build_full_car();
+    #[tokio::test]
+    async fn read_write_data() -> Result<(), CarError> {
+        let car_data = build_full_car().await;
         let mut data = Cursor::new(car_data);
-        let car = CarV2::read_bytes(&mut data)?;
-        car.write_bytes(&mut data)?;
+        let car = CarV2::read_bytes(&mut data).await?;
+        car.write_bytes(&mut data).await?;
         data.seek(SeekFrom::Start(0))?;
-        let car2 = CarV2::read_bytes(&mut data)?;
+        let car2 = CarV2::read_bytes(&mut data).await?;
 
-        assert_eq!(car.header, car2.header);
+        assert_eq!(*car.header.read().await, *car2.header.read().await);
         assert_eq!(car.car.header, car2.car.header);
-        assert_eq!(car.car.index, car2.car.index);
+        assert_eq!(*car.car.index.read().await, *car2.car.index.read().await);
         Ok(())
     }
 }

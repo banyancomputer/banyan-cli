@@ -13,6 +13,7 @@ use super::{
 };
 use async_trait::async_trait;
 use clap::Subcommand;
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use wnfs::{libipld::Cid, private::PrivateNode};
 
@@ -29,7 +30,7 @@ pub enum MetadataCommand {
     Snapshot(MetadataSpecifier),
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for MetadataCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
         let mut client = GlobalConfig::from_disk().await?.get_client().await?;
@@ -78,17 +79,17 @@ impl RunnableCommand<NativeError> for MetadataCommand {
                 let local = omni.get_local()?;
 
                 // If the root of our currently stored metadata BlockStore doesn't actually match the metadata we're trying to snapshot
-                if local.metadata.get_root().map(|cid| cid.to_string())
+                if local.metadata.get_root().await.map(|cid| cid.to_string())
                     != Some(metadata.metadata_cid.clone())
                 {
                     return Err(NativeError::custom_error("this is the wrong metadata"));
                 }
 
                 // Finish loading the filesystem
-                let fs = omni.unlock().await?;
+                let fs = block_on(omni.unlock())?;
 
                 // Start off by considering all CIDs in the metatadata CAR as 'active'
-                let index = local.metadata.car.car.index.borrow().clone();
+                let index = block_on(local.metadata.car.car.index.read()).clone();
                 let mut active_cids = index.buckets[0]
                     .map
                     .clone()
@@ -96,20 +97,17 @@ impl RunnableCommand<NativeError> for MetadataCommand {
                     .collect::<BTreeSet<Cid>>();
 
                 // For every node that is a PrivateFile
-                for (node, _) in fs.get_all_nodes(&local.metadata).await? {
+                for (node, _) in block_on(fs.get_all_nodes(&local.metadata))? {
                     if let PrivateNode::File(file) = node {
                         // Extend with all the cids in the file
                         active_cids.extend(
-                            file.get_cids(&fs.forest, &local.content)
-                                .await
+                            block_on(file.get_cids(&fs.forest, &local.content))
                                 .map_err(|err| FilesystemError::wnfs(Box::from(err)))?,
                         )
                     }
                 }
 
-                metadata
-                    .snapshot(active_cids, &mut client)
-                    .await
+                block_on(metadata.snapshot(active_cids, &mut client))
                     .map(|snapshot| format!("{:?}", snapshot))
                     .map_err(NativeError::api)
             }

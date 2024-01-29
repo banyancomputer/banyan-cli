@@ -1,5 +1,5 @@
 [target.'cfg(all())']
 rustflags = [
     "-Drustdoc::broken_intra_doc_links",
-    "-Dunsafe_code",
+    #"-Dunsafe_code",
 ]

@@ -38,7 +38,7 @@ pub enum AccountCommand {
     Usage,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for AccountCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
         let mut global = GlobalConfig::from_disk().await?;

@@ -181,6 +181,9 @@ enum NativeErrorKind {
     UnknownDrive(DriveSpecifier),
 }
 
+// FLAG
+unsafe impl Send for NativeError {}
+
 impl From<FilesystemError> for NativeError {
     fn from(value: FilesystemError) -> Self {
         Self::filesytem(value)

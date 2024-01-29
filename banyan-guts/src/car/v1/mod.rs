@@ -10,74 +10,120 @@ use crate::car::{
     v2::index::{indexable::Indexable, indexsorted::Bucket, Index, INDEX_SORTED_CODEC},
     Streamable,
 };
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::RefCell,
     collections::HashMap,
     io::{Cursor, Read, Seek, SeekFrom, Write},
 };
+use tokio::sync::RwLock;
 use wnfs::libipld::Cid;
 
 use super::error::CarError;
 
 /// Reading / writing a CARv1 from a Byte Stream
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug)]
 pub struct CarV1 {
     /// The CARv1 Header
     pub header: Header,
     /// The CARv1 Index
-    pub index: RefCell<Index<Bucket>>,
+    pub index: RwLock<Index<Bucket>>,
+}
+
+/// Warning: blocks
+impl Clone for CarV1 {
+    fn clone(&self) -> Self {
+        CarV1 {
+            header: self.header.clone(),
+            index: RwLock::new(futures::executor::block_on(self.index.read()).clone()),
+        }
+    }
+}
+
+impl Serialize for CarV1 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("CarV1", 2)?;
+        state.serialize_field("header", &self.header)?;
+        state.serialize_field("index", &*futures::executor::block_on(self.index.read()))?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for CarV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct CarV1Data {
+            header: Header,
+            index: Index<Bucket>,
+        }
+
+        let CarV1Data { header, index } = CarV1Data::deserialize(deserializer)?;
+        Ok(CarV1 {
+            header,
+            index: RwLock::new(index),
+        })
+    }
 }
 
 impl CarV1 {
     /// Read in a CARv1 object, assuming the Reader is already seeked to the first byte of the CARv1
-    pub fn read_bytes<R: Read + Seek>(
+    pub async fn read_bytes<R: Read + Seek + Send>(
         index_offset: Option<u64>,
         mut r: R,
     ) -> Result<Self, CarError> {
         // Read the Header
-        let header = Header::read_bytes(&mut r)?;
+        let header = Header::read_bytes(&mut r).await?;
         // If we're in a CARv2, we dont have to construct an Index manually
         if let Some(index_offset) = index_offset {
             // Skip the entire content of the CARv1
             r.seek(SeekFrom::Start(index_offset))?;
             // Read the index from the CARv2 and return
-            let index = <Index<Bucket>>::read_bytes(&mut r)?;
+            let index = <Index<Bucket>>::read_bytes(&mut r).await?;
             Ok(Self {
                 header,
-                index: RefCell::new(index),
+                index: RwLock::new(index),
             })
         } else {
             // If we're in a CARv1, we have to create an Index by scanning over the Blocks
             let index = Index::read_from_carv1(&mut r)?;
             Ok(Self {
                 header,
-                index: RefCell::new(index),
+                index: RwLock::new(index),
             })
         }
     }
 
     /// Write out a CARv1 object, assuming the Writer is already seeked to the first byte of the CARv1
-    pub fn write_bytes<RW: Read + Write + Seek>(&self, mut rw: RW) -> Result<u64, CarError> {
+    pub async fn write_bytes<RW: Read + Write + Seek + Send>(
+        &self,
+        mut rw: RW,
+    ) -> Result<u64, CarError> {
         // Save our starting point
         let carv1_start = rw.stream_position()?;
         // Read the old header
-        Header::read_bytes(&mut rw)?;
+        Header::read_bytes(&mut rw).await?;
         // Determine how much was read
         let old_header_len = rw.stream_position()? - carv1_start;
         // Seek back to the start
         rw.seek(SeekFrom::Start(carv1_start))?;
         // Write the current header into a buffer
         let mut current_header_buf = Cursor::new(<Vec<u8>>::new());
-        self.header.write_bytes(&mut current_header_buf)?;
+        self.header.write_bytes(&mut current_header_buf).await?;
         // Compute data offset
         let data_offset = current_header_buf.stream_position()? as i64 - old_header_len as i64;
         // Keep track of the new index being built
         let mut new_index: HashMap<Cid, u64> = HashMap::new();
         // Grab all offsets
-        let index = self.index.borrow().clone();
+        let index = self.index.read().await;
         let mut offsets: Vec<u64> = vec![];
-        for bucket in index.buckets {
+        for bucket in index.buckets.iter() {
             offsets.extend_from_slice(&bucket.map.clone().into_values().collect::<Vec<u64>>())
         }
         // Sort those offsets so the first offsets occur first
@@ -92,18 +138,18 @@ impl CarV1 {
             // Move to the existing block location
             rw.seek(SeekFrom::Start(block_offset))?;
             // Read the block
-            let block = Block::read_bytes(&mut rw)?;
+            let block = Block::read_bytes(&mut rw).await?;
             // Compute the new offset of the block
             let new_offset = (block_offset as i64 + data_offset) as u64;
             // Move to that offset
             rw.seek(SeekFrom::Start(new_offset))?;
             // Write the block there
-            block.write_bytes(&mut rw)?;
+            block.write_bytes(&mut rw).await?;
             // Insert new offset into index
             new_index.insert(block.cid, new_offset);
         }
         {
-            let index: &mut Index<Bucket> = &mut self.index.borrow_mut();
+            let index: &mut Index<Bucket> = &mut *self.index.write().await;
             for (cid, offset) in new_index {
                 index.insert_offset(&cid, offset);
             }
@@ -116,59 +162,67 @@ impl CarV1 {
         rw.flush()?;
 
         let mut offsets: Vec<u64> = vec![];
-        for bucket in self.index.borrow().clone().buckets {
+        for bucket in self.index.read().await.buckets.iter() {
             offsets.extend_from_slice(&bucket.map.clone().into_values().collect::<Vec<u64>>())
         }
 
         if let Some(max_offset) = offsets.iter().max() {
             rw.seek(SeekFrom::Start(*max_offset))?;
-            let _ = Block::read_bytes(&mut rw)?;
+            let _ = Block::read_bytes(&mut rw).await?;
         }
         Ok(rw.stream_position()?)
     }
 
     /// Get a Block directly from the CarV1
-    pub fn get_block<R: Read + Seek>(&self, cid: &Cid, mut r: R) -> Result<Block, CarError> {
-        if let Some(block_offset) = self.index.borrow().get_offset(cid) {
+    pub async fn get_block<R: Read + Seek + Send>(
+        &self,
+        cid: &Cid,
+        mut r: R,
+    ) -> Result<Block, CarError> {
+        if let Some(block_offset) = self.index.read().await.get_offset(cid) {
             r.seek(SeekFrom::Start(block_offset))?;
-            Block::read_bytes(&mut r)
+            Block::read_bytes(&mut r).await
         } else {
             Err(CarError::missing_block(cid))
         }
     }
 
     /// Set a Block directly in the CarV1
-    pub fn put_block<W: Write + Seek>(&self, block: &Block, mut w: W) -> Result<(), CarError> {
-        let mut index = self.index.borrow_mut();
+    pub async fn put_block<W: Write + Seek + Send>(
+        &self,
+        block: &Block,
+        mut w: W,
+    ) -> Result<(), CarError> {
+        let mut index = self.index.write().await;
         // Move to the end
         w.seek(SeekFrom::End(0))?;
         // Insert current offset before bytes are written
         index.insert_offset(&block.cid, w.stream_position()?);
         // Write the bytes
-        block.write_bytes(&mut w)?;
+        block.write_bytes(&mut w).await?;
         // Return Ok
         Ok(())
     }
 
     /// Create a new CARv1 struct by writing into a stream, then deserializing it
-    pub fn new<RW: Read + Write + Seek>(
+    pub async fn new<RW: Read + Write + Seek + Send>(
         index_offset: Option<u64>,
         mut rw: RW,
     ) -> Result<Self, CarError> {
-        let car = Self::default(if index_offset.is_none() { 1 } else { 2 });
-        car.header.write_bytes(&mut rw)?;
+        let car = Self::default(if index_offset.is_none() { 1 } else { 2 }).await;
+        car.header.write_bytes(&mut rw).await?;
         rw.seek(SeekFrom::Start(0))?;
-        Self::read_bytes(index_offset, rw)
+        Self::read_bytes(index_offset, rw).await
     }
 
     /// Set the singular root of the CarV1
-    pub fn set_root(&self, root: &Cid) {
-        *self.header.roots.borrow_mut() = vec![*root];
+    pub async fn set_root(&self, root: &Cid) {
+        *self.header.roots.write().await = vec![*root];
     }
 
     /// Get the singular root of the CarV1
-    pub fn get_root(&self) -> Option<Cid> {
-        let roots = self.header.roots.borrow();
+    pub async fn get_root(&self) -> Option<Cid> {
+        let roots = self.header.roots.read().await;
         if roots.len() > 0 {
             Some(roots[0])
         } else {
@@ -177,22 +231,23 @@ impl CarV1 {
     }
 }
 
+/// warning: blocks
 impl PartialEq for CarV1 {
     fn eq(&self, other: &Self) -> bool {
-        self.header == other.header && self.index == other.index
+        self.header == other.header
+            && *futures::executor::block_on(self.index.read())
+                == *futures::executor::block_on(other.index.read())
     }
 }
 
 impl CarV1 {
-    pub(crate) fn default(version: u64) -> Self {
+    pub(crate) async fn default(version: u64) -> Self {
         let header = Header::default(version);
         let mut buf = Cursor::new(<Vec<u8>>::new());
-        header
-            .write_bytes(&mut buf)
-            .expect("failed to write header as bytes");
+        block_on(header.write_bytes(&mut buf)).expect("failed to write header as bytes");
         Self {
             header,
-            index: RefCell::new(Index {
+            index: RwLock::new(Index {
                 codec: INDEX_SORTED_CODEC,
                 buckets: vec![],
             }),
@@ -218,14 +273,14 @@ mod test {
     };
     use wnfs::libipld::{Cid, IpldCodec};
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn from_disk_basic() -> Result<(), CarError> {
+    async fn from_disk_basic() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "from_disk_basic")?;
         // Grab read/writer
         let mut rw = get_read_write(car_path)?;
         // Read in the CarV1
-        let car = CarV1::read_bytes(None, &mut rw)?;
+        let car = CarV1::read_bytes(None, &mut rw).await?;
 
         // Header tests exist separately, let's just ensure content is correct!
 
@@ -243,14 +298,14 @@ mod test {
 
         // Blocks
         let blocks = vec![
-            car.get_block(&block_cids[0], &mut rw)?,
-            car.get_block(&block_cids[1], &mut rw)?,
-            car.get_block(&block_cids[2], &mut rw)?,
-            car.get_block(&block_cids[3], &mut rw)?,
-            car.get_block(&block_cids[4], &mut rw)?,
-            car.get_block(&block_cids[5], &mut rw)?,
-            car.get_block(&block_cids[6], &mut rw)?,
-            car.get_block(&block_cids[7], &mut rw)?,
+            car.get_block(&block_cids[0], &mut rw).await?,
+            car.get_block(&block_cids[1], &mut rw).await?,
+            car.get_block(&block_cids[2], &mut rw).await?,
+            car.get_block(&block_cids[3], &mut rw).await?,
+            car.get_block(&block_cids[4], &mut rw).await?,
+            car.get_block(&block_cids[5], &mut rw).await?,
+            car.get_block(&block_cids[6], &mut rw).await?,
+            car.get_block(&block_cids[7], &mut rw).await?,
         ];
 
         // Ensure CIDs are matching
@@ -279,47 +334,44 @@ mod test {
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn set_root() -> Result<(), CarError> {
-        let car_path = &car_test_setup(1, "basic", "set_root_original")?;
+    async fn set_root() -> Result<(), CarError> {
+        let car_path = car_test_setup(1, "basic", "set_root_original")?;
         // Grab read/writer
-        let mut rw = get_read_write(car_path)?;
+        let mut rw = get_read_write(&car_path)?;
         // Read in the CarV1
-        let car = CarV1::read_bytes(None, &mut rw)?;
+        let car = CarV1::read_bytes(None, &mut rw).await?;
 
         // Insert a root
-        car.set_root(&Cid::default());
+        car.set_root(&Cid::default()).await;
 
         rw.seek(SeekFrom::Start(0))?;
-        car.write_bytes(&mut rw)?;
+        car.write_bytes(&mut rw).await?;
 
         // Read in the CarV1
         let mut r2 = File::open(car_path)?;
-        let new_car = CarV1::read_bytes(None, &mut r2)?;
+        let new_car = CarV1::read_bytes(None, &mut r2).await?;
 
-        assert_eq!(car.header, new_car.header);
-        assert_eq!(car.index, new_car.index);
         assert_eq!(car, new_car);
 
         Ok(())
     }
-
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn put_get_block() -> Result<(), CarError> {
+    async fn put_get_block() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "put_get_block")?;
         // Define reader and writer
         let mut original_file = File::open(car_path)?;
 
         // Read original CARv2
-        let original = CarV1::read_bytes(None, &mut original_file)?;
-        let index = original.index.borrow().clone();
+        let original = CarV1::read_bytes(None, &mut original_file).await?;
+        let index = original.index.read().await.clone();
         let all_cids = index.buckets[0].map.keys().collect::<Vec<&Cid>>();
 
         // Assert that we can query all CIDs
         for cid in &all_cids {
-            assert!(original.get_block(cid, &mut original_file).is_ok());
+            assert!(original.get_block(cid, &mut original_file).await.is_ok());
         }
 
         // Insert a block
@@ -333,102 +385,107 @@ mod test {
             .open(car_path)?;
 
         // Put a new block in
-        original.put_block(&block, &mut writable_original)?;
-        let new_block = original.get_block(&block.cid, &mut original_file)?;
+        original.put_block(&block, &mut writable_original).await?;
+        let new_block = original.get_block(&block.cid, &mut original_file).await?;
         assert_eq!(block, new_block);
 
         // Assert that we can still query all CIDs
         for cid in &all_cids {
-            original.get_block(cid, &mut original_file)?;
+            original.get_block(cid, &mut original_file).await?;
         }
 
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn to_from_disk_no_offset() -> Result<(), CarError> {
+    async fn to_from_disk_no_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_no_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the CarV1
-        let original = CarV1::read_bytes(None, &mut original_rw)?;
+        let original = CarV1::read_bytes(None, &mut original_rw).await?;
         // Move back to start
         original_rw.seek(std::io::SeekFrom::Start(0))?;
         // Write to updated file
-        original.write_bytes(&mut original_rw)?;
+        original.write_bytes(&mut original_rw).await?;
 
         // Reconstruct
         let mut updated_rw = File::open(car_path)?;
-        let updated = CarV1::read_bytes(None, &mut updated_rw)?;
+        let updated = CarV1::read_bytes(None, &mut updated_rw).await?;
 
         // Assert equality
-        assert_eq!(original.header, updated.header);
-        assert_eq!(original.index, updated.index);
         assert_eq!(original, updated);
 
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn to_from_disk_with_offset() -> Result<(), CarError> {
+    async fn to_from_disk_with_offset() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_with_offset_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the CarV1
-        let original = CarV1::read_bytes(None, &mut original_rw)?;
-        original.set_root(&original.index.borrow().get_all_cids()[0]);
+        let original = CarV1::read_bytes(None, &mut original_rw).await?;
+        original
+            .set_root(&original.index.read().await.get_all_cids()[0])
+            .await;
 
         // Write to updated file
         original_rw.seek(SeekFrom::Start(0))?;
         // Rewrite
-        original.write_bytes(&mut original_rw)?;
+        original.write_bytes(&mut original_rw).await?;
 
         // Reconstruct
         let mut updated_rw = get_read_write(car_path)?;
         // Read in the CarV1
-        let updated = CarV1::read_bytes(None, &mut updated_rw)?;
+        let updated = CarV1::read_bytes(None, &mut updated_rw).await?;
 
         // Assert equality
         assert_eq!(original.header, updated.header);
         assert_eq!(
-            original.index.borrow().get_all_cids(),
-            updated.index.borrow().get_all_cids()
+            original.index.read().await.get_all_cids(),
+            updated.index.read().await.get_all_cids()
         );
 
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn to_from_disk_with_data() -> Result<(), CarError> {
+    async fn to_from_disk_with_data() -> Result<(), CarError> {
         let car_path = &car_test_setup(1, "basic", "to_from_disk_with_data_original")?;
         // Grab read/writer
         let mut original_rw = get_read_write(car_path)?;
         // Read in the CarV1
-        let original = CarV1::read_bytes(None, &mut original_rw)?;
+        let original = CarV1::read_bytes(None, &mut original_rw).await?;
 
         // Insert a block as a root
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let block = Block::new(kitty_bytes, IpldCodec::DagCbor)?;
-        original.set_root(&block.cid);
-        assert_eq!(block.cid, original.get_root().expect("failed to get root"));
-        original.put_block(&block, &mut original_rw)?;
-        assert_eq!(block, original.get_block(&block.cid, &mut original_rw)?);
+        original.set_root(&block.cid).await;
+        assert_eq!(
+            block.cid,
+            original.get_root().await.expect("failed to get root")
+        );
+        original.put_block(&block, &mut original_rw).await?;
+        assert_eq!(
+            block,
+            original.get_block(&block.cid, &mut original_rw).await?
+        );
 
         // Write updates to file
         original_rw.seek(SeekFrom::Start(0))?;
-        original.write_bytes(&mut original_rw)?;
+        original.write_bytes(&mut original_rw).await?;
 
         // Reconstruct
         let mut updated_rw = get_read_write(car_path)?;
         // Read in the CarV1
-        let updated = CarV1::read_bytes(None, &mut updated_rw)?;
+        let updated = CarV1::read_bytes(None, &mut updated_rw).await?;
 
         // Assert equality
-        assert_eq!(original.header, updated.header);
-        assert_eq!(original.index, updated.index);
+        assert_eq!(original, updated);
         Ok(())
     }
 }

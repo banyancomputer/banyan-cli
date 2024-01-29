@@ -12,6 +12,9 @@ pub struct CarError {
 
 impl std::error::Error for CarError {}
 
+// FLAG
+unsafe impl Send for CarError {}
+
 impl CarError {
     pub fn missing_root() -> Self {
         Self {

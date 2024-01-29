@@ -17,9 +17,10 @@ pub struct Bucket {
     pub(crate) map: HashMap<Cid, u64>,
 }
 
+#[async_trait::async_trait]
 impl Streamable for Bucket {
     type StreamError = CarError;
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
+    async fn read_bytes<R: Read + Seek + Send>(r: &mut R) -> Result<Self, Self::StreamError> {
         // Start pos
         let start = r.stream_position()?;
         // Width of each digest offset pair
@@ -62,7 +63,10 @@ impl Streamable for Bucket {
         }
     }
 
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
+    async fn write_bytes<W: Write + Seek + Send>(
+        &self,
+        w: &mut W,
+    ) -> Result<(), Self::StreamError> {
         w.write_all(&(self.cid_width + 8).to_le_bytes())?;
         w.write_all(&(self.map.len() as u64).to_le_bytes())?;
         // For each cid offset pairing

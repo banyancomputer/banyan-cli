@@ -68,10 +68,11 @@ impl Block {
     }
 }
 
+#[async_trait::async_trait]
 impl Streamable for Block {
     type StreamError = CarError;
     /// Serialize the current object
-    fn write_bytes<W: Write>(&self, w: &mut W) -> Result<(), Self::StreamError> {
+    async fn write_bytes<W: Write + Send>(&self, w: &mut W) -> Result<(), Self::StreamError> {
         // Represent CID as bytes
         let cid_buf: Vec<u8> = self.cid.to_bytes();
         // Assert that the varint is accurate
@@ -87,9 +88,9 @@ impl Streamable for Block {
     }
 
     /// Read a Block from stream
-    fn read_bytes<R: Read + Seek>(r: &mut R) -> Result<Self, Self::StreamError> {
+    async fn read_bytes<R: Read + Seek + Send>(r: &mut R) -> Result<Self, Self::StreamError> {
         let (varint, cid) = Self::start_read(&mut *r)?;
-        Self::finish_read(varint, cid, r)
+        Self::finish_read(varint, cid, &mut *r)
     }
 }
 

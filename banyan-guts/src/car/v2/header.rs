@@ -2,6 +2,7 @@ use crate::{
     car::{error::CarError, streamable::Streamable},
     utils::varint::{read_leu128, read_leu64},
 };
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Seek, Write};
 
@@ -16,9 +17,13 @@ pub struct Header {
     pub index_offset: u64,
 }
 
+#[async_trait::async_trait]
 impl Streamable for Header {
     type StreamError = CarError;
-    fn write_bytes<W: Write + Seek>(&self, w: &mut W) -> Result<(), Self::StreamError> {
+    async fn write_bytes<W: Write + Seek + Send>(
+        &self,
+        w: &mut W,
+    ) -> Result<(), Self::StreamError> {
         let start = w.stream_position()?;
         // Write
         w.write_all(&self.characteristics.to_le_bytes())?;
@@ -32,7 +37,7 @@ impl Streamable for Header {
         Ok(())
     }
 
-    fn read_bytes<R: Read>(r: &mut R) -> Result<Self, Self::StreamError> {
+    async fn read_bytes<R: Read + Seek + Send>(r: &mut R) -> Result<Self, Self::StreamError> {
         Ok(Self {
             characteristics: read_leu128(r)?,
             data_offset: read_leu64(r)?,
@@ -45,7 +50,7 @@ impl Streamable for Header {
 impl Header {
     pub fn to_bytes(self) -> Result<Vec<u8>, CarError> {
         let mut header_bytes = Cursor::new(<Vec<u8>>::new());
-        self.write_bytes(&mut header_bytes)?;
+        block_on(self.write_bytes(&mut header_bytes))?;
         Ok(header_bytes.into_inner())
     }
 }
@@ -68,7 +73,7 @@ impl<'de> Deserialize<'de> for Header {
     {
         let mut header_bytes = Cursor::new(<Vec<u8>>::deserialize(deserializer)?);
         let new_header =
-            Self::read_bytes(&mut header_bytes).expect("failed to read header as bytes");
+            block_on(Self::read_bytes(&mut header_bytes)).expect("failed to read header as bytes");
         Ok(new_header)
     }
 }
@@ -91,15 +96,15 @@ mod test {
         path::Path,
     };
 
-    #[test]
+    #[tokio::test]
     #[serial]
-    fn read_disk() -> Result<(), CarError> {
+    async fn read_disk() -> Result<(), CarError> {
         let car_path = car_test_setup(2, "basic", "read_disk")?;
         let mut file = File::open(car_path)?;
         // Skip the pragma
         file.seek(std::io::SeekFrom::Start(PRAGMA_SIZE as u64))?;
         // Read the header
-        let header = Header::read_bytes(&mut file)?;
+        let header = Header::read_bytes(&mut file).await?;
         // Characteristics are 0
         assert_eq!(header.characteristics, 0);
         assert_eq!(header.data_offset, 51);
@@ -108,8 +113,8 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn from_scratch() -> Result<(), CarError> {
+    #[tokio::test]
+    async fn from_scratch() -> Result<(), CarError> {
         let path = &Path::new("test")
             .join("car")
             .join("carv2_header_from_scratch.car");
@@ -123,7 +128,7 @@ mod test {
             data_size: 50,
             index_offset: 0,
         };
-        header.write_bytes(&mut file)?;
+        header.write_bytes(&mut file).await?;
         Ok(())
     }
 

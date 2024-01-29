@@ -10,6 +10,7 @@ use crate::{
     prelude::filesystem::FsMetadata,
 };
 use colored::{ColoredString, Colorize};
+use futures::executor::block_on;
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -163,7 +164,7 @@ impl OmniBucket {
         }
 
         // Initialize locally
-        if let Ok(mut local) = global.get_or_init_bucket(name, origin).await {
+        if let Ok(mut local) = block_on(global.get_or_init_bucket(name, origin)) {
             // If a remote bucket was made successfully
             if let Ok(remote) = omni.get_remote() {
                 // Also save that in the local obj

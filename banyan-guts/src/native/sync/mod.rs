@@ -86,8 +86,8 @@ impl OmniBucket {
         };
         // Grab the local bucket, or return Unlocalized if unavailable
         if let Ok(local) = self.get_local() {
-            let local_metadata_cid = local.metadata.get_root().map(|cid| cid.to_string());
-            let local_content_cid = local.content.get_root().map(|cid| cid.to_string());
+            let local_metadata_cid = local.metadata.get_root().await.map(|cid| cid.to_string());
+            let local_content_cid = local.content.get_root().await.map(|cid| cid.to_string());
             // If the metadata root CIDs match
             if local_metadata_cid == Some(current_remote.metadata_cid) {
                 // If the block is also persisted locally in content
@@ -141,7 +141,9 @@ impl OmniBucket {
                 // Grab the metadata file
                 let mut metadata_file =
                     tokio::fs::File::create(&self.get_local()?.metadata.path).await?;
-                metadata_file.write_all(&metadata.get_data()).await?;
+                metadata_file
+                    .write_all(&(metadata.get_data().await))
+                    .await?;
                 // Write that data out to the metadatas
 
                 info!("{}", "<< METADATA RECONSTRUCTED >>".green());
@@ -181,10 +183,12 @@ impl OmniBucket {
                 let local_content_cid = local
                     .content
                     .get_root()
+                    .await
                     .ok_or(FilesystemError::missing_metadata("root cid"))?;
                 let local_metadata_cid = local
                     .metadata
                     .get_root()
+                    .await
                     .ok_or(FilesystemError::missing_metadata("metdata cid"))?;
                 let delta = local.content.get_delta()?;
 
@@ -192,7 +196,7 @@ impl OmniBucket {
                 let (metadata, host, authorization) = Metadata::push(
                     PushMetadata {
                         bucket_id,
-                        expected_data_size: delta.data_size(),
+                        expected_data_size: delta.data_size().await,
                         root_cid: local_content_cid.to_string(),
                         metadata_cid: local_metadata_cid.to_string(),
                         previous_cid: local.previous_cid.map(|cid| cid.to_string()),
@@ -280,6 +284,7 @@ impl OmniBucket {
                 let metadata_root_cid = local
                     .metadata
                     .get_root()
+                    .await
                     .ok_or(FilesystemError::missing_metadata("root cid"))?;
                 let mut cids = BTreeSet::new();
                 cids.insert(metadata_root_cid);
@@ -311,7 +316,7 @@ impl OmniBucket {
                 // If we succeed at reconstructing
                 if restoration_result.is_ok() {
                     // Save the metadata in the content store as well
-                    let metadata_cid = local.metadata.get_root().unwrap();
+                    let metadata_cid = local.metadata.get_root().await.unwrap();
                     let ipld = local
                         .metadata
                         .get_deserializable::<Ipld>(&metadata_cid)

@@ -86,8 +86,8 @@ pub(crate) async fn setup_test<RBS: RootedBlockStore>(
     let origin: PathBuf = Path::new("test").join(test_name);
     create_dir_all(&origin)?;
 
-    metadata.set_root(&Cid::default());
-    content.set_root(&Cid::default());
+    metadata.set_root(&Cid::default()).await;
+    content.set_root(&Cid::default()).await;
 
     // Hot Forest and cold Forest
     let mut forest = Rc::new(PrivateForest::new());

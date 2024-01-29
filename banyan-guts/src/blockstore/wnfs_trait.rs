@@ -12,8 +12,8 @@ use crate::blockstore::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::blockstore::{CarV2DiskBlockStore, MultiCarV2DiskBlockStore};
 
-#[async_trait(?Send)]
-pub trait BanyanBlockStore: wnfs::common::BlockStore {
+#[async_trait]
+pub trait BanyanBlockStore: Sync + Send {
     async fn put_block(&self, bytes: Vec<u8>, codec: IpldCodec) -> Result<Cid, BlockStoreError>;
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError>;
 }

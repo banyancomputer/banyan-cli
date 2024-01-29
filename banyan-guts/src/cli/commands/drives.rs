@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use bytesize::ByteSize;
 use clap::Subcommand;
 use colored::Colorize;
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 use std::{env::current_dir, path::PathBuf};
 
@@ -69,7 +70,7 @@ pub enum DrivesCommand {
     },
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for DrivesCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
         match self {
@@ -94,22 +95,18 @@ impl RunnableCommand<NativeError> for DrivesCommand {
             DrivesCommand::Prepare {
                 drive_specifier,
                 follow_links,
-            } => {
-                prepare::pipeline(
-                    OmniBucket::from_specifier(&drive_specifier).await,
-                    follow_links,
-                )
-                .await
-            }
-            DrivesCommand::Restore { drive_specifier } => {
-                restore::pipeline(OmniBucket::from_specifier(&drive_specifier).await).await
-            }
-            DrivesCommand::Sync(drive_specifier) => {
+            } => block_on(prepare::pipeline(
+                OmniBucket::from_specifier(&drive_specifier).await,
+                follow_links,
+            )),
+            DrivesCommand::Restore { drive_specifier } => block_on(restore::pipeline(
+                OmniBucket::from_specifier(&drive_specifier).await,
+            )),
+            DrivesCommand::Sync(drive_specifier) => block_on(
                 OmniBucket::from_specifier(&drive_specifier)
                     .await
-                    .sync_bucket()
-                    .await
-            }
+                    .sync_bucket(),
+            ),
             DrivesCommand::Delete(drive_specifier) => {
                 let omni = OmniBucket::from_specifier(&drive_specifier).await;
                 let local_deletion = prompt_for_bool("Do you want to delete this Bucket locally?");

@@ -25,7 +25,7 @@ pub struct CarV2DiskBlockStore {
 
 impl CarV2DiskBlockStore {
     /// Create a new CarV2DiskBlockStore at a given path
-    pub fn new(path: &Path) -> Result<Self, BlockStoreError> {
+    pub async fn new(path: &Path) -> Result<Self, BlockStoreError> {
         if path.exists() {
             return Err(BlockStoreError::exists(path));
         }
@@ -34,14 +34,14 @@ impl CarV2DiskBlockStore {
         // Create new
         let store = CarV2DiskBlockStore {
             path: path.to_path_buf(),
-            car: CarV2::new(&mut rw)?,
+            car: CarV2::new(&mut rw).await?,
         };
         // Return Ok
         Ok(store)
     }
 
     /// LOad a new CARv2DiskBlockStore from a given path
-    pub fn load(path: &Path) -> Result<Self, BlockStoreError> {
+    pub async fn load(path: &Path) -> Result<Self, BlockStoreError> {
         // If the path is a directory
         if path.is_dir() {
             return Err(BlockStoreError::missing_file(path));
@@ -49,7 +49,7 @@ impl CarV2DiskBlockStore {
 
         // If the file is already a valid CARv2
         let mut file = File::open(path)?;
-        let car = CarV2::read_bytes(&mut file)?;
+        let car = CarV2::read_bytes(&mut file).await?;
         Ok(Self {
             path: path.to_path_buf(),
             car,
@@ -57,23 +57,23 @@ impl CarV2DiskBlockStore {
     }
 
     /// Save the CarV2 CarV2DiskBlockStore to disk
-    pub fn to_disk(&self) -> Result<(), CarError> {
-        self.car.write_bytes(&mut get_read_write(&self.path)?)
+    pub async fn to_disk(&self) -> Result<(), CarError> {
+        self.car.write_bytes(&mut get_read_write(&self.path)?).await
     }
 
     /// Get the size of the underlying CARv1
-    pub fn data_size(&self) -> u64 {
-        self.car.data_size()
+    pub async fn data_size(&self) -> u64 {
+        self.car.data_size().await
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl BanyanBlockStore for CarV2DiskBlockStore {
     async fn get_block(&self, cid: &Cid) -> Result<Cow<'_, Vec<u8>>, BlockStoreError> {
         // Open the file in read-only mode
         let mut file = get_read(&self.path)?;
         // Perform the block read
-        let block: Block = self.car.get_block(cid, &mut file)?;
+        let block: Block = self.car.get_block(cid, &mut file).await?;
         // Return its contents
         Ok(Cow::Owned(block.content))
     }
@@ -91,22 +91,22 @@ impl BanyanBlockStore for CarV2DiskBlockStore {
             // Open the file in append mode
             let mut file = get_write(&self.path)?;
             // Put the block
-            self.car.put_block(&block, &mut file)?;
+            self.car.put_block(&block, &mut file).await?;
             // Return Ok with block CID
             Ok(block.cid)
         }
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RootedBlockStore for CarV2DiskBlockStore {
-    fn set_root(&self, root: &Cid) {
-        self.car.set_root(root);
-        self.to_disk().expect("failed to write to disk");
+    async fn set_root(&self, root: &Cid) {
+        self.car.set_root(root).await;
+        self.to_disk().await.expect("failed to write to disk");
     }
 
-    fn get_root(&self) -> Option<Cid> {
-        self.car.get_root()
+    async fn get_root(&self) -> Option<Cid> {
+        self.car.get_root().await
     }
 }
 
@@ -128,7 +128,7 @@ impl<'de> Deserialize<'de> for CarV2DiskBlockStore {
         // Grab the Path
         let path = PathBuf::deserialize(deserializer)?;
         // If we successfully load ourself from disk
-        if let Ok(new_store) = Self::load(&path) {
+        if let Ok(new_store) = futures::executor::block_on(Self::load(&path)) {
             // Return loaded object
             Ok(new_store)
         } else {
@@ -146,14 +146,17 @@ mod test {
     };
     use serial_test::serial;
     use std::{fs::remove_file, path::Path, str::FromStr};
-    use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
-    use wnfs::libipld::{Cid, IpldCodec};
+    //use wnfs::common::blockstore::{bs_duplication_test, bs_retrieval_test};
+    use wnfs::{
+        common::{bs_duplication_test, bs_retrieval_test},
+        libipld::{Cid, IpldCodec},
+    };
 
     #[tokio::test]
     #[serial]
     async fn get_block() -> Result<(), BlockStoreError> {
         let path = car_test_setup(2, "indexless", "carv2blockstore_get_block")?;
-        let store = CarV2DiskBlockStore::load(&path)?;
+        let store = CarV2DiskBlockStore::load(&path).await?;
         let cid = Cid::from_str("bafy2bzaced4ueelaegfs5fqu4tzsh6ywbbpfk3cxppupmxfdhbpbhzawfw5oy")?;
         let _ = store.get_block(&cid).await?.to_vec();
         Ok(())
@@ -163,7 +166,7 @@ mod test {
     #[serial]
     async fn put_block() -> Result<(), BlockStoreError> {
         let path = car_test_setup(2, "indexless", "carv2blockstore_put_block")?;
-        let store = CarV2DiskBlockStore::load(&path)?;
+        let store = CarV2DiskBlockStore::load(&path).await?;
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = store.put_block(kitty_bytes.clone(), IpldCodec::Raw).await?;
 
@@ -184,22 +187,25 @@ mod test {
         }
 
         // Create new file
-        let original = CarV2DiskBlockStore::new(original_path)?;
+        let original = CarV2DiskBlockStore::new(original_path).await?;
         // Put a block in
         let kitty_bytes = "Hello Kitty!".as_bytes().to_vec();
         let kitty_cid = original
             .put_block(kitty_bytes.clone(), IpldCodec::Raw)
             .await?;
         // Insert root
-        original.set_root(&kitty_cid);
+        original.set_root(&kitty_cid).await;
         // Save
-        original.to_disk()?;
+        original.to_disk().await?;
 
         // Reopen
-        let reconstructed = CarV2DiskBlockStore::load(original_path)?;
+        let reconstructed = CarV2DiskBlockStore::load(original_path).await?;
 
         // Ensure content is still there
-        assert_eq!(kitty_cid, original.get_root().expect("no root in CAR"));
+        assert_eq!(
+            kitty_cid,
+            original.get_root().await.expect("no root in CAR")
+        );
         assert_eq!(kitty_bytes, original.get_block(&kitty_cid).await?.to_vec());
 
         // Assert equality
@@ -211,7 +217,7 @@ mod test {
     #[serial]
     async fn carv2blockstore() -> Result<(), BlockStoreError> {
         let car_path = &car_test_setup(2, "indexless", "blockstore")?;
-        let store = &CarV2DiskBlockStore::load(car_path)?;
+        let store = &CarV2DiskBlockStore::load(car_path).await?;
         bs_retrieval_test(store)
             .await
             .map_err(|err| BlockStoreError::wnfs(Box::from(err)))?;

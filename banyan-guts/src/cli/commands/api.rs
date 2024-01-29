@@ -21,7 +21,7 @@ pub enum ApiCommand {
     Reset,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for ApiCommand {
     async fn run_internal(self) -> Result<String, NativeError> {
         let mut global = GlobalConfig::from_disk().await?;

@@ -21,7 +21,7 @@ pub enum DaemonCommand {
     Version,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl RunnableCommand<NativeError> for DaemonCommand {
     // TODO: implement nativeerror for daemon, or do something else
     async fn run_internal(self) -> Result<String, NativeError> {
