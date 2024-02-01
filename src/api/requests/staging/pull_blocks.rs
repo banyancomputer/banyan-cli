@@ -12,6 +12,7 @@ pub struct PullBlock {
     pub cid: Cid,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PullBlockResponse(pub(crate) Vec<u8>);
 

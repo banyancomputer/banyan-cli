@@ -540,10 +540,10 @@ impl WasmMount {
     }
 
     /// Refreshes the bucket to ensure its up to date against what the server is aware of
-    pub async fn remount(&mut self, encryption_key_pem: String) -> Result<(), TombWasmError> {
+    pub async fn remount(&mut self, encryption_key_pem: String) -> TombResult<()> {
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
-            .map_err(to_wasm_error_with_msg("import encryption key"))?;
+            .map_err(|e| TombWasmError::new(&e.to_string()))?;
 
         self.refresh(&key).await?;
 

@@ -4,9 +4,9 @@ mod compat;
 mod version;
 /// Expose all the compatibility types directly
 pub use compat::{
-    to_js_error_with_msg, to_wasm_error_with_msg, TombResult, TombWasm, TombWasmError, WasmBucket,
-    WasmBucketKey, WasmBucketMetadata, WasmBucketMount, WasmFsMetadataEntry, WasmMount,
-    WasmNodeMetadata, WasmSharedFile, WasmSnapshot,
+    to_wasm_error_with_msg, TombResult, TombWasm, TombWasmError, WasmBucket, WasmBucketKey,
+    WasmBucketMetadata, WasmBucketMount, WasmFsMetadataEntry, WasmMount, WasmNodeMetadata,
+    WasmSharedFile, WasmSnapshot,
 };
 use std::sync::Once;
 use time::macros::format_description;

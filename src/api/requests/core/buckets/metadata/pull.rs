@@ -13,6 +13,7 @@ pub struct PullMetadata {
     pub bucket_id: Uuid,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PullMetadataResponse(pub(crate) Vec<u8>);
 
