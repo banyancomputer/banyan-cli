@@ -344,7 +344,6 @@ impl TombWasm {
     ///         or that has access to the bucket
     /// # Returns
     /// A WasmMount instance
-    #[wasm_bindgen(js_name = mount)]
     pub async fn mount(
         &mut self,
         bucket_id: String,

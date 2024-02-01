@@ -539,6 +539,17 @@ impl WasmMount {
         Ok(())
     }
 
+    /// Refreshes the bucket to ensure its up to date against what the server is aware of
+    pub async fn remount(&mut self, encryption_key_pem: String) -> Result<(), TombWasmError> {
+        let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
+            .await
+            .map_err(to_wasm_error_with_msg("import encryption key"))?;
+
+        self.refresh(&key).await?;
+
+        Ok(())
+    }
+
     /// Write a file
     /// # Arguments
     /// * `path_segments` - The path to write to (as an Array)

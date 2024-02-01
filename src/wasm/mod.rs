@@ -48,7 +48,11 @@ pub fn register_log() {
             .with_writer(MakeWebConsoleWriter::new())
             .with_filter(fmt_filter);
 
-        let perf_filter = if cfg!(debug_assertions) { LevelFilter::DEBUG } else { LevelFilter::WARN };
+        let perf_filter = if cfg!(debug_assertions) {
+            LevelFilter::DEBUG
+        } else {
+            LevelFilter::INFO
+        };
         let perf_layer = performance_layer()
             .with_details_from_fields(Pretty::default())
             .with_filter(perf_filter);
@@ -62,11 +66,9 @@ pub fn register_log() {
         // Print info no matter what
         info!("new() with version {}", version());
 
-        if cfg!(debug_assertions) {
-            info!("logging is working. because you built in debug mode you should see all output.");
-        } else {
-            info!("logging is working, but because you have built for release, only errors and warnings will appear from here on out.");
-            let _ = fmt_handle.modify(|filter| *filter = LevelFilter::WARN);
+        if !cfg!(debug_assertions) {
+            info!("logging is restricted to informational and above in release mode");
+            let _ = fmt_handle.modify(|filter| *filter = LevelFilter::INFO);
         }
     });
 }
