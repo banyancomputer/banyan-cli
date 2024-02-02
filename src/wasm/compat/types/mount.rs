@@ -155,6 +155,8 @@ impl WasmMount {
 
     /// Refresh the current fs_metadata with the remote
     pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
+        info!(bucket_id = ?self.bucket.id, "refresh");
+
         let bucket_id = self.bucket.id;
 
         // Get the metadata associated with the bucket
@@ -164,7 +166,7 @@ impl WasmMount {
 
         let metadata_cid = metadata.metadata_cid.clone();
         info!(
-            "pull()/{} - pulling metadata at version {}",
+            "refresh()/{} - pulling metadata at version {}",
             self.bucket.id.to_string(),
             metadata_cid
         );
@@ -173,10 +175,10 @@ impl WasmMount {
         let mut stream = metadata
             .pull(&mut self.client)
             .await
-            .map_err(to_wasm_error_with_msg("pull metadata"))?;
+            .map_err(to_wasm_error_with_msg("refresh metadata"))?;
 
         info!(
-            "pull()/{} - reading metadata stream",
+            "refresh()/{} - reading metadata stream",
             self.bucket.id.to_string()
         );
 
@@ -186,7 +188,7 @@ impl WasmMount {
         }
 
         info!(
-            "pull()/{} - creating metadata blockstore",
+            "refresh()/{} - creating metadata blockstore",
             self.bucket.id.to_string()
         );
 
@@ -195,16 +197,20 @@ impl WasmMount {
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
 
+        // does self.bucket need to be updated?
         self.metadata = Some(metadata.to_owned());
         self.metadata_blockstore = metadata_blockstore;
         self.content_blockstore = content_blockstore;
+        self.locked = true;
         self.dirty = false;
         self.append = false;
         self.fs_metadata = None;
+        self.previous_cid = Some(metadata_cid);
 
-        info!("pull()/{} - pulled", self.bucket.id.to_string());
+        info!("refresh()/{} - pulled", self.bucket.id.to_string());
         self.unlock(key).await?;
-        // Ok
+        info!("refresh()/{} - unlocked", self.bucket.id.to_string());
+
         Ok(())
     }
 
@@ -292,6 +298,7 @@ impl WasmMount {
         assert_eq!(metadata.metadata_cid, metadata_cid.to_string());
         let metadata_id = metadata.id;
         self.metadata = Some(metadata);
+        self.previous_cid = Some(metadata_cid.to_string());
 
         match (host, authorization) {
             // New storage ticket
@@ -536,6 +543,21 @@ impl WasmMount {
         self.sync().await?;
 
         // Ok
+        Ok(())
+    }
+
+    /// Refreshes the bucket to ensure its up to date against what the server is aware of
+    pub async fn remount(&mut self, encryption_key_pem: String) -> TombResult<()> {
+        info!(bucket_id = ?self.bucket.id, "remount");
+
+        let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
+            .await
+            .map_err(|e| TombWasmError::new(&e.to_string()))?;
+
+        self.refresh(&key).await?;
+
+        info!(bucket_id = ?self.bucket.id, "remount complete");
+
         Ok(())
     }
 
