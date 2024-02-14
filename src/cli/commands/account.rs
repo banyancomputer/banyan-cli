@@ -86,12 +86,11 @@ impl RunnableCommand<NativeError> for AccountCommand {
                     .unwrap();
 
                 // Offer the link directly if it fails to open
-                if open::that(url.as_str()).is_err() {
-                    warn!(
-                        "failed to open link in browser, try clicking instead:\n{}",
-                        url.as_str().bright_blue()
-                    );
-                }
+                let _ = open::that(url.as_str());
+                info!(
+                    "open this link in your browser:\n{}",
+                    url.as_str().bright_blue()
+                );
 
                 // Now await the completion of the original request
                 let start_response = join_handle

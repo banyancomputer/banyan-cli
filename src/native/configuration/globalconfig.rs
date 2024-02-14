@@ -42,7 +42,7 @@ impl Default for GlobalConfig {
         let endpoint = Url::parse(if option_env!("DEV_ENDPOINTS").is_some() {
             "http://127.0.0.1:3001"
         } else {
-            "https://alpha.data.banyan.computer"
+            "https://beta.data.banyan.computer"
         })
         .expect("unable to parse known URLs");
 
