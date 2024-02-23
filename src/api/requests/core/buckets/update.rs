@@ -4,9 +4,12 @@ use std::fmt::{self, Display, Formatter};
 use reqwest::{Client, RequestBuilder, Url};
 use serde::Deserialize;
 
-use crate::api::{models::bucket::Bucket, requests::ApiRequest};
+use crate::api::requests::ApiRequest;
 
-pub struct UpdateBucket(pub Bucket);
+pub struct UpdateBucket {
+    pub bucket_id: String,
+    pub name: String,
+}
 
 #[derive(Deserialize)]
 pub struct UpdateBucketResponse;
@@ -17,9 +20,10 @@ impl ApiRequest for UpdateBucket {
 
     fn build_request(self, base_url: &Url, client: &Client) -> RequestBuilder {
         let url = base_url
-            .join(&format!("/api/v1/buckets/{}", self.0.id))
+            .join(&format!("/api/v1/buckets/{}", self.bucket_id))
             .unwrap();
-        client.put(url).json(&self.0)
+
+        client.put(url).json(&self.name)
     }
 
     fn requires_authentication(&self) -> bool {
