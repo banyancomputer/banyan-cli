@@ -351,7 +351,7 @@ impl TombWasm {
         encryption_key_pem: String,
     ) -> TombResult<WasmMount> {
         let prefix = format!("mount()/{}", bucket_id);
-        info!(prefix);
+        info!("{prefix}");
 
         // Parse the bucket id
         let bucket_id_uuid =

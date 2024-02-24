@@ -64,7 +64,7 @@ impl WasmMount {
         client: &Client,
     ) -> Result<Self, TombWasmError> {
         let prefix = format!("new()/{}", wasm_bucket.name());
-        info!(prefix);
+        info!("{prefix}");
 
         let bucket = Bucket::from(wasm_bucket.clone());
         info!("{}: creating blockstores", prefix);
@@ -105,7 +105,7 @@ impl WasmMount {
     /// Initialize a new Wasm callable mount with metadata for a bucket and a client
     pub async fn pull(wasm_bucket: WasmBucket, client: &mut Client) -> Result<Self, TombWasmError> {
         let prefix = format!("pull()/{}", wasm_bucket.name());
-        info!(prefix);
+        info!("{prefix}");
         // Get the underlying bucket
         let bucket = Bucket::from(wasm_bucket.clone());
 
@@ -154,7 +154,7 @@ impl WasmMount {
     /// Refresh the current fs_metadata with the remote
     pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
         let prefix = format!("refresh()/{}", self.bucket.name);
-        info!(prefix);
+        info!("{prefix}");
 
         let bucket_id = self.bucket.id;
         // Get the metadata associated with the bucket
@@ -205,7 +205,7 @@ impl WasmMount {
     /// Sync the current fs_metadata with the remote
     pub async fn sync(&mut self) -> Result<(), TombWasmError> {
         let prefix = format!("sync()/{}", self.bucket.name);
-        info!(prefix);
+        info!("{prefix}");
         // Check if the bucket is locked
         if self.locked() {
             info!("{}: bucket is locked", prefix);
@@ -322,7 +322,7 @@ impl WasmMount {
     /// Unlock the current fs_metadata
     pub async fn unlock(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
         let prefix = format!("unlock()/{}", self.bucket.name);
-        info!(prefix);
+        info!("{prefix}");
 
         // Check if the bucket is already unlocked
         if !self.locked() {
@@ -432,7 +432,7 @@ impl WasmMount {
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         let prefix = format!("ls()/{}/{}", self.bucket.name, &path_segments.join("/"));
-        info!(prefix);
+        info!("{prefix}");
 
         if self.locked() {
             return Err(
@@ -485,7 +485,7 @@ impl WasmMount {
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         let prefix = format!("mkdir()/{}/{}", self.bucket.name, &path_segments.join("/"));
-        info!(prefix);
+        info!("{prefix}");
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -509,7 +509,7 @@ impl WasmMount {
     /// Refreshes the bucket to ensure its up to date against what the server is aware of
     pub async fn remount(&mut self, encryption_key_pem: String) -> TombResult<()> {
         let prefix = format!("remount()/{}", self.bucket.name);
-        info!(prefix);
+        info!("{prefix}");
 
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
@@ -544,7 +544,7 @@ impl WasmMount {
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         let prefix = format!("write()/{}/{}", self.bucket.name, &path_segments.join("/"));
-        info!(prefix);
+        info!("{prefix}");
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -598,7 +598,7 @@ impl WasmMount {
             self.bucket.name,
             &path_segments.join("/")
         );
-        info!(prefix);
+        info!("{prefix}");
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -675,7 +675,7 @@ impl WasmMount {
             &from_path_segments.join("/"),
             &to_path_segments.join("/")
         );
-        info!(prefix);
+        info!("{prefix}");
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -722,7 +722,7 @@ impl WasmMount {
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
         let prefix = format!("rm()/{}/{}", self.bucket.name, path_segments.join("/"));
-        info!(prefix);
+        info!("{prefix}");
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -776,7 +776,7 @@ impl WasmMount {
     #[wasm_bindgen(js_name = shareWith)]
     pub async fn share_with(&mut self, bucket_key_id: String) -> TombResult<()> {
         let prefix = format!("share_with/{}/{}", self.bucket.name, bucket_key_id.clone());
-        info!(prefix);
+        info!("{prefix}");
         let bucket_id = self.bucket.id;
         let bucket_key_id =
             uuid::Uuid::parse_str(&bucket_key_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
@@ -821,7 +821,7 @@ impl WasmMount {
             self.bucket.name,
             &path_segments.join("/")
         );
-        info!(prefix);
+        info!("{prefix}");
 
         // Read the array as a Vec<String>
         let path_segments = path_segments
