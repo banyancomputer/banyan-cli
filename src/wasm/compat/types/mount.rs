@@ -63,22 +63,23 @@ impl WasmMount {
         private_pem: String,
         client: &Client,
     ) -> Result<Self, TombWasmError> {
-        info!("new()/{}", wasm_bucket.id());
+        let prefix = format!("new()/{}", wasm_bucket.name());
+        info!(prefix);
 
         let bucket = Bucket::from(wasm_bucket.clone());
-        info!("new()/{} - creating blockstores", wasm_bucket.id());
+        info!("{}: creating blockstores", prefix);
         let metadata_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
-        info!("new()/{} - creating fs metadata", wasm_bucket.id());
+        info!("{}: creating fs metadata", prefix);
         let key = EcEncryptionKey::import(private_pem.as_bytes())
             .await
             .map_err(to_wasm_error_with_msg("import private key pem"))?;
         let fs_metadata = FsMetadata::init(&key)
             .await
             .map_err(to_wasm_error_with_msg("init FsMetadata"))?;
-        info!("new()/{} - saving fs metadata", wasm_bucket.id());
+        info!("{}: saving fs metadata", prefix);
         let mut mount = Self {
             client: client.to_owned(),
             bucket,
@@ -95,7 +96,7 @@ impl WasmMount {
             previous_cid: None,
         };
 
-        info!("new()/{} - syncing", wasm_bucket.id());
+        info!("{}: syncing", prefix);
         mount.sync().await?;
         // Ok
         Ok(mount)
@@ -103,7 +104,8 @@ impl WasmMount {
 
     /// Initialize a new Wasm callable mount with metadata for a bucket and a client
     pub async fn pull(wasm_bucket: WasmBucket, client: &mut Client) -> Result<Self, TombWasmError> {
-        info!("pull()/{}", wasm_bucket.id());
+        let prefix = format!("pull()/{}", wasm_bucket.name());
+        info!(prefix);
         // Get the underlying bucket
         let bucket = Bucket::from(wasm_bucket.clone());
 
@@ -113,28 +115,24 @@ impl WasmMount {
             .map_err(to_wasm_error_with_msg("read metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
-        info!(
-            "pull()/{} - pulling metadata at version {}",
-            wasm_bucket.id(),
-            metadata_cid
-        );
+        info!("{}: pulling metadata at version {}", prefix, metadata_cid);
         // Pull the Fs metadata on the matching entry
         let mut stream = metadata
             .pull(client)
             .await
             .map_err(to_wasm_error_with_msg("pull metadata"))?;
-        info!("pull()/{} - reading metadata stream", wasm_bucket.id());
+        info!("{}: reading metadata stream", prefix);
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
         }
-        info!("pull()/{} - creating metadata blockstore", wasm_bucket.id());
+        info!("{}: creating metadata blockstore", prefix);
         let metadata_blockstore =
             BlockStore::try_from(data).map_err(to_wasm_error_with_msg("metadata to blockstore"))?;
         let content_blockstore =
             BlockStore::new().map_err(to_wasm_error_with_msg("create blockstore"))?;
 
-        info!("pull()/{} - pulled", wasm_bucket.id());
+        info!("{}: pulled", prefix);
 
         // Ok
         Ok(Self {
@@ -155,21 +153,17 @@ impl WasmMount {
 
     /// Refresh the current fs_metadata with the remote
     pub async fn refresh(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
-        info!(bucket_id = ?self.bucket.id, "refresh");
+        let prefix = format!("refresh()/{}", self.bucket.name);
+        info!(prefix);
 
         let bucket_id = self.bucket.id;
-
         // Get the metadata associated with the bucket
         let metadata = Metadata::read_current(bucket_id, &mut self.client)
             .await
             .map_err(to_wasm_error_with_msg("read current metadata"))?;
 
         let metadata_cid = metadata.metadata_cid.clone();
-        info!(
-            "refresh()/{} - pulling metadata at version {}",
-            self.bucket.id.to_string(),
-            metadata_cid
-        );
+        info!("{}: pulling metadata at version {}", prefix, metadata_cid);
 
         // Pull the Fs metadata on the matching entry
         let mut stream = metadata
@@ -177,20 +171,14 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("refresh metadata"))?;
 
-        info!(
-            "refresh()/{} - reading metadata stream",
-            self.bucket.id.to_string()
-        );
+        info!("{}: reading metadata stream", prefix);
 
         let mut data = Vec::new();
         while let Some(chunk) = stream.next().await {
             data.extend_from_slice(&chunk.map_err(to_wasm_error_with_msg("chunk from stream"))?);
         }
 
-        info!(
-            "refresh()/{} - creating metadata blockstore",
-            self.bucket.id.to_string()
-        );
+        info!("{}: creating metadata blockstore", prefix);
 
         let metadata_blockstore =
             BlockStore::try_from(data).map_err(to_wasm_error_with_msg("metadata to blockstore"))?;
@@ -207,32 +195,26 @@ impl WasmMount {
         self.fs_metadata = None;
         self.previous_cid = Some(metadata_cid);
 
-        info!("refresh()/{} - pulled", self.bucket.id.to_string());
+        info!("{}: pulled", prefix);
         self.unlock(key).await?;
-        info!("refresh()/{} - unlocked", self.bucket.id.to_string());
+        info!("{}: unlocked", prefix);
 
         Ok(())
     }
 
     /// Sync the current fs_metadata with the remote
     pub async fn sync(&mut self) -> Result<(), TombWasmError> {
-        info!("sync()/{}", self.bucket.id.to_string());
+        let prefix = format!("sync()/{}", self.bucket.name);
+        info!(prefix);
         // Check if the bucket is locked
         if self.locked() {
-            info!("sync()/{} - bucket is locked", self.bucket.id.to_string());
+            info!("{}: bucket is locked", prefix);
             panic!("Bucket is locked");
         };
-        info!(
-            "sync()/{} - saving changes; dirty: {}",
-            self.bucket.id.to_string(),
-            self.dirty()
-        );
 
+        // Save to the filesystem if there are outstanding mods that need to end up in BlockStore
         if self.dirty() {
-            info!(
-                "sync()/{} - saving changes to fs",
-                self.bucket.id.to_string()
-            );
+            info!("{}: saving changes to fs", prefix,);
             let _ = self
                 .fs_metadata
                 .as_mut()
@@ -240,10 +222,10 @@ impl WasmMount {
                 .save(&self.metadata_blockstore, &self.content_blockstore)
                 .await;
         } else {
-            info!("sync()/{} - no changes to fs", self.bucket.id.to_string());
+            info!("{}: no changes to fs", prefix);
         }
 
-        info!("sync()/{} - pushing changes", self.bucket.id.to_string());
+        info!("{}: pushing changes", prefix);
 
         let root_cid = self
             .content_blockstore
@@ -253,23 +235,21 @@ impl WasmMount {
             .metadata_blockstore
             .get_root()
             .ok_or(TombWasmError::new("get metadata cid"))?;
+
         info!(
-            "sync()/{} - pushing metadata at version {}",
-            self.bucket.id.to_string(),
+            "{}: pushing metadata at version {}",
+            prefix,
             metadata_cid.to_string()
         );
-        info!(
-            "sync()/{} - pushing root at version {}",
-            self.bucket.id, root_cid,
-        );
+        info!("{}: pushing root at version {}", prefix, root_cid);
         // Assume that the metadata is always at least as big as the content
         let mut data_size = 0;
         if self.append {
             data_size = self.content_blockstore.data_size();
         }
         info!(
-            "sync()/{} - metadata cid {} ; content size difference {}",
-            self.bucket.id.to_string(),
+            "{}metadata cid {} ; content size difference {}",
+            prefix,
             metadata_cid.to_string(),
             data_size
         );
@@ -327,30 +307,29 @@ impl WasmMount {
             }
             // No uploading required
             _ => {
-                info!("sync()/ - no need to push content");
+                info!("{}: no need to push content", prefix);
             }
         }
 
         self.dirty = false;
         self.append = false;
 
-        info!("sync()/{} - synced", self.bucket.id.to_string());
+        info!("{}: synced", prefix);
 
         Ok(())
     }
 
     /// Unlock the current fs_metadata
     pub async fn unlock(&mut self, key: &EcEncryptionKey) -> Result<(), TombWasmError> {
-        info!("unlock()/{}", self.bucket.id);
+        let prefix = format!("unlock()/{}", self.bucket.name);
+        info!(prefix);
 
         // Check if the bucket is already unlocked
         if !self.locked() {
             return Ok(());
         }
 
-        info!("unlock()/{} - unlocking", self.bucket.id,);
-
-        info!("unlock()/{} - checking versioning", self.bucket.id,);
+        info!("{}: checking versioning", prefix);
         let Some(metadata_cid) = self.metadata_blockstore.get_root() else {
             return Err(TombWasmError::new("unable to retrieve metadata CID"));
         };
@@ -372,7 +351,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("unlock FsMetadata"))?;
 
-        info!("unlock()/{} - unlocked", self.bucket.id,);
+        info!("{}: unlocked", prefix);
 
         self.locked = false;
         self.fs_metadata = Some(fs_metadata);
@@ -452,11 +431,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        info!(
-            "ls()/{}/{}",
-            self.bucket.id.to_string(),
-            &path_segments.join("/")
-        );
+        let prefix = format!("ls()/{}/{}", self.bucket.name, &path_segments.join("/"));
+        info!(prefix);
 
         if self.locked() {
             return Err(
@@ -464,11 +440,7 @@ impl WasmMount {
             );
         };
 
-        info!(
-            "ls()/{}/{} - getting entries",
-            self.bucket.id,
-            &path_segments.join("/")
-        );
+        info!("{}: getting entries", prefix);
 
         // Get the entries
         let fs_metadata_entries = self
@@ -479,7 +451,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("list directory entries"))?;
 
-        info!("ls()/{} - mapping entries", self.bucket.id);
+        info!("{}: mapping entries", prefix);
 
         // Map the entries back to JsValues
         fs_metadata_entries
@@ -512,21 +484,13 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        info!(
-            "mkdir()/{}/{}",
-            self.bucket.id.to_string(),
-            &path_segments.join("/")
-        );
+        let prefix = format!("mkdir()/{}/{}", self.bucket.name, &path_segments.join("/"));
+        info!(prefix);
 
         if self.locked() {
             panic!("Bucket is locked");
         };
 
-        info!(
-            "mkdir()/{}/{} - mkdir",
-            self.bucket.id.to_string(),
-            &path_segments.join("/")
-        );
         self.fs_metadata
             .as_mut()
             .ok_or(TombWasmError::new("missing FsMetadata"))?
@@ -534,11 +498,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("mkdir"))?;
 
-        info!(
-            "mkdir()/{}/{} - dirty, syncing changes",
-            self.bucket.id.to_string(),
-            &path_segments.join("/")
-        );
+        info!("{}: dirty, syncing changes", prefix);
         self.dirty = true;
         self.sync().await?;
 
@@ -548,7 +508,8 @@ impl WasmMount {
 
     /// Refreshes the bucket to ensure its up to date against what the server is aware of
     pub async fn remount(&mut self, encryption_key_pem: String) -> TombResult<()> {
-        info!(bucket_id = ?self.bucket.id, "remount");
+        let prefix = format!("remount()/{}", self.bucket.name);
+        info!(prefix);
 
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
@@ -556,7 +517,7 @@ impl WasmMount {
 
         self.refresh(&key).await?;
 
-        info!(bucket_id = ?self.bucket.id, "remount complete");
+        info!("{}: remount complete", prefix);
 
         Ok(())
     }
@@ -582,11 +543,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        info!(
-            "add()/{}/{}",
-            self.bucket.id.to_string(),
-            &path_segments.join("/")
-        );
+        let prefix = format!("write()/{}/{}", self.bucket.name, &path_segments.join("/"));
+        info!(prefix);
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -605,10 +563,7 @@ impl WasmMount {
             )
             .await
             .map_err(to_wasm_error_with_msg("fs add"))?;
-        info!(
-            "add()/{} - dirty, syncing changes",
-            self.bucket.id.to_string()
-        );
+        info!("{}: dirty, syncing changes", prefix);
         self.dirty = true;
         self.append = true;
 
@@ -638,11 +593,12 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        info!(
+        let prefix = format!(
             "read_bytes()/{}/{}",
-            self.bucket.id.to_string(),
+            self.bucket.name,
             &path_segments.join("/")
         );
+        info!(prefix);
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -673,7 +629,7 @@ impl WasmMount {
                 .map_err(to_wasm_error_with_msg("find_cids"))?;
         }
 
-        info!("read_bytes() running fs.read @ {:?}", path_segments);
+        info!("{}: running fs.read", prefix);
 
         // Attempt to fetch from local first, remote second
         let split_store = DoubleSplitStore::new(&self.content_blockstore, &api_blockstore);
@@ -713,12 +669,13 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        info!(
+        let prefix = format!(
             "mv()/{}/{} => {}",
-            self.bucket.id.to_string(),
+            self.bucket.name,
             &from_path_segments.join("/"),
             &to_path_segments.join("/")
         );
+        info!(prefix);
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -736,10 +693,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("fs mv"))?;
 
-        info!(
-            "mv()/{} - dirty, syncing changes",
-            self.bucket.id.to_string()
-        );
+        info!("{}: dirty, syncing changes", prefix);
 
         self.dirty = true;
         // In order to keep sharing working, we need to append the content blockstore on move.
@@ -767,11 +721,8 @@ impl WasmMount {
             .map(|s| s.as_string().ok_or(TombWasmError::new("JsValue as string")))
             .collect::<Result<Vec<String>, TombWasmError>>()?;
 
-        info!(
-            "rm()/{}/{}",
-            self.bucket.id.to_string(),
-            path_segments.join("/")
-        );
+        let prefix = format!("rm()/{}/{}", self.bucket.name, path_segments.join("/"));
+        info!(prefix);
 
         if self.locked() {
             panic!("Bucket is locked");
@@ -802,10 +753,7 @@ impl WasmMount {
             .await
             .map_err(to_wasm_error_with_msg("fs rm"))?;
 
-        info!(
-            "rm()/{} - dirty, syncing changes",
-            self.bucket.id.to_string()
-        );
+        info!("{}: dirty, syncing changes", prefix,);
         self.dirty = true;
         self.sync().await?;
 
@@ -827,11 +775,8 @@ impl WasmMount {
     /// * `could not share with` - If the share fails
     #[wasm_bindgen(js_name = shareWith)]
     pub async fn share_with(&mut self, bucket_key_id: String) -> TombResult<()> {
-        info!(
-            "share_with/{}/{}",
-            self.bucket.id.to_string(),
-            bucket_key_id.clone()
-        );
+        let prefix = format!("share_with/{}/{}", self.bucket.name, bucket_key_id.clone());
+        info!(prefix);
         let bucket_id = self.bucket.id;
         let bucket_key_id =
             uuid::Uuid::parse_str(&bucket_key_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
@@ -841,7 +786,7 @@ impl WasmMount {
             .map_err(to_wasm_error_with_msg("read drive key"))?;
 
         let recipient_key = bucket_key.pem;
-        info!("share_with/{} - importing key", recipient_key.clone());
+        info!("{}/{}: importing key", prefix, recipient_key.clone());
         let recipient_key = EcPublicEncryptionKey::import(recipient_key.as_bytes())
             .await
             .map_err(to_wasm_error_with_msg("import recipient key"))?;
@@ -860,10 +805,7 @@ impl WasmMount {
         // Mark as dirty so fs is saved with new key info
         self.dirty = true;
 
-        info!(
-            "share_with/{} - dirty, syncing changes",
-            self.bucket.id.to_string()
-        );
+        info!("{}: dirty, syncing changes", prefix);
 
         self.sync().await?;
 
@@ -874,11 +816,12 @@ impl WasmMount {
     /// Share a file snapshot
     #[wasm_bindgen(js_name = shareFile)]
     pub async fn share_file(&mut self, path_segments: Array) -> TombResult<String> {
-        info!(
+        let prefix = format!(
             "share_file()/{}/{}",
-            self.bucket.id.to_string(),
+            self.bucket.name,
             &path_segments.join("/")
         );
+        info!(prefix);
 
         // Read the array as a Vec<String>
         let path_segments = path_segments
@@ -907,10 +850,7 @@ impl WasmMount {
         // Mark as append so the content blockstore is uploaded
         self.append = true;
 
-        info!(
-            "share_file/{} - dirty, syncing changes",
-            self.bucket.id.to_string()
-        );
+        info!("{}: dirty, syncing changes", prefix);
 
         self.sync().await?;
 
@@ -925,7 +865,7 @@ impl WasmMount {
     /// * "missing metadata" - If the metadata is missing
     #[wasm_bindgen(js_name = hasSnapshot)]
     pub fn has_snapshot(&self) -> bool {
-        info!("has_snapshot()/{}", self.bucket.id.to_string());
+        info!("has_snapshot()/{}", self.bucket.name);
         let metadata = self
             .metadata
             .as_ref()
@@ -942,7 +882,7 @@ impl WasmMount {
     /// * "missing metadata" - If the metadata is missing
     /// * "could not snapshot" - If the snapshot fails
     pub async fn snapshot(&mut self) -> TombResult<String> {
-        info!("snapshot()/{}", self.bucket.id.to_string());
+        info!("snapshot()/{}", self.bucket.name);
         let metadata = self
             .metadata
             .as_mut()
@@ -987,7 +927,7 @@ impl WasmMount {
     /// A Promise<void> in js speak. Should also update the internal state of the bucket
     /// on a successful update
     pub async fn rename(&mut self, name: String) -> TombResult<()> {
-        info!("rename()/{}/{}", self.bucket.id.to_string(), &name);
+        info!("rename()/{}/{}", self.bucket.name, &name);
         let mut update_bucket = self.bucket.clone();
         update_bucket.name = name;
         update_bucket
@@ -1004,11 +944,7 @@ impl WasmMount {
     /// # Returns
     /// A Promise<void> in js speak. Should update the mount to the version of the snapshot
     pub async fn restore(&mut self, wasm_snapshot: WasmSnapshot) -> TombResult<()> {
-        info!(
-            "restore()/{}/{}",
-            self.bucket.id.to_string(),
-            wasm_snapshot.id()
-        );
+        info!("restore()/{}/{}", self.bucket.name, wasm_snapshot.id());
         let snapshot = Snapshot::from(wasm_snapshot);
         snapshot
             .restore(&mut self.client)
