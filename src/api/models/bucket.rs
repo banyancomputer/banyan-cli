@@ -167,7 +167,11 @@ impl Bucket {
     /// Update the bucket fields. Puts the current local values against the current remote values.
     /// For now only updates to 'name' will be processed, all others will be ignored
     pub async fn update(&self, client: &mut Client) -> Result<(), ApiError> {
-        let update_request = UpdateBucket(self.clone());
+        let update_request = UpdateBucket {
+            bucket_id: String::from(self.id),
+            name: self.name.clone(),
+        };
+
         client.call_no_content(update_request).await
     }
 
