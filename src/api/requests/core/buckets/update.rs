@@ -2,11 +2,13 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
 use reqwest::{Client, RequestBuilder, Url};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::api::requests::ApiRequest;
 
+#[derive(Serialize)]
 pub struct UpdateBucket {
+    #[serde(skip)]
     pub bucket_id: String,
     pub name: String,
 }
@@ -23,7 +25,7 @@ impl ApiRequest for UpdateBucket {
             .join(&format!("/api/v1/buckets/{}", self.bucket_id))
             .unwrap();
 
-        client.put(url).json(&self.name)
+        client.put(url).json(&self)
     }
 
     fn requires_authentication(&self) -> bool {
