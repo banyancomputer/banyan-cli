@@ -350,18 +350,19 @@ impl TombWasm {
         bucket_id: String,
         encryption_key_pem: String,
     ) -> TombResult<WasmMount> {
-        info!("mount()/{}", &bucket_id);
+        let prefix = format!("mount()/{}", bucket_id);
+        info!("{prefix}");
 
         // Parse the bucket id
         let bucket_id_uuid =
             Uuid::parse_str(&bucket_id).map_err(to_wasm_error_with_msg("parse UUID"))?;
-        info!("mount()/{}/reading key pair", &bucket_id);
+        info!("{}: reading key pair", prefix);
 
         // Load the EcEncryptionKey
         let key = EcEncryptionKey::import(encryption_key_pem.as_bytes())
             .await
             .map_err(to_wasm_error_with_msg("import encryption key"))?;
-        info!("mount()/{}/reading bucket", &bucket_id);
+        info!("{}: reading bucket", prefix);
 
         // Load the bucket
         let bucket: WasmBucket = Bucket::read(self.client(), bucket_id_uuid)
@@ -369,13 +370,15 @@ impl TombWasm {
             .map_err(to_wasm_error_with_msg("read bucket"))?
             .into();
 
-        info!("mount()/{}/pulling mount", &bucket_id);
+        let prefix = format!("mount()/{}", bucket.name());
+
+        info!("{}: pulling mount", prefix);
 
         // Get the bucket id
         // Try to pull the mount. Otherwise create it and push an initial piece of metadata
         let mount = match WasmMount::pull(bucket.clone(), self.client()).await {
             Ok(mut mount) => {
-                info!("mount()/{}/pulled mount, unlocking", &bucket_id);
+                info!("{}: pulled mount, unlocking", prefix);
 
                 // Unlock the mount
                 let unlock_result = mount.unlock(&key).await;
@@ -386,14 +389,14 @@ impl TombWasm {
 
                 // Check the result
                 match unlock_result {
-                    Ok(_) => info!("mount()/{}/unlocked mount", &bucket_id),
-                    Err(_) => info!("mount()/{}/could not unlock mount", &bucket_id),
+                    Ok(_) => info!("{}: unlocked mount", prefix),
+                    Err(_) => info!("{}: could not unlock mount", prefix),
                 };
 
                 mount
             }
             Err(err) => {
-                error!("mount()/{}/failure to pull mount: {}", &bucket_id, err);
+                error!("{}: failure to pull mount: {}", prefix, err);
                 return Err(err.into());
             }
         };
