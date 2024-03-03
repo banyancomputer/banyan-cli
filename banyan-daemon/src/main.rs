@@ -1,4 +1,4 @@
-use banyan_guts::cli::commands::RunnableCommand;
+use banyan_guts::cli2::commands::RunnableCommand;
 use clap::Parser;
 use cli::Args;
 use tracing::Level;

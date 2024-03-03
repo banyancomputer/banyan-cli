@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use banyan_guts::cli::commands::RunnableCommand;
-use banyan_guts::cli::verbosity::MyVerbosity;
+use banyan_guts::cli2::commands::RunnableCommand;
+use banyan_guts::cli2::verbosity::MyVerbosity;
 use banyan_guts::native::NativeError;
 use clap::{command, Parser, Subcommand};
 use config::Config;

@@ -1,6 +1,6 @@
 use axum::{body::Bytes, http::StatusCode};
 use axum::{routing::post, Router};
-use banyan_guts::cli::commands::{RunnableCommand, TombCommand};
+use banyan_guts::cli2::commands::{BanyanServiceApiCommand, RunnableCommand};
 use banyan_guts::native::NativeError;
 
 pub async fn start_service() -> Result<(), NativeError> {
@@ -17,8 +17,8 @@ pub async fn start_service() -> Result<(), NativeError> {
 
 #[axum::debug_handler]
 async fn handler(body: Bytes) -> Result<String, StatusCode> {
-    let parse_body =
-        serde_json::from_slice::<TombCommand>(&body).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let parse_body = serde_json::from_slice::<BanyanServiceApiCommand>(&body)
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
 
     parse_body
         .clone()

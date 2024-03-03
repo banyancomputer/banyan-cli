@@ -6,9 +6,14 @@ type WnfsError = Box<dyn std::error::Error>;
 type LibipldError = wnfs::libipld::error::Error;
 
 /// CLI Parsing
+// #[cfg(not(target_arch = "wasm32"))]
+// #[cfg(feature = "cli")]
+// pub mod cli;
+
+/// CLI Parsing (new version)
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(feature = "cli")]
-pub mod cli;
+pub mod cli2;
 
 /// Native functionality
 #[cfg(not(target_arch = "wasm32"))]

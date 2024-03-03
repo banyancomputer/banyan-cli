@@ -1,10 +1,14 @@
-use banyan_guts::cli::args::Args;
+use crate::cli::BanyanCliCommand;
+use banyan_guts::cli2::commands::RunnableCommand;
 use clap::Parser;
 use tracing::Level;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::Layer;
+
+mod cli;
+mod daemon;
 
 /*
 claudia todo list
@@ -21,7 +25,7 @@ sam's include_bytes thing
 #[tokio::main]
 async fn main() {
     // Parse command line arguments. see args.rs
-    let cli = Args::parse();
+    let cli = crate::cli::Args::parse();
 
     // TODO: is there anything we need to do here
     let (non_blocking_writer, _guard) = tracing_appender::non_blocking(std::io::stderr());
@@ -39,18 +43,25 @@ async fn main() {
 
     tracing_subscriber::registry().with(stderr_layer).init();
 
-    let serialized_command = serde_json::to_vec(&cli.command).unwrap();
-    let client = reqwest::Client::new();
+    match cli.command {
+        // if it's a daemon command, we run it locally
+        BanyanCliCommand::Daemon { command } => command.run().await.unwrap(),
+        // if it's anything else, we just send it to the daemon to run
+        _ => {
+            let serialized_command = serde_json::to_vec(&cli.command).unwrap();
+            let client = reqwest::Client::new();
 
-    // TODO: variable-ify this endpoint/port
-    let res = client
-        .post("http://127.0.0.1:3000/")
-        .body(serialized_command)
-        .send()
-        .await
-        .unwrap();
+            // TODO: variable-ify this endpoint/port
+            let res = client
+                .post("http://127.0.0.1:3000/")
+                .body(serialized_command)
+                .send()
+                .await
+                .unwrap();
 
-    // TODO: do something better than just printing this. lame
-    // TODO: error handle
-    println!("{}", res.text().await.unwrap());
+            // TODO: do something better than just printing this. lame
+            // TODO: error handle
+            println!("{}", res.text().await.unwrap());
+        }
+    };
 }

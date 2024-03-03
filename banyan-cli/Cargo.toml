@@ -23,6 +23,7 @@ keywords = [
 ]
 
 [dependencies]
+async-trait = { workspace = true }
 banyan-guts = { path = "../banyan-guts" , features = ["cli"] }
 clap = { workspace = true }
 reqwest = "0.11.23"

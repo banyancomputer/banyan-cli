@@ -331,6 +331,7 @@ dependencies = [
 name = "banyan-cli"
 version = "1.1.1"
 dependencies = [
+ "async-trait",
  "banyan-guts",
  "clap",
  "reqwest",

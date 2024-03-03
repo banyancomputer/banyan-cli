@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[cfg(feature = "cli")]
-use {crate::cli::specifiers::DriveSpecifier, std::path::PathBuf, uuid::Uuid};
+use {crate::cli2::specifiers::DriveSpecifier, std::path::PathBuf, uuid::Uuid};
 
 #[derive(Debug)]
 pub struct NativeError {

@@ -1,5 +1,5 @@
 #[cfg(feature = "cli")]
-use crate::cli::specifiers::DriveSpecifier;
+use crate::cli2::specifiers::DriveSpecifier;
 use crate::{
     api::models::bucket::{Bucket as RemoteBucket, BucketType, StorageClass},
     native::{
