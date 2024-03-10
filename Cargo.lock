@@ -337,6 +337,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sysinfo 0.30.5",
  "tokio",
  "tracing",
  "tracing-appender",

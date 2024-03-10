@@ -1,46 +1,45 @@
-use async_trait::async_trait;
-use clap::Subcommand;
+use banyan_guts::{native::NativeError, shared::PID_FILE};
+use std::path::Path;
+use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
 
-use banyan_guts::cli2::commands::RunnableCommand;
-use banyan_guts::native::NativeError;
-
-use serde::{Deserialize, Serialize};
-
-/// Subcommand for daemon
-#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
-pub enum DaemonCommand {
-    /// Start Banyan daemon
-    Start,
-    /// Stop Banyan daemon
-    Stop,
-    /// Restart Banyan daemon
-    Restart,
-    /// Get the status of the daemon
-    Status,
-    /// Get the version of the daemon
-    Version,
+pub fn daemon_is_running() -> bool {
+    let pid_file_path = Path::new(PID_FILE);
+    if pid_file_path.exists() {
+        let pid_contents = std::fs::read_to_string(pid_file_path).unwrap();
+        let pid = pid_contents.trim().parse::<usize>().unwrap();
+        let system = System::new_with_specifics(
+            RefreshKind::new().with_processes(ProcessRefreshKind::new()),
+        );
+        matches!(system.process(Pid::from(pid)), Some(_process))
+    } else {
+        false
+    }
 }
 
-#[async_trait]
-impl RunnableCommand<NativeError> for DaemonCommand {
-    async fn run_internal(self) -> Result<String, NativeError> {
-        match self {
-            DaemonCommand::Start => {
-                unimplemented!()
-            }
-            DaemonCommand::Stop => {
-                unimplemented!()
-            }
-            DaemonCommand::Restart => {
-                unimplemented!()
-            }
-            // TODO graceful kill
-            DaemonCommand::Status => {
-                unimplemented!()
-            }
-            DaemonCommand::Version => {
-                unimplemented!()
-            }
-        }
+pub fn start_daemon() -> Result<(), NativeError> {
+    if !daemon_is_running() {
+        let child = std::process::Command::new("banyan-daemon").spawn().unwrap();
+        std::fs::write(PID_FILE, child.id().to_string())?;
+        Ok(())
+    } else {
+        Err(NativeError::custom_error("daemon already running"))
+    }
+}
+
+pub fn stop_daemon() -> Result<String, NativeError> {
+    let pid_file_path = Path::new(PID_FILE);
+    if pid_file_path.exists() {
+        let pid_contents = std::fs::read_to_string(pid_file_path)?;
+        let pid = pid_contents.trim().parse::<usize>().unwrap();
+        let system = System::new_with_specifics(
+            RefreshKind::new().with_processes(ProcessRefreshKind::new()),
+        );
+        let process = system
+            .process(Pid::from(pid))
+            .ok_or(NativeError::custom_error("Daemon not running"))?;
+        process.kill();
+        Ok("Killed daemon".to_string())
+    } else {
+        Err(NativeError::custom_error("Daemon not running"))
     }
 }

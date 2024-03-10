@@ -29,6 +29,7 @@ clap = { workspace = true }
 reqwest = "0.11.23"
 serde = { workspace = true }
 serde_json = { workspace = true }
+sysinfo = "0.30.5"
 tokio = { workspace = true, features = ["full", "io-util", "fs"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }

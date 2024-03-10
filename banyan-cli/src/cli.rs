@@ -24,6 +24,7 @@ use banyan_guts::cli2::verbosity::MyVerbosity;
 use banyan_guts::native::NativeError;
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+
 // use tracing::info;
 
 /// Prompt the user for a y/n answer
@@ -59,7 +60,7 @@ pub enum BanyanCliCommand {
     Daemon {
         /// Subcommand
         #[clap(subcommand)]
-        command: crate::daemon::DaemonCommand,
+        command: DaemonCommand,
     },
     /// Account Login and Details
     Account {
@@ -73,6 +74,73 @@ pub enum BanyanCliCommand {
         #[clap(subcommand)]
         command: SyncCommand,
     },
+}
+
+/// Subcommand for daemon
+#[derive(Subcommand, Clone, Debug, Serialize, Deserialize)]
+pub enum DaemonCommand {
+    /// Start Banyan daemon
+    Start,
+    /// Stop Banyan daemon
+    Stop,
+    /// Restart Banyan daemon
+    Restart,
+    /// Get the status of the daemon
+    Status,
+    /// Get the version of the daemon
+    Version,
+}
+
+#[async_trait]
+impl RunnableCommand<NativeError> for DaemonCommand {
+    async fn run_internal(self) -> Result<String, NativeError> {
+        match self {
+            DaemonCommand::Start => {
+                // check that the banyan daemon isn't running
+                if !crate::daemon::daemon_is_running() {
+                    // start the daemon
+                    crate::daemon::start_daemon()?;
+                    Ok("Started daemon".to_string())
+                } else {
+                    Err(NativeError::custom_error(
+                        "Banyan daemon is already running",
+                    ))
+                }
+            }
+            DaemonCommand::Stop => {
+                if !crate::daemon::daemon_is_running() {
+                    Err(NativeError::custom_error("Banyan daemon is not running"))
+                } else {
+                    // stop the daemon
+                    crate::daemon::stop_daemon()?;
+                    Ok("Stopped daemon".to_string())
+                }
+            }
+            DaemonCommand::Restart => {
+                if !crate::daemon::daemon_is_running() {
+                    // start the daemon
+                    crate::daemon::start_daemon()?;
+                    Ok("Started daemon".to_string())
+                } else {
+                    // stop the daemon
+                    crate::daemon::stop_daemon()?;
+                    // start the daemon
+                    crate::daemon::start_daemon()?;
+                    Ok("Restarted daemon".to_string())
+                }
+            }
+            DaemonCommand::Status => {
+                if crate::daemon::daemon_is_running() {
+                    Ok("Daemon is running".to_string())
+                } else {
+                    Ok("Daemon is not running".to_string())
+                }
+            }
+            DaemonCommand::Version => {
+                unimplemented!();
+            }
+        }
+    }
 }
 
 #[async_trait]

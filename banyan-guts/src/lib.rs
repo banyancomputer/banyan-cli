@@ -2,6 +2,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![warn(rust_2018_idioms)]
 
+pub mod shared;
+
 type WnfsError = Box<dyn std::error::Error>;
 type LibipldError = wnfs::libipld::error::Error;
 
